@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Home, Camera, Video } from 'lucide-react';
+import { ChevronDown, Search, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -10,21 +10,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-const navigationItems = [
-  { label: 'Home', href: '/', icon: Home },
-  { label: 'Live Cams', href: '/live-cams', icon: Camera },
-  { label: 'Bet Now', href: '/bet-now' },
-  { label: '1Win', href: '/1win' },
-  { label: 'Porn Girls', href: '/porn-girls' },
-  { label: 'Featured Videos', href: '/featured', icon: Video },
-  { label: 'Recommended', href: '/recommended' },
-  { label: 'Shorties', href: '/shorties' },
-  { label: 'Hottest in Nigeria', href: '/hottest-nigeria' },
-];
-
 const categories = [
-  'MILF', 'Teen', 'Ebony', 'Asian', 'Blonde', 'Brunette', 'BBW', 'Anal', 
-  'Blowjob', 'Creampie', 'Facial', 'Interracial', 'Lesbian', 'POV'
+  'Ebony', 'Big Ass', 'Cumshot', 'Anal', 'Lesbian', 'MILF', 
+  'Japanese', 'Hentai', 'Amateur', 'Teen', 'Blonde', 'Brunette', 
+  'BBW', 'Blowjob', 'Creampie', 'Facial', 'Interracial', 'POV'
 ];
 
 const Header = () => {
@@ -43,36 +32,29 @@ const Header = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-1">
-            {navigationItems.slice(0, 8).map((item) => {
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.label}
-                  to={item.href}
-                  className={`nav-item ${location.pathname === item.href ? 'active' : ''}`}
-                >
-                  {Icon && <Icon className="mr-1 h-4 w-4" />}
-                  {item.label}
-                </Link>
-              );
-            })}
+          <nav className="hidden lg:flex items-center space-x-6">
+            <Link
+              to="/"
+              className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}
+            >
+              Home
+            </Link>
 
             {/* Categories Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="nav-item">
-                  All Categories
-                  <ChevronDown className="ml-1 h-4 w-4" />
+                <Button variant="ghost" className="nav-item flex items-center space-x-1">
+                  <span>All Categories</span>
+                  <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-popover/95 backdrop-blur">
-                <div className="grid grid-cols-2 gap-1 p-2">
+              <DropdownMenuContent className="w-56 bg-popover/95 backdrop-blur max-h-80 overflow-y-auto">
+                <div className="grid grid-cols-1 gap-1 p-2">
                   {categories.map((category) => (
                     <DropdownMenuItem key={category} asChild>
                       <Link
-                        to={`/category/${category.toLowerCase()}`}
-                        className="text-sm hover:bg-accent/20 rounded px-2 py-1"
+                        to={`/category/${category.toLowerCase().replace(' ', '-')}`}
+                        className="text-sm hover:bg-accent/20 rounded px-3 py-2 block"
                       >
                         {category}
                       </Link>
@@ -82,8 +64,14 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Link to="/channels" className="nav-item">Channels</Link>
-            <Link to="/playlists" className="nav-item">Playlists</Link>
+            {/* Admin Link - Hidden, accessible via direct URL */}
+            <Link 
+              to="/admin-hubx-2024" 
+              className="nav-item opacity-0 pointer-events-none absolute"
+              style={{ left: '-9999px' }}
+            >
+              <Settings className="w-4 h-4" />
+            </Link>
           </nav>
 
           {/* Mobile Menu Button */}
@@ -104,17 +92,30 @@ const Header = () => {
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-border/40 py-4">
-            <nav className="grid grid-cols-2 gap-2">
-              {navigationItems.map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.href}
-                  className="nav-item text-center"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
+            <nav className="space-y-2">
+              <Link
+                to="/"
+                className="block nav-item py-2"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Home
+              </Link>
+              
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground px-3 py-1">Categories</p>
+                <div className="grid grid-cols-2 gap-1">
+                  {categories.slice(0, 8).map((category) => (
+                    <Link
+                      key={category}
+                      to={`/category/${category.toLowerCase().replace(' ', '-')}`}
+                      className="text-sm hover:bg-accent/20 rounded px-3 py-1 block"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {category}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </nav>
           </div>
         )}

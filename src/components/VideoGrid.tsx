@@ -63,30 +63,34 @@ const mockVideos = [
     views: 789012,
     uploadDate: '2024-01-10',
     previewUrl: undefined
-  }
+  },
 ];
 
 interface VideoGridProps {
   title?: string;
   videos?: typeof mockVideos;
+  showTitle?: boolean;
 }
 
 const VideoGrid: React.FC<VideoGridProps> = ({ 
   title = "Recently Uploaded", 
-  videos = mockVideos 
+  videos = mockVideos,
+  showTitle = true
 }) => {
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-foreground">{title}</h2>
-        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-          <span>{videos.length} videos</span>
+      {showTitle && (
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-foreground">{title}</h2>
+          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+            <span>{videos.length} videos</span>
+          </div>
         </div>
-      </div>
+      )}
       
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
         {videos.map((video, index) => (
-          <div key={video.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.1}s` }}>
+          <div key={video.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
             <VideoCard {...video} />
           </div>
         ))}

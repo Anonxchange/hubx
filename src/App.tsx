@@ -22,17 +22,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/video/:id" element={<VideoPage />} />
           <Route path="/category/:category" element={<CategoryPage />} />
-          <Route path="/admin" element={<AdminPanel />} />
-          <Route path="/live-cams" element={<Index />} />
-          <Route path="/bet-now" element={<Index />} />
-          <Route path="/1win" element={<Index />} />
-          <Route path="/porn-girls" element={<Index />} />
-          <Route path="/featured" element={<Index />} />
-          <Route path="/recommended" element={<Index />} />
-          <Route path="/shorties" element={<Index />} />
-          <Route path="/hottest-nigeria" element={<Index />} />
-          <Route path="/channels" element={<Index />} />
-          <Route path="/playlists" element={<Index />} />
+          <Route path="/admin-hubx-2024" element={<AdminPanel />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

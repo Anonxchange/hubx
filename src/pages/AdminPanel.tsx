@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,7 +6,14 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Video, BarChart3, MessageCircle, Settings } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Upload, Video, BarChart3, MessageCircle, Settings, X } from 'lucide-react';
+
+const availableCategories = [
+  'Ebony', 'Big Ass', 'Cumshot', 'Anal', 'Lesbian', 'MILF', 
+  'Japanese', 'Hentai', 'Amateur', 'Teen', 'Blonde', 'Brunette', 
+  'BBW', 'Blowjob', 'Creampie', 'Facial', 'Interracial', 'POV'
+];
 
 const AdminPanel = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -15,7 +21,7 @@ const AdminPanel = () => {
   const [uploadForm, setUploadForm] = useState({
     title: '',
     description: '',
-    tags: '',
+    selectedCategories: [] as string[],
     videoFile: null as File | null,
     thumbnailFile: null as File | null,
     previewFile: null as File | null
@@ -24,7 +30,7 @@ const AdminPanel = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     // Simple password check - in production, use proper authentication
-    if (password === 'admin123') {
+    if (password === 'hubx2024admin') {
       setIsAuthenticated(true);
     } else {
       alert('Invalid password');
@@ -38,6 +44,15 @@ const AdminPanel = () => {
     }
   };
 
+  const handleCategoryToggle = (category: string) => {
+    setUploadForm(prev => ({
+      ...prev,
+      selectedCategories: prev.selectedCategories.includes(category)
+        ? prev.selectedCategories.filter(c => c !== category)
+        : [...prev.selectedCategories, category]
+    }));
+  };
+
   const handleUpload = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Uploading video:', uploadForm);
@@ -46,7 +61,7 @@ const AdminPanel = () => {
     setUploadForm({
       title: '',
       description: '',
-      tags: '',
+      selectedCategories: [],
       videoFile: null,
       thumbnailFile: null,
       previewFile: null
@@ -58,7 +73,7 @@ const AdminPanel = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Admin Login</CardTitle>
+            <CardTitle>HubX Admin Access</CardTitle>
             <CardDescription>Enter password to access admin panel</CardDescription>
           </CardHeader>
           <CardContent>
@@ -133,21 +148,12 @@ const AdminPanel = () => {
                 <form onSubmit={handleUpload} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <Label htmlFor="title">Title</Label>
+                      <Label htmlFor="title">Video Title</Label>
                       <Input
                         id="title"
                         value={uploadForm.title}
                         onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
                         required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="tags">Tags (comma separated)</Label>
-                      <Input
-                        id="tags"
-                        value={uploadForm.tags}
-                        onChange={(e) => setUploadForm(prev => ({ ...prev, tags: e.target.value }))}
-                        placeholder="tag1, tag2, tag3"
                       />
                     </div>
                   </div>
@@ -162,9 +168,46 @@ const AdminPanel = () => {
                     />
                   </div>
 
+                  {/* Category Selection */}
+                  <div>
+                    <Label>Categories (select one or more)</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
+                      {availableCategories.map((category) => (
+                        <div key={category} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={category}
+                            checked={uploadForm.selectedCategories.includes(category)}
+                            onCheckedChange={() => handleCategoryToggle(category)}
+                          />
+                          <Label htmlFor={category} className="text-sm cursor-pointer">
+                            {category}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Selected Categories Display */}
+                    {uploadForm.selectedCategories.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {uploadForm.selectedCategories.map((category) => (
+                          <Badge key={category} variant="secondary" className="flex items-center space-x-1">
+                            <span>{category}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCategoryToggle(category)}
+                              className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div>
-                      <Label htmlFor="video">Video File</Label>
+                      <Label htmlFor="video">Video File *</Label>
                       <Input
                         id="video"
                         type="file"
@@ -174,14 +217,16 @@ const AdminPanel = () => {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="thumbnail">Thumbnail</Label>
+                      <Label htmlFor="thumbnail">Thumbnail (Optional)</Label>
                       <Input
                         id="thumbnail"
                         type="file"
                         accept="image/*"
                         onChange={handleFileChange('thumbnailFile')}
-                        required
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Auto-generated if not provided
+                      </p>
                     </div>
                     <div>
                       <Label htmlFor="preview">Preview Video (Optional)</Label>
@@ -191,10 +236,13 @@ const AdminPanel = () => {
                         accept="video/*"
                         onChange={handleFileChange('previewFile')}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        For hover previews (5-10 seconds)
+                      </p>
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full" disabled={!uploadForm.title || !uploadForm.videoFile}>
                     Upload Video
                   </Button>
                 </form>
