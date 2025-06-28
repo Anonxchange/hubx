@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { Settings } from 'lucide-react';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
 
@@ -19,6 +21,17 @@ const Index = () => {
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Discover and stream the latest content with our modern video platform
             </p>
+            
+            {/* Admin Panel Link */}
+            <div className="pt-4">
+              <Link 
+                to="/admin" 
+                className="inline-flex items-center space-x-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Settings className="w-4 h-4" />
+                <span>Admin Panel</span>
+              </Link>
+            </div>
           </div>
         </div>
       </section>
