@@ -1,82 +1,57 @@
 
 import React from 'react';
 import VideoCard from './VideoCard';
-
-// Mock data for demonstration
-const mockVideos = [
-  {
-    id: '1',
-    title: 'Beautiful Sunset Adventure',
-    thumbnail: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=225&fit=crop',
-    duration: '12:34',
-    tags: ['Nature', 'Adventure', 'Sunset'],
-    views: 1234567,
-    uploadDate: '2024-01-15',
-    previewUrl: undefined
-  },
-  {
-    id: '2',
-    title: 'Tech Review: Latest Gadgets',
-    thumbnail: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=225&fit=crop',
-    duration: '8:45',
-    tags: ['Tech', 'Review', 'Gadgets'],
-    views: 567890,
-    uploadDate: '2024-01-14',
-    previewUrl: undefined
-  },
-  {
-    id: '3',
-    title: 'Cooking Masterclass Series',
-    thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&h=225&fit=crop',
-    duration: '15:22',
-    tags: ['Cooking', 'Food', 'Tutorial'],
-    views: 890123,
-    uploadDate: '2024-01-13',
-    previewUrl: undefined
-  },
-  {
-    id: '4',
-    title: 'Gaming Highlights Compilation',
-    thumbnail: 'https://images.unsplash.com/photo-1605810230434-7631ac76ec81?w=400&h=225&fit=crop',
-    duration: '6:18',
-    tags: ['Gaming', 'Highlights', 'Entertainment'],
-    views: 234567,
-    uploadDate: '2024-01-12',
-    previewUrl: undefined
-  },
-  {
-    id: '5',
-    title: 'Fitness Workout Routine',
-    thumbnail: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=225&fit=crop',
-    duration: '25:10',
-    tags: ['Fitness', 'Workout', 'Health'],
-    views: 345678,
-    uploadDate: '2024-01-11',
-    previewUrl: undefined
-  },
-  {
-    id: '6',
-    title: 'Travel Vlog: Exotic Destinations',
-    thumbnail: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=225&fit=crop',
-    duration: '18:47',
-    tags: ['Travel', 'Vlog', 'Adventure'],
-    views: 789012,
-    uploadDate: '2024-01-10',
-    previewUrl: undefined
-  },
-];
+import { Video } from '@/services/videosService';
 
 interface VideoGridProps {
   title?: string;
-  videos?: typeof mockVideos;
+  videos: Video[];
   showTitle?: boolean;
+  isLoading?: boolean;
 }
 
 const VideoGrid: React.FC<VideoGridProps> = ({ 
   title = "Recently Uploaded", 
-  videos = mockVideos,
-  showTitle = true
+  videos = [],
+  showTitle = true,
+  isLoading = false
 }) => {
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        {showTitle && (
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-foreground">{title}</h2>
+          </div>
+        )}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
+          {Array.from({ length: 14 }).map((_, index) => (
+            <div key={index} className="animate-pulse">
+              <div className="aspect-video bg-muted rounded-lg mb-3"></div>
+              <div className="h-4 bg-muted rounded mb-2"></div>
+              <div className="h-3 bg-muted rounded w-3/4"></div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (videos.length === 0) {
+    return (
+      <div className="space-y-6">
+        {showTitle && (
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-foreground">{title}</h2>
+          </div>
+        )}
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No videos found</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {showTitle && (
@@ -91,7 +66,16 @@ const VideoGrid: React.FC<VideoGridProps> = ({
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
         {videos.map((video, index) => (
           <div key={video.id} className="animate-fade-in" style={{ animationDelay: `${index * 0.05}s` }}>
-            <VideoCard {...video} />
+            <VideoCard
+              id={video.id}
+              title={video.title}
+              thumbnail={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=225&fit=crop'}
+              duration={video.duration}
+              tags={video.tags}
+              views={video.views}
+              uploadDate={video.created_at}
+              previewUrl={video.preview_url}
+            />
           </div>
         ))}
       </div>

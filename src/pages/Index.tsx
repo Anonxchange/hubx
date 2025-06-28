@@ -6,7 +6,6 @@ import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -22,6 +21,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
+import { useVideos } from '@/hooks/useVideos';
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -29,10 +29,11 @@ const Index = () => {
   const [selectedSort, setSelectedSort] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Mock data - in real app this would come from your backend
-  const totalVideos = 47; // Example total
-  const videosPerPage = 20;
-  const totalPages = Math.ceil(totalVideos / videosPerPage);
+  const { data, isLoading, error } = useVideos(currentPage, 20, selectedCategory);
+
+  const videos = data?.videos || [];
+  const totalPages = data?.totalPages || 1;
+  const totalVideos = data?.totalCount || 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,73 +127,132 @@ const Index = () => {
 
       {/* Main Video Grid */}
       <main className="container mx-auto px-4 pb-12">
-        <VideoGrid title="" showTitle={false} />
+        <VideoGrid 
+          title="" 
+          showTitle={false} 
+          videos={videos}
+          isLoading={isLoading}
+        />
         
         {/* Pagination */}
-        <div className="mt-8 flex justify-center">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious 
-                  href="#" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage > 1) setCurrentPage(currentPage - 1);
-                  }}
-                  className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
-                />
-              </PaginationItem>
-              
-              {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <PaginationItem key={pageNum}>
-                    <PaginationLink
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setCurrentPage(pageNum);
-                      }}
-                      isActive={currentPage === pageNum}
-                    >
-                      {pageNum}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              })}
-              
-              {totalPages > 5 && (
+        {totalPages > 1 && (
+          <div className="mt-8 flex justify-center">
+            <Pagination>
+              <PaginationContent>
                 <PaginationItem>
-                  <span className="px-4 py-2">...</span>
+                  <PaginationPrevious 
+                    href="#" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) setCurrentPage(currentPage - 1);
+                    }}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
                 </PaginationItem>
-              )}
-              
-              <PaginationItem>
-                <PaginationNext 
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-                  }}
-                  className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
+                
+                {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(pageNum);
+                        }}
+                        isActive={currentPage === pageNum}
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                
+                {totalPages > 5 && (
+                  <PaginationItem>
+                    <span className="px-4 py-2">...</span>
+                  </PaginationItem>
+                )}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                    }}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/40 bg-muted/20 py-8">
-        <div className="container mx-auto px-4 text-center">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <div className="gradient-overlay rounded-lg p-2">
-              <span className="text-lg font-bold text-white">HubX</span>
+      {/* Footer - Styled like the uploaded image */}
+      <footer className="bg-black text-white py-12">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {/* Logo and Description */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <div className="gradient-overlay rounded-lg p-2">
+                  <span className="text-xl font-bold text-white">HubX</span>
+                </div>
+              </div>
+              <p className="text-gray-400 text-sm">
+                Premium adult entertainment platform with the latest HD content. 
+                New videos added daily for your viewing pleasure.
+              </p>
+            </div>
+
+            {/* Categories */}
+            <div>
+              <h3 className="font-semibold mb-4 text-lg">Categories</h3>
+              <ul className="space-y-2 text-sm">
+                <li><Link to="/category/ebony" className="text-gray-400 hover:text-white transition-colors">Ebony</Link></li>
+                <li><Link to="/category/big-ass" className="text-gray-400 hover:text-white transition-colors">Big Ass</Link></li>
+                <li><Link to="/category/anal" className="text-gray-400 hover:text-white transition-colors">Anal</Link></li>
+                <li><Link to="/category/lesbian" className="text-gray-400 hover:text-white transition-colors">Lesbian</Link></li>
+                <li><Link to="/category/milf" className="text-gray-400 hover:text-white transition-colors">MILF</Link></li>
+              </ul>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h3 className="font-semibold mb-4 text-lg">Quick Links</h3>
+              <ul className="space-y-2 text-sm">
+                <li><Link to="/" className="text-gray-400 hover:text-white transition-colors">Home</Link></li>
+                <li><Link to="/category/amateur" className="text-gray-400 hover:text-white transition-colors">Amateur</Link></li>
+                <li><Link to="/category/hentai" className="text-gray-400 hover:text-white transition-colors">Hentai</Link></li>
+                <li><Link to="/category/japanese" className="text-gray-400 hover:text-white transition-colors">Japanese</Link></li>
+              </ul>
+            </div>
+
+            {/* Legal & Info */}
+            <div>
+              <h3 className="font-semibold mb-4 text-lg">Legal</h3>
+              <ul className="space-y-2 text-sm">
+                <li><span className="text-gray-400">Privacy Policy</span></li>
+                <li><span className="text-gray-400">Terms of Service</span></li>
+                <li><span className="text-gray-400">DMCA</span></li>
+                <li><span className="text-gray-400">2257 Compliance</span></li>
+              </ul>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">
-            © 2024 HubX. All rights reserved.
-          </p>
+
+          {/* Bottom Bar */}
+          <div className="border-t border-gray-800 mt-8 pt-8 flex flex-col md:flex-row justify-between items-center">
+            <p className="text-gray-400 text-sm">
+              © 2024 HubX. All rights reserved.
+            </p>
+            <div className="flex space-x-4 mt-4 md:mt-0">
+              <span className="text-gray-400 text-sm">18+ Adult Content</span>
+              <span className="text-gray-400 text-sm">•</span>
+              <span className="text-gray-400 text-sm">Parental Controls</span>
+            </div>
+          </div>
         </div>
       </footer>
     </div>

@@ -1,39 +1,32 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
+import { useVideosByCategory } from '@/hooks/useVideos';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 
 const CategoryPage = () => {
   const { category } = useParams<{ category: string }>();
+  const [currentPage, setCurrentPage] = useState(1);
   
-  // Mock data for category videos
-  const categoryVideos = [
-    {
-      id: '1',
-      title: `${category} Content Video 1`,
-      thumbnail: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=225&fit=crop',
-      duration: '12:34',
-      tags: [category || 'Category', 'HD', 'Premium'],
-      views: 1234567,
-      uploadDate: '2024-01-15',
-      previewUrl: undefined
-    },
-    {
-      id: '2',
-      title: `${category} Content Video 2`,
-      thumbnail: 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=225&fit=crop',
-      duration: '8:45',
-      tags: [category || 'Category', 'Popular', 'Featured'],
-      views: 567890,
-      uploadDate: '2024-01-14',
-      previewUrl: undefined
-    },
-    // Add more mock videos as needed
-  ];
+  const { data, isLoading, error } = useVideosByCategory(category || '', currentPage, 20);
+  
+  const videos = data?.videos || [];
+  const totalPages = data?.totalPages || 1;
+  const totalVideos = data?.totalCount || 0;
 
-  const videoCount = Math.floor(Math.random() * 100) + 20; // Mock count
+  const categoryDisplayName = category?.split('-').map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ') || 'Category';
 
   return (
     <div className="min-h-screen bg-background">
@@ -51,10 +44,10 @@ const CategoryPage = () => {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl lg:text-4xl font-bold capitalize mb-2">
-                {category} Videos
+                {categoryDisplayName} Videos
               </h1>
               <p className="text-muted-foreground">
-                {videoCount} videos in this category
+                {totalVideos} videos in this category
               </p>
             </div>
           </div>
@@ -63,8 +56,65 @@ const CategoryPage = () => {
         {/* Videos Grid */}
         <VideoGrid 
           title=""
-          videos={categoryVideos}
+          videos={videos}
+          showTitle={false}
+          isLoading={isLoading}
         />
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-8 flex justify-center">
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious 
+                    href="#" 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage > 1) setCurrentPage(currentPage - 1);
+                    }}
+                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+                
+                {[...Array(Math.min(5, totalPages))].map((_, i) => {
+                  const pageNum = i + 1;
+                  return (
+                    <PaginationItem key={pageNum}>
+                      <PaginationLink
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setCurrentPage(pageNum);
+                        }}
+                        isActive={currentPage === pageNum}
+                      >
+                        {pageNum}
+                      </PaginationLink>
+                    </PaginationItem>
+                  );
+                })}
+                
+                {totalPages > 5 && (
+                  <PaginationItem>
+                    <span className="px-4 py-2">...</span>
+                  </PaginationItem>
+                )}
+                
+                <PaginationItem>
+                  <PaginationNext 
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+                    }}
+                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </main>
     </div>
   );

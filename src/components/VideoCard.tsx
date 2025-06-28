@@ -69,6 +69,16 @@ const VideoCard: React.FC<VideoCardProps> = ({
     return `${Math.floor(diffDays / 30)} months ago`;
   };
 
+  const formatTagForUrl = (tag: string) => {
+    return tag.toLowerCase().replace(' ', '-');
+  };
+
+  const formatTagForDisplay = (tag: string) => {
+    return tag.split('-').map(word => 
+      word.charAt(0).toUpperCase() + word.slice(1)
+    ).join(' ');
+  };
+
   return (
     <div 
       className="video-card group cursor-pointer"
@@ -133,7 +143,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
                 variant="secondary"
                 className="text-xs px-2 py-0 hover:bg-primary/20 transition-colors"
               >
-                {tag}
+                {formatTagForDisplay(tag)}
               </Badge>
             ))}
             {tags.length > 3 && (

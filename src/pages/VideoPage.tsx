@@ -2,33 +2,40 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Share, Clock, Video as VideoIcon } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import CommentSection from '@/components/CommentSection';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { getVideoById, incrementViews } from '@/services/videosService';
+import { useRelatedVideos } from '@/hooks/useVideos';
 
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
-  const [views, setViews] = useState(1234567);
+  const queryClient = useQueryClient();
 
-  // Mock video data
-  const video = {
-    id: id,
-    title: 'Amazing Video Content - Full Experience',
-    description: 'This is a detailed description of the video content. It includes information about what viewers can expect, the quality of the content, and any relevant details that enhance the viewing experience.',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    thumbnail: 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop',
-    duration: '12:34',
-    tags: ['Premium', 'HD', 'Popular', 'Featured'],
-    uploadDate: '2024-01-15',
-    uploader: 'HubX Studios'
-  };
+  const { data: video, isLoading, error } = useQuery({
+    queryKey: ['video', id],
+    queryFn: () => getVideoById(id!),
+    enabled: !!id,
+  });
+
+  const { data: relatedVideos = [] } = useRelatedVideos(
+    video?.id || '',
+    video?.tags || [],
+    5
+  );
 
   useEffect(() => {
-    // Increment view count when video loads
-    setViews(prev => prev + 1);
-  }, [id]);
+    if (video?.id) {
+      incrementViews(video.id);
+      // Invalidate and refetch video to get updated view count
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['video', id] });
+      }, 1000);
+    }
+  }, [video?.id, id, queryClient]);
 
   const formatViews = (views: number) => {
     if (views >= 1000000) {
@@ -52,7 +59,7 @@ const VideoPage = () => {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: video.title,
+          title: video?.title,
           text: 'Check out this video on HubX',
           url: window.location.href,
         });
@@ -60,11 +67,40 @@ const VideoPage = () => {
         console.log('Error sharing:', err);
       }
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(window.location.href);
-      // You could show a toast notification here
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <div className="animate-pulse space-y-6">
+            <div className="h-4 bg-muted rounded w-24"></div>
+            <div className="aspect-video bg-muted rounded-lg"></div>
+            <div className="h-8 bg-muted rounded w-3/4"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  if (error || !video) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-6">
+          <div className="text-center py-12">
+            <h1 className="text-2xl font-bold mb-2">Video Not Found</h1>
+            <p className="text-muted-foreground mb-4">The video you're looking for doesn't exist.</p>
+            <Link to="/" className="text-primary hover:underline">Go back to homepage</Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -86,10 +122,10 @@ const VideoPage = () => {
                 <video
                   className="w-full h-full"
                   controls
-                  poster={video.thumbnail}
+                  poster={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
                   preload="metadata"
                 >
-                  <source src={video.videoUrl} type="video/mp4" />
+                  <source src={video.video_url} type="video/mp4" />
                   Your browser does not support the video tag.
                 </video>
               </div>
@@ -103,13 +139,13 @@ const VideoPage = () => {
                   <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                     <span className="flex items-center">
                       <VideoIcon className="w-4 h-4 mr-1" />
-                      {formatViews(views)} views
+                      {formatViews(video.views)} views
                     </span>
                     <span className="flex items-center">
                       <Clock className="w-4 h-4 mr-1" />
                       {video.duration}
                     </span>
-                    <span>Uploaded {formatDate(video.uploadDate)}</span>
+                    <span>Uploaded {formatDate(video.created_at)}</span>
                   </div>
                 </div>
                 
@@ -134,50 +170,47 @@ const VideoPage = () => {
               </div>
 
               {/* Description */}
-              <Card>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold mb-2">Description</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {video.description}
-                  </p>
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <p className="text-sm text-muted-foreground">
-                      By {video.uploader}
+              {video.description && (
+                <Card>
+                  <CardContent className="p-4">
+                    <h3 className="font-semibold mb-2">Description</h3>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {video.description}
                     </p>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Comments */}
-            <CommentSection videoId={video.id || '1'} />
+            <CommentSection videoId={video.id} />
           </div>
 
           {/* Sidebar - Related Videos */}
           <div className="space-y-6">
             <h3 className="text-lg font-semibold">Related Videos</h3>
             <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <Link key={i} to={`/video/${i + 10}`} className="block">
+              {relatedVideos.map((relatedVideo) => (
+                <Link key={relatedVideo.id} to={`/video/${relatedVideo.id}`} className="block">
                   <Card className="hover:bg-muted/5 transition-colors">
                     <CardContent className="p-3">
                       <div className="flex space-x-3">
                         <div className="relative w-24 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
                           <img
-                            src={`https://images.unsplash.com/photo-${1640000000000 + i}?w=100&h=60&fit=crop`}
-                            alt={`Related video ${i}`}
+                            src={relatedVideo.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=100&h=60&fit=crop'}
+                            alt={relatedVideo.title}
                             className="w-full h-full object-cover"
                           />
                           <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
-                            {Math.floor(Math.random() * 20) + 5}:{String(Math.floor(Math.random() * 60)).padStart(2, '0')}
+                            {relatedVideo.duration}
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-sm line-clamp-2 mb-1">
-                            Related Video Title {i}
+                            {relatedVideo.title}
                           </h4>
                           <p className="text-xs text-muted-foreground">
-                            {Math.floor(Math.random() * 1000)}K views
+                            {formatViews(relatedVideo.views)} views
                           </p>
                         </div>
                       </div>
@@ -185,6 +218,10 @@ const VideoPage = () => {
                   </Card>
                 </Link>
               ))}
+              
+              {relatedVideos.length === 0 && (
+                <p className="text-muted-foreground text-sm">No related videos found</p>
+              )}
             </div>
           </div>
         </div>
