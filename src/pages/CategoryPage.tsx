@@ -18,6 +18,7 @@ const CategoryPage = () => {
       tags: [category || 'Category', 'HD', 'Premium'],
       views: 1234567,
       uploadDate: '2024-01-15',
+      previewUrl: undefined
     },
     {
       id: '2',
@@ -27,6 +28,7 @@ const CategoryPage = () => {
       tags: [category || 'Category', 'Popular', 'Featured'],
       views: 567890,
       uploadDate: '2024-01-14',
+      previewUrl: undefined
     },
     // Add more mock videos as needed
   ];
