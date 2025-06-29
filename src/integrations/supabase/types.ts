@@ -9,6 +9,38 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      comments: {
+        Row: {
+          comment_text: string
+          created_at: string
+          id: string
+          name: string
+          video_id: string
+        }
+        Insert: {
+          comment_text: string
+          created_at?: string
+          id?: string
+          name: string
+          video_id: string
+        }
+        Update: {
+          comment_text?: string
+          created_at?: string
+          id?: string
+          name?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comments_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_reactions: {
         Row: {
           created_at: string

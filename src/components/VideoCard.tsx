@@ -1,51 +1,28 @@
 
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Video } from 'lucide-react';
+import { Clock, Eye, ThumbsUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 
-interface VideoCardProps {
+interface Video {
   id: string;
   title: string;
-  thumbnail: string;
+  description?: string;
+  thumbnail_url?: string;
   duration: string;
-  tags: string[];
   views: number;
-  uploadDate: string;
-  previewUrl?: string;
+  likes: number;
+  tags: string[];
+  created_at: string;
 }
 
-const VideoCard: React.FC<VideoCardProps> = ({
-  id,
-  title,
-  thumbnail,
-  duration,
-  tags,
-  views,
-  uploadDate,
-  previewUrl
-}) => {
-  const [isHovering, setIsHovering] = useState(false);
-  const [previewLoaded, setPreviewLoaded] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
+interface VideoCardProps {
+  video: Video;
+  viewMode?: 'grid' | 'list';
+}
 
-  const handleMouseEnter = () => {
-    setIsHovering(true);
-    if (videoRef.current && previewUrl) {
-      videoRef.current.play().catch(() => {
-        // Handle autoplay restrictions
-      });
-    }
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovering(false);
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.currentTime = 0;
-    }
-  };
-
+const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const formatViews = (views: number) => {
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1)}M`;
@@ -57,104 +34,118 @@ const VideoCard: React.FC<VideoCardProps> = ({
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return `${Math.floor(diffDays / 30)} months ago`;
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
   };
 
-  const formatTagForUrl = (tag: string) => {
-    return tag.toLowerCase().replace(' ', '-');
-  };
-
-  const formatTagForDisplay = (tag: string) => {
-    return tag.split('-').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
-  };
+  if (viewMode === 'list') {
+    return (
+      <Link to={`/video/${video.id}`} className="block">
+        <Card className="hover:bg-muted/5 transition-colors">
+          <CardContent className="p-4 flex space-x-4">
+            <div className="relative w-48 h-28 bg-muted rounded overflow-hidden flex-shrink-0">
+              <img
+                src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
+                alt={video.title}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+                {video.duration}
+              </div>
+            </div>
+            <div className="flex-1 space-y-2">
+              <h3 className="font-semibold text-lg line-clamp-2 leading-tight">
+                {video.title}
+              </h3>
+              {video.description && (
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {video.description}
+                </p>
+              )}
+              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                <span className="flex items-center">
+                  <Eye className="w-4 h-4 mr-1" />
+                  {formatViews(video.views)} views
+                </span>
+                <span className="flex items-center">
+                  <ThumbsUp className="w-4 h-4 mr-1" />
+                  {video.likes || 0}
+                </span>
+                <span>{formatDate(video.created_at)}</span>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {video.tags.slice(0, 3).map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+                {video.tags.length > 3 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{video.tags.length - 3}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </Link>
+    );
+  }
 
   return (
-    <div 
-      className="video-card group cursor-pointer"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <Link to={`/video/${id}`} className="block">
-        <div className="relative aspect-video overflow-hidden rounded-lg">
-          {/* Thumbnail */}
+    <Link to={`/video/${video.id}`} className="block">
+      <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
+        <div className="relative aspect-video bg-muted overflow-hidden">
           <img
-            src={thumbnail}
-            alt={title}
-            className="w-full h-full object-cover transition-opacity duration-300"
-            style={{ opacity: isHovering && previewLoaded ? 0 : 1 }}
+            src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
+            alt={video.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
           />
-          
-          {/* Preview Video */}
-          {previewUrl && (
-            <video
-              ref={videoRef}
-              src={previewUrl}
-              muted
-              loop
-              playsInline
-              className={`absolute inset-0 w-full h-full object-cover video-preview transition-opacity duration-300 ${
-                isHovering && previewLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
-              onLoadedData={() => setPreviewLoaded(true)}
-            />
-          )}
-          
-          {/* Duration Badge */}
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded flex items-center">
-            <Clock className="w-3 h-3 mr-1" />
-            {duration}
-          </div>
-          
-          {/* Play Button Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <div className="bg-primary/20 backdrop-blur-sm rounded-full p-4">
-              <Video className="w-8 h-8 text-white" />
-            </div>
+          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+            {video.duration}
           </div>
         </div>
         
-        {/* Video Info */}
-        <div className="p-3 space-y-2">
-          <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
-            {title}
+        <CardContent className="p-4 space-y-3">
+          <h3 className="font-semibold line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+            {video.title}
           </h3>
           
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <span>{formatViews(views)} views</span>
-            <span>{formatDate(uploadDate)}</span>
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center space-x-3">
+              <span className="flex items-center">
+                <Eye className="w-3 h-3 mr-1" />
+                {formatViews(video.views)}
+              </span>
+              <span className="flex items-center">
+                <ThumbsUp className="w-3 h-3 mr-1" />
+                {video.likes || 0}
+              </span>
+            </div>
+            <span className="flex items-center">
+              <Clock className="w-3 h-3 mr-1" />
+              {formatDate(video.created_at)}
+            </span>
           </div>
           
-          {/* Tags */}
           <div className="flex flex-wrap gap-1">
-            {tags.slice(0, 3).map((tag) => (
-              <Badge
-                key={tag}
-                variant="secondary"
-                className="text-xs px-2 py-0 hover:bg-primary/20 transition-colors"
-              >
-                {formatTagForDisplay(tag)}
+            {video.tags.slice(0, 2).map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-xs">
+                {tag}
               </Badge>
             ))}
-            {tags.length > 3 && (
-              <Badge variant="outline" className="text-xs px-2 py-0">
-                +{tags.length - 3}
+            {video.tags.length > 2 && (
+              <Badge variant="outline" className="text-xs">
+                +{video.tags.length - 2}
               </Badge>
             )}
           </div>
-        </div>
-      </Link>
-    </div>
+        </CardContent>
+      </Card>
+    </Link>
   );
 };
 

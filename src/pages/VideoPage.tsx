@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Share, Clock, Video as VideoIcon, ThumbsUp, ThumbsDown, Grid3X3, List } from 'lucide-react';
@@ -11,11 +10,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { getVideoById, incrementViews } from '@/services/videosService';
 import { useRelatedVideos } from '@/hooks/useVideos';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
+import { toast } from 'sonner';
 
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [videoError, setVideoError] = useState(false);
 
   const { data: video, isLoading, error } = useQuery({
     queryKey: ['video', id],
@@ -81,6 +82,15 @@ const VideoPage = () => {
     }
   };
 
+  const handleVideoError = () => {
+    setVideoError(true);
+    toast.error('Video failed to load. Please try refreshing the page.');
+  };
+
+  const handleVideoCanPlay = () => {
+    setVideoError(false);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -129,19 +139,40 @@ const VideoPage = () => {
             {/* Video Player */}
             <Card className="overflow-hidden">
               <div className="relative aspect-video bg-black">
-                <video
-                  className="w-full h-full"
-                  controls
-                  poster={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
-                  preload="metadata"
-                  playsInline
-                  crossOrigin="anonymous"
-                >
-                  <source src={video.video_url} type="video/mp4" />
-                  <source src={video.video_url} type="video/webm" />
-                  <source src={video.video_url} type="video/ogg" />
-                  Your browser does not support the video tag.
-                </video>
+                {videoError ? (
+                  <div className="w-full h-full flex items-center justify-center text-white bg-gray-900">
+                    <div className="text-center space-y-4">
+                      <VideoIcon className="w-16 h-16 mx-auto opacity-50" />
+                      <div>
+                        <p className="text-lg font-medium">Video Error</p>
+                        <p className="text-sm opacity-75">Unable to load video. Please try refreshing the page.</p>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="mt-2"
+                          onClick={() => window.location.reload()}
+                        >
+                          Refresh Page
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <video
+                    className="w-full h-full"
+                    controls
+                    poster={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
+                    preload="metadata"
+                    playsInline
+                    onError={handleVideoError}
+                    onCanPlay={handleVideoCanPlay}
+                  >
+                    <source src={video.video_url} type="video/mp4" />
+                    <source src={video.video_url} type="video/webm" />
+                    <source src={video.video_url} type="video/ogg" />
+                    Your browser does not support the video tag.
+                  </video>
+                )}
               </div>
             </Card>
 

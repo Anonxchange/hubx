@@ -5,56 +5,27 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-
-interface Comment {
-  id: string;
-  name: string;
-  text: string;
-  timestamp: string;
-}
+import { useComments } from '@/hooks/useComments';
 
 interface CommentSectionProps {
   videoId: string;
 }
 
 const CommentSection: React.FC<CommentSectionProps> = ({ videoId }) => {
-  const [comments, setComments] = useState<Comment[]>([
-    {
-      id: '1',
-      name: 'John Doe',
-      text: 'Great video! Really enjoyed the content.',
-      timestamp: '2024-01-15T10:30:00Z'
-    },
-    {
-      id: '2',
-      name: 'Jane Smith',
-      text: 'Thanks for sharing this. Very informative!',
-      timestamp: '2024-01-15T09:15:00Z'
-    }
-  ]);
-  
+  const { comments, isLoading, addComment, isAddingComment } = useComments(videoId);
   const [newComment, setNewComment] = useState({ name: '', text: '' });
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.name.trim() || !newComment.text.trim()) return;
 
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    const comment: Comment = {
-      id: Date.now().toString(),
+    addComment({
+      video_id: videoId,
       name: newComment.name.trim(),
-      text: newComment.text.trim(),
-      timestamp: new Date().toISOString()
-    };
+      comment_text: newComment.text.trim(),
+    });
     
-    setComments([comment, ...comments]);
     setNewComment({ name: '', text: '' });
-    setIsSubmitting(false);
   };
 
   const formatTime = (timestamp: string) => {
@@ -73,6 +44,22 @@ const CommentSection: React.FC<CommentSectionProps> = ({ videoId }) => {
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-muted rounded w-48"></div>
+          <div className="h-32 bg-muted rounded"></div>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-20 bg-muted rounded"></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -101,10 +88,10 @@ const CommentSection: React.FC<CommentSectionProps> = ({ videoId }) => {
             />
             <Button 
               type="submit" 
-              disabled={isSubmitting || !newComment.name.trim() || !newComment.text.trim()}
+              disabled={isAddingComment || !newComment.name.trim() || !newComment.text.trim()}
               className="w-full md:w-auto"
             >
-              {isSubmitting ? 'Posting...' : 'Post Comment'}
+              {isAddingComment ? 'Posting...' : 'Post Comment'}
             </Button>
           </form>
         </CardContent>
@@ -125,11 +112,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({ videoId }) => {
                   <div className="flex items-center space-x-2">
                     <h4 className="font-medium text-sm">{comment.name}</h4>
                     <span className="text-xs text-muted-foreground">
-                      {formatTime(comment.timestamp)}
+                      {formatTime(comment.created_at)}
                     </span>
                   </div>
                   <p className="text-sm text-foreground leading-relaxed">
-                    {comment.text}
+                    {comment.comment_text}
                   </p>
                 </div>
               </div>
