@@ -140,21 +140,25 @@ export const deleteVideo = async (id: string) => {
 
 // Increment view count
 export const incrementViews = async (id: string) => {
-  const { error } = await supabase.rpc('increment_views', { video_id: id });
+  // First get the current view count
+  const { data: video, error: fetchError } = await supabase
+    .from('videos')
+    .select('views')
+    .eq('id', id)
+    .single();
+    
+  if (fetchError) {
+    console.error('Error fetching video for view increment:', fetchError);
+    return;
+  }
   
-  if (error) {
-    // Fallback if RPC doesn't exist
-    const { data: video } = await supabase
-      .from('videos')
-      .select('views')
-      .eq('id', id)
-      .single();
-      
-    if (video) {
-      await supabase
-        .from('videos')
-        .update({ views: (video.views || 0) + 1 })
-        .eq('id', id);
-    }
+  // Then increment the view count
+  const { error: updateError } = await supabase
+    .from('videos')
+    .update({ views: (video.views || 0) + 1 })
+    .eq('id', id);
+    
+  if (updateError) {
+    console.error('Error incrementing views:', updateError);
   }
 };
