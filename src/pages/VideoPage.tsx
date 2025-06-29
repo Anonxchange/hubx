@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Share, Clock, Video as VideoIcon } from 'lucide-react';
+import { ArrowLeft, Share, Clock, Video as VideoIcon, ThumbsUp, ThumbsDown, Grid3X3, List } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import CommentSection from '@/components/CommentSection';
@@ -10,10 +10,12 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { getVideoById, incrementViews } from '@/services/videosService';
 import { useRelatedVideos } from '@/hooks/useVideos';
+import { useVideoReaction } from '@/hooks/useVideoReactions';
 
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const { data: video, isLoading, error } = useQuery({
     queryKey: ['video', id],
@@ -24,8 +26,10 @@ const VideoPage = () => {
   const { data: relatedVideos = [] } = useRelatedVideos(
     video?.id || '',
     video?.tags || [],
-    5
+    15
   );
+
+  const { userReaction, reactToVideo, isLoading: reactionLoading } = useVideoReaction(video?.id || '');
 
   useEffect(() => {
     if (video?.id) {
@@ -68,6 +72,12 @@ const VideoPage = () => {
       }
     } else {
       navigator.clipboard.writeText(window.location.href);
+    }
+  };
+
+  const handleReaction = (reactionType: 'like' | 'dislike') => {
+    if (video?.id) {
+      reactToVideo({ videoId: video.id, reactionType });
     }
   };
 
@@ -124,8 +134,12 @@ const VideoPage = () => {
                   controls
                   poster={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
                   preload="metadata"
+                  playsInline
+                  crossOrigin="anonymous"
                 >
                   <source src={video.video_url} type="video/mp4" />
+                  <source src={video.video_url} type="video/webm" />
+                  <source src={video.video_url} type="video/ogg" />
                   Your browser does not support the video tag.
                 </video>
               </div>
@@ -152,6 +166,31 @@ const VideoPage = () => {
                 <Button onClick={handleShare} variant="outline" size="sm">
                   <Share className="w-4 h-4 mr-2" />
                   Share
+                </Button>
+              </div>
+
+              {/* Like/Dislike Buttons */}
+              <div className="flex items-center space-x-4">
+                <Button
+                  onClick={() => handleReaction('like')}
+                  variant={userReaction === 'like' ? 'default' : 'outline'}
+                  size="sm"
+                  disabled={reactionLoading}
+                  className="flex items-center space-x-2"
+                >
+                  <ThumbsUp className="w-4 h-4" />
+                  <span>{video.likes || 0}</span>
+                </Button>
+                
+                <Button
+                  onClick={() => handleReaction('dislike')}
+                  variant={userReaction === 'dislike' ? 'default' : 'outline'}
+                  size="sm"
+                  disabled={reactionLoading}
+                  className="flex items-center space-x-2"
+                >
+                  <ThumbsDown className="w-4 h-4" />
+                  <span>{video.dislikes || 0}</span>
                 </Button>
               </div>
 
@@ -188,31 +227,58 @@ const VideoPage = () => {
 
           {/* Sidebar - Related Videos */}
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold">Related Videos</h3>
-            <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Related Videos</h3>
+              <div className="flex items-center space-x-1">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <Grid3X3 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-4' : 'space-y-3'}>
               {relatedVideos.map((relatedVideo) => (
                 <Link key={relatedVideo.id} to={`/video/${relatedVideo.id}`} className="block">
                   <Card className="hover:bg-muted/5 transition-colors">
-                    <CardContent className="p-3">
-                      <div className="flex space-x-3">
-                        <div className="relative w-24 h-16 bg-muted rounded overflow-hidden flex-shrink-0">
-                          <img
-                            src={relatedVideo.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=100&h=60&fit=crop'}
-                            alt={relatedVideo.title}
-                            className="w-full h-full object-cover"
-                          />
-                          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
-                            {relatedVideo.duration}
+                    <CardContent className={`p-3 ${viewMode === 'list' ? 'flex space-x-3' : ''}`}>
+                      <div className={`relative bg-muted rounded overflow-hidden flex-shrink-0 ${
+                        viewMode === 'grid' ? 'aspect-video mb-3' : 'w-24 h-16'
+                      }`}>
+                        <img
+                          src={relatedVideo.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=120&fit=crop'}
+                          alt={relatedVideo.title}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+                          {relatedVideo.duration}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className={`font-medium line-clamp-2 mb-1 ${
+                          viewMode === 'grid' ? 'text-sm' : 'text-xs'
+                        }`}>
+                          {relatedVideo.title}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          {formatViews(relatedVideo.views)} views
+                        </p>
+                        {viewMode === 'grid' && (
+                          <div className="flex items-center space-x-1 mt-1">
+                            <ThumbsUp className="w-3 h-3" />
+                            <span className="text-xs">{relatedVideo.likes || 0}</span>
                           </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm line-clamp-2 mb-1">
-                            {relatedVideo.title}
-                          </h4>
-                          <p className="text-xs text-muted-foreground">
-                            {formatViews(relatedVideo.views)} views
-                          </p>
-                        </div>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

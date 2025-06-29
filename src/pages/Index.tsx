@@ -29,11 +29,46 @@ const Index = () => {
   const [selectedSort, setSelectedSort] = useState('newest');
   const [currentPage, setCurrentPage] = useState(1);
 
-  const { data, isLoading, error } = useVideos(currentPage, 20, selectedCategory);
+  const { data, isLoading, error } = useVideos(currentPage, 30, selectedCategory, searchQuery);
 
   const videos = data?.videos || [];
   const totalPages = data?.totalPages || 1;
   const totalVideos = data?.totalCount || 0;
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  const renderPaginationItems = () => {
+    const items = [];
+    const maxVisiblePages = 7;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              setCurrentPage(i);
+            }}
+            isActive={currentPage === i}
+          >
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    return items;
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -71,12 +106,12 @@ const Index = () => {
 
       {/* Search and Filters */}
       <section className="container mx-auto px-4 py-6">
-        <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+        <form onSubmit={handleSearch} className="flex flex-col lg:flex-row gap-4 items-center justify-between">
           {/* Search Bar */}
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Search videos..."
+              placeholder="Search videos by title, description, or tags..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 bg-muted/50"
@@ -85,7 +120,10 @@ const Index = () => {
           
           {/* Filters */}
           <div className="flex items-center space-x-3">
-            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <Select value={selectedCategory} onValueChange={(value) => {
+              setSelectedCategory(value);
+              setCurrentPage(1);
+            }}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="All Categories" />
               </SelectTrigger>
@@ -113,14 +151,19 @@ const Index = () => {
                 <SelectItem value="views">Most Viewed</SelectItem>
               </SelectContent>
             </Select>
+
+            <Button type="submit" variant="outline">
+              Search
+            </Button>
           </div>
-        </div>
+        </form>
 
         {/* Results Count */}
         <div className="flex items-center justify-between mt-4 mb-2">
           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
             <Filter className="w-4 h-4" />
             <span>Showing {totalVideos} videos</span>
+            {searchQuery && <span>for "{searchQuery}"</span>}
           </div>
         </div>
       </section>
@@ -150,29 +193,7 @@ const Index = () => {
                   />
                 </PaginationItem>
                 
-                {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <PaginationItem key={pageNum}>
-                      <PaginationLink
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setCurrentPage(pageNum);
-                        }}
-                        isActive={currentPage === pageNum}
-                      >
-                        {pageNum}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                })}
-                
-                {totalPages > 5 && (
-                  <PaginationItem>
-                    <span className="px-4 py-2">...</span>
-                  </PaginationItem>
-                )}
+                {renderPaginationItems()}
                 
                 <PaginationItem>
                   <PaginationNext 

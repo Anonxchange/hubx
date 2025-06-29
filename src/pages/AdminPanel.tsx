@@ -1,78 +1,87 @@
 
 import React, { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useNavigate } from 'react-router-dom';
+import { Upload, Video, BarChart, Trash2, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Upload, Video, BarChart3, MessageCircle, Settings, X, Trash2, Edit } from 'lucide-react';
-import { toast } from 'sonner';
-import { uploadVideo, getVideos, deleteVideo, VideoUpload } from '@/services/videosService';
-
-const availableCategories = [
-  'Ebony', 'Big Ass', 'Cumshot', 'Anal', 'Lesbian', 'MILF', 
-  'Japanese', 'Hentai', 'Amateur', 'Teen', 'Blonde', 'Brunette', 
-  'BBW', 'Blowjob', 'Creampie', 'Facial', 'Interracial', 'POV'
-];
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { uploadVideo, deleteVideo, VideoUpload } from '@/services/videosService';
+import { useVideos } from '@/hooks/useVideos';
 
 const AdminPanel = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState('');
-  const queryClient = useQueryClient();
-  
-  const [uploadForm, setUploadForm] = useState({
+  const [customTags, setCustomTags] = useState<string[]>([]);
+  const [newTag, setNewTag] = useState('');
+
+  // Video upload form state
+  const [formData, setFormData] = useState<VideoUpload>({
     title: '',
     description: '',
-    videoUrl: '',
-    thumbnailUrl: '',
-    previewUrl: '',
+    video_url: '',
+    thumbnail_url: '',
+    preview_url: '',
     duration: '',
-    selectedCategories: [] as string[],
+    tags: []
   });
 
-  // Get videos for management
-  const { data: videosData } = useQuery({
-    queryKey: ['admin-videos'],
-    queryFn: () => getVideos(1, 50),
-    enabled: isAuthenticated,
-  });
+  const { data: videosData } = useVideos(1, 100);
+  const videos = videosData?.videos || [];
 
-  // Upload mutation
   const uploadMutation = useMutation({
     mutationFn: uploadVideo,
     onSuccess: () => {
-      toast.success('Video uploaded successfully!');
-      setUploadForm({
+      toast({
+        title: "Success",
+        description: "Video uploaded successfully!",
+      });
+      setFormData({
         title: '',
         description: '',
-        videoUrl: '',
-        thumbnailUrl: '',
-        previewUrl: '',
+        video_url: '',
+        thumbnail_url: '',
+        preview_url: '',
         duration: '',
-        selectedCategories: [],
+        tags: []
       });
-      queryClient.invalidateQueries({ queryKey: ['admin-videos'] });
+      setCustomTags([]);
       queryClient.invalidateQueries({ queryKey: ['videos'] });
     },
     onError: (error) => {
-      toast.error('Failed to upload video: ' + error.message);
+      toast({
+        title: "Error",
+        description: "Failed to upload video. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Upload error:', error);
     },
   });
 
-  // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: deleteVideo,
     onSuccess: () => {
-      toast.success('Video deleted successfully!');
-      queryClient.invalidateQueries({ queryKey: ['admin-videos'] });
+      toast({
+        title: "Success",
+        description: "Video deleted successfully!",
+      });
       queryClient.invalidateQueries({ queryKey: ['videos'] });
     },
     onError: (error) => {
-      toast.error('Failed to delete video: ' + error.message);
+      toast({
+        title: "Error",
+        description: "Failed to delete video. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Delete error:', error);
     },
   });
 
@@ -80,55 +89,91 @@ const AdminPanel = () => {
     e.preventDefault();
     if (password === 'hubx2024admin') {
       setIsAuthenticated(true);
-      toast.success('Welcome to HubX Admin Panel');
+      toast({
+        title: "Access Granted",
+        description: "Welcome to the admin panel!",
+      });
     } else {
-      toast.error('Invalid password');
+      toast({
+        title: "Access Denied",
+        description: "Invalid password. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
-  const handleCategoryToggle = (category: string) => {
-    setUploadForm(prev => ({
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
       ...prev,
-      selectedCategories: prev.selectedCategories.includes(category)
-        ? prev.selectedCategories.filter(c => c !== category)
-        : [...prev.selectedCategories, category]
+      [name]: value
     }));
   };
 
-  const handleUpload = (e: React.FormEvent) => {
+  const addCustomTag = () => {
+    if (newTag.trim() && !customTags.includes(newTag.trim())) {
+      const updatedTags = [...customTags, newTag.trim()];
+      setCustomTags(updatedTags);
+      setFormData(prev => ({
+        ...prev,
+        tags: updatedTags
+      }));
+      setNewTag('');
+    }
+  };
+
+  const removeCustomTag = (tagToRemove: string) => {
+    const updatedTags = customTags.filter(tag => tag !== tagToRemove);
+    setCustomTags(updatedTags);
+    setFormData(prev => ({
+      ...prev,
+      tags: updatedTags
+    }));
+  };
+
+  const addPresetTag = (tag: string) => {
+    if (!customTags.includes(tag)) {
+      const updatedTags = [...customTags, tag];
+      setCustomTags(updatedTags);
+      setFormData(prev => ({
+        ...prev,
+        tags: updatedTags
+      }));
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!uploadForm.title || !uploadForm.videoUrl) {
-      toast.error('Title and video URL are required');
+    if (!formData.title || !formData.video_url) {
+      toast({
+        title: "Validation Error",
+        description: "Title and video URL are required.",
+        variant: "destructive",
+      });
       return;
     }
 
-    const videoData: VideoUpload = {
-      title: uploadForm.title,
-      description: uploadForm.description,
-      video_url: uploadForm.videoUrl,
-      thumbnail_url: uploadForm.thumbnailUrl,
-      preview_url: uploadForm.previewUrl,
-      duration: uploadForm.duration || '0:00',
-      tags: uploadForm.selectedCategories.map(cat => cat.toLowerCase().replace(' ', '-')),
-    };
-
-    uploadMutation.mutate(videoData);
+    uploadMutation.mutate(formData);
   };
 
   const handleDelete = (videoId: string) => {
-    if (confirm('Are you sure you want to delete this video?')) {
+    if (window.confirm('Are you sure you want to delete this video?')) {
       deleteMutation.mutate(videoId);
     }
   };
+
+  const presetTags = [
+    'ebony', 'big-ass', 'cumshot', 'anal', 'lesbian', 'milf', 
+    'japanese', 'hentai', 'amateur', 'hardcore', 'threesome', 
+    'blonde', 'brunette', 'redhead', 'big-tits', 'petite'
+  ];
 
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>HubX Admin Access</CardTitle>
-            <CardDescription>Enter password to access admin panel</CardDescription>
+            <CardTitle className="text-center">Admin Access</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin} className="space-y-4">
@@ -139,11 +184,20 @@ const AdminPanel = () => {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter admin password"
                   required
                 />
               </div>
               <Button type="submit" className="w-full">
                 Login
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate('/')}
+              >
+                Back to Home
               </Button>
             </form>
           </CardContent>
@@ -154,30 +208,26 @@ const AdminPanel = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border/40 bg-card/50 backdrop-blur">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">HubX Admin Panel</h1>
-            <Button variant="outline" onClick={() => setIsAuthenticated(false)}>
-              Logout
-            </Button>
-          </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">HubX Admin Panel</h1>
+          <Button onClick={() => navigate('/')} variant="outline">
+            Back to Site
+          </Button>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="upload" className="space-y-6">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="upload" className="flex items-center space-x-2">
               <Upload className="w-4 h-4" />
-              <span>Upload</span>
+              <span>Upload Video</span>
             </TabsTrigger>
-            <TabsTrigger value="videos" className="flex items-center space-x-2">
+            <TabsTrigger value="manage" className="flex items-center space-x-2">
               <Video className="w-4 h-4" />
               <span>Manage Videos</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center space-x-2">
-              <BarChart3 className="w-4 h-4" />
+              <BarChart className="w-4 h-4" />
               <span>Analytics</span>
             </TabsTrigger>
           </TabsList>
@@ -186,19 +236,18 @@ const AdminPanel = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Upload New Video</CardTitle>
-                <CardDescription>
-                  Upload a new video with title, description, and category tags
-                </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleUpload} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="title">Video Title *</Label>
+                      <Label htmlFor="title">Title*</Label>
                       <Input
                         id="title"
-                        value={uploadForm.title}
-                        onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
+                        name="title"
+                        value={formData.title}
+                        onChange={handleInputChange}
+                        placeholder="Enter video title"
                         required
                       />
                     </div>
@@ -206,9 +255,10 @@ const AdminPanel = () => {
                       <Label htmlFor="duration">Duration</Label>
                       <Input
                         id="duration"
+                        name="duration"
+                        value={formData.duration}
+                        onChange={handleInputChange}
                         placeholder="e.g., 12:34"
-                        value={uploadForm.duration}
-                        onChange={(e) => setUploadForm(prev => ({ ...prev, duration: e.target.value }))}
                       />
                     </div>
                   </div>
@@ -217,80 +267,103 @@ const AdminPanel = () => {
                     <Label htmlFor="description">Description</Label>
                     <Textarea
                       id="description"
-                      value={uploadForm.description}
-                      onChange={(e) => setUploadForm(prev => ({ ...prev, description: e.target.value }))}
-                      rows={4}
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      placeholder="Enter video description"
+                      rows={3}
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="videoUrl">Video URL *</Label>
-                    <Input
-                      id="videoUrl"
-                      type="url"
-                      placeholder="https://example.com/video.mp4"
-                      value={uploadForm.videoUrl}
-                      onChange={(e) => setUploadForm(prev => ({ ...prev, videoUrl: e.target.value }))}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
-                      <Label htmlFor="thumbnailUrl">Thumbnail URL</Label>
+                      <Label htmlFor="video_url">Video URL*</Label>
                       <Input
-                        id="thumbnailUrl"
-                        type="url"
-                        placeholder="https://example.com/thumbnail.jpg"
-                        value={uploadForm.thumbnailUrl}
-                        onChange={(e) => setUploadForm(prev => ({ ...prev, thumbnailUrl: e.target.value }))}
+                        id="video_url"
+                        name="video_url"
+                        value={formData.video_url}
+                        onChange={handleInputChange}
+                        placeholder="https://example.com/video.mp4"
+                        required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="previewUrl">Preview Video URL</Label>
+                      <Label htmlFor="thumbnail_url">Thumbnail URL</Label>
                       <Input
-                        id="previewUrl"
-                        type="url"
+                        id="thumbnail_url"
+                        name="thumbnail_url"
+                        value={formData.thumbnail_url}
+                        onChange={handleInputChange}
+                        placeholder="https://example.com/thumb.jpg"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="preview_url">Preview URL</Label>
+                      <Input
+                        id="preview_url"
+                        name="preview_url"
+                        value={formData.preview_url}
+                        onChange={handleInputChange}
                         placeholder="https://example.com/preview.mp4"
-                        value={uploadForm.previewUrl}
-                        onChange={(e) => setUploadForm(prev => ({ ...prev, previewUrl: e.target.value }))}
                       />
                     </div>
                   </div>
 
-                  {/* Category Selection */}
                   <div>
-                    <Label>Categories (select one or more)</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mt-2">
-                      {availableCategories.map((category) => (
-                        <div key={category} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={category}
-                            checked={uploadForm.selectedCategories.includes(category)}
-                            onCheckedChange={() => handleCategoryToggle(category)}
-                          />
-                          <Label htmlFor={category} className="text-sm cursor-pointer">
-                            {category}
-                          </Label>
-                        </div>
-                      ))}
-                    </div>
+                    <Label>Tags</Label>
                     
-                    {/* Selected Categories Display */}
-                    {uploadForm.selectedCategories.length > 0 && (
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {uploadForm.selectedCategories.map((category) => (
-                          <Badge key={category} variant="secondary" className="flex items-center space-x-1">
-                            <span>{category}</span>
-                            <button
-                              type="button"
-                              onClick={() => handleCategoryToggle(category)}
-                              className="ml-1 hover:bg-muted-foreground/20 rounded-full p-0.5"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </Badge>
+                    {/* Custom Tag Input */}
+                    <div className="flex items-center space-x-2 mt-2">
+                      <Input
+                        value={newTag}
+                        onChange={(e) => setNewTag(e.target.value)}
+                        placeholder="Add custom tag"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addCustomTag();
+                          }
+                        }}
+                      />
+                      <Button type="button" onClick={addCustomTag} size="sm">
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </div>
+
+                    {/* Preset Tags */}
+                    <div className="mt-3">
+                      <p className="text-sm text-muted-foreground mb-2">Quick add preset tags:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {presetTags.map((tag) => (
+                          <Button
+                            key={tag}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addPresetTag(tag)}
+                            disabled={customTags.includes(tag)}
+                          >
+                            {tag}
+                          </Button>
                         ))}
+                      </div>
+                    </div>
+
+                    {/* Selected Tags */}
+                    {customTags.length > 0 && (
+                      <div className="mt-3">
+                        <p className="text-sm font-medium mb-2">Selected tags:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {customTags.map((tag) => (
+                            <Badge key={tag} variant="secondary" className="flex items-center space-x-1">
+                              <span>{tag}</span>
+                              <X 
+                                className="w-3 h-3 cursor-pointer hover:text-destructive" 
+                                onClick={() => removeCustomTag(tag)}
+                              />
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -298,7 +371,7 @@ const AdminPanel = () => {
                   <Button 
                     type="submit" 
                     className="w-full" 
-                    disabled={!uploadForm.title || !uploadForm.videoUrl || uploadMutation.isPending}
+                    disabled={uploadMutation.isPending}
                   >
                     {uploadMutation.isPending ? 'Uploading...' : 'Upload Video'}
                   </Button>
@@ -307,54 +380,54 @@ const AdminPanel = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="videos">
+          <TabsContent value="manage">
             <Card>
               <CardHeader>
-                <CardTitle>Manage Videos</CardTitle>
-                <CardDescription>View and manage uploaded videos</CardDescription>
+                <CardTitle>Manage Videos ({videos.length} total)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {videosData?.videos.map((video) => (
+                  {videos.map((video) => (
                     <div key={video.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center space-x-4">
-                        <div className="w-16 h-12 bg-muted rounded overflow-hidden">
-                          <img 
-                            src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=100&h=60&fit=crop'}
-                            alt={video.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
+                        <img
+                          src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=100&h=60&fit=crop'}
+                          alt={video.title}
+                          className="w-16 h-10 object-cover rounded"
+                        />
                         <div>
                           <h3 className="font-medium">{video.title}</h3>
                           <p className="text-sm text-muted-foreground">
-                            {video.views} views • {new Date(video.created_at).toLocaleDateString()}
+                            {video.views} views • {video.likes || 0} likes • {video.dislikes || 0} dislikes
                           </p>
                           <div className="flex flex-wrap gap-1 mt-1">
-                            {video.tags.map((tag) => (
+                            {video.tags.slice(0, 3).map((tag) => (
                               <Badge key={tag} variant="outline" className="text-xs">
                                 {tag}
                               </Badge>
                             ))}
+                            {video.tags.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{video.tags.length - 3}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </div>
-                      <div className="flex space-x-2">
-                        <Button 
-                          variant="destructive" 
-                          size="sm"
-                          onClick={() => handleDelete(video.id)}
-                          disabled={deleteMutation.isPending}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        onClick={() => handleDelete(video.id)}
+                        variant="destructive"
+                        size="sm"
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   ))}
                   
-                  {videosData?.videos.length === 0 && (
+                  {videos.length === 0 && (
                     <p className="text-center text-muted-foreground py-8">
-                      No videos uploaded yet. Upload your first video!
+                      No videos uploaded yet.
                     </p>
                   )}
                 </div>
@@ -363,53 +436,41 @@ const AdminPanel = () => {
           </TabsContent>
 
           <TabsContent value="analytics">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Videos</CardTitle>
+                <CardHeader>
+                  <CardTitle>Total Videos</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{videosData?.totalCount || 0}</div>
-                  <p className="text-xs text-muted-foreground">Videos uploaded</p>
+                  <div className="text-3xl font-bold">{videos.length}</div>
                 </CardContent>
               </Card>
+              
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Total Views</CardTitle>
+                <CardHeader>
+                  <CardTitle>Total Views</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
-                    {videosData?.videos.reduce((sum, video) => sum + video.views, 0) || 0}
+                  <div className="text-3xl font-bold">
+                    {videos.reduce((sum, video) => sum + video.views, 0).toLocaleString()}
                   </div>
-                  <p className="text-xs text-muted-foreground">Across all videos</p>
                 </CardContent>
               </Card>
+              
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Categories</CardTitle>
+                <CardHeader>
+                  <CardTitle>Total Reactions</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{availableCategories.length}</div>
-                  <p className="text-xs text-muted-foreground">Available categories</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Average Views</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {videosData?.videos.length ? 
-                      Math.round(videosData.videos.reduce((sum, video) => sum + video.views, 0) / videosData.videos.length) : 0
-                    }
+                  <div className="text-3xl font-bold">
+                    {videos.reduce((sum, video) => sum + (video.likes || 0) + (video.dislikes || 0), 0).toLocaleString()}
                   </div>
-                  <p className="text-xs text-muted-foreground">Per video</p>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
         </Tabs>
-      </main>
+      </div>
     </div>
   );
 };

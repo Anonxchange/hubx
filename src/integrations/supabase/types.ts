@@ -9,12 +9,46 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      video_reactions: {
+        Row: {
+          created_at: string
+          id: string
+          reaction_type: string
+          user_session: string
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reaction_type: string
+          user_session: string
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reaction_type?: string
+          user_session?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_reactions_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       videos: {
         Row: {
           created_at: string
           description: string | null
+          dislikes: number | null
           duration: string | null
           id: string
+          likes: number | null
           preview_url: string | null
           tags: string[] | null
           thumbnail_url: string | null
@@ -26,8 +60,10 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          dislikes?: number | null
           duration?: string | null
           id?: string
+          likes?: number | null
           preview_url?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
@@ -39,8 +75,10 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          dislikes?: number | null
           duration?: string | null
           id?: string
+          likes?: number | null
           preview_url?: string | null
           tags?: string[] | null
           thumbnail_url?: string | null
