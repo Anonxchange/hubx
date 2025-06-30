@@ -4,8 +4,6 @@ import { ArrowLeft, Share, Clock, Video as VideoIcon, ThumbsUp, ThumbsDown, Grid
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import CommentSection from '@/components/CommentSection';
-import AdBanner from '@/components/AdBanner';
-import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -37,6 +35,7 @@ const VideoPage = () => {
   useEffect(() => {
     if (video?.id) {
       incrementViews(video.id);
+      // Invalidate and refetch video to get updated view count
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ['video', id] });
       }, 1000);
@@ -94,9 +93,9 @@ const VideoPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto px-4 py-6 flex-1">
+        <main className="container mx-auto px-4 py-6">
           <div className="animate-pulse space-y-6">
             <div className="h-4 bg-muted rounded w-24"></div>
             <div className="aspect-video bg-muted rounded-lg"></div>
@@ -104,40 +103,35 @@ const VideoPage = () => {
             <div className="h-4 bg-muted rounded w-1/2"></div>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   if (error || !video) {
     return (
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto px-4 py-6 flex-1">
+        <main className="container mx-auto px-4 py-6">
           <div className="text-center py-12">
             <h1 className="text-2xl font-bold mb-2">Video Not Found</h1>
             <p className="text-muted-foreground mb-4">The video you're looking for doesn't exist.</p>
             <Link to="/" className="text-primary hover:underline">Go back to homepage</Link>
           </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-6 space-y-4 flex-1">
+      <main className="container mx-auto px-4 py-6 space-y-8">
         {/* Back Button */}
         <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </Link>
-
-        {/* Ad Banner - Above Video Player */}
-        <AdBanner admpid="344759" className="my-2" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Video Content */}
@@ -329,8 +323,6 @@ const VideoPage = () => {
           </div>
         </div>
       </main>
-
-      <Footer />
     </div>
   );
 };
