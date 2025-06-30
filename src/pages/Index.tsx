@@ -10,6 +10,15 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { useVideos } from '@/hooks/useVideos';
 
 const categories = [
@@ -57,10 +66,10 @@ const Index = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const renderPagination = () => {
+  const renderPaginationItems = () => {
     if (totalPages <= 1) return null;
 
-    const pages = [];
+    const items = [];
     const showPages = 5;
     let startPage = Math.max(1, currentPage - Math.floor(showPages / 2));
     let endPage = Math.min(totalPages, startPage + showPages - 1);
@@ -69,70 +78,110 @@ const Index = () => {
       startPage = Math.max(1, endPage - showPages + 1);
     }
 
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
+    // Previous button
+    items.push(
+      <PaginationItem key="prev">
+        <PaginationPrevious 
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            if (currentPage > 1) handlePageChange(currentPage - 1);
+          }}
+          className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
+        />
+      </PaginationItem>
+    );
+
+    // First page if not in range
+    if (startPage > 1) {
+      items.push(
+        <PaginationItem key={1}>
+          <PaginationLink 
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handlePageChange(1);
+            }}
+          >
+            1
+          </PaginationLink>
+        </PaginationItem>
+      );
+      
+      if (startPage > 2) {
+        items.push(
+          <PaginationItem key="ellipsis1">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
     }
 
-    return (
-      <div className="flex items-center justify-center space-x-2 mt-8">
-        <Button
-          variant="outline"
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-        >
-          Previous
-        </Button>
-        
-        {startPage > 1 && (
-          <>
-            <Button
-              variant="outline"
-              onClick={() => handlePageChange(1)}
-            >
-              1
-            </Button>
-            {startPage > 2 && <span className="px-2">...</span>}
-          </>
-        )}
-        
-        {pages.map((page) => (
-          <Button
-            key={page}
-            variant={currentPage === page ? 'default' : 'outline'}
-            onClick={() => handlePageChange(page)}
+    // Page numbers
+    for (let i = startPage; i <= endPage; i++) {
+      items.push(
+        <PaginationItem key={i}>
+          <PaginationLink 
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handlePageChange(i);
+            }}
+            isActive={currentPage === i}
           >
-            {page}
-          </Button>
-        ))}
-        
-        {endPage < totalPages && (
-          <>
-            {endPage < totalPages - 1 && <span className="px-2">...</span>}
-            <Button
-              variant="outline"
-              onClick={() => handlePageChange(totalPages)}
-            >
-              {totalPages}
-            </Button>
-          </>
-        )}
-        
-        <Button
-          variant="outline"
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </Button>
-      </div>
+            {i}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    // Last page if not in range
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        items.push(
+          <PaginationItem key="ellipsis2">
+            <PaginationEllipsis />
+          </PaginationItem>
+        );
+      }
+      
+      items.push(
+        <PaginationItem key={totalPages}>
+          <PaginationLink 
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handlePageChange(totalPages);
+            }}
+          >
+            {totalPages}
+          </PaginationLink>
+        </PaginationItem>
+      );
+    }
+
+    // Next button
+    items.push(
+      <PaginationItem key="next">
+        <PaginationNext 
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            if (currentPage < totalPages) handlePageChange(currentPage + 1);
+          }}
+          className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
+        />
+      </PaginationItem>
     );
+
+    return items;
   };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <main className="container mx-auto px-4 py-6 space-y-8 flex-1">
+      <main className="container mx-auto px-4 py-6 space-y-6 flex-1">
         {/* Hero Section */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
@@ -144,7 +193,7 @@ const Index = () => {
         </div>
 
         {/* Ad Banner - Above Search Bar */}
-        <AdBanner admpid="344759" className="my-6" />
+        <AdBanner admpid="344759" className="my-4" />
 
         {/* Search Bar */}
         <Card className="max-w-2xl mx-auto">
@@ -246,7 +295,15 @@ const Index = () => {
         )}
 
         {/* Pagination */}
-        {renderPagination()}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-8">
+            <Pagination>
+              <PaginationContent>
+                {renderPaginationItems()}
+              </PaginationContent>
+            </Pagination>
+          </div>
+        )}
       </main>
 
       <Footer />

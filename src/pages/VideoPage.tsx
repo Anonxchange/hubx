@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Share, Clock, Video as VideoIcon, ThumbsUp, ThumbsDown, Grid3X3, List } from 'lucide-react';
@@ -130,7 +129,7 @@ const VideoPage = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <main className="container mx-auto px-4 py-6 space-y-8 flex-1">
+      <main className="container mx-auto px-4 py-6 space-y-4 flex-1">
         {/* Back Button */}
         <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -138,7 +137,7 @@ const VideoPage = () => {
         </Link>
 
         {/* Ad Banner - Above Video Player */}
-        <AdBanner admpid="344759" className="my-4" />
+        <AdBanner admpid="344759" className="my-2" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Video Content */}
