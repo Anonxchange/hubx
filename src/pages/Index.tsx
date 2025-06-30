@@ -1,15 +1,14 @@
 
 import React, { useState } from 'react';
-import { Search, Grid3X3, List, ChevronLeft, ChevronRight } from 'lucide-react';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
 import AdBanner from '@/components/AdBanner';
 import Footer from '@/components/Footer';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import HeroSection from '@/components/HeroSection';
+import SearchSection from '@/components/SearchSection';
+import FilterSection from '@/components/FilterSection';
+import PaginationComponent from '@/components/PaginationComponent';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useVideos } from '@/hooks/useVideos';
 
 const categories = [
@@ -67,99 +66,13 @@ const Index = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-
-    const getVisiblePages = () => {
-      const delta = 2;
-      const range = [];
-      const rangeWithDots = [];
-
-      for (let i = Math.max(2, currentPage - delta); i <= Math.min(totalPages - 1, currentPage + delta); i++) {
-        range.push(i);
-      }
-
-      if (currentPage - delta > 2) {
-        rangeWithDots.push(1, '...');
-      } else {
-        rangeWithDots.push(1);
-      }
-
-      rangeWithDots.push(...range);
-
-      if (currentPage + delta < totalPages - 1) {
-        rangeWithDots.push('...', totalPages);
-      } else {
-        rangeWithDots.push(totalPages);
-      }
-
-      return rangeWithDots;
-    };
-
-    const pages = getVisiblePages();
-
-    return (
-      <div className="flex items-center justify-center space-x-1 mt-8">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="flex items-center space-x-1"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          <span className="hidden sm:inline">Previous</span>
-        </Button>
-
-        {pages.map((page, index) => (
-          <React.Fragment key={index}>
-            {page === '...' ? (
-              <span className="px-3 py-1 text-muted-foreground">...</span>
-            ) : (
-              <Button
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => handlePageChange(page as number)}
-                className={`min-w-[40px] ${
-                  currentPage === page 
-                    ? 'bg-primary text-primary-foreground' 
-                    : 'hover:bg-accent'
-                }`}
-              >
-                {page}
-              </Button>
-            )}
-          </React.Fragment>
-        ))}
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="flex items-center space-x-1"
-        >
-          <span className="hidden sm:inline">Next</span>
-          <ChevronRight className="w-4 h-4" />
-        </Button>
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
       <main className="container mx-auto px-4 py-6 space-y-4 flex-1">
         {/* Hero Section */}
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-            HubX Video Platform
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Discover amazing videos from creators around the world
-          </p>
-        </div>
+        <HeroSection />
 
         {/* Ad Banner - Above Search Bar */}
         <AdBanner admpid="344759" className="my-2" />
@@ -167,68 +80,20 @@ const Index = () => {
         {/* Filters and Search Bar - Closer together */}
         <div className="space-y-3">
           {/* Categories and View Toggle */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium">Category:</span>
-                <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                  <SelectTrigger className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((category) => (
-                      <SelectItem key={category} value={category}>
-                        {category}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium">Sort:</span>
-                <Badge variant="secondary">Newest</Badge>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">View:</span>
-              <div className="flex items-center space-x-1">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <Grid3X3 className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
+          <FilterSection 
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={handleCategoryChange}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+          />
 
           {/* Search Bar - Now closer to categories */}
-          <Card className="max-w-2xl mx-auto">
-            <CardContent className="p-4">
-              <form onSubmit={handleSearch} className="flex space-x-2">
-                <div className="flex-1 relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input
-                    placeholder="Search videos..."
-                    value={tempSearch}
-                    onChange={(e) => setTempSearch(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-                <Button type="submit">Search</Button>
-              </form>
-            </CardContent>
-          </Card>
+          <SearchSection 
+            tempSearch={tempSearch}
+            setTempSearch={setTempSearch}
+            onSearch={handleSearch}
+          />
         </div>
 
         {/* Results Info */}
@@ -266,8 +131,12 @@ const Index = () => {
           <VideoGrid videos={videos} viewMode={viewMode} />
         )}
 
-        {/* Custom Pagination */}
-        {renderPagination()}
+        {/* Pagination */}
+        <PaginationComponent 
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       </main>
 
       <Footer />
