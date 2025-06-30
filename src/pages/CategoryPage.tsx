@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
+import Footer from '@/components/Footer';
 import { useVideosByCategory } from '@/hooks/useVideos';
 import {
   Pagination,
@@ -29,10 +30,10 @@ const CategoryPage = () => {
   ).join(' ') || 'Category';
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <main className="container mx-auto px-4 py-6 space-y-8">
+      <main className="container mx-auto px-4 py-6 space-y-8 flex-1">
         {/* Back Button */}
         <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -54,12 +55,15 @@ const CategoryPage = () => {
         </div>
 
         {/* Videos Grid */}
-        <VideoGrid 
-          title=""
-          videos={videos}
-          showTitle={false}
-          isLoading={isLoading}
-        />
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {[...Array(12)].map((_, i) => (
+              <div key={i} className="animate-pulse bg-muted aspect-video rounded-lg"></div>
+            ))}
+          </div>
+        ) : (
+          <VideoGrid videos={videos} />
+        )}
 
         {/* Pagination */}
         {totalPages > 1 && (
@@ -116,6 +120,8 @@ const CategoryPage = () => {
           </div>
         )}
       </main>
+
+      <Footer />
     </div>
   );
 };

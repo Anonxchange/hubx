@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Search, Grid3X3, List } from 'lucide-react';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
+import AdBanner from '@/components/AdBanner';
+import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -127,10 +129,10 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Header />
       
-      <main className="container mx-auto px-4 py-6 space-y-8">
+      <main className="container mx-auto px-4 py-6 space-y-8 flex-1">
         {/* Hero Section */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
@@ -140,6 +142,9 @@ const Index = () => {
             Discover amazing videos from creators around the world
           </p>
         </div>
+
+        {/* Ad Banner - Above Search Bar */}
+        <AdBanner admpid="344759" className="my-6" />
 
         {/* Search Bar */}
         <Card className="max-w-2xl mx-auto">
@@ -243,6 +248,8 @@ const Index = () => {
         {/* Pagination */}
         {renderPagination()}
       </main>
+
+      <Footer />
     </div>
   );
 };
