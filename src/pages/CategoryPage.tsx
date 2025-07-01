@@ -65,7 +65,6 @@ const CategoryPage = () => {
         {/* Videos Grid */}
         <VideoGrid 
           videos={videos}
-          isLoading={isLoading}
         />
 
         {/* Pagination */}
