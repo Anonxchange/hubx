@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { Search, Grid3X3, List } from 'lucide-react';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
 import Footer from '@/components/Footer';
 import ImageStylePagination from '@/components/ImageStylePagination';
+import AdComponent from '@/components/AdComponent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -69,13 +69,7 @@ const Index = () => {
         </div>
 
         {/* Ad Code Below Hero Text */}
-        <div className="w-full flex justify-center">
-          <div>
-            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
-            <ins className="eas6a97888e10" data-zoneid="5660536"></ins>
-            <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
-          </div>
-        </div>
+        <AdComponent zoneId="5660536" />
 
         {/* Search Bar */}
         <Card className="max-w-2xl mx-auto">
@@ -177,13 +171,7 @@ const Index = () => {
         )}
 
         {/* Ad Code Before Pagination */}
-        <div className="w-full flex justify-center">
-          <div>
-            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
-            <ins className="eas6a97888e10" data-zoneid="5660534"></ins>
-            <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
-          </div>
-        </div>
+        <AdComponent zoneId="5660534" />
 
         {/* Pagination */}
         <ImageStylePagination

@@ -1,0 +1,55 @@
+
+import React, { useEffect, useRef } from 'react';
+
+interface AdComponentProps {
+  zoneId: string;
+  className?: string;
+}
+
+const AdComponent: React.FC<AdComponentProps> = ({ zoneId, className = "" }) => {
+  const adRef = useRef<HTMLDivElement>(null);
+  const isInitialized = useRef(false);
+
+  useEffect(() => {
+    const initializeAd = () => {
+      if (isInitialized.current) return;
+      
+      try {
+        // Check if AdProvider is available
+        if (window.AdProvider) {
+          console.log(`Initializing ad for zone ${zoneId}`);
+          window.AdProvider.push({"serve": {}});
+          isInitialized.current = true;
+        } else {
+          console.warn(`AdProvider not available for zone ${zoneId}`);
+        }
+      } catch (error) {
+        console.error(`Error initializing ad for zone ${zoneId}:`, error);
+      }
+    };
+
+    // Small delay to ensure DOM is ready
+    const timer = setTimeout(initializeAd, 100);
+    
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [zoneId]);
+
+  return (
+    <div className={`w-full flex justify-center ${className}`} ref={adRef}>
+      <div>
+        <ins className="eas6a97888e10" data-zoneid={zoneId}></ins>
+      </div>
+    </div>
+  );
+};
+
+// Extend window object to include AdProvider
+declare global {
+  interface Window {
+    AdProvider: any[];
+  }
+}
+
+export default AdComponent;

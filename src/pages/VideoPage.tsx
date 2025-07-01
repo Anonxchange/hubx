@@ -4,6 +4,7 @@ import { ArrowLeft, Share, Clock, Video as VideoIcon, ThumbsUp, ThumbsDown, Grid
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import CommentSection from '@/components/CommentSection';
+import AdComponent from '@/components/AdComponent';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -134,13 +135,7 @@ const VideoPage = () => {
         </Link>
 
         {/* Ad Code Below Back to Home */}
-        <div className="w-full flex justify-center">
-          <div>
-            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
-            <ins className="eas6a97888e10" data-zoneid="5660536"></ins>
-            <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
-          </div>
-        </div>
+        <AdComponent zoneId="5660536" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Video Content */}
@@ -262,13 +257,7 @@ const VideoPage = () => {
             </div>
 
             {/* Ad Code Above Comments */}
-            <div className="w-full flex justify-center">
-              <div>
-                <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
-                <ins className="eas6a97888e10" data-zoneid="5660536"></ins>
-                <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
-              </div>
-            </div>
+            <AdComponent zoneId="5660536" />
 
             {/* Comments */}
             <CommentSection videoId={video.id} />

@@ -4,15 +4,9 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
+import AdComponent from '@/components/AdComponent';
+import ImageStylePagination from '@/components/ImageStylePagination';
 import { useVideosByCategory } from '@/hooks/useVideos';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
 
 const CategoryPage = () => {
   const { category } = useParams<{ category: string }>();
@@ -28,6 +22,10 @@ const CategoryPage = () => {
     word.charAt(0).toUpperCase() + word.slice(1)
   ).join(' ') || 'Category';
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -40,13 +38,7 @@ const CategoryPage = () => {
         </Link>
 
         {/* Ad Code Below Back to Home */}
-        <div className="w-full flex justify-center">
-          <div>
-            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
-            <ins className="eas6a97888e10" data-zoneid="5660536"></ins>
-            <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
-          </div>
-        </div>
+        <AdComponent zoneId="5660536" />
 
         {/* Category Header */}
         <div className="space-y-4">
@@ -68,59 +60,11 @@ const CategoryPage = () => {
         />
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-8 flex justify-center">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious 
-                    href="#" 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (currentPage > 1) setCurrentPage(currentPage - 1);
-                    }}
-                    className={currentPage === 1 ? 'pointer-events-none opacity-50' : ''}
-                  />
-                </PaginationItem>
-                
-                {[...Array(Math.min(5, totalPages))].map((_, i) => {
-                  const pageNum = i + 1;
-                  return (
-                    <PaginationItem key={pageNum}>
-                      <PaginationLink
-                        href="#"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          setCurrentPage(pageNum);
-                        }}
-                        isActive={currentPage === pageNum}
-                      >
-                        {pageNum}
-                      </PaginationLink>
-                    </PaginationItem>
-                  );
-                })}
-                
-                {totalPages > 5 && (
-                  <PaginationItem>
-                    <span className="px-4 py-2">...</span>
-                  </PaginationItem>
-                )}
-                
-                <PaginationItem>
-                  <PaginationNext 
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-                    }}
-                    className={currentPage === totalPages ? 'pointer-events-none opacity-50' : ''}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
+        <ImageStylePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       </main>
     </div>
   );
