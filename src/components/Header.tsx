@@ -11,9 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const categories = [
-  'Ebony', 'Big Ass', 'Cumshot', 'Anal', 'Lesbian', 'MILF', 
-  'Japanese', 'Hentai', 'Amateur', 'Teen', 'Blonde', 'Brunette', 
-  'BBW', 'Blowjob', 'Creampie', 'Facial', 'Interracial', 'POV'
+  'Big Ass', 'Big Tits', 'Ebony', 'MILF', 'Lesbian', 'Teen'
 ];
 
 const Header = () => {
@@ -104,7 +102,7 @@ const Header = () => {
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground px-3 py-1">Categories</p>
                 <div className="grid grid-cols-2 gap-1">
-                  {categories.slice(0, 8).map((category) => (
+                  {categories.map((category) => (
                     <Link
                       key={category}
                       to={`/category/${category.toLowerCase().replace(' ', '-')}`}

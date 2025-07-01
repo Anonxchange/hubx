@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { Search, Grid3X3, List } from 'lucide-react';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
+import Footer from '@/components/Footer';
+import ImageStylePagination from '@/components/ImageStylePagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -12,15 +14,12 @@ import { useVideos } from '@/hooks/useVideos';
 
 const categories = [
   'All',
-  'Technology',
-  'Education',
-  'Entertainment',
-  'Music',
-  'Gaming',
-  'Sports',
-  'News',
-  'Comedy',
-  'Documentary'
+  'Big Ass',
+  'Big Tits', 
+  'Ebony',
+  'MILF',
+  'Lesbian',
+  'Teen'
 ];
 
 const Index = () => {
@@ -52,87 +51,15 @@ const Index = () => {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const renderPagination = () => {
-    if (totalPages <= 1) return null;
-
-    const pages = [];
-    const showPages = 5;
-    let startPage = Math.max(1, currentPage - Math.floor(showPages / 2));
-    let endPage = Math.min(totalPages, startPage + showPages - 1);
-    
-    if (endPage - startPage + 1 < showPages) {
-      startPage = Math.max(1, endPage - showPages + 1);
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-      pages.push(i);
-    }
-
-    return (
-      <div className="flex items-center justify-center space-x-2 mt-8">
-        <Button
-          variant="outline"
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-        >
-          Previous
-        </Button>
-        
-        {startPage > 1 && (
-          <>
-            <Button
-              variant="outline"
-              onClick={() => handlePageChange(1)}
-            >
-              1
-            </Button>
-            {startPage > 2 && <span className="px-2">...</span>}
-          </>
-        )}
-        
-        {pages.map((page) => (
-          <Button
-            key={page}
-            variant={currentPage === page ? 'default' : 'outline'}
-            onClick={() => handlePageChange(page)}
-          >
-            {page}
-          </Button>
-        ))}
-        
-        {endPage < totalPages && (
-          <>
-            {endPage < totalPages - 1 && <span className="px-2">...</span>}
-            <Button
-              variant="outline"
-              onClick={() => handlePageChange(totalPages)}
-            >
-              {totalPages}
-            </Button>
-          </>
-        )}
-        
-        <Button
-          variant="outline"
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-        >
-          Next
-        </Button>
-      </div>
-    );
   };
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-6 space-y-8">
+      <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Hero Section */}
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-3">
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
             HubX Video Platform
           </h1>
@@ -143,7 +70,7 @@ const Index = () => {
 
         {/* Search Bar */}
         <Card className="max-w-2xl mx-auto">
-          <CardContent className="p-6">
+          <CardContent className="p-4">
             <form onSubmit={handleSearch} className="flex space-x-2">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -241,8 +168,14 @@ const Index = () => {
         )}
 
         {/* Pagination */}
-        {renderPagination()}
+        <ImageStylePagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+        />
       </main>
+
+      <Footer />
     </div>
   );
 };
