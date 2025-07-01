@@ -68,6 +68,15 @@ const Index = () => {
           </p>
         </div>
 
+        {/* Ad Code Below Hero Text */}
+        <div className="w-full flex justify-center">
+          <div>
+            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+            <ins className="eas6a97888e10" data-zoneid="5660536"></ins>
+            <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
+          </div>
+        </div>
+
         {/* Search Bar */}
         <Card className="max-w-2xl mx-auto">
           <CardContent className="p-4">
@@ -166,6 +175,15 @@ const Index = () => {
         ) : (
           <VideoGrid videos={videos} viewMode={viewMode} />
         )}
+
+        {/* Ad Code Before Pagination */}
+        <div className="w-full flex justify-center">
+          <div>
+            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+            <ins className="eas6a97888e10" data-zoneid="5660534"></ins>
+            <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
+          </div>
+        </div>
 
         {/* Pagination */}
         <ImageStylePagination

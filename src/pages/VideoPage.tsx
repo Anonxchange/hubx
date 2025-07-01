@@ -133,6 +133,15 @@ const VideoPage = () => {
           Back to Home
         </Link>
 
+        {/* Ad Code Below Back to Home */}
+        <div className="w-full flex justify-center">
+          <div>
+            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+            <ins className="eas6a97888e10" data-zoneid="5660536"></ins>
+            <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Video Content */}
           <div className="lg:col-span-2 space-y-6">
@@ -250,6 +259,15 @@ const VideoPage = () => {
                   </CardContent>
                 </Card>
               )}
+            </div>
+
+            {/* Ad Code Above Comments */}
+            <div className="w-full flex justify-center">
+              <div>
+                <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+                <ins className="eas6a97888e10" data-zoneid="5660536"></ins>
+                <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
+              </div>
             </div>
 
             {/* Comments */}

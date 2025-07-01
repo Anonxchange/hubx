@@ -39,6 +39,15 @@ const CategoryPage = () => {
           Back to Home
         </Link>
 
+        {/* Ad Code Below Back to Home */}
+        <div className="w-full flex justify-center">
+          <div>
+            <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+            <ins className="eas6a97888e10" data-zoneid="5660536"></ins>
+            <script dangerouslySetInnerHTML={{__html: `(AdProvider = window.AdProvider || []).push({"serve": {}});`}}></script>
+          </div>
+        </div>
+
         {/* Category Header */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
@@ -56,7 +65,6 @@ const CategoryPage = () => {
         {/* Videos Grid */}
         <VideoGrid 
           videos={videos}
-          showTitle={false}
           isLoading={isLoading}
         />
 
