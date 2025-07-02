@@ -174,13 +174,19 @@ const Index = () => {
         <AdComponent zoneId="5661270" className="my-8" />
 
         {/* Pagination */}
-        <div className="mt-8">
-          <ImageStylePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
-        </div>
+        {!isLoading && !error && (
+          <div className="mt-8">
+            {/* Debug info - remove in production */}
+            <div className="text-center text-sm text-muted-foreground mb-4">
+              Page {currentPage} of {totalPages} ({totalCount} total videos)
+            </div>
+            <ImageStylePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
+        )}
       </main>
 
       <Footer />

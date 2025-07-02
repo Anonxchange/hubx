@@ -39,13 +39,13 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-center space-x-2 mt-8 mb-8">
+    <div className="flex items-center justify-center space-x-2 mt-8 mb-8 min-h-[60px]">
       {/* Previous Button */}
       <Button
         variant="outline"
         onClick={() => handlePageChange(currentPage - 1)}
         disabled={currentPage === 1}
-        className="px-4 py-2 bg-gray-800 border-gray-600 text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+        className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Prev
       </Button>
@@ -56,11 +56,7 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
           key={page}
           variant={currentPage === page ? 'default' : 'outline'}
           onClick={() => handlePageChange(page)}
-          className={`w-12 h-12 text-lg font-semibold rounded-lg ${
-            currentPage === page
-              ? 'bg-orange-500 text-white border-orange-400 hover:bg-orange-600'
-              : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
-          }`}
+          className="w-12 h-12 text-lg font-semibold"
         >
           {page}
         </Button>
@@ -68,10 +64,10 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
       
       {/* Next Button */}
       <Button
-        variant="outline"
+        variant="default"
         onClick={() => handlePageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="px-4 py-2 bg-orange-500 border-orange-400 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+        className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Next
       </Button>
