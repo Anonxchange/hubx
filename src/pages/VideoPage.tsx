@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import CommentSection from '@/components/CommentSection';
 import AdComponent from '@/components/AdComponent';
+import VideoPlayer from '@/components/VideoPlayer';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -143,40 +144,12 @@ const VideoPage = () => {
             {/* Video Player */}
             <Card className="overflow-hidden">
               <div className="relative aspect-video bg-black">
-                {videoError ? (
-                  <div className="w-full h-full flex items-center justify-center text-white bg-gray-900">
-                    <div className="text-center space-y-4">
-                      <VideoIcon className="w-16 h-16 mx-auto opacity-50" />
-                      <div>
-                        <p className="text-lg font-medium">Video Error</p>
-                        <p className="text-sm opacity-75">Unable to load video. Please try refreshing the page.</p>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="mt-2"
-                          onClick={() => window.location.reload()}
-                        >
-                          Refresh Page
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <video
-                    className="w-full h-full"
-                    controls
-                    poster={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
-                    preload="metadata"
-                    playsInline
-                    onError={handleVideoError}
-                    onCanPlay={handleVideoCanPlay}
-                  >
-                    <source src={video.video_url} type="video/mp4" />
-                    <source src={video.video_url} type="video/webm" />
-                    <source src={video.video_url} type="video/ogg" />
-                    Your browser does not support the video tag.
-                  </video>
-                )}
+                <VideoPlayer
+                  src={video.video_url}
+                  poster={video.thumbnail_url}
+                  onError={handleVideoError}
+                  onCanPlay={handleVideoCanPlay}
+                />
               </div>
             </Card>
 
@@ -257,7 +230,7 @@ const VideoPage = () => {
             </div>
 
             {/* Ad Code Above Comments */}
-            <AdComponent zoneId="5660536" />
+            <AdComponent zoneId="5660534" />
 
             {/* Comments */}
             <CommentSection videoId={video.id} />
@@ -286,41 +259,49 @@ const VideoPage = () => {
             </div>
             
             <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-4' : 'space-y-3'}>
-              {relatedVideos.map((relatedVideo) => (
-                <Link key={relatedVideo.id} to={`/video/${relatedVideo.id}`} className="block">
-                  <Card className="hover:bg-muted/5 transition-colors">
-                    <CardContent className={`p-3 ${viewMode === 'list' ? 'flex space-x-3' : ''}`}>
-                      <div className={`relative bg-muted rounded overflow-hidden flex-shrink-0 ${
-                        viewMode === 'grid' ? 'aspect-video mb-3' : 'w-24 h-16'
-                      }`}>
-                        <img
-                          src={relatedVideo.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=120&fit=crop'}
-                          alt={relatedVideo.title}
-                          className="w-full h-full object-cover"
-                        />
-                        <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
-                          {relatedVideo.duration}
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className={`font-medium line-clamp-2 mb-1 ${
-                          viewMode === 'grid' ? 'text-sm' : 'text-xs'
+              {relatedVideos.map((relatedVideo, index) => (
+                <React.Fragment key={relatedVideo.id}>
+                  <Link to={`/video/${relatedVideo.id}`} className="block">
+                    <Card className="hover:bg-muted/5 transition-colors">
+                      <CardContent className={`p-3 ${viewMode === 'list' ? 'flex space-x-3' : ''}`}>
+                        <div className={`relative bg-muted rounded overflow-hidden flex-shrink-0 ${
+                          viewMode === 'grid' ? 'aspect-video mb-3' : 'w-24 h-16'
                         }`}>
-                          {relatedVideo.title}
-                        </h4>
-                        <p className="text-xs text-muted-foreground">
-                          {formatViews(relatedVideo.views)} views
-                        </p>
-                        {viewMode === 'grid' && (
-                          <div className="flex items-center space-x-1 mt-1">
-                            <ThumbsUp className="w-3 h-3" />
-                            <span className="text-xs">{relatedVideo.likes || 0}</span>
+                          <img
+                            src={relatedVideo.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=120&fit=crop'}
+                            alt={relatedVideo.title}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+                            {relatedVideo.duration}
                           </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Link>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className={`font-medium line-clamp-2 mb-1 ${
+                            viewMode === 'grid' ? 'text-sm' : 'text-xs'
+                          }`}>
+                            {relatedVideo.title}
+                          </h4>
+                          <p className="text-xs text-muted-foreground">
+                            {formatViews(relatedVideo.views)} views
+                          </p>
+                          {viewMode === 'grid' && (
+                            <div className="flex items-center space-x-1 mt-1">
+                              <ThumbsUp className="w-3 h-3" />
+                              <span className="text-xs">{relatedVideo.likes || 0}</span>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </Link>
+                  {/* Insert ad after 6th related video (index 5) */}
+                  {index === 5 && (
+                    <div className="my-4">
+                      <AdComponent zoneId="5661270" />
+                    </div>
+                  )}
+                </React.Fragment>
               ))}
               
               {relatedVideos.length === 0 && (

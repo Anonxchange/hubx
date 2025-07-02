@@ -167,18 +167,20 @@ const Index = () => {
             <p className="text-muted-foreground">Please try again later.</p>
           </div>
         ) : (
-          <VideoGrid videos={videos} viewMode={viewMode} />
+          <VideoGrid videos={videos} viewMode={viewMode} showAds={true} />
         )}
 
         {/* Ad Code Before Pagination */}
-        <AdComponent zoneId="5660534" />
+        <AdComponent zoneId="5661270" className="my-8" />
 
         {/* Pagination */}
-        <ImageStylePagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
+        <div className="mt-8">
+          <ImageStylePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </div>
       </main>
 
       <Footer />

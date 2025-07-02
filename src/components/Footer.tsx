@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Play, Users, Video } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 
 const categories = [
   'Big Ass', 'Big Tits', 'Ebony', 'MILF', 'Lesbian', 'Teen'
@@ -16,58 +17,106 @@ const categories = [
 
 const Footer = () => {
   return (
-    <footer className="border-t border-border/40 bg-background/95 backdrop-blur mt-16">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
-          {/* Left side - Navigation links */}
-          <div className="flex items-center space-x-6">
-            <Link
-              to="/"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Home
-            </Link>
-            <Link
-              to="/terms"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Terms
-            </Link>
-            <Link
-              to="/contact"
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Contact
-            </Link>
-            
-            {/* Categories Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-sm text-muted-foreground hover:text-foreground p-0 h-auto font-normal">
-                  <span>Categories</span>
-                  <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-48 bg-popover/95 backdrop-blur">
-                <div className="grid grid-cols-1 gap-1 p-2">
-                  {categories.map((category) => (
-                    <DropdownMenuItem key={category} asChild>
-                      <Link
-                        to={`/category/${category.toLowerCase().replace(' ', '-')}`}
-                        className="text-sm hover:bg-accent/20 rounded px-3 py-2 block"
-                      >
-                        {category}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+    <footer className="bg-card/50 backdrop-blur-sm border-t border-border/50 mt-20">
+      <div className="container mx-auto px-4 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+          {/* Brand Section */}
+          <div className="md:col-span-1 space-y-4">
+            <div className="flex items-center space-x-2">
+              <Play className="w-6 h-6 text-primary" />
+              <h3 className="text-xl font-bold">HubX</h3>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Premium video streaming platform with the best content from creators worldwide.
+            </p>
+            <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+              <div className="flex items-center space-x-1">
+                <Video className="w-4 h-4" />
+                <span>HD Quality</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <Users className="w-4 h-4" />
+                <span>Safe Platform</span>
+              </div>
+            </div>
           </div>
 
-          {/* Right side - Copyright */}
+          {/* Quick Links */}
+          <div className="space-y-4">
+            <h4 className="font-semibold text-foreground">Quick Links</h4>
+            <div className="flex flex-col space-y-2">
+              <Link
+                to="/"
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                Home
+              </Link>
+              <Link
+                to="/terms"
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                Terms of Service
+              </Link>
+              <Link
+                to="/privacy"
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                Privacy Policy
+              </Link>
+              <Link
+                to="/contact"
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                Contact Us
+              </Link>
+            </div>
+          </div>
+
+          {/* Categories */}
+          <div className="space-y-4">
+            <h4 className="font-semibold text-foreground">Categories</h4>
+            <div className="grid grid-cols-2 gap-2">
+              {categories.map((category) => (
+                <Link
+                  key={category}
+                  to={`/category/${category.toLowerCase().replace(' ', '-')}`}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {category}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* About */}
+          <div className="space-y-4">
+            <h4 className="font-semibold text-foreground">About HubX</h4>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Experience premium video content with our modern, responsive platform designed for all devices.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
+                4K Support
+              </span>
+              <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
+                Mobile Ready
+              </span>
+              <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
+                Fast Streaming
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <Separator className="mb-6" />
+
+        {/* Bottom Section */}
+        <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
           <div className="text-sm text-muted-foreground">
             © 2024 HubX. All rights reserved.
+          </div>
+          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+            <span>Powered by modern web technology</span>
           </div>
         </div>
       </div>

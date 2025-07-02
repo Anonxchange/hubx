@@ -1,6 +1,7 @@
 
 import React from 'react';
 import VideoCard from './VideoCard';
+import AdComponent from './AdComponent';
 
 interface Video {
   id: string;
@@ -17,9 +18,10 @@ interface Video {
 interface VideoGridProps {
   videos: Video[];
   viewMode?: 'grid' | 'list';
+  showAds?: boolean;
 }
 
-const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid' }) => {
+const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAds = false }) => {
   if (videos.length === 0) {
     return (
       <div className="text-center py-12">
@@ -32,8 +34,16 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid' }) => {
   if (viewMode === 'list') {
     return (
       <div className="space-y-4">
-        {videos.map((video) => (
-          <VideoCard key={video.id} video={video} viewMode="list" />
+        {videos.map((video, index) => (
+          <React.Fragment key={video.id}>
+            <VideoCard video={video} viewMode="list" />
+            {/* Insert ad after video 15 (index 14) */}
+            {showAds && index === 14 && (
+              <div className="my-6">
+                <AdComponent zoneId="5661270" />
+              </div>
+            )}
+          </React.Fragment>
         ))}
       </div>
     );
@@ -41,8 +51,16 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid' }) => {
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {videos.map((video) => (
-        <VideoCard key={video.id} video={video} viewMode="grid" />
+      {videos.map((video, index) => (
+        <React.Fragment key={video.id}>
+          <VideoCard video={video} viewMode="grid" />
+          {/* Insert ad after video 15 (index 14) - spanning full width */}
+          {showAds && index === 14 && (
+            <div className="col-span-full my-6">
+              <AdComponent zoneId="5661270" />
+            </div>
+          )}
+        </React.Fragment>
       ))}
     </div>
   );
