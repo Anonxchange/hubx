@@ -230,7 +230,7 @@ const VideoPage = () => {
             </div>
 
             {/* Ad Code Above Comments */}
-            <AdComponent zoneId="5661270" />
+            <AdComponent zoneId="5660534" />
 
             {/* Comments */}
             <CommentSection videoId={video.id} />

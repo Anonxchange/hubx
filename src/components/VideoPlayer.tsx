@@ -40,16 +40,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playerRef.current = window.fluidPlayer(videoRef.current, {
           layoutControls: {
             fillToContainer: true,
-            primaryColor: '#9333ea',
+            primaryColor: 'hsl(270 80% 60%)',
             posterImage: poster || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop',
             allowDownload: false,
             allowTheatre: true,
             playbackRates: ['x0.5', 'x1', 'x1.25', 'x1.5', 'x2'],
             subtitlesEnabled: false,
             keyboardControl: true,
-            loop: false,
-            autoPlay: false,
-            mute: false
+            loop: false
           },
           vastOptions: {
             adList: [
@@ -62,15 +60,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             adCTAText: 'Visit Now',
             adCTATextPosition: 'top left',
             skipButtonCaption: 'Skip ad in [seconds]',
-            skipButtonClickCaption: 'Skip ad ⏭',
+            skipButtonClickCaption: 'Skip ad <span class="skip_button_icon"></span>',
             adTextPosition: 'top left',
-            vastTimeout: 15000,
+            vastTimeout: 10000,
             showPlayButton: true,
-            maxAllowedVastTagRedirects: 5,
+            maxAllowedVastTagRedirects: 3,
             vastAdvanced: {
               vastLoadedCallback: () => {
                 console.log('VAST ad loaded successfully');
-                setIsLoading(false);
               },
               noVastVideoCallback: () => {
                 console.log('No VAST ad available, proceeding with video');
@@ -81,18 +78,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               },
               vastVideoEndedCallback: () => {
                 console.log('VAST ad ended');
-              },
-              vastVideoLoadedCallback: () => {
-                console.log('VAST video loaded, starting playback');
-                setIsLoading(false);
               }
             }
           },
           modules: {
             configureHls: {
               debug: false,
-              enableWorker: true,
-              lowLatencyMode: false,
               p2pConfig: {
                 logLevel: 'none'
               }

@@ -29,44 +29,6 @@ const Header = () => {
             </div>
           </Link>
 
-          {/* Navigation Tabs */}
-          <div className="hidden lg:flex items-center flex-1 justify-center max-w-4xl mx-auto">
-            <div className="flex items-center space-x-1 bg-secondary/50 rounded-full p-1">
-              <a
-                href="https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-full bg-gradient-to-r from-red-600 to-red-500 text-white font-bold text-sm hover:from-red-500 hover:to-red-400 transition-all duration-200"
-              >
-                LIVE CAM
-              </a>
-              <a
-                href="https://refpa3267686.top/L?tag=d_4520133m_1599c_&site=4520133&ad=1599"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-full bg-gradient-to-r from-yellow-600 to-yellow-500 text-white font-bold text-sm hover:from-yellow-500 hover:to-yellow-400 transition-all duration-200"
-              >
-                BET NOW
-              </a>
-              <a
-                href="https://1xbet.com/en/registration/?partner=4520133&promo=1x_3119536"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-full bg-gradient-to-r from-blue-600 to-blue-500 text-white font-bold text-sm hover:from-blue-500 hover:to-blue-400 transition-all duration-200"
-              >
-                1XBET
-              </a>
-              <a
-                href="https://chaturbate.com/in/?tour=OT2s&campaign=cxFud&track=default"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2 rounded-full bg-gradient-to-r from-pink-600 to-pink-500 text-white font-bold text-sm hover:from-pink-500 hover:to-pink-400 transition-all duration-200"
-              >
-                HOOKUP
-              </a>
-            </div>
-          </div>
-
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center space-x-6">
             <Link
@@ -136,49 +98,6 @@ const Header = () => {
               >
                 Home
               </Link>
-              
-              {/* Mobile Navigation Tabs */}
-              <div className="space-y-2 py-2">
-                <p className="text-sm font-medium text-muted-foreground px-3 py-1">External Links</p>
-                <div className="grid grid-cols-2 gap-2">
-                  <a
-                    href="https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-2 bg-red-600 text-white text-xs font-bold rounded text-center"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    LIVE CAM
-                  </a>
-                  <a
-                    href="https://refpa3267686.top/L?tag=d_4520133m_1599c_&site=4520133&ad=1599"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-2 bg-yellow-600 text-white text-xs font-bold rounded text-center"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    BET NOW
-                  </a>
-                  <a
-                    href="https://1xbet.com/en/registration/?partner=4520133&promo=1x_3119536"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-2 bg-blue-600 text-white text-xs font-bold rounded text-center"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    1XBET
-                  </a>
-                  <a
-                    href="https://chaturbate.com/in/?tour=OT2s&campaign=cxFud&track=default"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-2 bg-pink-600 text-white text-xs font-bold rounded text-center"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    HOOKUP
-                  </a>
-                </div>
-              </div>
               
               <div className="space-y-1">
                 <p className="text-sm font-medium text-muted-foreground px-3 py-1">Categories</p>
