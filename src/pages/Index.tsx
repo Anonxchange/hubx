@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Search, Grid3X3, List } from 'lucide-react';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
@@ -68,8 +69,15 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Ad Code Below Hero Text */}
-        <AdComponent zoneId="5660536" />
+        {/* Desktop Ad - Above Search Bar */}
+        <div className="hidden md:block">
+          <AdComponent zoneId="5660528" />
+        </div>
+
+        {/* Mobile Ad Below Hero Text */}
+        <div className="md:hidden">
+          <AdComponent zoneId="5660536" />
+        </div>
 
         {/* Search Bar */}
         <Card className="max-w-2xl mx-auto">
@@ -88,6 +96,36 @@ const Index = () => {
             </form>
           </CardContent>
         </Card>
+
+        {/* Dynamic Filter Tabs */}
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center justify-center gap-2 p-2 bg-secondary/30 rounded-lg">
+            <Link 
+              to="/trending" 
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
+            >
+              Trending
+            </Link>
+            <Link 
+              to="/most-recent" 
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-full text-sm font-medium hover:bg-secondary/80 transition-colors"
+            >
+              Most Recent
+            </Link>
+            <Link 
+              to="/top-rated" 
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-full text-sm font-medium hover:bg-secondary/80 transition-colors"
+            >
+              Top Rated
+            </Link>
+            <Link 
+              to="/most-viewed" 
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-full text-sm font-medium hover:bg-secondary/80 transition-colors"
+            >
+              Most Viewed
+            </Link>
+          </div>
+        </div>
 
         {/* Filters and View Toggle */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -174,17 +212,19 @@ const Index = () => {
         <AdComponent zoneId="5661270" className="my-8" />
 
         {/* Pagination */}
-        {!isLoading && !error && (
-          <div className="mt-8">
+        {!isLoading && !error && totalPages > 1 && (
+          <div className="mt-8 space-y-4">
             {/* Debug info - remove in production */}
-            <div className="text-center text-sm text-muted-foreground mb-4">
+            <div className="text-center text-sm text-muted-foreground">
               Page {currentPage} of {totalPages} ({totalCount} total videos)
             </div>
-            <ImageStylePagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
+            <div className="flex justify-center">
+              <ImageStylePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
+            </div>
           </div>
         )}
       </main>
