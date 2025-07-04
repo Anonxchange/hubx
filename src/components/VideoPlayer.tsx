@@ -37,6 +37,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       try {
         console.log('Initializing Fluid Player with VAST ads');
+        
+        // Remove any existing controls and attributes that might interfere
+        videoRef.current.removeAttribute('controls');
+        videoRef.current.setAttribute('crossorigin', 'anonymous');
+        
         playerRef.current = window.fluidPlayer(videoRef.current, {
           layoutControls: {
             fillToContainer: true,
@@ -47,14 +52,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             playbackRates: ['x0.5', 'x1', 'x1.25', 'x1.5', 'x2'],
             subtitlesEnabled: false,
             keyboardControl: true,
-            loop: false
+            loop: false,
+            mute: false,
+            autoplay: false
           },
           vastOptions: {
             adList: [
               {
                 roll: 'preRoll',
                 vastTag: 'https://s.magsrv.com/v1/vast.php?idzone=5660526',
-                adText: 'Advertisement'
+                adText: 'Advertisement',
+                adClickable: true
               }
             ],
             adCTAText: 'Visit Now',
@@ -62,12 +70,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             skipButtonCaption: 'Skip ad in [seconds]',
             skipButtonClickCaption: 'Skip ad <span class="skip_button_icon"></span>',
             adTextPosition: 'top left',
-            vastTimeout: 10000,
+            vastTimeout: 15000,
             showPlayButton: true,
-            maxAllowedVastTagRedirects: 3,
+            maxAllowedVastTagRedirects: 5,
             vastAdvanced: {
               vastLoadedCallback: () => {
                 console.log('VAST ad loaded successfully');
+                setIsLoading(false);
               },
               noVastVideoCallback: () => {
                 console.log('No VAST ad available, proceeding with video');
@@ -78,6 +87,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               },
               vastVideoEndedCallback: () => {
                 console.log('VAST ad ended');
+              },
+              vastVideoErrorCallback: (error: any) => {
+                console.log('VAST ad error, continuing with video:', error);
+                setIsLoading(false);
               }
             }
           },
@@ -91,23 +104,37 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }
         });
 
-        // Player event listeners
+        // Enhanced player event listeners
         if (videoRef.current) {
           videoRef.current.addEventListener('loadstart', () => {
-            setIsLoading(true);
+            console.log('Video loadstart event');
             setVideoError(false);
           });
           
+          videoRef.current.addEventListener('loadedmetadata', () => {
+            console.log('Video metadata loaded');
+          });
+          
           videoRef.current.addEventListener('canplay', () => {
-            setIsLoading(false);
+            console.log('Video can play');
             setVideoError(false);
             onCanPlay?.();
           });
           
-          videoRef.current.addEventListener('error', () => {
+          videoRef.current.addEventListener('error', (e) => {
+            console.error('Video error:', e);
             setVideoError(true);
             setIsLoading(false);
             onError?.();
+          });
+
+          videoRef.current.addEventListener('waiting', () => {
+            console.log('Video waiting for data');
+          });
+
+          videoRef.current.addEventListener('playing', () => {
+            console.log('Video started playing');
+            setIsLoading(false);
           });
         }
 
@@ -213,16 +240,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <video
         ref={videoRef}
         className="w-full h-full"
-        controls
         poster={poster || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
         preload="metadata"
         playsInline
+        crossOrigin="anonymous"
         onError={handleVideoError}
         onCanPlay={handleVideoCanPlay}
       >
         <source src={src} type="video/mp4" />
-        <source src={src} type="video/webm" />
-        <source src={src} type="video/ogg" />
         Your browser does not support the video tag.
       </video>
     </div>
