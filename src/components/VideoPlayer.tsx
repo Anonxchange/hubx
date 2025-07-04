@@ -41,6 +41,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const handleLoadedMetadata = () => {
     console.log('Video metadata loaded');
+    setIsLoading(false);
   };
 
   const handlePlaying = () => {
@@ -50,6 +51,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const handleWaiting = () => {
     console.log('Video waiting for data');
+    setIsLoading(true);
   };
 
   if (videoError) {
@@ -77,10 +79,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   return (
     <div className="relative w-full h-full">
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-card text-card-foreground z-10">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-10">
           <div className="text-center space-y-2">
-            <div className="w-8 h-8 mx-auto border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm text-muted-foreground">Loading video...</p>
+            <div className="w-8 h-8 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm">Loading video...</p>
           </div>
         </div>
       )}
@@ -88,10 +90,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ref={videoRef}
         className="w-full h-full"
         controls
-        poster={poster || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
+        poster={poster}
         preload="metadata"
         playsInline
-        crossOrigin="anonymous"
         onLoadStart={handleLoadStart}
         onLoadedMetadata={handleLoadedMetadata}
         onCanPlay={handleVideoCanPlay}
