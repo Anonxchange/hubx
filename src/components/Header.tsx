@@ -18,8 +18,15 @@ const Header = () => {
   const location = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+  const navTabs = [
+    { name: 'LIVE CAM', url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default' },
+    { name: 'BET NOW', url: 'https://refpa3267686.top/L?tag=d_4520133m_1599c_&site=4520133&ad=1599' },
+    { name: '1XBET', url: 'https://1xbet.com/en/registration/?partner=4520133&promo=1x_3119536' },
+    { name: 'HOOKUP', url: 'https://chaturbate.com/in/?tour=OT2s&campaign=cxFud&track=default' }
+  ];
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header className="sticky top-0 z-50 w-full bg-black">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -41,7 +48,7 @@ const Header = () => {
             {/* Categories Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="nav-item flex items-center space-x-1">
+                <Button variant="ghost" className="nav-item flex items-center space-x-1 text-white hover:text-white hover:bg-white/10">
                   <span>All Categories</span>
                   <ChevronDown className="w-4 h-4" />
                 </Button>
@@ -76,37 +83,54 @@ const Header = () => {
           <Button
             variant="ghost"
             size="sm"
-            className="lg:hidden"
+            className="lg:hidden text-white hover:bg-white/10"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             <div className="space-y-1">
-              <div className="w-5 h-0.5 bg-foreground"></div>
-              <div className="w-5 h-0.5 bg-foreground"></div>
-              <div className="w-5 h-0.5 bg-foreground"></div>
+              <div className="w-5 h-0.5 bg-white"></div>
+              <div className="w-5 h-0.5 bg-white"></div>
+              <div className="w-5 h-0.5 bg-white"></div>
             </div>
           </Button>
         </div>
 
+        {/* Navigation Tabs */}
+        <div className="border-t border-gray-800">
+          <div className="flex items-center justify-center lg:justify-start py-3 gap-2 lg:gap-4 overflow-x-auto">
+            {navTabs.map((tab) => (
+              <a
+                key={tab.name}
+                href={tab.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0 bg-gray-800 hover:bg-orange-600 text-white font-bold px-3 py-2 lg:px-6 lg:py-2 rounded-full transition-colors duration-200 text-xs lg:text-sm whitespace-nowrap"
+              >
+                {tab.name}
+              </a>
+            ))}
+          </div>
+        </div>
+
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-border/40 py-4">
+          <div className="lg:hidden border-t border-gray-800 py-4">
             <nav className="space-y-2">
               <Link
                 to="/"
-                className="block nav-item py-2"
+                className="block nav-item py-2 text-white"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Home
               </Link>
               
               <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground px-3 py-1">Categories</p>
+                <p className="text-sm font-medium text-gray-400 px-3 py-1">Categories</p>
                 <div className="grid grid-cols-2 gap-1">
                   {categories.map((category) => (
                     <Link
                       key={category}
                       to={`/category/${category.toLowerCase().replace(' ', '-')}`}
-                      className="text-sm hover:bg-accent/20 rounded px-3 py-1 block"
+                      className="text-sm hover:bg-white/10 rounded px-3 py-1 block text-white"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       {category}
