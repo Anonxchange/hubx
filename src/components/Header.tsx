@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const categories = [
-  'Big Ass', 'Big Tits', 'Ebony', 'MILF', 'Lesbian', 'Teen'
+  'recommended', 'Trending', 'Most Rated'
 ];
 
 const Header = () => {
@@ -53,15 +53,15 @@ const Header = () => {
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-popover/95 backdrop-blur max-h-80 overflow-y-auto">
+              <DropdownMenuContent className="w-56 bg-popover backdrop-blur z-50 border border-border">
                 <div className="grid grid-cols-1 gap-1 p-2">
                   {categories.map((category) => (
                     <DropdownMenuItem key={category} asChild>
                       <Link
-                        to={`/category/${category.toLowerCase().replace(' ', '-')}`}
+                        to={`/?category=${category.toLowerCase()}`}
                         className="text-sm hover:bg-accent/20 rounded px-3 py-2 block"
                       >
-                        {category}
+                        {category === 'recommended' ? 'Recommended' : category}
                       </Link>
                     </DropdownMenuItem>
                   ))}
@@ -129,11 +129,11 @@ const Header = () => {
                   {categories.map((category) => (
                     <Link
                       key={category}
-                      to={`/category/${category.toLowerCase().replace(' ', '-')}`}
+                      to={`/?category=${category.toLowerCase()}`}
                       className="text-sm hover:bg-white/10 rounded px-3 py-1 block text-white"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      {category}
+                      {category === 'recommended' ? 'Recommended' : category}
                     </Link>
                   ))}
                 </div>

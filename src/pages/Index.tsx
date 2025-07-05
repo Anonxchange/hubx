@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Grid3X3, List } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
 import Footer from '@/components/Footer';
@@ -14,25 +15,32 @@ import { useVideos } from '@/hooks/useVideos';
 
 const categories = [
   'All',
-  'Big Ass',
-  'Big Tits', 
-  'Ebony',
-  'MILF',
-  'Lesbian',
-  'Teen'
+  'recommended',
+  'Trending',
+  'Most Rated'
 ];
 
 const Index = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [tempSearch, setTempSearch] = useState('');
+
+  // Initialize category from URL params
+  useEffect(() => {
+    const categoryParam = searchParams.get('category');
+    if (categoryParam && categories.map(c => c.toLowerCase()).includes(categoryParam)) {
+      const matchedCategory = categories.find(c => c.toLowerCase() === categoryParam) || 'All';
+      setSelectedCategory(matchedCategory);
+    }
+  }, [searchParams]);
   
   const { data, isLoading, error } = useVideos(
     currentPage,
     40,
-    selectedCategory === 'All' ? undefined : selectedCategory.toLowerCase(),
+    selectedCategory === 'All' ? undefined : selectedCategory,
     searchQuery
   );
 
@@ -101,7 +109,7 @@ const Index = () => {
                 <SelectContent>
                   {categories.map((category) => (
                     <SelectItem key={category} value={category}>
-                      {category}
+                      {category === 'recommended' ? 'Recommended' : category}
                     </SelectItem>
                   ))}
                 </SelectContent>
