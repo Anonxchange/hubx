@@ -15,9 +15,15 @@ import { useVideos } from '@/hooks/useVideos';
 
 const categories = [
   'All',
-  'recommended',
-  'Trending',
-  'Most Rated'
+  'anal',
+  'big-ass', 
+  'blowjob',
+  'latina',
+  'milf',
+  'teen',
+  'amateur',
+  'asian',
+  'ebony'
 ];
 
 const Index = () => {
@@ -109,7 +115,7 @@ const Index = () => {
                 <SelectContent>
                   {categories.map((category) => (
                     <SelectItem key={category} value={category}>
-                      {category === 'recommended' ? 'Recommended' : category}
+                      {category === 'All' ? 'All' : category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
                     </SelectItem>
                   ))}
                 </SelectContent>

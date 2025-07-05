@@ -51,26 +51,10 @@ export const getVideos = async (page = 1, limit = 30, category?: string, searchQ
     .from('videos')
     .select('*');
 
-  // Apply category-based sorting and filtering
+  // Apply category-based filtering
   if (category && category !== 'all') {
-    switch (category.toLowerCase()) {
-      case 'recommended':
-        // Order by a combination of views and likes for top-performing videos
-        query = query.order('views', { ascending: false });
-        break;
-      case 'trending':
-        // Order by views descending for most viewed recently
-        query = query.order('views', { ascending: false });
-        break;
-      case 'most rated':
-        // Order by likes descending for highest rated
-        query = query.order('likes', { ascending: false });
-        break;
-      default:
-        // For any other category, treat as tag-based filtering
-        query = query.contains('tags', [category]).order('created_at', { ascending: false });
-        break;
-    }
+    // Filter by tag
+    query = query.contains('tags', [category]).order('created_at', { ascending: false });
   } else {
     // Default ordering by creation date
     query = query.order('created_at', { ascending: false });
