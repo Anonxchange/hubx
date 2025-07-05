@@ -11,15 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const categories = [
-  'anal',
-  'big-ass', 
-  'blowjob',
-  'latina',
-  'milf',
-  'teen',
-  'amateur',
-  'asian',
-  'ebony'
+  'recommended', 'Trending', 'Most Rated'
 ];
 
 const Header = () => {
@@ -69,7 +61,7 @@ const Header = () => {
                         to={`/?category=${category.toLowerCase()}`}
                         className="text-sm hover:bg-accent/20 rounded px-3 py-2 block"
                       >
-                        {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
+                        {category === 'recommended' ? 'Recommended' : category}
                       </Link>
                     </DropdownMenuItem>
                   ))}
@@ -141,7 +133,7 @@ const Header = () => {
                       className="text-sm hover:bg-white/10 rounded px-3 py-1 block text-white"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
-                      {category.charAt(0).toUpperCase() + category.slice(1).replace('-', ' ')}
+                      {category === 'recommended' ? 'Recommended' : category}
                     </Link>
                   ))}
                 </div>
