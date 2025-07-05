@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import ImageStylePagination from '@/components/ImageStylePagination';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadVideo, deleteVideo, VideoUpload } from '@/services/videosService';
 import { useVideos } from '@/hooks/useVideos';
@@ -34,8 +35,10 @@ const AdminPanel = () => {
     tags: []
   });
 
-  const { data: videosData } = useVideos(1, 100);
+  const [currentPage, setCurrentPage] = useState(1);
+  const { data: videosData } = useVideos(currentPage, 40);
   const videos = videosData?.videos || [];
+  const totalPages = videosData?.totalPages || 1;
 
   const uploadMutation = useMutation({
     mutationFn: uploadVideo,
@@ -383,7 +386,7 @@ const AdminPanel = () => {
           <TabsContent value="manage">
             <Card>
               <CardHeader>
-                <CardTitle>Manage Videos ({videos.length} total)</CardTitle>
+                <CardTitle>Manage Videos ({videosData?.totalCount || 0} total)</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -431,6 +434,13 @@ const AdminPanel = () => {
                     </p>
                   )}
                 </div>
+                
+                {/* Pagination */}
+                <ImageStylePagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </CardContent>
             </Card>
           </TabsContent>

@@ -31,7 +31,7 @@ const Index = () => {
   
   const { data, isLoading, error } = useVideos(
     currentPage,
-    30,
+    40,
     selectedCategory === 'All' ? undefined : selectedCategory.toLowerCase(),
     searchQuery
   );
