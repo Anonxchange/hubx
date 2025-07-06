@@ -3,7 +3,7 @@ import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import videojs from 'video.js';
 import 'video.js/dist/video-js.css';
-import 'videojs-vast-vpaid';
+import 'videojs-contrib-ads';
 
 interface VideoPlayerProps {
   src: string;
@@ -42,16 +42,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           sources: [{
             src: src,
             type: 'video/mp4'
-          }],
-          plugins: {
-            vastClient: {
-              adTagUrl: vastUrl,
-              playAdAlways: true,
-              vpaidFlashLoaderPath: '',
-              adsCancelTimeout: 60,
-              adsEnabled: true
-            }
-          }
+          }]
+        });
+
+        // Initialize the ads plugin
+        playerRef.current.ads({
+          timeout: 5000
         });
 
         // Event listeners
@@ -60,6 +56,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           setIsLoading(false);
           setVideoError(false);
           onCanPlay?.();
+          
+          // Request ads when player is ready
+          playerRef.current.trigger('adsready');
         });
 
         playerRef.current.on('error', (e: any) => {
@@ -95,17 +94,56 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           setIsLoading(false);
         });
 
-        // VAST specific events
-        playerRef.current.on('vast.adStart', () => {
-          console.log('VAST ad started');
+        // Ads framework events
+        playerRef.current.on('readyforpreroll', () => {
+          console.log('Ready for preroll ad');
+          // Start ad mode
+          playerRef.current.ads.startLinearAdMode();
+          
+          // Create a simple ad overlay
+          const adOverlay = document.createElement('div');
+          adOverlay.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: black;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            z-index: 1000;
+          `;
+          adOverlay.innerHTML = `
+            <div style="text-align: center;">
+              <div>Advertisement</div>
+              <div style="font-size: 14px; margin-top: 10px;">
+                <a href="${vastUrl}" target="_blank" style="color: #fff; text-decoration: underline;">
+                  Click here for more info
+                </a>
+              </div>
+            </div>
+          `;
+          
+          playerRef.current.el().appendChild(adOverlay);
+          
+          // Remove ad after 5 seconds and end ad mode
+          setTimeout(() => {
+            if (adOverlay.parentNode) {
+              adOverlay.parentNode.removeChild(adOverlay);
+            }
+            playerRef.current.ads.endLinearAdMode();
+          }, 5000);
         });
 
-        playerRef.current.on('vast.adComplete', () => {
-          console.log('VAST ad completed');
+        playerRef.current.on('adstart', () => {
+          console.log('Ad started');
         });
 
-        playerRef.current.on('vast.adError', (e: any) => {
-          console.error('VAST ad error:', e);
+        playerRef.current.on('adend', () => {
+          console.log('Ad ended');
         });
 
       } catch (error) {
