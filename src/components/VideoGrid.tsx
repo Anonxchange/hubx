@@ -35,7 +35,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAd
     return (
       <div className="space-y-4">
         {videos.map((video, index) => (
-          <React.Fragment key={video.id}>
+          <div key={video.id}>
             <VideoCard video={video} viewMode="list" />
             {/* Insert ad after video 15 (index 14) */}
             {showAds && index === 14 && (
@@ -43,7 +43,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAd
                 <AdComponent zoneId="5661270" />
               </div>
             )}
-          </React.Fragment>
+          </div>
         ))}
       </div>
     );
@@ -52,7 +52,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAd
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {videos.map((video, index) => (
-        <React.Fragment key={video.id}>
+        <div key={video.id}>
           <VideoCard video={video} viewMode="grid" />
           {/* Insert ad after video 15 (index 14) - spanning full width */}
           {showAds && index === 14 && (
@@ -60,7 +60,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAd
               <AdComponent zoneId="5661270" />
             </div>
           )}
-        </React.Fragment>
+        </div>
       ))}
     </div>
   );
