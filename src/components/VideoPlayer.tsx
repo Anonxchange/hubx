@@ -1,14 +1,10 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import videojs from 'video.js';
-import 'video.js/dist/video-js.css';
-import 'videojs-contrib-ads';
 
 interface VideoPlayerProps {
   src: string;
   poster?: string;
-  vastUrl?: string;
   onError?: () => void;
   onCanPlay?: () => void;
 }
@@ -16,151 +12,47 @@ interface VideoPlayerProps {
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
   src, 
   poster, 
-  vastUrl = 'https://s.magsrv.com/v1/vast.php?idzone=5660526',
   onError, 
   onCanPlay 
 }) => {
-  const videoRef = useRef<HTMLDivElement>(null);
-  const playerRef = useRef<any>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [videoError, setVideoError] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
 
-  useEffect(() => {
-    if (!playerRef.current && videoRef.current) {
-      const videoElement = document.createElement('video-js');
-      videoElement.className = 'vjs-default-skin w-full h-full';
-      videoRef.current.appendChild(videoElement);
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    console.error('Video error:', e);
+    setVideoError(true);
+    setIsLoading(false);
+    onError?.();
+  };
 
-      try {
-        playerRef.current = videojs(videoElement, {
-          controls: true,
-          responsive: true,
-          fluid: true,
-          poster: poster,
-          preload: 'metadata',
-          playsinline: true,
-          sources: [{
-            src: src,
-            type: 'video/mp4'
-          }]
-        });
+  const handleVideoCanPlay = () => {
+    console.log('Video can play');
+    setVideoError(false);
+    setIsLoading(false);
+    onCanPlay?.();
+  };
 
-        // Initialize the ads plugin
-        playerRef.current.ads({
-          timeout: 5000
-        });
+  const handleLoadStart = () => {
+    console.log('Video load started');
+    setIsLoading(true);
+    setVideoError(false);
+  };
 
-        // Event listeners
-        playerRef.current.ready(() => {
-          console.log('Player is ready');
-          setIsLoading(false);
-          setVideoError(false);
-          onCanPlay?.();
-          
-          // Request ads when player is ready
-          playerRef.current.trigger('adsready');
-        });
+  const handleLoadedMetadata = () => {
+    console.log('Video metadata loaded');
+    setIsLoading(false);
+  };
 
-        playerRef.current.on('error', (e: any) => {
-          console.error('Video error:', e);
-          setVideoError(true);
-          setIsLoading(false);
-          onError?.();
-        });
+  const handlePlaying = () => {
+    console.log('Video started playing');
+    setIsLoading(false);
+  };
 
-        playerRef.current.on('loadstart', () => {
-          console.log('Video load started');
-          setIsLoading(true);
-          setVideoError(false);
-        });
-
-        playerRef.current.on('loadedmetadata', () => {
-          console.log('Video metadata loaded');
-          setIsLoading(false);
-        });
-
-        playerRef.current.on('play', () => {
-          console.log('Video started playing');
-          setIsLoading(false);
-        });
-
-        playerRef.current.on('waiting', () => {
-          console.log('Video waiting for data');
-          setIsLoading(true);
-        });
-
-        playerRef.current.on('playing', () => {
-          console.log('Video playing');
-          setIsLoading(false);
-        });
-
-        // Ads framework events
-        playerRef.current.on('readyforpreroll', () => {
-          console.log('Ready for preroll ad');
-          // Start ad mode
-          playerRef.current.ads.startLinearAdMode();
-          
-          // Create a simple ad overlay
-          const adOverlay = document.createElement('div');
-          adOverlay.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: black;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 18px;
-            z-index: 1000;
-          `;
-          adOverlay.innerHTML = `
-            <div style="text-align: center;">
-              <div>Advertisement</div>
-              <div style="font-size: 14px; margin-top: 10px;">
-                <a href="${vastUrl}" target="_blank" style="color: #fff; text-decoration: underline;">
-                  Click here for more info
-                </a>
-              </div>
-            </div>
-          `;
-          
-          playerRef.current.el().appendChild(adOverlay);
-          
-          // Remove ad after 5 seconds and end ad mode
-          setTimeout(() => {
-            if (adOverlay.parentNode) {
-              adOverlay.parentNode.removeChild(adOverlay);
-            }
-            playerRef.current.ads.endLinearAdMode();
-          }, 5000);
-        });
-
-        playerRef.current.on('adstart', () => {
-          console.log('Ad started');
-        });
-
-        playerRef.current.on('adend', () => {
-          console.log('Ad ended');
-        });
-
-      } catch (error) {
-        console.error('Error initializing video player:', error);
-        setVideoError(true);
-        setIsLoading(false);
-        onError?.();
-      }
-    }
-
-    return () => {
-      if (playerRef.current && !playerRef.current.isDisposed()) {
-        playerRef.current.dispose();
-        playerRef.current = null;
-      }
-    };
-  }, [src, poster, vastUrl, onError, onCanPlay]);
+  const handleWaiting = () => {
+    console.log('Video waiting for data');
+    setIsLoading(true);
+  };
 
   if (videoError) {
     return (
@@ -185,7 +77,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }
 
   return (
-    <div className="relative w-full h-full aspect-video">
+    <div className="relative w-full h-full">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-10">
           <div className="text-center space-y-2">
@@ -194,7 +86,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         </div>
       )}
-      <div ref={videoRef} className="video-js-wrapper w-full h-full" />
+      <video
+        ref={videoRef}
+        className="w-full h-full"
+        controls
+        poster={poster}
+        preload="metadata"
+        playsInline
+        onLoadStart={handleLoadStart}
+        onLoadedMetadata={handleLoadedMetadata}
+        onCanPlay={handleVideoCanPlay}
+        onPlaying={handlePlaying}
+        onWaiting={handleWaiting}
+        onError={handleVideoError}
+      >
+        <source src={src} type="video/mp4" />
+        <source src={src} type="video/webm" />
+        Your browser does not support the video tag.
+      </video>
     </div>
   );
 };
