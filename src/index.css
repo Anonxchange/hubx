@@ -3,6 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Video.js styling */
+@import url('video.js/dist/video-js.css');
+
 @layer base {
   :root {
     --background: 220 20% 8%;
