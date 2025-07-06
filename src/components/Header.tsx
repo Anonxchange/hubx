@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 
 const categories = [
-  'recommended', 'Trending', 'Most Rated'
+  'anal', 'big-ass', 'blowjob', 'creampie', 'milf', 'teen', 'pov', 'hardcore', 'amateur', 'lesbian'
 ];
 
 const Header = () => {
