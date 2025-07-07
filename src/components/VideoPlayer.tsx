@@ -1,7 +1,6 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import fluidPlayer from 'fluid-player';
 
 interface VideoPlayerProps {
   src: string;
@@ -19,9 +18,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoError, setVideoError] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(false);
-  const playerInstanceRef = useRef<any>(null);
 
-  const handleVideoError = (e: Event) => {
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     console.error('Video error:', e);
     setVideoError(true);
     setIsLoading(false);
@@ -55,61 +53,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     console.log('Video waiting for data');
     setIsLoading(true);
   };
-
-  useEffect(() => {
-    if (videoRef.current && !playerInstanceRef.current) {
-      try {
-        playerInstanceRef.current = fluidPlayer(videoRef.current, {
-          layoutControls: {
-            fillToContainer: true,
-            autoPlay: false,
-            mute: false,
-            allowTheatre: false,
-            playPauseAnimation: true,
-            playbackRateEnabled: false,
-            allowDownload: false,
-            playButtonShowing: true,
-            posterImage: poster
-          },
-          vastOptions: {
-            adList: [
-              {
-                roll: 'preRoll',
-                vastTag: 'https://s.magsrv.com/v1/vast.php?idzone=5660526',
-                adText: 'Advertisement',
-                adTextPosition: 'top left'
-              }
-            ],
-            adCTAText: 'Visit Now',
-            adCTATextPosition: 'bottom right'
-          }
-        });
-
-        if (onCanPlay) {
-          videoRef.current.addEventListener('canplay', onCanPlay);
-        }
-        
-        if (onError) {
-          videoRef.current.addEventListener('error', handleVideoError);
-        }
-      } catch (error) {
-        console.error('Fluid Player initialization error:', error);
-        setVideoError(true);
-        onError?.();
-      }
-    }
-
-    return () => {
-      if (playerInstanceRef.current) {
-        try {
-          playerInstanceRef.current.destroy();
-          playerInstanceRef.current = null;
-        } catch (error) {
-          console.error('Error destroying Fluid Player:', error);
-        }
-      }
-    };
-  }, [src, poster, onError, onCanPlay]);
 
   if (videoError) {
     return (
@@ -155,7 +98,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onCanPlay={handleVideoCanPlay}
         onPlaying={handlePlaying}
         onWaiting={handleWaiting}
-        onError={(e) => handleVideoError(e.nativeEvent)}
+        onError={handleVideoError}
       >
         <source src={src} type="video/mp4" />
         <source src={src} type="video/webm" />
