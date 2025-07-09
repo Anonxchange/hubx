@@ -49,33 +49,17 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
       {/* Mobile-first Pagination - Stack on small screens */}
       <div className="w-full max-w-full">
         {/* Mobile Layout */}
-        <div className="flex sm:hidden flex-col items-center space-y-3">
-          {/* Previous/Next Row */}
-          <div className="flex items-center justify-between w-full max-w-xs">
-            <Button
-              variant="outline"
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="px-3 py-2 text-sm disabled:opacity-50"
-            >
-              ← Prev
-            </Button>
-            
-            <div className="text-sm font-medium">
-              {currentPage} / {totalPages}
-            </div>
-            
-            <Button
-              variant="default"
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="px-3 py-2 text-sm disabled:opacity-50"
-            >
-              Next →
-            </Button>
-          </div>
+        <div className="flex sm:hidden items-center justify-between w-full max-w-sm mx-auto">
+          <Button
+            variant="outline"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-3 py-2 text-sm disabled:opacity-50"
+          >
+            ← Prev
+          </Button>
           
-          {/* Page Numbers Row */}
+          {/* Page Numbers in Center */}
           <div className="flex items-center justify-center space-x-1">
             {visiblePages.map((page) => (
               <Button
@@ -93,30 +77,39 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
             ))}
           </div>
           
-          {/* Quick Jump */}
-          {totalPages > 5 && (
-            <div className="flex items-center space-x-2 text-xs">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handlePageChange(1)}
-                disabled={currentPage === 1}
-                className="text-xs px-2 py-1"
-              >
-                First
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
-                className="text-xs px-2 py-1"
-              >
-                Last
-              </Button>
-            </div>
-          )}
+          <Button
+            variant="default"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-3 py-2 text-sm disabled:opacity-50"
+          >
+            Next →
+          </Button>
         </div>
+
+        {/* Quick Jump - Mobile only */}
+        {totalPages > 5 && (
+          <div className="flex sm:hidden items-center justify-center space-x-2 text-xs mt-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePageChange(1)}
+              disabled={currentPage === 1}
+              className="text-xs px-2 py-1"
+            >
+              First
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => handlePageChange(totalPages)}
+              disabled={currentPage === totalPages}
+              className="text-xs px-2 py-1"
+            >
+              Last
+            </Button>
+          </div>
+        )}
 
         {/* Desktop Layout */}
         <div className="hidden sm:flex items-center justify-center space-x-2 flex-wrap">
