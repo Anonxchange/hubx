@@ -49,7 +49,7 @@ const getSessionId = () => {
 export const getVideos = async (page = 1, limit = 30, category?: string, searchQuery?: string) => {
   let query = supabase
     .from('videos')
-    .select('*');
+    .select('*', { count: 'exact' }); // Added count: 'exact' to get total count
 
   // Apply category-based sorting and filtering
   if (category && category !== 'all') {
@@ -89,6 +89,8 @@ export const getVideos = async (page = 1, limit = 30, category?: string, searchQ
     console.error('Error fetching videos:', error);
     throw error;
   }
+
+  console.log('Videos fetched:', { videosCount: data?.length, totalCount: count, page, limit }); // Debug log
 
   return {
     videos: data || [],
