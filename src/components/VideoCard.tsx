@@ -30,18 +30,25 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseEnter = () => {
-    if (video.preview_url) {
+    console.log('Mouse enter - Video:', video.title);
+    console.log('Preview URL:', video.preview_url);
+    console.log('Has preview URL:', !!video.preview_url && video.preview_url.trim() !== '');
+    
+    if (video.preview_url && video.preview_url.trim() !== '') {
       setIsHovered(true);
       // Delay preview start by 500ms to avoid triggering on quick mouse movements
       hoverTimeoutRef.current = setTimeout(() => {
+        console.log('Starting preview for:', video.title);
         setShowPreview(true);
         if (videoRef.current) {
           videoRef.current.currentTime = 0;
-          videoRef.current.play().catch(() => {
-            // Silently handle autoplay failures
+          videoRef.current.play().catch((error) => {
+            console.error('Video play failed:', error);
           });
         }
       }, 500);
+    } else {
+      console.log('No preview URL available for:', video.title);
     }
   };
 
@@ -90,7 +97,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                 alt={video.title}
                 className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
               />
-              {video.preview_url && (
+              {video.preview_url && video.preview_url.trim() !== '' && (
                 <video
                   ref={videoRef}
                   src={video.preview_url}
@@ -157,7 +164,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             alt={video.title}
             className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
-          {video.preview_url && (
+          {video.preview_url && video.preview_url.trim() !== '' && (
             <video
               ref={videoRef}
               src={video.preview_url}
@@ -171,7 +178,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
-          {video.preview_url && showPreview && (
+          {video.preview_url && video.preview_url.trim() !== '' && showPreview && (
             <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded animate-fade-in">
               Preview
             </div>
