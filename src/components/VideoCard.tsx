@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Eye, ThumbsUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ interface Video {
   title: string;
   description?: string;
   thumbnail_url?: string;
+  preview_url?: string;
   duration: string;
   views: number;
   likes: number;
@@ -23,6 +24,39 @@ interface VideoCardProps {
 }
 
 const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (video.preview_url) {
+      setIsHovered(true);
+      // Delay preview start by 500ms to avoid triggering on quick mouse movements
+      hoverTimeoutRef.current = setTimeout(() => {
+        setShowPreview(true);
+        if (videoRef.current) {
+          videoRef.current.currentTime = 0;
+          videoRef.current.play().catch(() => {
+            // Silently handle autoplay failures
+          });
+        }
+      }, 500);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setShowPreview(false);
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+  };
   const formatViews = (views: number) => {
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1)}M`;
@@ -46,12 +80,27 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       <Link to={`/video/${video.id}`} className="block">
         <Card className="hover:bg-muted/5 transition-colors">
           <CardContent className="p-4 flex space-x-4">
-            <div className="relative w-48 h-28 bg-muted rounded overflow-hidden flex-shrink-0">
+            <div 
+              className="relative w-48 h-28 bg-muted rounded overflow-hidden flex-shrink-0"
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
               <img
                 src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
                 alt={video.title}
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
               />
+              {video.preview_url && (
+                <video
+                  ref={videoRef}
+                  src={video.preview_url}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                />
+              )}
               <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                 {video.duration}
               </div>
@@ -98,15 +147,35 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   return (
     <Link to={`/video/${video.id}`} className="block">
       <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
-        <div className="relative aspect-video bg-muted overflow-hidden">
+        <div 
+          className="relative aspect-video bg-muted overflow-hidden"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
           <img
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
             alt={video.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+            className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
+          {video.preview_url && (
+            <video
+              ref={videoRef}
+              src={video.preview_url}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+            />
+          )}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
+          {video.preview_url && showPreview && (
+            <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded animate-fade-in">
+              Preview
+            </div>
+          )}
         </div>
         
         <CardContent className="p-4 space-y-3">
