@@ -22,6 +22,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isLoading, setIsLoading] = React.useState(true);
   const [showingAd, setShowingAd] = React.useState(false);
   const [adShown, setAdShown] = React.useState(false);
+  const [showSkipButton, setShowSkipButton] = React.useState(false);
+  const [adCountdown, setAdCountdown] = React.useState(5);
 
   // Function to fetch and parse VAST XML
   const fetchVastAd = async () => {
@@ -79,6 +81,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (vastData?.adVideoUrl) {
       console.log('Playing VAST video ad:', vastData.adVideoUrl);
       setShowingAd(true);
+      setShowSkipButton(false);
+      setAdCountdown(5);
+      
+      // Start skip button countdown
+      const skipTimer = setTimeout(() => {
+        setShowSkipButton(true);
+      }, 5000);
+      
+      // Update countdown every second
+      const countdownInterval = setInterval(() => {
+        setAdCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
       
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
@@ -96,10 +116,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           await adVideoRef.current.play();
         } catch (playError) {
           console.error('Error playing ad video:', playError);
+          clearTimeout(skipTimer);
+          clearInterval(countdownInterval);
           setShowingAd(false);
           setAdShown(true);
+          setShowSkipButton(false);
         }
       }
+      
+      // Cleanup function
+      const cleanup = () => {
+        clearTimeout(skipTimer);
+        clearInterval(countdownInterval);
+      };
+      
+      // Store cleanup function for later use
+      (window as any).adCleanup = cleanup;
+      
     } else {
       console.log('No valid ad video found, showing placeholder ad');
       // Show placeholder ad overlay
@@ -110,6 +143,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Function to show placeholder ad when VAST fails
   const showPlaceholderAd = () => {
     setShowingAd(true);
+    setShowSkipButton(false);
+    setAdCountdown(5);
     
     const adOverlay = document.createElement('div');
     adOverlay.style.cssText = `
@@ -130,13 +165,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     `;
     
     let countdown = 5;
-    adOverlay.innerHTML = `
-      <div style="text-align: center;">
-        <div style="margin-bottom: 15px;">Advertisement</div>
-        <div style="font-size: 14px; opacity: 0.8;">Video starts in ${countdown} seconds</div>
-        <div style="margin-top: 15px; font-size: 12px; opacity: 0.6;">Click to visit advertiser</div>
-      </div>
-    `;
+    const updateOverlay = () => {
+      adOverlay.innerHTML = `
+        <div style="text-align: center;">
+          <div style="margin-bottom: 15px;">Advertisement</div>
+          <div style="font-size: 14px; opacity: 0.8;">${countdown > 0 ? `Video starts in ${countdown} seconds` : 'You can skip this ad'}</div>
+          <div style="margin-top: 15px; font-size: 12px; opacity: 0.6;">Click to visit advertiser</div>
+        </div>
+      `;
+    };
+    
+    updateOverlay();
     
     adOverlay.onclick = () => {
       window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
@@ -148,21 +187,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     
     const countdownInterval = setInterval(() => {
       countdown--;
-      adOverlay.innerHTML = `
-        <div style="text-align: center;">
-          <div style="margin-bottom: 15px;">Advertisement</div>
-          <div style="font-size: 14px; opacity: 0.8;">Video starts in ${countdown} seconds</div>
-          <div style="margin-top: 15px; font-size: 12px; opacity: 0.6;">Click to visit advertiser</div>
-        </div>
-      `;
+      setAdCountdown(countdown);
+      updateOverlay();
       
       if (countdown <= 0) {
+        setShowSkipButton(true);
+      }
+      
+      if (countdown <= -5) { // Auto-skip after 5 seconds of skip availability
         clearInterval(countdownInterval);
         if (containerRef.current && adOverlay.parentNode) {
           containerRef.current.removeChild(adOverlay);
         }
         setShowingAd(false);
         setAdShown(true);
+        setShowSkipButton(false);
       }
     }, 1000);
   };
@@ -209,6 +248,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
       setShowingAd(false);
       setAdShown(true);
+      setShowSkipButton(false);
+      
+      // Cleanup timers
+      if ((window as any).adCleanup) {
+        (window as any).adCleanup();
+      }
+      
       if (video) {
         video.play();
       }
@@ -257,6 +303,38 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onError?.();
   };
 
+  const skipAd = () => {
+    console.log('Skipping ad');
+    
+    // Cleanup timers
+    if ((window as any).adCleanup) {
+      (window as any).adCleanup();
+    }
+    
+    // Hide ad video if playing
+    if (adVideoRef.current) {
+      adVideoRef.current.pause();
+      adVideoRef.current.style.display = 'none';
+    }
+    
+    // Remove any placeholder overlays
+    const overlays = containerRef.current?.querySelectorAll('div[style*="position: absolute"]');
+    overlays?.forEach(overlay => {
+      if (overlay.parentNode === containerRef.current) {
+        containerRef.current?.removeChild(overlay);
+      }
+    });
+    
+    setShowingAd(false);
+    setAdShown(true);
+    setShowSkipButton(false);
+    
+    // Start main video
+    if (videoRef.current) {
+      videoRef.current.play();
+    }
+  };
+
   if (videoError) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-card text-card-foreground aspect-video">
@@ -287,6 +365,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             <div className="w-8 h-8 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             <p className="text-sm">Loading video...</p>
           </div>
+        </div>
+      )}
+      
+      {/* Skip Ad Button */}
+      {showingAd && showSkipButton && (
+        <div className="absolute top-4 right-4 z-30">
+          <Button
+            onClick={skipAd}
+            size="sm"
+            className="bg-black/80 text-white hover:bg-black/90 border-white/20"
+          >
+            Skip Ad
+          </Button>
+        </div>
+      )}
+      
+      {/* Ad Countdown */}
+      {showingAd && !showSkipButton && adCountdown > 0 && (
+        <div className="absolute top-4 right-4 z-30 bg-black/80 text-white px-3 py-1 rounded text-sm">
+          Skip in {adCountdown}s
         </div>
       )}
       
