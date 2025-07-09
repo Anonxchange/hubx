@@ -24,6 +24,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [adShown, setAdShown] = React.useState(false);
   const [showSkipButton, setShowSkipButton] = React.useState(false);
   const [adCountdown, setAdCountdown] = React.useState(5);
+  const [adAllowed, setAdAllowed] = React.useState(false);
+
+  // Session-based ad tracking to prevent ads on every reload
+  const getAdSessionKey = () => `hubx_ad_shown_${Date.now().toString(36)}`;
+  const hasAdBeenShownInSession = () => {
+    const keys = Object.keys(sessionStorage).filter(key => key.startsWith('hubx_ad_shown_'));
+    return keys.length > 0;
+  };
 
   // Function to fetch and parse VAST XML
   const fetchVastAd = async () => {
@@ -206,6 +214,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }, 1000);
   };
 
+  // Effect to set up 1-minute delay for ads
+  useEffect(() => {
+    // Check if ad has already been shown in this session
+    if (hasAdBeenShownInSession()) {
+      setAdShown(true);
+      setAdAllowed(false);
+      console.log('Ad already shown in this session, skipping');
+      return;
+    }
+
+    // Set up 1-minute timer before allowing ads
+    const adTimer = setTimeout(() => {
+      setAdAllowed(true);
+      console.log('Ad now allowed after 1 minute delay');
+    }, 60000); // 1 minute = 60000ms
+
+    return () => {
+      clearTimeout(adTimer);
+    };
+  }, []);
+
   useEffect(() => {
     const video = videoRef.current;
     const adVideo = adVideoRef.current;
@@ -234,8 +263,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     const handlePlay = async () => {
-      if (!adShown) {
+      // Only show ads if allowed (after 1 minute) and not already shown
+      if (!adShown && adAllowed) {
         video.pause();
+        // Mark ad as shown in session storage
+        sessionStorage.setItem(getAdSessionKey(), 'true');
         await playVastAd();
       }
     };
@@ -294,7 +326,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         adVideo.removeEventListener('error', handleAdError);
       }
     };
-  }, [src, onError, onCanPlay, adShown]);
+  }, [src, onError, onCanPlay, adShown, adAllowed]);
 
   const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     console.error('Video element error:', e);
