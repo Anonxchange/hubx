@@ -24,10 +24,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [adShown, setAdShown] = React.useState(false);
   const [showSkipButton, setShowSkipButton] = React.useState(false);
   const [adCountdown, setAdCountdown] = React.useState(5);
-  const [adAllowed, setAdAllowed] = React.useState(false);
 
   // Frequency-based ad tracking (allow ads every 1 minute)
-  const AD_FREQUENCY_MS = 1 * 60 * 1000; // 1 minute
+  const AD_FREQUENCY_MS = 60 * 1000; // 1 minute in milliseconds
+  
   const getLastAdTime = () => {
     const lastAd = localStorage.getItem('hubx_last_ad_time');
     return lastAd ? parseInt(lastAd) : 0;
@@ -36,11 +36,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const canShowAd = () => {
     const lastAdTime = getLastAdTime();
     const now = Date.now();
-    return (now - lastAdTime) >= AD_FREQUENCY_MS;
+    const timeDiff = now - lastAdTime;
+    console.log('Ad check - Last ad:', new Date(lastAdTime).toLocaleTimeString(), 'Time diff:', Math.round(timeDiff / 1000), 'seconds');
+    return timeDiff >= AD_FREQUENCY_MS;
   };
   
   const setLastAdTime = () => {
-    localStorage.setItem('hubx_last_ad_time', Date.now().toString());
+    const now = Date.now();
+    localStorage.setItem('hubx_last_ad_time', now.toString());
+    console.log('Set last ad time:', new Date(now).toLocaleTimeString());
   };
 
   // Function to fetch and parse VAST XML
@@ -92,7 +96,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Function to play VAST ad
   const playVastAd = async () => {
-    if (adShown) return;
+    if (adShown || !canShowAd()) {
+      console.log('Ad skipped - already shown or frequency limit');
+      return;
+    }
     
     console.log('Attempting to play VAST ad...');
     const vastData = await fetchVastAd();
@@ -200,8 +207,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
     };
 
-    // Add debugging for first visit
-    console.log('Showing placeholder ad. Last ad time:', getLastAdTime(), 'Can show ad:', canShowAd(), 'Ad allowed:', adAllowed);
+    console.log('Showing placeholder ad - Can show ad:', canShowAd());
     
     if (containerRef.current) {
       containerRef.current.appendChild(adOverlay);
@@ -228,20 +234,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }, 1000);
   };
 
-  // Effect to set up 1-minute delay for ads - SIMPLIFIED
+  // Effect to initialize ad system
   useEffect(() => {
-    console.log('Setting up ad timer...');
+    console.log('VideoPlayer mounted - Ad system ready');
     
-    // Always set a 1-minute delay before allowing the first ad
-    const adTimer = setTimeout(() => {
-      setAdAllowed(true);
-      setAdShown(false);
-      console.log('Ad now allowed after 1 minute delay');
-    }, 60000); // 1 minute = 60000ms
-
-    return () => {
-      clearTimeout(adTimer);
-    };
+    // Set initial ad timing if this is the first visit
+    if (getLastAdTime() === 0) {
+      console.log('First visit - setting initial ad timestamp');
+      // For first visit, allow ads immediately but set a base timestamp
+      setLastAdTime();
+    }
   }, []);
 
   // Reset ad state when video source changes
@@ -280,12 +282,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     const handlePlay = async () => {
-      // Only show ads if allowed (after 1 minute) and not already shown
-      if (!adShown && adAllowed) {
+      console.log('Video play triggered - Ad shown:', adShown, 'Can show ad:', canShowAd());
+      
+      // Show ads based on frequency limit, not global adShown state
+      if (canShowAd()) {
+        console.log('Showing ad before video');
         video.pause();
-        // Mark ad timestamp and reset adShown for next time
-        setLastAdTime();
+        setLastAdTime(); // Mark ad timestamp
         await playVastAd();
+      } else {
+        console.log('Ad frequency limit active - skipping ad');
       }
     };
 
@@ -343,7 +349,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         adVideo.removeEventListener('error', handleAdError);
       }
     };
-  }, [src, onError, onCanPlay, adShown, adAllowed]);
+  }, [src, onError, onCanPlay, adShown]);
 
   const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     console.error('Video element error:', e);
