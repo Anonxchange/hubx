@@ -39,38 +39,98 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-center space-x-2 mt-8 mb-8 min-h-[60px]">
-      {/* Previous Button */}
-      <Button
-        variant="outline"
-        onClick={() => handlePageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Prev
-      </Button>
+    <div className="flex flex-col items-center space-y-4 mt-12 mb-12 p-6 bg-card/50 rounded-lg border">
+      {/* Page Info */}
+      <div className="text-center text-sm text-muted-foreground">
+        Showing page {currentPage} of {totalPages}
+      </div>
       
-      {/* Page Numbers */}
-      {visiblePages.map((page) => (
+      {/* Pagination Controls */}
+      <div className="flex items-center justify-center space-x-2">
+        {/* First Page Button */}
+        {currentPage > 2 && (
+          <>
+            <Button
+              variant="outline"
+              onClick={() => handlePageChange(1)}
+              className="px-3 py-2"
+            >
+              1
+            </Button>
+            {currentPage > 3 && <span className="px-2 text-muted-foreground">...</span>}
+          </>
+        )}
+        
+        {/* Previous Button */}
         <Button
-          key={page}
-          variant={currentPage === page ? 'default' : 'outline'}
-          onClick={() => handlePageChange(page)}
-          className="w-12 h-12 text-lg font-semibold"
+          variant="outline"
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {page}
+          Previous
         </Button>
-      ))}
+        
+        {/* Page Numbers */}
+        {visiblePages.map((page) => (
+          <Button
+            key={page}
+            variant={currentPage === page ? 'default' : 'outline'}
+            onClick={() => handlePageChange(page)}
+            className={`w-12 h-12 text-lg font-semibold ${
+              currentPage === page 
+                ? 'bg-primary text-primary-foreground shadow-lg ring-2 ring-primary/20' 
+                : 'hover:bg-muted'
+            }`}
+          >
+            {page}
+          </Button>
+        ))}
+        
+        {/* Next Button */}
+        <Button
+          variant="default"
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed bg-primary hover:bg-primary/90"
+        >
+          Next
+        </Button>
+        
+        {/* Last Page Button */}
+        {currentPage < totalPages - 1 && (
+          <>
+            {currentPage < totalPages - 2 && <span className="px-2 text-muted-foreground">...</span>}
+            <Button
+              variant="outline"
+              onClick={() => handlePageChange(totalPages)}
+              className="px-3 py-2"
+            >
+              {totalPages}
+            </Button>
+          </>
+        )}
+      </div>
       
-      {/* Next Button */}
-      <Button
-        variant="default"
-        onClick={() => handlePageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Next
-      </Button>
+      {/* Quick Navigation */}
+      <div className="flex items-center space-x-4 text-sm">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+        >
+          ← First
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+        >
+          Last →
+        </Button>
+      </div>
     </div>
   );
 };
