@@ -25,28 +25,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showSkipButton, setShowSkipButton] = React.useState(false);
   const [adCountdown, setAdCountdown] = React.useState(5);
 
-  // Frequency-based ad tracking (allow ads every 1 minute)
-  const AD_FREQUENCY_MS = 60 * 1000; // 1 minute in milliseconds
-  
-  const getLastAdTime = () => {
-    const lastAd = localStorage.getItem('hubx_last_ad_time');
-    return lastAd ? parseInt(lastAd) : 0;
-  };
-  
-  const canShowAd = () => {
-    const lastAdTime = getLastAdTime();
-    const now = Date.now();
-    const timeDiff = now - lastAdTime;
-    console.log('Ad check - Last ad:', new Date(lastAdTime).toLocaleTimeString(), 'Time diff:', Math.round(timeDiff / 1000), 'seconds');
-    return timeDiff >= AD_FREQUENCY_MS;
-  };
-  
-  const setLastAdTime = () => {
-    const now = Date.now();
-    localStorage.setItem('hubx_last_ad_time', now.toString());
-    console.log('Set last ad time:', new Date(now).toLocaleTimeString());
-  };
-
   // Function to fetch and parse VAST XML
   const fetchVastAd = async () => {
     try {
@@ -94,10 +72,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Function to play VAST ad
+  // Function to play VAST ad - ALWAYS PLAYS ON EVERY VIDEO
   const playVastAd = async () => {
-    if (adShown || !canShowAd()) {
-      console.log('Ad skipped - already shown or frequency limit');
+    if (adShown) {
+      console.log('Ad already shown for this video');
       return;
     }
     
@@ -147,6 +125,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           setShowingAd(false);
           setAdShown(true);
           setShowSkipButton(false);
+          // Fallback to placeholder ad
+          showPlaceholderAd();
         }
       }
       
@@ -207,7 +187,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
     };
 
-    console.log('Showing placeholder ad - Can show ad:', canShowAd());
+    console.log('Showing placeholder ad');
     
     if (containerRef.current) {
       containerRef.current.appendChild(adOverlay);
@@ -234,21 +214,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }, 1000);
   };
 
-  // Effect to initialize ad system
+  // Reset ad state when video source changes - FRESH START EVERY VIDEO
   useEffect(() => {
-    console.log('VideoPlayer mounted - Ad system ready');
-    
-    // Set initial ad timing if this is the first visit
-    if (getLastAdTime() === 0) {
-      console.log('First visit - setting initial ad timestamp');
-      // For first visit, allow ads immediately but set a base timestamp
-      setLastAdTime();
-    }
-  }, []);
-
-  // Reset ad state when video source changes
-  useEffect(() => {
-    if (src && canShowAd()) {
+    if (src) {
       setAdShown(false);
       console.log('New video loaded, ad state reset');
     }
@@ -282,16 +250,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     const handlePlay = async () => {
-      console.log('Video play triggered - Ad shown:', adShown, 'Can show ad:', canShowAd());
+      console.log('Video play triggered - Ad shown:', adShown);
       
-      // Show ads based on frequency limit, not global adShown state
-      if (canShowAd()) {
+      // Show ad on every video play (like major video platforms)
+      if (!adShown) {
         console.log('Showing ad before video');
         video.pause();
-        setLastAdTime(); // Mark ad timestamp
         await playVastAd();
       } else {
-        console.log('Ad frequency limit active - skipping ad');
+        console.log('Ad already shown for this video');
       }
     };
 
