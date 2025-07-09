@@ -26,11 +26,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [adCountdown, setAdCountdown] = React.useState(5);
   const [adAllowed, setAdAllowed] = React.useState(false);
 
-  // Session-based ad tracking to prevent ads on every reload
-  const getAdSessionKey = () => `hubx_ad_shown_${Date.now().toString(36)}`;
-  const hasAdBeenShownInSession = () => {
-    const keys = Object.keys(sessionStorage).filter(key => key.startsWith('hubx_ad_shown_'));
-    return keys.length > 0;
+  // Frequency-based ad tracking (allow ads every 5 minutes)
+  const AD_FREQUENCY_MS = 5 * 60 * 1000; // 5 minutes
+  const getLastAdTime = () => {
+    const lastAd = localStorage.getItem('hubx_last_ad_time');
+    return lastAd ? parseInt(lastAd) : 0;
+  };
+  
+  const canShowAd = () => {
+    const lastAdTime = getLastAdTime();
+    const now = Date.now();
+    return (now - lastAdTime) >= AD_FREQUENCY_MS;
+  };
+  
+  const setLastAdTime = () => {
+    localStorage.setItem('hubx_last_ad_time', Date.now().toString());
   };
 
   // Function to fetch and parse VAST XML
@@ -216,11 +226,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Effect to set up 1-minute delay for ads
   useEffect(() => {
-    // Check if ad has already been shown in this session
-    if (hasAdBeenShownInSession()) {
+    // Check if enough time has passed since last ad
+    if (!canShowAd()) {
+      const timeLeft = AD_FREQUENCY_MS - (Date.now() - getLastAdTime());
+      console.log(`Ad not allowed yet, ${Math.round(timeLeft / 1000)}s remaining`);
       setAdShown(true);
       setAdAllowed(false);
-      console.log('Ad already shown in this session, skipping');
       return;
     }
 
@@ -234,6 +245,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       clearTimeout(adTimer);
     };
   }, []);
+
+  // Reset ad state when video source changes
+  useEffect(() => {
+    if (src && canShowAd()) {
+      setAdShown(false);
+      console.log('New video loaded, ad state reset');
+    }
+  }, [src]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -266,8 +285,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       // Only show ads if allowed (after 1 minute) and not already shown
       if (!adShown && adAllowed) {
         video.pause();
-        // Mark ad as shown in session storage
-        sessionStorage.setItem(getAdSessionKey(), 'true');
+        // Mark ad timestamp and reset adShown for next time
+        setLastAdTime();
         await playVastAd();
       }
     };
