@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Video, BarChart, Trash2, Plus, X } from 'lucide-react';
+import { Upload, Video as VideoIcon, BarChart, Trash2, Plus, X, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,10 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { uploadVideo, deleteVideo, VideoUpload } from '@/services/videosService';
+import { uploadVideo, deleteVideo, updateVideo, VideoUpload, Video } from '@/services/videosService';
 import { useVideos } from '@/hooks/useVideos';
 
 const AdminPanel = () => {
@@ -23,6 +24,20 @@ const AdminPanel = () => {
   const [password, setPassword] = useState('');
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
+  
+  // Edit functionality state
+  const [editingVideo, setEditingVideo] = useState<Video | null>(null);
+  const [editFormData, setEditFormData] = useState<VideoUpload>({
+    title: '',
+    description: '',
+    video_url: '',
+    thumbnail_url: '',
+    preview_url: '',
+    duration: '',
+    tags: []
+  });
+  const [editCustomTags, setEditCustomTags] = useState<string[]>([]);
+  const [editNewTag, setEditNewTag] = useState('');
 
   // Video upload form state
   const [formData, setFormData] = useState<VideoUpload>({
@@ -85,6 +100,26 @@ const AdminPanel = () => {
         variant: "destructive",
       });
       console.error('Delete error:', error);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: Partial<VideoUpload> }) => updateVideo(id, updates),
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Video updated successfully!",
+      });
+      setEditingVideo(null);
+      queryClient.invalidateQueries({ queryKey: ['videos'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update video. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Update error:', error);
     },
   });
 
@@ -165,6 +200,74 @@ const AdminPanel = () => {
     }
   };
 
+  const handleEdit = (video: Video) => {
+    setEditingVideo(video);
+    setEditFormData({
+      title: video.title,
+      description: video.description || '',
+      video_url: video.video_url,
+      thumbnail_url: video.thumbnail_url || '',
+      preview_url: video.preview_url || '',
+      duration: video.duration || '',
+      tags: video.tags
+    });
+    setEditCustomTags(video.tags);
+  };
+
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const addEditCustomTag = () => {
+    if (editNewTag.trim() && !editCustomTags.includes(editNewTag.trim())) {
+      const updatedTags = [...editCustomTags, editNewTag.trim()];
+      setEditCustomTags(updatedTags);
+      setEditFormData(prev => ({
+        ...prev,
+        tags: updatedTags
+      }));
+      setEditNewTag('');
+    }
+  };
+
+  const removeEditCustomTag = (tagToRemove: string) => {
+    const updatedTags = editCustomTags.filter(tag => tag !== tagToRemove);
+    setEditCustomTags(updatedTags);
+    setEditFormData(prev => ({
+      ...prev,
+      tags: updatedTags
+    }));
+  };
+
+  const addEditPresetTag = (tag: string) => {
+    if (!editCustomTags.includes(tag)) {
+      const updatedTags = [...editCustomTags, tag];
+      setEditCustomTags(updatedTags);
+      setEditFormData(prev => ({
+        ...prev,
+        tags: updatedTags
+      }));
+    }
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editFormData.title || !editFormData.video_url || !editingVideo) {
+      toast({
+        title: "Validation Error",
+        description: "Title and video URL are required.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updateMutation.mutate({ id: editingVideo.id, updates: editFormData });
+  };
+
   const presetTags = [
     'ebony', 'big-ass', 'cumshot', 'anal', 'lesbian', 'milf', 
     'japanese', 'hentai', 'amateur', 'hardcore', 'threesome', 
@@ -226,7 +329,7 @@ const AdminPanel = () => {
               <span>Upload Video</span>
             </TabsTrigger>
             <TabsTrigger value="manage" className="flex items-center space-x-2">
-              <Video className="w-4 h-4" />
+              <VideoIcon className="w-4 h-4" />
               <span>Manage Videos</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" className="flex items-center space-x-2">
@@ -416,15 +519,24 @@ const AdminPanel = () => {
                             )}
                           </div>
                         </div>
-                      </div>
-                      <Button
-                        onClick={() => handleDelete(video.id)}
-                        variant="destructive"
-                        size="sm"
-                        disabled={deleteMutation.isPending}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                       </div>
+                       <div className="flex items-center space-x-2">
+                         <Button
+                           onClick={() => handleEdit(video)}
+                           variant="outline"
+                           size="sm"
+                         >
+                           <Edit className="w-4 h-4" />
+                         </Button>
+                         <Button
+                           onClick={() => handleDelete(video.id)}
+                           variant="destructive"
+                           size="sm"
+                           disabled={deleteMutation.isPending}
+                         >
+                           <Trash2 className="w-4 h-4" />
+                         </Button>
+                       </div>
                     </div>
                   ))}
                   
@@ -481,6 +593,158 @@ const AdminPanel = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Edit Video Modal */}
+      <Dialog open={editingVideo !== null} onOpenChange={() => setEditingVideo(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Video</DialogTitle>
+          </DialogHeader>
+          
+          <form onSubmit={handleEditSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-title">Title*</Label>
+                <Input
+                  id="edit-title"
+                  name="title"
+                  value={editFormData.title}
+                  onChange={handleEditInputChange}
+                  placeholder="Enter video title"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-duration">Duration</Label>
+                <Input
+                  id="edit-duration"
+                  name="duration"
+                  value={editFormData.duration}
+                  onChange={handleEditInputChange}
+                  placeholder="e.g., 12:34"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                name="description"
+                value={editFormData.description}
+                onChange={handleEditInputChange}
+                placeholder="Enter video description"
+                rows={3}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label htmlFor="edit-video_url">Video URL*</Label>
+                <Input
+                  id="edit-video_url"
+                  name="video_url"
+                  value={editFormData.video_url}
+                  onChange={handleEditInputChange}
+                  placeholder="https://example.com/video.mp4"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-thumbnail_url">Thumbnail URL</Label>
+                <Input
+                  id="edit-thumbnail_url"
+                  name="thumbnail_url"
+                  value={editFormData.thumbnail_url}
+                  onChange={handleEditInputChange}
+                  placeholder="https://example.com/thumb.jpg"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-preview_url">Preview URL</Label>
+                <Input
+                  id="edit-preview_url"
+                  name="preview_url"
+                  value={editFormData.preview_url}
+                  onChange={handleEditInputChange}
+                  placeholder="https://example.com/preview.mp4"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Tags</Label>
+              
+              {/* Custom Tag Input */}
+              <div className="flex items-center space-x-2 mt-2">
+                <Input
+                  value={editNewTag}
+                  onChange={(e) => setEditNewTag(e.target.value)}
+                  placeholder="Add custom tag"
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addEditCustomTag();
+                    }
+                  }}
+                />
+                <Button type="button" onClick={addEditCustomTag} size="sm">
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Preset Tags */}
+              <div className="mt-3">
+                <p className="text-sm text-muted-foreground mb-2">Quick add preset tags:</p>
+                <div className="flex flex-wrap gap-2">
+                  {presetTags.map((tag) => (
+                    <Button
+                      key={tag}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => addEditPresetTag(tag)}
+                      disabled={editCustomTags.includes(tag)}
+                    >
+                      {tag}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Selected Tags */}
+              {editCustomTags.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-sm font-medium mb-2">Selected tags:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {editCustomTags.map((tag) => (
+                      <Badge key={tag} variant="secondary" className="flex items-center space-x-1">
+                        <span>{tag}</span>
+                        <X 
+                          className="w-3 h-3 cursor-pointer hover:text-destructive" 
+                          onClick={() => removeEditCustomTag(tag)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button type="button" variant="outline" onClick={() => setEditingVideo(null)}>
+                Cancel
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={updateMutation.isPending}
+              >
+                {updateMutation.isPending ? 'Updating...' : 'Update Video'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
