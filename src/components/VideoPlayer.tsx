@@ -2,12 +2,6 @@ import React, { useRef, useEffect } from 'react';
 import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-declare global {
-  interface Window {
-    fluidPlayer: any;
-  }
-}
-
 interface VideoPlayerProps {
   src: string;
   poster?: string;
@@ -22,106 +16,125 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onCanPlay 
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [videoError, setVideoError] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
-  const playerInstanceRef = useRef<any>(null);
+  const [adShown, setAdShown] = React.useState(false);
+  const [showingAd, setShowingAd] = React.useState(false);
 
   useEffect(() => {
-    const loadFluidPlayer = async () => {
-      try {
-        // Load Fluid Player script if not already loaded
-        if (!window.fluidPlayer) {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js';
-          script.async = true;
+    const video = videoRef.current;
+    if (!video || !src) return;
+
+    const handleLoadedData = () => {
+      setIsLoading(false);
+      setVideoError(false);
+      onCanPlay?.();
+    };
+
+    const handleError = () => {
+      setVideoError(true);
+      setIsLoading(false);
+      onError?.();
+    };
+
+    const handlePlay = async () => {
+      if (!adShown && video) {
+        setShowingAd(true);
+        
+        // Show ad overlay for 5 seconds before playing video
+        try {
+          video.pause();
           
-          await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
+          // Create ad overlay
+          const adOverlay = document.createElement('div');
+          adOverlay.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, #8b5cf6, #a855f7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            z-index: 1000;
+            cursor: pointer;
+          `;
+          
+          const adContent = document.createElement('div');
+          adContent.style.cssText = `
+            text-align: center;
+            padding: 20px;
+          `;
+          
+          let countdown = 5;
+          adContent.innerHTML = `
+            <div style="margin-bottom: 15px;">Advertisement</div>
+            <div style="font-size: 14px; opacity: 0.8;">Video starts in ${countdown} seconds</div>
+            <div style="margin-top: 15px; font-size: 12px; opacity: 0.6;">Click to visit advertiser</div>
+          `;
+          
+          adOverlay.appendChild(adContent);
+          
+          // Add click handler for ad
+          adOverlay.addEventListener('click', () => {
+            window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
           });
-        }
-
-        // Wait a bit for the script to be ready
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        if (videoRef.current && window.fluidPlayer && src) {
-          // Destroy previous instance if exists
-          if (playerInstanceRef.current && typeof playerInstanceRef.current.destroy === 'function') {
-            try {
-              playerInstanceRef.current.destroy();
-            } catch (e) {
-              console.log('Error destroying previous player:', e);
-            }
+          
+          if (containerRef.current) {
+            containerRef.current.appendChild(adOverlay);
           }
-
-          // Set video source
-          videoRef.current.src = src;
-
-          // Initialize Fluid Player
-          playerInstanceRef.current = window.fluidPlayer(videoRef.current, {
-            vastOptions: {
-              adList: [
-                {
-                  roll: 'preRoll',
-                  vastTag: 'https://s.magsrv.com/v1/vast.php?idzone=5660526'
-                }
-              ],
-              adCTAText: false,
-              adCTATextPosition: 'top right'
-            },
-            layoutControls: {
-              fillToContainer: true,
-              autoPlay: false,
-              mute: false,
-              allowDownload: false,
-              allowTheatre: true,
-              keyboardControl: true,
-              layout: 'default',
-              playerInitCallback: () => {
-                console.log('Fluid Player initialized successfully');
-                setIsLoading(false);
-                setVideoError(false);
-                onCanPlay?.();
+          
+          // Countdown timer
+          const countdownInterval = setInterval(() => {
+            countdown--;
+            adContent.innerHTML = `
+              <div style="margin-bottom: 15px;">Advertisement</div>
+              <div style="font-size: 14px; opacity: 0.8;">Video starts in ${countdown} seconds</div>
+              <div style="margin-top: 15px; font-size: 12px; opacity: 0.6;">Click to visit advertiser</div>
+            `;
+            
+            if (countdown <= 0) {
+              clearInterval(countdownInterval);
+              if (containerRef.current && adOverlay.parentNode) {
+                containerRef.current.removeChild(adOverlay);
               }
+              setAdShown(true);
+              setShowingAd(false);
+              video.play();
             }
-          });
-
+          }, 1000);
+          
+        } catch (error) {
+          console.error('Error showing ad:', error);
+          setAdShown(true);
+          setShowingAd(false);
+          video.play();
         }
-      } catch (error) {
-        console.error('Error loading Fluid Player:', error);
-        setVideoError(true);
-        setIsLoading(false);
-        onError?.();
       }
     };
 
-    if (src) {
-      loadFluidPlayer();
-    }
+    video.src = src;
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('error', handleError);
+    video.addEventListener('play', handlePlay);
 
     return () => {
-      if (playerInstanceRef.current && typeof playerInstanceRef.current.destroy === 'function') {
-        try {
-          playerInstanceRef.current.destroy();
-        } catch (e) {
-          console.log('Error destroying player on cleanup:', e);
-        }
-      }
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('error', handleError);
+      video.removeEventListener('play', handlePlay);
     };
-  }, [src, onError, onCanPlay]);
+  }, [src, onError, onCanPlay, adShown]);
 
   const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     console.error('Video error:', e);
     setVideoError(true);
     setIsLoading(false);
     onError?.();
-  };
-
-  const handleVideoCanPlay = () => {
-    setIsLoading(false);
-    setVideoError(false);
-    onCanPlay?.();
   };
 
   if (videoError) {
@@ -147,12 +160,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-10">
           <div className="text-center space-y-2">
             <div className="w-8 h-8 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm">Loading video with ads...</p>
+            <p className="text-sm">Loading video...</p>
+          </div>
+        </div>
+      )}
+      {showingAd && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-20">
+          <div className="text-center space-y-2">
+            <p className="text-sm">Showing advertisement...</p>
           </div>
         </div>
       )}
@@ -163,10 +183,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         preload="metadata"
         playsInline
         onError={handleVideoError}
-        onCanPlay={handleVideoCanPlay}
         controls
+        style={{ width: '100%', height: '100%' }}
       >
         <source src={src} type="video/mp4" />
+        <source src={src} type="video/webm" />
         Your browser does not support the video tag.
       </video>
     </div>
