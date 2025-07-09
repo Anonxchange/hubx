@@ -1,6 +1,9 @@
 import React, { useRef, useEffect } from 'react';
 import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import videojs from 'video.js';
+import 'videojs-contrib-ads';
+import 'videojs-vast-vpaid';
 
 interface VideoPlayerProps {
   src: string;
@@ -16,71 +19,95 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onCanPlay 
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const playerRef = useRef<any>(null);
   const [videoError, setVideoError] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
 
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !src) return;
+    if (!videoRef.current) return;
 
-    console.log('Loading video:', src);
+    const videoElement = videoRef.current;
+    
+    // Initialize Video.js player
+    const player = videojs(videoElement, {
+      controls: true,
+      responsive: true,
+      fluid: true,
+      playsinline: true,
+      preload: 'metadata',
+      poster: poster,
+      sources: [{
+        src: src,
+        type: 'video/mp4'
+      }]
+    });
 
-    const handleLoadStart = () => {
-      console.log('Video load started');
-      setIsLoading(true);
-      setVideoError(false);
-    };
+    playerRef.current = player;
 
-    const handleLoadedMetadata = () => {
-      console.log('Video metadata loaded');
+    // Initialize ads
+    player.ready(() => {
+      // Type assertion for Video.js plugins
+      const playerWithAds = player as any;
+      
+      playerWithAds.ads({
+        timeout: 8000
+      });
+
+      // Initialize VAST plugin
+      playerWithAds.vastClient({
+        adTagUrl: 'https://s.magsrv.com/v1/vast.php?idzone=5660526',
+        playAdAlways: true,
+        vpaidFlashLoaderPath: '/VPAIDFlash.swf',
+        adsCancelTimeout: 60000,
+        adsEnabled: true
+      });
+
+      console.log('Video.js player with VAST ads initialized');
       setIsLoading(false);
-    };
-
-    const handleCanPlay = () => {
-      console.log('Video can play');
-      setIsLoading(false);
-      setVideoError(false);
       onCanPlay?.();
-    };
+    });
 
-    const handleError = (e: Event) => {
-      console.error('Video error:', e);
+    // Handle player events
+    player.on('error', () => {
+      console.error('Video.js player error');
       setVideoError(true);
       setIsLoading(false);
       onError?.();
-    };
+    });
 
-    const handleLoadedData = () => {
-      console.log('Video data loaded');
+    player.on('loadstart', () => {
+      console.log('Video loading started');
+      setIsLoading(true);
+    });
+
+    player.on('canplay', () => {
+      console.log('Video can play');
       setIsLoading(false);
-    };
+    });
 
-    // Add event listeners
-    video.addEventListener('loadstart', handleLoadStart);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('error', handleError);
+    player.on('ads-request', () => {
+      console.log('Ad request started');
+    });
 
-    // Set video source
-    video.src = src;
-    video.load();
+    player.on('ads-load', () => {
+      console.log('Ad loaded');
+    });
+
+    player.on('ads-start', () => {
+      console.log('Ad started playing');
+    });
+
+    player.on('ads-end', () => {
+      console.log('Ad finished playing');
+    });
 
     return () => {
-      video.removeEventListener('loadstart', handleLoadStart);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('error', handleError);
+      if (playerRef.current) {
+        playerRef.current.dispose();
+        playerRef.current = null;
+      }
     };
-  }, [src, onError, onCanPlay]);
-
-  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-    console.error('Video element error:', e);
-    setVideoError(true);
-    setIsLoading(false);
-    onError?.();
-  };
+  }, [src, poster, onError, onCanPlay]);
 
   if (videoError) {
     return (
@@ -110,24 +137,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-10">
           <div className="text-center space-y-2">
             <div className="w-8 h-8 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm">Loading video...</p>
+            <p className="text-sm">Loading video with ads...</p>
           </div>
         </div>
       )}
-      <video
-        ref={videoRef}
-        className="w-full h-full"
-        poster={poster}
-        preload="metadata"
-        playsInline
-        onError={handleVideoError}
-        controls
-        style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
-      >
-        <source src={src} type="video/mp4" />
-        <source src={src} type="video/webm" />
-        Your browser does not support the video tag.
-      </video>
+      <div data-vjs-player>
+        <video
+          ref={videoRef}
+          className="video-js vjs-default-skin w-full h-full"
+          playsInline
+          data-setup="{}"
+        />
+      </div>
     </div>
   );
 };
