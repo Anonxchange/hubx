@@ -47,7 +47,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const fetchVastAd = async () => {
     try {
       console.log('Fetching VAST ad...');
-      const response = await fetch('https://s.magsrv.com/v1/vast.php?idzone=5660526', {
+      // Using the working VAST URL from the ad script
+      const response = await fetch('https://s.pemsrv.com/v1/vast.php?idzone=5665968', {
         mode: 'cors',
         headers: {
           'Accept': 'application/xml, text/xml'
@@ -196,7 +197,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     updateOverlay();
     
     adOverlay.onclick = () => {
-      window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
+      window.open('https://s.pemsrv.com/v1/vast.php?idzone=5665968', '_blank');
     };
     
     if (containerRef.current) {
