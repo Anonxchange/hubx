@@ -1,7 +1,12 @@
 import React, { useRef, useEffect } from 'react';
 import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import fluidPlayer from 'fluid-player';
+
+declare global {
+  interface Window {
+    fluidPlayer: any;
+  }
+}
 
 interface VideoPlayerProps {
   src: string;
@@ -22,20 +27,39 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const playerInstanceRef = useRef<any>(null);
 
   useEffect(() => {
-    const initializePlayer = () => {
-      if (videoRef.current && src) {
-        try {
+    const loadFluidPlayer = async () => {
+      try {
+        // Load Fluid Player script if not already loaded
+        if (!window.fluidPlayer) {
+          const script = document.createElement('script');
+          script.src = 'https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js';
+          script.async = true;
+          
+          await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
+        // Wait a bit for the script to be ready
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        if (videoRef.current && window.fluidPlayer && src) {
           // Destroy previous instance if exists
-          if (playerInstanceRef.current) {
+          if (playerInstanceRef.current && typeof playerInstanceRef.current.destroy === 'function') {
             try {
               playerInstanceRef.current.destroy();
             } catch (e) {
-              console.log('Error destroying previous player instance:', e);
+              console.log('Error destroying previous player:', e);
             }
           }
 
+          // Set video source
+          videoRef.current.src = src;
+
           // Initialize Fluid Player
-          playerInstanceRef.current = fluidPlayer(videoRef.current, {
+          playerInstanceRef.current = window.fluidPlayer(videoRef.current, {
             vastOptions: {
               adList: [
                 {
@@ -52,7 +76,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               mute: false,
               allowDownload: false,
               allowTheatre: true,
-              subtitlesEnabled: false,
               keyboardControl: true,
               layout: 'default',
               playerInitCallback: () => {
@@ -62,25 +85,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 onCanPlay?.();
               }
             }
-          } as any);
+          });
 
-        } catch (error) {
-          console.error('Error initializing Fluid Player:', error);
-          setVideoError(true);
-          setIsLoading(false);
-          onError?.();
         }
+      } catch (error) {
+        console.error('Error loading Fluid Player:', error);
+        setVideoError(true);
+        setIsLoading(false);
+        onError?.();
       }
     };
 
     if (src) {
-      // Small delay to ensure video element is ready
-      const timer = setTimeout(initializePlayer, 100);
-      return () => clearTimeout(timer);
+      loadFluidPlayer();
     }
 
     return () => {
-      if (playerInstanceRef.current) {
+      if (playerInstanceRef.current && typeof playerInstanceRef.current.destroy === 'function') {
         try {
           playerInstanceRef.current.destroy();
         } catch (e) {
@@ -95,6 +116,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setVideoError(true);
     setIsLoading(false);
     onError?.();
+  };
+
+  const handleVideoCanPlay = () => {
+    setIsLoading(false);
+    setVideoError(false);
+    onCanPlay?.();
   };
 
   if (videoError) {
@@ -136,10 +163,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         preload="metadata"
         playsInline
         onError={handleVideoError}
-        style={{ width: '100%', height: '100%' }}
+        onCanPlay={handleVideoCanPlay}
+        controls
       >
         <source src={src} type="video/mp4" />
-        <source src={src} type="video/webm" />
         Your browser does not support the video tag.
       </video>
     </div>
