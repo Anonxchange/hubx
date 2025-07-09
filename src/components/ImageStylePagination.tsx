@@ -21,7 +21,8 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   };
 
   const getVisiblePages = () => {
-    const maxVisible = 5;
+    // Reduce visible pages on mobile to prevent overflow
+    const maxVisible = window.innerWidth < 640 ? 3 : 5;
     let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
     let end = Math.min(totalPages, start + maxVisible - 1);
     
@@ -39,97 +40,150 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex flex-col items-center space-y-4 mt-12 mb-12 p-6 bg-card/50 rounded-lg border">
+    <div className="flex flex-col items-center space-y-4 mt-8 mb-8 p-4 sm:p-6 bg-card/50 rounded-lg border max-w-full overflow-hidden">
       {/* Page Info */}
-      <div className="text-center text-sm text-muted-foreground">
-        Showing page {currentPage} of {totalPages}
+      <div className="text-center text-xs sm:text-sm text-muted-foreground">
+        Page {currentPage} of {totalPages}
       </div>
       
-      {/* Pagination Controls */}
-      <div className="flex items-center justify-center space-x-2">
-        {/* First Page Button */}
-        {currentPage > 2 && (
-          <>
+      {/* Mobile-first Pagination - Stack on small screens */}
+      <div className="w-full max-w-full">
+        {/* Mobile Layout */}
+        <div className="flex sm:hidden flex-col items-center space-y-3">
+          {/* Previous/Next Row */}
+          <div className="flex items-center justify-between w-full max-w-xs">
             <Button
               variant="outline"
-              onClick={() => handlePageChange(1)}
-              className="px-3 py-2"
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="px-3 py-2 text-sm disabled:opacity-50"
             >
-              1
+              ← Prev
             </Button>
-            {currentPage > 3 && <span className="px-2 text-muted-foreground">...</span>}
-          </>
-        )}
-        
-        {/* Previous Button */}
-        <Button
-          variant="outline"
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1}
-          className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Previous
-        </Button>
-        
-        {/* Page Numbers */}
-        {visiblePages.map((page) => (
+            
+            <div className="text-sm font-medium">
+              {currentPage} / {totalPages}
+            </div>
+            
+            <Button
+              variant="default"
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="px-3 py-2 text-sm disabled:opacity-50"
+            >
+              Next →
+            </Button>
+          </div>
+          
+          {/* Page Numbers Row */}
+          <div className="flex items-center justify-center space-x-1">
+            {visiblePages.map((page) => (
+              <Button
+                key={page}
+                variant={currentPage === page ? 'default' : 'outline'}
+                onClick={() => handlePageChange(page)}
+                className={`w-10 h-10 text-sm ${
+                  currentPage === page 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'hover:bg-muted'
+                }`}
+              >
+                {page}
+              </Button>
+            ))}
+          </div>
+          
+          {/* Quick Jump */}
+          {totalPages > 5 && (
+            <div className="flex items-center space-x-2 text-xs">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className="text-xs px-2 py-1"
+              >
+                First
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className="text-xs px-2 py-1"
+              >
+                Last
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Desktop Layout */}
+        <div className="hidden sm:flex items-center justify-center space-x-2 flex-wrap">
+          {/* First Page Button */}
+          {currentPage > 2 && (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(1)}
+                className="px-3 py-2"
+              >
+                1
+              </Button>
+              {currentPage > 3 && <span className="px-2 text-muted-foreground">...</span>}
+            </>
+          )}
+          
+          {/* Previous Button */}
           <Button
-            key={page}
-            variant={currentPage === page ? 'default' : 'outline'}
-            onClick={() => handlePageChange(page)}
-            className={`w-12 h-12 text-lg font-semibold ${
-              currentPage === page 
-                ? 'bg-primary text-primary-foreground shadow-lg ring-2 ring-primary/20' 
-                : 'hover:bg-muted'
-            }`}
+            variant="outline"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1}
+            className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {page}
+            Previous
           </Button>
-        ))}
-        
-        {/* Next Button */}
-        <Button
-          variant="default"
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages}
-          className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed bg-primary hover:bg-primary/90"
-        >
-          Next
-        </Button>
-        
-        {/* Last Page Button */}
-        {currentPage < totalPages - 1 && (
-          <>
-            {currentPage < totalPages - 2 && <span className="px-2 text-muted-foreground">...</span>}
+          
+          {/* Page Numbers */}
+          {visiblePages.map((page) => (
             <Button
-              variant="outline"
-              onClick={() => handlePageChange(totalPages)}
-              className="px-3 py-2"
+              key={page}
+              variant={currentPage === page ? 'default' : 'outline'}
+              onClick={() => handlePageChange(page)}
+              className={`w-12 h-12 text-lg font-semibold ${
+                currentPage === page 
+                  ? 'bg-primary text-primary-foreground shadow-lg ring-2 ring-primary/20' 
+                  : 'hover:bg-muted'
+              }`}
             >
-              {totalPages}
+              {page}
             </Button>
-          </>
-        )}
-      </div>
-      
-      {/* Quick Navigation */}
-      <div className="flex items-center space-x-4 text-sm">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handlePageChange(1)}
-          disabled={currentPage === 1}
-        >
-          ← First
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => handlePageChange(totalPages)}
-          disabled={currentPage === totalPages}
-        >
-          Last →
-        </Button>
+          ))}
+          
+          {/* Next Button */}
+          <Button
+            variant="default"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed bg-primary hover:bg-primary/90"
+          >
+            Next
+          </Button>
+          
+          {/* Last Page Button */}
+          {currentPage < totalPages - 1 && (
+            <>
+              {currentPage < totalPages - 2 && <span className="px-2 text-muted-foreground">...</span>}
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(totalPages)}
+                className="px-3 py-2"
+              >
+                {totalPages}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
