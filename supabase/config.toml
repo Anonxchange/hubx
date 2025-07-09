@@ -1,1 +1,28 @@
 project_id = "rhahzghkbbiujxjhunob"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "storage"]
+max_rows = 1000
+
+[auth]
+enabled = true
+port = 54324
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://lovable.dev"]
+jwt_expiry = 3600
+refresh_token_rotation_enabled = true
+security_update_password_require_reauthentication = true
+enable_sign_in_with_email_confirmation = false
+enable_sign_in_with_phone_confirmation = false
+
+[storage]
+enabled = true
+port = 54325
+file_size_limit = "50MiB"
+create_image_transform_service = true
+
+[functions.process-video]
+verify_jwt = false
