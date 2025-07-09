@@ -48,7 +48,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     try {
       console.log('Fetching VAST ad...');
       // Using the working VAST URL from the ad script
-      const response = await fetch('https://s.pemsrv.com/v1/vast.php?idzone=5665968', {
+      const response = await fetch('https://s.magsrv.com/v1/vast.php?idzone=5660526', {
         mode: 'cors',
         headers: {
           'Accept': 'application/xml, text/xml'
@@ -197,8 +197,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     updateOverlay();
     
     adOverlay.onclick = () => {
-      window.open('https://s.pemsrv.com/v1/vast.php?idzone=5665968', '_blank');
+      window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
     };
+
+    // Add debugging for first visit
+    console.log('Showing placeholder ad. Last ad time:', getLastAdTime(), 'Can show ad:', canShowAd(), 'Ad allowed:', adAllowed);
     
     if (containerRef.current) {
       containerRef.current.appendChild(adOverlay);
@@ -225,46 +228,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }, 1000);
   };
 
-  // Effect to set up 1-minute delay for ads
+  // Effect to set up 1-minute delay for ads - SIMPLIFIED
   useEffect(() => {
-    const lastAdTime = getLastAdTime();
+    console.log('Setting up ad timer...');
     
-    // If no previous ad time (first visit), allow ad after 1 minute delay
-    if (lastAdTime === 0) {
-      console.log('First visit - setting 1 minute delay for initial ad');
-      const adTimer = setTimeout(() => {
-        setAdAllowed(true);
-        console.log('Ad now allowed after 1 minute delay');
-      }, 60000); // 1 minute = 60000ms
-
-      return () => {
-        clearTimeout(adTimer);
-      };
-    }
-    
-    // Check if enough time has passed since last ad
-    if (!canShowAd()) {
-      const timeLeft = AD_FREQUENCY_MS - (Date.now() - lastAdTime);
-      console.log(`Ad not allowed yet, ${Math.round(timeLeft / 1000)}s remaining`);
-      setAdShown(true);
-      setAdAllowed(false);
-      
-      // Set timer for when next ad will be allowed
-      const nextAdTimer = setTimeout(() => {
-        setAdAllowed(true);
-        setAdShown(false);
-        console.log('Next ad now allowed');
-      }, timeLeft);
-
-      return () => {
-        clearTimeout(nextAdTimer);
-      };
-    } else {
-      // Can show ad immediately
+    // Always set a 1-minute delay before allowing the first ad
+    const adTimer = setTimeout(() => {
       setAdAllowed(true);
       setAdShown(false);
-      console.log('Ad allowed immediately');
-    }
+      console.log('Ad now allowed after 1 minute delay');
+    }, 60000); // 1 minute = 60000ms
+
+    return () => {
+      clearTimeout(adTimer);
+    };
   }, []);
 
   // Reset ad state when video source changes
