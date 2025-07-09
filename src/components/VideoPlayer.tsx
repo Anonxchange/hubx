@@ -1,12 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-
-declare global {
-  interface Window {
-    fluidPlayer: any;
-  }
-}
+import fluidPlayer from 'fluid-player';
 
 interface VideoPlayerProps {
   src: string;
@@ -23,25 +18,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [videoError, setVideoError] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
   const playerInstanceRef = useRef<any>(null);
 
   useEffect(() => {
-    const loadFluidPlayer = async () => {
-      try {
-        if (!window.fluidPlayer) {
-          const script = document.createElement('script');
-          script.src = 'https://cdn.jsdelivr.net/npm/fluid-player@3.54.0/src/fluidplayermin.js';
-          script.async = true;
-          
-          await new Promise((resolve, reject) => {
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-          });
-        }
-
-        if (videoRef.current && window.fluidPlayer) {
+    const initializePlayer = () => {
+      if (videoRef.current && src) {
+        try {
           // Destroy previous instance if exists
           if (playerInstanceRef.current) {
             try {
@@ -51,7 +34,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             }
           }
 
-          playerInstanceRef.current = window.fluidPlayer(videoRef.current, {
+          // Initialize Fluid Player
+          playerInstanceRef.current = fluidPlayer(videoRef.current, {
             vastOptions: {
               adList: [
                 {
@@ -60,7 +44,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 }
               ],
               adCTAText: false,
-              adCTATextPosition: ''
+              adCTATextPosition: 'top right'
             },
             layoutControls: {
               fillToContainer: true,
@@ -68,29 +52,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               mute: false,
               allowDownload: false,
               allowTheatre: true,
-              playbackRates: ['x2', 'x1.5', 'x1', 'x0.5'],
               subtitlesEnabled: false,
               keyboardControl: true,
               layout: 'default',
               playerInitCallback: () => {
-                console.log('Fluid Player initialized');
+                console.log('Fluid Player initialized successfully');
                 setIsLoading(false);
+                setVideoError(false);
                 onCanPlay?.();
               }
             }
-          });
+          } as any);
+
+        } catch (error) {
+          console.error('Error initializing Fluid Player:', error);
+          setVideoError(true);
+          setIsLoading(false);
+          onError?.();
         }
-      } catch (error) {
-        console.error('Error loading Fluid Player:', error);
-        setVideoError(true);
-        setIsLoading(false);
-        onError?.();
       }
     };
 
     if (src) {
-      setIsLoading(true);
-      loadFluidPlayer();
+      // Small delay to ensure video element is ready
+      const timer = setTimeout(initializePlayer, 100);
+      return () => clearTimeout(timer);
     }
 
     return () => {
@@ -150,7 +136,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         preload="metadata"
         playsInline
         onError={handleVideoError}
-        data-fluid-player
+        style={{ width: '100%', height: '100%' }}
       >
         <source src={src} type="video/mp4" />
         <source src={src} type="video/webm" />
