@@ -1,9 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import videojs from 'video.js';
-import 'videojs-contrib-ads';
-import 'videojs-vast-vpaid';
 
 interface VideoPlayerProps {
   src: string;
@@ -19,95 +16,246 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   onCanPlay 
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<any>(null);
+  const adVideoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [videoError, setVideoError] = React.useState(false);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [showingAd, setShowingAd] = React.useState(false);
+  const [adShown, setAdShown] = React.useState(false);
+
+  // Function to fetch and parse VAST XML
+  const fetchVastAd = async () => {
+    try {
+      console.log('Fetching VAST ad...');
+      const response = await fetch('https://s.magsrv.com/v1/vast.php?idzone=5660526', {
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/xml, text/xml'
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch VAST');
+      }
+      
+      const vastXml = await response.text();
+      console.log('VAST XML received:', vastXml.substring(0, 200) + '...');
+      
+      // Parse VAST XML to extract media file
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(vastXml, 'text/xml');
+      
+      // Look for MediaFile elements
+      const mediaFiles = xmlDoc.getElementsByTagName('MediaFile');
+      let adVideoUrl = null;
+      
+      for (let i = 0; i < mediaFiles.length; i++) {
+        const mediaFile = mediaFiles[i];
+        const type = mediaFile.getAttribute('type');
+        if (type && (type.includes('mp4') || type.includes('video'))) {
+          adVideoUrl = mediaFile.textContent?.trim();
+          break;
+        }
+      }
+      
+      // Also check for ClickThrough URL
+      const clickThrough = xmlDoc.getElementsByTagName('ClickThrough')[0];
+      const clickThroughUrl = clickThrough ? clickThrough.textContent?.trim() : null;
+      
+      return { adVideoUrl, clickThroughUrl };
+    } catch (error) {
+      console.error('Error fetching VAST:', error);
+      return null;
+    }
+  };
+
+  // Function to play VAST ad
+  const playVastAd = async () => {
+    if (adShown) return;
+    
+    console.log('Attempting to play VAST ad...');
+    const vastData = await fetchVastAd();
+    
+    if (vastData?.adVideoUrl) {
+      console.log('Playing VAST video ad:', vastData.adVideoUrl);
+      setShowingAd(true);
+      
+      if (adVideoRef.current) {
+        adVideoRef.current.src = vastData.adVideoUrl;
+        adVideoRef.current.style.display = 'block';
+        
+        // Add click handler if click-through URL exists
+        if (vastData.clickThroughUrl) {
+          adVideoRef.current.style.cursor = 'pointer';
+          adVideoRef.current.onclick = () => {
+            window.open(vastData.clickThroughUrl, '_blank');
+          };
+        }
+        
+        try {
+          await adVideoRef.current.play();
+        } catch (playError) {
+          console.error('Error playing ad video:', playError);
+          setShowingAd(false);
+          setAdShown(true);
+        }
+      }
+    } else {
+      console.log('No valid ad video found, showing placeholder ad');
+      // Show placeholder ad overlay
+      showPlaceholderAd();
+    }
+  };
+
+  // Function to show placeholder ad when VAST fails
+  const showPlaceholderAd = () => {
+    setShowingAd(true);
+    
+    const adOverlay = document.createElement('div');
+    adOverlay.style.cssText = `
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(45deg, #8b5cf6, #a855f7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 1000;
+      cursor: pointer;
+    `;
+    
+    let countdown = 5;
+    adOverlay.innerHTML = `
+      <div style="text-align: center;">
+        <div style="margin-bottom: 15px;">Advertisement</div>
+        <div style="font-size: 14px; opacity: 0.8;">Video starts in ${countdown} seconds</div>
+        <div style="margin-top: 15px; font-size: 12px; opacity: 0.6;">Click to visit advertiser</div>
+      </div>
+    `;
+    
+    adOverlay.onclick = () => {
+      window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
+    };
+    
+    if (containerRef.current) {
+      containerRef.current.appendChild(adOverlay);
+    }
+    
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      adOverlay.innerHTML = `
+        <div style="text-align: center;">
+          <div style="margin-bottom: 15px;">Advertisement</div>
+          <div style="font-size: 14px; opacity: 0.8;">Video starts in ${countdown} seconds</div>
+          <div style="margin-top: 15px; font-size: 12px; opacity: 0.6;">Click to visit advertiser</div>
+        </div>
+      `;
+      
+      if (countdown <= 0) {
+        clearInterval(countdownInterval);
+        if (containerRef.current && adOverlay.parentNode) {
+          containerRef.current.removeChild(adOverlay);
+        }
+        setShowingAd(false);
+        setAdShown(true);
+      }
+    }, 1000);
+  };
 
   useEffect(() => {
-    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const adVideo = adVideoRef.current;
+    if (!video || !src) return;
 
-    const videoElement = videoRef.current;
-    
-    // Initialize Video.js player
-    const player = videojs(videoElement, {
-      controls: true,
-      responsive: true,
-      fluid: true,
-      playsinline: true,
-      preload: 'metadata',
-      poster: poster,
-      sources: [{
-        src: src,
-        type: 'video/mp4'
-      }]
-    });
+    console.log('Loading video:', src);
 
-    playerRef.current = player;
+    const handleLoadStart = () => {
+      console.log('Video load started');
+      setIsLoading(true);
+      setVideoError(false);
+    };
 
-    // Initialize ads
-    player.ready(() => {
-      // Type assertion for Video.js plugins
-      const playerWithAds = player as any;
-      
-      playerWithAds.ads({
-        timeout: 8000
-      });
-
-      // Initialize VAST plugin
-      playerWithAds.vastClient({
-        adTagUrl: 'https://s.magsrv.com/v1/vast.php?idzone=5660526',
-        playAdAlways: true,
-        vpaidFlashLoaderPath: '/VPAIDFlash.swf',
-        adsCancelTimeout: 60000,
-        adsEnabled: true
-      });
-
-      console.log('Video.js player with VAST ads initialized');
+    const handleCanPlay = () => {
+      console.log('Video can play');
       setIsLoading(false);
+      setVideoError(false);
       onCanPlay?.();
-    });
+    };
 
-    // Handle player events
-    player.on('error', () => {
-      console.error('Video.js player error');
+    const handleError = (e: Event) => {
+      console.error('Video error:', e);
       setVideoError(true);
       setIsLoading(false);
       onError?.();
-    });
+    };
 
-    player.on('loadstart', () => {
-      console.log('Video loading started');
-      setIsLoading(true);
-    });
-
-    player.on('canplay', () => {
-      console.log('Video can play');
-      setIsLoading(false);
-    });
-
-    player.on('ads-request', () => {
-      console.log('Ad request started');
-    });
-
-    player.on('ads-load', () => {
-      console.log('Ad loaded');
-    });
-
-    player.on('ads-start', () => {
-      console.log('Ad started playing');
-    });
-
-    player.on('ads-end', () => {
-      console.log('Ad finished playing');
-    });
-
-    return () => {
-      if (playerRef.current) {
-        playerRef.current.dispose();
-        playerRef.current = null;
+    const handlePlay = async () => {
+      if (!adShown) {
+        video.pause();
+        await playVastAd();
       }
     };
-  }, [src, poster, onError, onCanPlay]);
+
+    // Ad video event handlers
+    const handleAdEnded = () => {
+      console.log('Ad ended, starting main video');
+      if (adVideo) {
+        adVideo.style.display = 'none';
+      }
+      setShowingAd(false);
+      setAdShown(true);
+      if (video) {
+        video.play();
+      }
+    };
+
+    const handleAdError = () => {
+      console.log('Ad error, showing placeholder ad');
+      if (adVideo) {
+        adVideo.style.display = 'none';
+      }
+      showPlaceholderAd();
+    };
+
+    // Add event listeners
+    video.addEventListener('loadstart', handleLoadStart);
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('error', handleError);
+    video.addEventListener('play', handlePlay);
+
+    if (adVideo) {
+      adVideo.addEventListener('ended', handleAdEnded);
+      adVideo.addEventListener('error', handleAdError);
+    }
+
+    // Set video source
+    video.src = src;
+    video.load();
+
+    return () => {
+      video.removeEventListener('loadstart', handleLoadStart);
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('error', handleError);
+      video.removeEventListener('play', handlePlay);
+      
+      if (adVideo) {
+        adVideo.removeEventListener('ended', handleAdEnded);
+        adVideo.removeEventListener('error', handleAdError);
+      }
+    };
+  }, [src, onError, onCanPlay, adShown]);
+
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    console.error('Video element error:', e);
+    setVideoError(true);
+    setIsLoading(false);
+    onError?.();
+  };
 
   if (videoError) {
     return (
@@ -132,23 +280,41 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }
 
   return (
-    <div className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-10">
           <div className="text-center space-y-2">
             <div className="w-8 h-8 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm">Loading video with ads...</p>
+            <p className="text-sm">Loading video...</p>
           </div>
         </div>
       )}
-      <div data-vjs-player>
-        <video
-          ref={videoRef}
-          className="video-js vjs-default-skin w-full h-full"
-          playsInline
-          data-setup="{}"
-        />
-      </div>
+      
+      {/* Ad Video Element */}
+      <video
+        ref={adVideoRef}
+        className="absolute top-0 left-0 w-full h-full z-20"
+        style={{ display: 'none', backgroundColor: '#000' }}
+        controls={false}
+        autoPlay
+        playsInline
+      />
+      
+      {/* Main Video Element */}
+      <video
+        ref={videoRef}
+        className="w-full h-full"
+        poster={poster}
+        preload="metadata"
+        playsInline
+        onError={handleVideoError}
+        controls
+        style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
+      >
+        <source src={src} type="video/mp4" />
+        <source src={src} type="video/webm" />
+        Your browser does not support the video tag.
+      </video>
     </div>
   );
 };
