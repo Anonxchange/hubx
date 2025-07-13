@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Search, Settings } from 'lucide-react';
+import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -9,9 +9,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { Badge } from '@/components/ui/badge';
 
 const categories = [
   'anal', 'big-ass', 'blowjob', 'creampie', 'milf', 'teen', 'pov', 'hardcore', 'amateur', 'lesbian'
+];
+
+const mobileNavItems = [
+  { name: 'Featured Videos', icon: Play, path: '/', badge: null },
+  { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
+  { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
+  { name: 'Premium', icon: Star, path: '/?category=premium', badge: 'VIP' },
+  { name: 'Live Cams', icon: Users, url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default', badge: null },
 ];
 
 const Header = () => {
@@ -80,18 +94,86 @@ const Header = () => {
           </nav>
 
           {/* Mobile Menu Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            className="lg:hidden text-white hover:bg-white/10"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            <div className="space-y-1">
-              <div className="w-5 h-0.5 bg-white"></div>
-              <div className="w-5 h-0.5 bg-white"></div>
-              <div className="w-5 h-0.5 bg-white"></div>
-            </div>
-          </Button>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden text-white hover:bg-white/10"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-80 bg-background border-l border-border p-0">
+              <div className="flex flex-col h-full">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-border">
+                  <h2 className="text-lg font-semibold">Menu</h2>
+                </div>
+                
+                {/* Navigation Items */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="p-4 space-y-2">
+                    {mobileNavItems.map((item) => (
+                      <div key={item.name}>
+                        {item.url ? (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                              <span className="font-medium">{item.name}</span>
+                            </div>
+                            {item.badge && (
+                              <Badge variant="secondary" className="text-xs">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </a>
+                        ) : (
+                          <Link
+                            to={item.path}
+                            className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                              <span className="font-medium">{item.name}</span>
+                            </div>
+                            {item.badge && (
+                              <Badge variant="secondary" className="text-xs">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </Link>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Categories Section */}
+                  <div className="px-4 pb-4">
+                    <div className="border-t border-border pt-4">
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Categories</h3>
+                      <div className="space-y-1">
+                        {categories.map((category) => (
+                          <Link
+                            key={category}
+                            to={`/?category=${category.toLowerCase()}`}
+                            className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <span className="text-sm capitalize">{category}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
 
         {/* Navigation Tabs */}
@@ -111,36 +193,6 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden border-t border-gray-800 py-4">
-            <nav className="space-y-2">
-              <Link
-                to="/"
-                className="block nav-item py-2 text-white"
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                Home
-              </Link>
-              
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-gray-400 px-3 py-1">Categories</p>
-                <div className="grid grid-cols-2 gap-1">
-                  {categories.map((category) => (
-                    <Link
-                      key={category}
-                      to={`/?category=${category.toLowerCase()}`}
-                      className="text-sm hover:bg-white/10 rounded px-3 py-1 block text-white"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      {category === 'recommended' ? 'Recommended' : category}
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </nav>
-          </div>
-        )}
       </div>
     </header>
   );
