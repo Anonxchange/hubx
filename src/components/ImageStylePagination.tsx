@@ -40,46 +40,48 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-center gap-2 my-8">
+    <div className="flex items-center justify-center gap-1 sm:gap-2 my-8 px-4 max-w-full overflow-x-auto">
       {/* Previous Button */}
       <button
         onClick={() => handlePageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className={`
-          px-4 py-3 rounded-lg font-bold text-white transition-all
+          px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-bold text-white transition-all flex-shrink-0 text-sm sm:text-base
           ${currentPage === 1 
-            ? 'bg-gray-600 cursor-not-allowed opacity-50' 
-            : 'bg-gray-700 hover:bg-gray-600'}
+            ? 'bg-muted cursor-not-allowed opacity-50' 
+            : 'bg-card hover:bg-muted border border-border'}
         `}
       >
         Prev
       </button>
       
       {/* Page Numbers */}
-      {visiblePages.map((page) => (
-        <button
-          key={page}
-          onClick={() => handlePageChange(page)}
-          className={`
-            w-12 h-12 rounded-lg font-bold text-lg transition-all
-            ${currentPage === page 
-              ? 'bg-orange-500 text-white border-2 border-orange-400 shadow-lg' 
-              : 'bg-gray-700 text-white hover:bg-gray-600'}
-          `}
-        >
-          {page}
-        </button>
-      ))}
+      <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-full">
+        {visiblePages.map((page) => (
+          <button
+            key={page}
+            onClick={() => handlePageChange(page)}
+            className={`
+              w-10 h-10 sm:w-12 sm:h-12 rounded-lg font-bold text-sm sm:text-lg transition-all flex-shrink-0
+              ${currentPage === page 
+                ? 'bg-primary text-primary-foreground border-2 border-primary shadow-lg shadow-primary/20' 
+                : 'bg-card text-foreground hover:bg-muted border border-border'}
+            `}
+          >
+            {page}
+          </button>
+        ))}
+      </div>
       
       {/* Next Button */}
       <button
         onClick={() => handlePageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className={`
-          px-4 py-3 rounded-lg font-bold text-white transition-all
+          px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-bold text-white transition-all flex-shrink-0 text-sm sm:text-base
           ${currentPage === totalPages 
-            ? 'bg-gray-600 cursor-not-allowed opacity-50' 
-            : 'bg-orange-500 hover:bg-orange-600'}
+            ? 'bg-muted cursor-not-allowed opacity-50' 
+            : 'bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20'}
         `}
       >
         Next
