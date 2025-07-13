@@ -127,7 +127,7 @@ const VideoPage = () => {
           {/* Main Video Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Video Player */}
-            <Card className="overflow-hidden">
+            <Card className="overflow-hidden border-4 border-primary shadow-xl">
               <div className="relative aspect-video bg-black">
                 <VideoPlayer
                   src={video.video_url}
