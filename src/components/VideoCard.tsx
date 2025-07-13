@@ -27,37 +27,76 @@ interface VideoCardProps {
 const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [currentPreviewTime, setCurrentPreviewTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previewCycleRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Generate preview URL with timestamp for Bunny CDN videos
+  const generateBunnyPreviewUrl = (videoUrl: string, time: number): string => {
+    if (videoUrl.includes('bunnycdn.com') || videoUrl.includes('b-cdn.net')) {
+      return `${videoUrl}#t=${time}`;
+    }
+    return videoUrl;
+  };
 
   const handleMouseEnter = () => {
-    // Only use preview_url - no fallback to main video to save data
-    if (video.preview_url && video.preview_url.trim() !== '') {
-      setIsHovered(true);
-      // Longer delay to avoid triggering on quick mouse movements
-      hoverTimeoutRef.current = setTimeout(() => {
-        setShowPreview(true);
-        if (videoRef.current) {
-          videoRef.current.src = video.preview_url;
-          videoRef.current.currentTime = 0;
-          videoRef.current.play().catch((error) => {
-            console.error('Video play failed:', error);
-          });
+    setIsHovered(true);
+    
+    // Delay to avoid triggering on quick mouse movements
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowPreview(true);
+      
+      if (videoRef.current) {
+        // Use preview_url if available, otherwise use main video with timestamp
+        const previewUrl = video.preview_url && video.preview_url.trim() !== '' 
+          ? video.preview_url 
+          : generateBunnyPreviewUrl(video.video_url, 10); // Start at 10 seconds
+        
+        videoRef.current.src = previewUrl;
+        videoRef.current.currentTime = video.preview_url ? 0 : 10;
+        videoRef.current.play().catch((error) => {
+          console.error('Video play failed:', error);
+        });
+
+        // Cycle through different timestamps for main video previews
+        if (!video.preview_url || video.preview_url.trim() === '') {
+          const previewTimes = [10, 30, 60, 90]; // Different preview points
+          let timeIndex = 0;
+          
+          previewCycleRef.current = setInterval(() => {
+            timeIndex = (timeIndex + 1) % previewTimes.length;
+            const newTime = previewTimes[timeIndex];
+            setCurrentPreviewTime(newTime);
+            
+            if (videoRef.current) {
+              videoRef.current.currentTime = newTime;
+            }
+          }, 3000); // Change preview every 3 seconds
         }
-      }, 1000); // Increased delay to 1 second
-    }
+      }
+    }, 800); // Reduced delay for better UX
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
     setShowPreview(false);
+    setCurrentPreviewTime(0);
+    
+    // Clear timeouts and intervals
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
       hoverTimeoutRef.current = null;
     }
+    if (previewCycleRef.current) {
+      clearInterval(previewCycleRef.current);
+      previewCycleRef.current = null;
+    }
+    
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
+      videoRef.current.src = '';
     }
   };
   const formatViews = (views: number) => {
@@ -93,14 +132,14 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                 alt={video.title}
                 className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
               />
-              {video.preview_url && video.preview_url.trim() !== '' ? (
+              {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
                 <video
                   ref={videoRef}
                   className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
                   muted
-                  loop
+                  loop={!!video.preview_url}
                   playsInline
-                  preload="none"
+                  preload="metadata"
                 />
               ) : null}
               <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
@@ -159,22 +198,22 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             alt={video.title}
             className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
-          {video.preview_url && video.preview_url.trim() !== '' ? (
+          {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
             <video
               ref={videoRef}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
               muted
-              loop
+              loop={!!video.preview_url}
               playsInline
-              preload="none"
+              preload="metadata"
             />
           ) : null}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
-          {video.preview_url && video.preview_url.trim() !== '' && showPreview && (
+          {showPreview && (
             <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded animate-fade-in">
-              Preview
+              {video.preview_url ? 'Preview' : `Preview ${Math.floor(currentPreviewTime)}s`}
             </div>
           )}
         </div>
