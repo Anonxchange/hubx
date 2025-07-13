@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Grid3X3, List } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import Header from '@/components/Header';
+import Categories from '@/components/Categories';
 import VideoGrid from '@/components/VideoGrid';
+import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import ImageStylePagination from '@/components/ImageStylePagination';
 import AdComponent from '@/components/AdComponent';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useVideos } from '@/hooks/useVideos';
+import ImageStylePagination from '@/components/ImageStylePagination';
 
 const categories = [
   'All',
@@ -183,19 +184,16 @@ const Index = () => {
 
         {/* Pagination */}
         {!isLoading && !error && (
-          <div className="mt-8">
-            {/* Debug info - remove in production */}
-            <div className="text-center text-sm text-muted-foreground mb-4">
-              Page {currentPage} of {totalPages} ({totalCount} total videos)
-            </div>
-            <ImageStylePagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-            />
-          </div>
+          <ImageStylePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         )}
       </main>
+
+      {/* Categories Section */}
+      <Categories />
 
       <Footer />
     </div>
