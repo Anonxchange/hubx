@@ -423,13 +423,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       {/* Main Video Element */}
       <video
         ref={videoRef}
-        className="w-full h-full object-cover"
+        className="w-full h-full"
         poster={poster}
         preload="metadata"
         playsInline
         onError={handleVideoError}
         controls
-        style={{ width: '100%', height: '100%', backgroundColor: '#000', objectFit: 'cover' }}
+        style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
       >
         <source src={src} type="video/mp4" />
         <source src={src} type="video/webm" />
