@@ -113,6 +113,18 @@ const Header = () => {
               </Link>
             </nav>
 
+            {/* Desktop Actions */}
+            <div className="hidden lg:flex items-center space-x-2">
+              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+                <Search className="h-5 w-5" />
+              </Button>
+              <Link to="/auth">
+                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+            </div>
+
             {/* Mobile Actions */}
             <div className="flex items-center space-x-2 lg:hidden">
               <Link to="/auth">
