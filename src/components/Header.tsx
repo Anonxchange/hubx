@@ -22,9 +22,9 @@ const categories = [
 
 const mobileNavItems = [
   { name: 'Featured Videos', icon: Play, path: '/', badge: null },
+  { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
   { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
-  { name: 'Premium', icon: Star, path: '/?category=premium', badge: 'VIP' },
   { name: 'Live Cams', icon: Users, url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default', badge: null },
 ];
 
@@ -59,6 +59,14 @@ const Header = () => {
               Home
             </Link>
 
+            <Link
+              to="/premium"
+              className={`nav-item flex items-center space-x-1 ${location.pathname === '/premium' ? 'active' : ''}`}
+            >
+              <Star className="w-4 h-4" />
+              <span>Premium</span>
+            </Link>
+
             {/* Categories Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -72,7 +80,7 @@ const Header = () => {
                   {categories.map((category) => (
                     <DropdownMenuItem key={category} asChild>
                       <Link
-                        to={`/?category=${category.toLowerCase()}`}
+                        to={`/category/${category.toLowerCase()}`}
                         className="text-sm hover:bg-accent/20 rounded px-3 py-2 block"
                       >
                         {category === 'recommended' ? 'Recommended' : category}
@@ -161,7 +169,7 @@ const Header = () => {
                         {categories.map((category) => (
                           <Link
                             key={category}
-                            to={`/?category=${category.toLowerCase()}`}
+                            to={`/category/${category.toLowerCase()}`}
                             className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors"
                           >
                             <span className="text-sm capitalize">{category}</span>

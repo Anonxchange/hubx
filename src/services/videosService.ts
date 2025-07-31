@@ -15,6 +15,7 @@ export interface Video {
   tags: string[];
   created_at: string;
   updated_at: string;
+  is_premium?: boolean;
 }
 
 export interface VideoUpload {
@@ -25,6 +26,7 @@ export interface VideoUpload {
   preview_url?: string;
   duration?: string;
   tags: string[];
+  is_premium?: boolean;
 }
 
 export interface VideoReaction {
@@ -65,6 +67,10 @@ export const getVideos = async (page = 1, limit = 60, category?: string, searchQ
       case 'most rated':
         // Order by likes descending for highest rated
         query = query.order('likes', { ascending: false });
+        break;
+      case 'premium':
+        // Filter for premium videos only
+        query = query.eq('is_premium', true).order('created_at', { ascending: false });
         break;
       default:
         // For any other category, treat as tag-based filtering
