@@ -62,6 +62,18 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAd
               <AdComponent zoneId="5661270" />
             </div>
           )}
+          {/* Insert JuicyAds after video 40 (index 39) - spanning full width */}
+          {showAds && index === 39 && (
+            <div className="col-span-full my-6 flex justify-center">
+              <div dangerouslySetInnerHTML={{
+                __html: `
+                  <script type="text/javascript" data-cfasync="false" async src="https://poweredby.jads.co/js/jads.js"></script>
+                  <ins id="1097666" data-width="300" data-height="250"></ins>
+                  <script type="text/javascript" data-cfasync="false" async>(adsbyjuicy = window.adsbyjuicy || []).push({'adzone':1097666});</script>
+                `
+              }} />
+            </div>
+          )}
         </div>
       ))}
     </div>
