@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv } from 'lucide-react';
@@ -41,169 +40,174 @@ const Header = () => {
   ];
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-black">
-      <div className="container mx-auto px-4">
-        <div className="flex h-16 items-center justify-between">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="gradient-overlay rounded-lg p-2">
-              <span className="text-xl font-bold text-white">HubX</span>
-            </div>
-          </Link>
-
-          {/* Desktop Navigation */}
-          <nav className="hidden lg:flex items-center space-x-6">
-            <Link
-              to="/"
-              className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}
-            >
-              Home
+    <>
+      {/* Main Header - Not Sticky */}
+      <header className="w-full bg-black">
+        <div className="container mx-auto px-4">
+          <div className="flex h-16 items-center justify-between">
+            {/* Logo */}
+            <Link to="/" className="flex items-center space-x-2">
+              <div className="gradient-overlay rounded-lg p-2">
+                <span className="text-xl font-bold text-white">HubX</span>
+              </div>
             </Link>
 
-            <Link
-              to="/premium"
-              className={`nav-item flex items-center space-x-1 ${location.pathname === '/premium' ? 'active' : ''}`}
-            >
-              <Star className="w-4 h-4" />
-              <span>Premium</span>
-            </Link>
+            {/* Desktop Navigation */}
+            <nav className="hidden lg:flex items-center space-x-6">
+              <Link
+                to="/"
+                className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}
+              >
+                Home
+              </Link>
 
-            <Link
-              to="/channel"
-              className={`nav-item flex items-center space-x-1 ${location.pathname === '/channel' ? 'active' : ''}`}
-            >
-              <Tv className="w-4 h-4" />
-              <span>Channel</span>
-            </Link>
+              <Link
+                to="/premium"
+                className={`nav-item flex items-center space-x-1 ${location.pathname === '/premium' ? 'active' : ''}`}
+              >
+                <Star className="w-4 h-4" />
+                <span>Premium</span>
+              </Link>
 
-            {/* Categories Dropdown */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="nav-item flex items-center space-x-1 text-white hover:text-white hover:bg-white/10">
-                  <span>All Categories</span>
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-popover backdrop-blur z-50 border border-border">
-                <div className="grid grid-cols-1 gap-1 p-2">
-                  {categories.map((category) => (
-                    <DropdownMenuItem key={category} asChild>
-                      <Link
-                        to={`/category/${category.toLowerCase()}`}
-                        className="text-sm hover:bg-accent/20 rounded px-3 py-2 block"
-                      >
-                        {category === 'recommended' ? 'Recommended' : category}
-                      </Link>
-                    </DropdownMenuItem>
-                  ))}
-                </div>
-              </DropdownMenuContent>
-            </DropdownMenu>
+              <Link
+                to="/channel"
+                className={`nav-item flex items-center space-x-1 ${location.pathname === '/channel' ? 'active' : ''}`}
+              >
+                <Tv className="w-4 h-4" />
+                <span>Channel</span>
+              </Link>
 
-            {/* Admin Link - Hidden, accessible via direct URL */}
-            <Link 
-              to="/admin-hubx-2024" 
-              className="nav-item opacity-0 pointer-events-none absolute"
-              style={{ left: '-9999px' }}
-            >
-              <Settings className="w-4 h-4" />
-            </Link>
-          </nav>
-
-          {/* Mobile Actions */}
-          <div className="flex items-center space-x-2 lg:hidden">
-            <Link to="/auth">
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                <User className="h-5 w-5" />
-              </Button>
-            </Link>
-            
-            {/* Mobile Menu Button */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-white hover:bg-white/10"
-                >
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="w-80 bg-background border-l border-border p-0">
-                <div className="flex flex-col h-full">
-                  {/* Header */}
-                  <div className="flex items-center justify-between p-6 border-b border-border">
-                    <h2 className="text-lg font-semibold">Menu</h2>
+              {/* Categories Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="nav-item flex items-center space-x-1 text-white hover:text-white hover:bg-white/10">
+                    <span>All Categories</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 bg-popover backdrop-blur z-50 border border-border">
+                  <div className="grid grid-cols-1 gap-1 p-2">
+                    {categories.map((category) => (
+                      <DropdownMenuItem key={category} asChild>
+                        <Link
+                          to={`/category/${category.toLowerCase()}`}
+                          className="text-sm hover:bg-accent/20 rounded px-3 py-2 block"
+                        >
+                          {category === 'recommended' ? 'Recommended' : category}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
                   </div>
-                  
-                  {/* Navigation Items */}
-                  <div className="flex-1 overflow-y-auto">
-                    <div className="p-4 space-y-2">
-                      {mobileNavItems.map((item) => (
-                        <div key={item.name}>
-                          {item.url ? (
-                            <a
-                              href={item.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
-                            >
-                              <div className="flex items-center space-x-3">
-                                <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-                                <span className="font-medium">{item.name}</span>
-                              </div>
-                              {item.badge && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {item.badge}
-                                </Badge>
-                              )}
-                            </a>
-                          ) : (
-                            <Link
-                              to={item.path}
-                              className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
-                            >
-                              <div className="flex items-center space-x-3">
-                                <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-                                <span className="font-medium">{item.name}</span>
-                              </div>
-                              {item.badge && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {item.badge}
-                                </Badge>
-                              )}
-                            </Link>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-                    {/* Categories Section */}
-                    <div className="px-4 pb-4">
-                      <div className="border-t border-border pt-4">
-                        <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Categories</h3>
-                        <div className="space-y-1">
-                          {categories.map((category) => (
-                            <Link
-                              key={category}
-                              to={`/category/${category.toLowerCase()}`}
-                              className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                            >
-                              <span className="text-sm capitalize">{category}</span>
-                            </Link>
-                          ))}
+              {/* Admin Link - Hidden, accessible via direct URL */}
+              <Link 
+                to="/admin-hubx-2024" 
+                className="nav-item opacity-0 pointer-events-none absolute"
+                style={{ left: '-9999px' }}
+              >
+                <Settings className="w-4 h-4" />
+              </Link>
+            </nav>
+
+            {/* Mobile Actions */}
+            <div className="flex items-center space-x-2 lg:hidden">
+              <Link to="/auth">
+                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+                  <User className="h-5 w-5" />
+                </Button>
+              </Link>
+              
+              {/* Mobile Menu Button */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white hover:bg-white/10"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-80 bg-background border-l border-border p-0">
+                  <div className="flex flex-col h-full">
+                    {/* Header */}
+                    <div className="flex items-center justify-between p-6 border-b border-border">
+                      <h2 className="text-lg font-semibold">Menu</h2>
+                    </div>
+                    
+                    {/* Navigation Items */}
+                    <div className="flex-1 overflow-y-auto">
+                      <div className="p-4 space-y-2">
+                        {mobileNavItems.map((item) => (
+                          <div key={item.name}>
+                            {item.url ? (
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
+                              >
+                                <div className="flex items-center space-x-3">
+                                  <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                                  <span className="font-medium">{item.name}</span>
+                                </div>
+                                {item.badge && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {item.badge}
+                                  </Badge>
+                                )}
+                              </a>
+                            ) : (
+                              <Link
+                                to={item.path}
+                                className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
+                              >
+                                <div className="flex items-center space-x-3">
+                                  <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                                  <span className="font-medium">{item.name}</span>
+                                </div>
+                                {item.badge && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    {item.badge}
+                                  </Badge>
+                                )}
+                              </Link>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Categories Section */}
+                      <div className="px-4 pb-4">
+                        <div className="border-t border-border pt-4">
+                          <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Categories</h3>
+                          <div className="space-y-1">
+                            {categories.map((category) => (
+                              <Link
+                                key={category}
+                                to={`/category/${category.toLowerCase()}`}
+                                className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                              >
+                                <span className="text-sm capitalize">{category}</span>
+                              </Link>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              </SheetContent>
-            </Sheet>
+                </SheetContent>
+              </Sheet>
+            </div>
           </div>
         </div>
+      </header>
 
-        {/* Navigation Tabs */}
-        <div className="border-t border-gray-800">
+      {/* Sticky Navigation Tabs */}
+      <div className="sticky top-0 z-40 w-full bg-black border-t border-gray-800">
+        <div className="container mx-auto px-4">
           <div className="flex items-center justify-center lg:justify-start py-3 gap-2 lg:gap-4 overflow-x-auto">
             {navTabs.map((tab) => (
               <a
@@ -218,9 +222,8 @@ const Header = () => {
             ))}
           </div>
         </div>
-
       </div>
-    </header>
+    </>
   );
 };
 
