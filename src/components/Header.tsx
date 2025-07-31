@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv } from 'lucide-react';
@@ -41,7 +42,7 @@ const Header = () => {
 
   return (
     <>
-      {/* Main Header - Not Sticky */}
+      {/* Main Header - Scrolls with content */}
       <header className="w-full bg-black">
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between">
@@ -205,8 +206,8 @@ const Header = () => {
         </div>
       </header>
 
-      {/* Sticky Navigation Tabs */}
-      <div className="sticky top-0 z-40 w-full bg-black border-t border-gray-800">
+      {/* Sticky Navigation Tabs - Stays at top when scrolling */}
+      <div className="sticky top-0 z-50 w-full bg-black border-t border-gray-800">
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-center lg:justify-start py-3 gap-2 lg:gap-4 overflow-x-auto">
             {navTabs.map((tab) => (
