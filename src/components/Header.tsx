@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users } from 'lucide-react';
+import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -91,6 +91,12 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
+            {/* Login Button */}
+            <Button variant="ghost" className="nav-item flex items-center space-x-1 text-white hover:text-white hover:bg-white/10">
+              <LogIn className="w-4 h-4" />
+              <span>Login</span>
+            </Button>
+
             {/* Admin Link - Hidden, accessible via direct URL */}
             <Link 
               to="/admin-hubx-2024" 
@@ -100,6 +106,13 @@ const Header = () => {
               <Settings className="w-4 h-4" />
             </Link>
           </nav>
+
+          {/* Desktop Login Button for smaller screens */}
+          <div className="hidden md:flex lg:hidden">
+            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+              <LogIn className="h-5 w-5" />
+            </Button>
+          </div>
 
           {/* Mobile Menu Button */}
           <Sheet>
@@ -122,6 +135,14 @@ const Header = () => {
                 {/* Navigation Items */}
                 <div className="flex-1 overflow-y-auto">
                   <div className="p-4 space-y-2">
+                    {/* Login Item for Mobile */}
+                    <div className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group border-b border-border mb-4">
+                      <div className="flex items-center space-x-3">
+                        <LogIn className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                        <span className="font-medium">Login</span>
+                      </div>
+                    </div>
+
                     {mobileNavItems.map((item) => (
                       <div key={item.name}>
                         {item.url ? (
