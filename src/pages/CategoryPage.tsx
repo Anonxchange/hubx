@@ -12,7 +12,7 @@ const CategoryPage = () => {
   const { category } = useParams<{ category: string }>();
   const [currentPage, setCurrentPage] = useState(1);
   
-  const { data, isLoading, error } = useVideosByCategory(category || '', currentPage, 40);
+  const { data, isLoading, error } = useVideosByCategory(category || '', currentPage, 60);
   
   const videos = data?.videos || [];
   const totalPages = data?.totalPages || 1;

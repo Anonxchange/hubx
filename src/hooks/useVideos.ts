@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getVideos, getVideosByCategory, getRelatedVideos, Video } from '@/services/videosService';
 
-export const useVideos = (page = 1, limit = 30, category?: string, searchQuery?: string) => {
+export const useVideos = (page = 1, limit = 60, category?: string, searchQuery?: string) => {
   return useQuery({
     queryKey: ['videos', page, limit, category, searchQuery],
     queryFn: () => getVideos(page, limit, category, searchQuery),
@@ -11,7 +11,7 @@ export const useVideos = (page = 1, limit = 30, category?: string, searchQuery?:
   });
 };
 
-export const useVideosByCategory = (category: string, page = 1, limit = 30, searchQuery?: string) => {
+export const useVideosByCategory = (category: string, page = 1, limit = 60, searchQuery?: string) => {
   return useQuery({
     queryKey: ['videos', 'category', category, page, limit, searchQuery],
     queryFn: () => getVideosByCategory(category, page, limit, searchQuery),

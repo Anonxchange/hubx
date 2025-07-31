@@ -46,7 +46,7 @@ const getSessionId = () => {
 };
 
 // Get all videos with pagination and search
-export const getVideos = async (page = 1, limit = 30, category?: string, searchQuery?: string) => {
+export const getVideos = async (page = 1, limit = 60, category?: string, searchQuery?: string) => {
   let query = supabase
     .from('videos')
     .select('*', { count: 'exact' }); // Added count: 'exact' to get total count
@@ -100,7 +100,7 @@ export const getVideos = async (page = 1, limit = 30, category?: string, searchQ
 };
 
 // Get videos by category
-export const getVideosByCategory = async (category: string, page = 1, limit = 30, searchQuery?: string) => {
+export const getVideosByCategory = async (category: string, page = 1, limit = 60, searchQuery?: string) => {
   return getVideos(page, limit, category, searchQuery);
 };
 
