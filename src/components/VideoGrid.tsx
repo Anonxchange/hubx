@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import VideoCard from './VideoCard';
 import AdComponent from './AdComponent';
 
@@ -64,20 +64,40 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAd
           )}
           {/* Insert JuicyAds after video 40 (index 39) - spanning full width */}
           {showAds && index === 39 && (
-            <div className="col-span-full my-6 flex justify-center">
-              <div dangerouslySetInnerHTML={{
-                __html: `
-                  <script type="text/javascript" data-cfasync="false" async src="https://poweredby.jads.co/js/jads.js"></script>
-                  <ins id="1097666" data-width="300" data-height="250"></ins>
-                  <script type="text/javascript" data-cfasync="false" async>(adsbyjuicy = window.adsbyjuicy || []).push({'adzone':1097666});</script>
-                `
-              }} />
-            </div>
+            <JuicyAdComponent />
           )}
         </div>
       ))}
     </div>
   );
 };
+
+// JuicyAds Component
+const JuicyAdComponent: React.FC = () => {
+  useEffect(() => {
+    // Ensure window.adsbyjuicy exists
+    if (!window.adsbyjuicy) {
+      window.adsbyjuicy = [];
+    }
+    
+    // Push ad configuration
+    window.adsbyjuicy.push({ 'adzone': 1097666 });
+  }, []);
+
+  return (
+    <div className="col-span-full my-6 flex justify-center">
+      <div>
+        <ins id="1097666" data-width="300" data-height="250"></ins>
+      </div>
+    </div>
+  );
+};
+
+// Extend window object to include adsbyjuicy
+declare global {
+  interface Window {
+    adsbyjuicy: any[];
+  }
+}
 
 export default VideoGrid;
