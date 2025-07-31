@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, LogIn } from 'lucide-react';
+import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, LogIn, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -107,102 +106,112 @@ const Header = () => {
             </Link>
           </nav>
 
-          {/* Desktop Login Button for smaller screens */}
-          <div className="hidden md:flex lg:hidden">
+          {/* Desktop Actions for smaller screens */}
+          <div className="hidden md:flex lg:hidden items-center space-x-2">
+            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+              <User className="h-5 w-5" />
+            </Button>
             <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
               <LogIn className="h-5 w-5" />
             </Button>
           </div>
 
-          {/* Mobile Menu Button */}
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="lg:hidden text-white hover:bg-white/10"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-80 bg-background border-l border-border p-0">
-              <div className="flex flex-col h-full">
-                {/* Header */}
-                <div className="flex items-center justify-between p-6 border-b border-border">
-                  <h2 className="text-lg font-semibold">Menu</h2>
-                </div>
-                
-                {/* Navigation Items */}
-                <div className="flex-1 overflow-y-auto">
-                  <div className="p-4 space-y-2">
-                    {/* Login Item for Mobile */}
-                    <div className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group border-b border-border mb-4">
-                      <div className="flex items-center space-x-3">
-                        <LogIn className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-                        <span className="font-medium">Login</span>
+          {/* Mobile Actions */}
+          <div className="flex items-center space-x-2 lg:hidden">
+            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 md:hidden">
+              <User className="h-5 w-5" />
+            </Button>
+            
+            {/* Mobile Menu Button */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/10"
+                >
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-80 bg-background border-l border-border p-0">
+                <div className="flex flex-col h-full">
+                  {/* Header */}
+                  <div className="flex items-center justify-between p-6 border-b border-border">
+                    <h2 className="text-lg font-semibold">Menu</h2>
+                  </div>
+                  
+                  {/* Navigation Items */}
+                  <div className="flex-1 overflow-y-auto">
+                    <div className="p-4 space-y-2">
+                      {/* Login Item for Mobile */}
+                      <div className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group border-b border-border mb-4">
+                        <div className="flex items-center space-x-3">
+                          <LogIn className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                          <span className="font-medium">Login</span>
+                        </div>
                       </div>
+
+                      {mobileNavItems.map((item) => (
+                        <div key={item.name}>
+                          {item.url ? (
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
+                            >
+                              <div className="flex items-center space-x-3">
+                                <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                                <span className="font-medium">{item.name}</span>
+                              </div>
+                              {item.badge && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {item.badge}
+                                </Badge>
+                              )}
+                            </a>
+                          ) : (
+                            <Link
+                              to={item.path}
+                              className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
+                            >
+                              <div className="flex items-center space-x-3">
+                                <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                                <span className="font-medium">{item.name}</span>
+                              </div>
+                              {item.badge && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {item.badge}
+                                </Badge>
+                              )}
+                            </Link>
+                          )}
+                        </div>
+                      ))}
                     </div>
 
-                    {mobileNavItems.map((item) => (
-                      <div key={item.name}>
-                        {item.url ? (
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
-                          >
-                            <div className="flex items-center space-x-3">
-                              <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-                              <span className="font-medium">{item.name}</span>
-                            </div>
-                            {item.badge && (
-                              <Badge variant="secondary" className="text-xs">
-                                {item.badge}
-                              </Badge>
-                            )}
-                          </a>
-                        ) : (
-                          <Link
-                            to={item.path}
-                            className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
-                          >
-                            <div className="flex items-center space-x-3">
-                              <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-                              <span className="font-medium">{item.name}</span>
-                            </div>
-                            {item.badge && (
-                              <Badge variant="secondary" className="text-xs">
-                                {item.badge}
-                              </Badge>
-                            )}
-                          </Link>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Categories Section */}
-                  <div className="px-4 pb-4">
-                    <div className="border-t border-border pt-4">
-                      <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Categories</h3>
-                      <div className="space-y-1">
-                        {categories.map((category) => (
-                          <Link
-                            key={category}
-                            to={`/category/${category.toLowerCase()}`}
-                            className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                          >
-                            <span className="text-sm capitalize">{category}</span>
-                          </Link>
-                        ))}
+                    {/* Categories Section */}
+                    <div className="px-4 pb-4">
+                      <div className="border-t border-border pt-4">
+                        <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Categories</h3>
+                        <div className="space-y-1">
+                          {categories.map((category) => (
+                            <Link
+                              key={category}
+                              to={`/category/${category.toLowerCase()}`}
+                              className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                            >
+                              <span className="text-sm capitalize">{category}</span>
+                            </Link>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            </SheetContent>
-          </Sheet>
+              </SheetContent>
+            </Sheet>
+          </div>
         </div>
 
         {/* Navigation Tabs */}
