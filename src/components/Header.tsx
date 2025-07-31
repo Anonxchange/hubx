@@ -1,6 +1,7 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, LogIn, User } from 'lucide-react';
+import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -22,6 +23,7 @@ const categories = [
 const mobileNavItems = [
   { name: 'Featured Videos', icon: Play, path: '/', badge: null },
   { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
+  { name: 'Channel', icon: Tv, path: '/channel', badge: null },
   { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
   { name: 'Live Cams', icon: Users, url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default', badge: null },
@@ -66,6 +68,14 @@ const Header = () => {
               <span>Premium</span>
             </Link>
 
+            <Link
+              to="/channel"
+              className={`nav-item flex items-center space-x-1 ${location.pathname === '/channel' ? 'active' : ''}`}
+            >
+              <Tv className="w-4 h-4" />
+              <span>Channel</span>
+            </Link>
+
             {/* Categories Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -90,12 +100,6 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Login Button */}
-            <Button variant="ghost" className="nav-item flex items-center space-x-1 text-white hover:text-white hover:bg-white/10">
-              <LogIn className="w-4 h-4" />
-              <span>Login</span>
-            </Button>
-
             {/* Admin Link - Hidden, accessible via direct URL */}
             <Link 
               to="/admin-hubx-2024" 
@@ -106,19 +110,9 @@ const Header = () => {
             </Link>
           </nav>
 
-          {/* Desktop Actions for smaller screens */}
-          <div className="hidden md:flex lg:hidden items-center space-x-2">
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-              <User className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-              <LogIn className="h-5 w-5" />
-            </Button>
-          </div>
-
           {/* Mobile Actions */}
           <div className="flex items-center space-x-2 lg:hidden">
-            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10 md:hidden">
+            <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
               <User className="h-5 w-5" />
             </Button>
             
@@ -143,14 +137,6 @@ const Header = () => {
                   {/* Navigation Items */}
                   <div className="flex-1 overflow-y-auto">
                     <div className="p-4 space-y-2">
-                      {/* Login Item for Mobile */}
-                      <div className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group border-b border-border mb-4">
-                        <div className="flex items-center space-x-3">
-                          <LogIn className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-                          <span className="font-medium">Login</span>
-                        </div>
-                      </div>
-
                       {mobileNavItems.map((item) => (
                         <div key={item.name}>
                           {item.url ? (
