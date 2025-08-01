@@ -127,8 +127,9 @@ const VideoPage = () => {
           {/* Main Video Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Video Player */}
-            <Card className="overflow-hidden">
-              <div className="relative aspect-video bg-black">
+            <div className="relative">
+              {/* Mobile: Full screen without borders */}
+              <div className="block md:hidden -mx-4 relative aspect-video bg-black">
                 <VideoPlayer
                   src={video.video_url}
                   poster={video.thumbnail_url}
@@ -136,7 +137,19 @@ const VideoPage = () => {
                   onCanPlay={handleVideoCanPlay}
                 />
               </div>
-            </Card>
+              
+              {/* Desktop: Maintain card styling */}
+              <Card className="hidden md:block overflow-hidden">
+                <div className="relative aspect-video bg-black">
+                  <VideoPlayer
+                    src={video.video_url}
+                    poster={video.thumbnail_url}
+                    onError={handleVideoError}
+                    onCanPlay={handleVideoCanPlay}
+                  />
+                </div>
+              </Card>
+            </div>
 
             {/* Video Info */}
             <div className="space-y-4">
