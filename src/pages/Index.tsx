@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useOptimizedVideos } from '@/hooks/useOptimizedVideos';
+import { useVideos } from '@/hooks/useVideos';
 import ImageStylePagination from '@/components/ImageStylePagination';
 
 const categories = [
@@ -36,7 +36,7 @@ const Index = () => {
     }
   }, [searchParams]);
   
-  const { data, isLoading, error } = useOptimizedVideos(
+  const { data, isLoading, error } = useVideos(
     currentPage,
     60,
     selectedCategory === 'All' ? undefined : selectedCategory
