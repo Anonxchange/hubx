@@ -21,8 +21,8 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   };
 
   const getVisiblePages = () => {
-    // Reduce visible pages on mobile to prevent overflow
-    const maxVisible = window.innerWidth < 640 ? 3 : 5;
+    // Show 5 visible pages on both mobile and desktop
+    const maxVisible = 5;
     let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
     let end = Math.min(totalPages, start + maxVisible - 1);
     
