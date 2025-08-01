@@ -24,37 +24,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [adShown, setAdShown] = React.useState(false);
   const [showSkipButton, setShowSkipButton] = React.useState(false);
   const [adCountdown, setAdCountdown] = React.useState(5);
-  const [viewTracked, setViewTracked] = React.useState(false);
-
-  // Function to track video view with Exoclick
-  const trackVideoView = () => {
-    if (viewTracked) return;
-    
-    try {
-      // Track with Exoclick - fire impression tracking
-      if (window.popMagic && typeof window.popMagic.setAsOpened === 'function') {
-        console.log('Tracking video view with Exoclick');
-        window.popMagic.setAsOpened();
-      }
-      
-      // Alternative tracking method if available
-      if (window.AdProvider && Array.isArray(window.AdProvider)) {
-        console.log('Tracking video impression');
-        window.AdProvider.push({"serve": {"type": "impression"}});
-      }
-      
-      // Custom tracking event
-      const trackingEvent = new CustomEvent('videoViewTracked', {
-        detail: { videoSrc: src, timestamp: Date.now() }
-      });
-      document.dispatchEvent(trackingEvent);
-      
-      setViewTracked(true);
-      console.log('Video view tracked successfully');
-    } catch (error) {
-      console.error('Error tracking video view:', error);
-    }
-  };
 
   // Function to fetch and parse VAST XML
   const fetchVastAd = async () => {
@@ -249,7 +218,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     if (src) {
       setAdShown(false);
-      setViewTracked(false);
       console.log('New video loaded, ad state reset');
     }
   }, [src]);
@@ -284,9 +252,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handlePlay = async () => {
       console.log('Video play triggered - Ad shown:', adShown);
       
-      // Track video view when it starts playing
-      trackVideoView();
-      
       // Show ad on every video play (like major video platforms)
       if (!adShown) {
         console.log('Showing ad before video');
@@ -294,14 +259,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         await playVastAd();
       } else {
         console.log('Ad already shown for this video');
-      }
-    };
-
-    // Track view when video actually starts playing (not just when loaded)
-    const handleVideoStart = () => {
-      if (!viewTracked) {
-        console.log('Video started playing - tracking view');
-        trackVideoView();
       }
     };
 
@@ -338,7 +295,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('error', handleError);
     video.addEventListener('play', handlePlay);
-    video.addEventListener('playing', handleVideoStart);
 
     if (adVideo) {
       adVideo.addEventListener('ended', handleAdEnded);
@@ -354,7 +310,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('error', handleError);
       video.removeEventListener('play', handlePlay);
-      video.removeEventListener('playing', handleVideoStart);
       
       if (adVideo) {
         adVideo.removeEventListener('ended', handleAdEnded);
@@ -483,13 +438,5 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     </div>
   );
 };
-
-// Extend window object to include all tracking functions used by both components
-declare global {
-  interface Window {
-    popMagic?: any;
-    AdProvider?: any[];
-  }
-}
 
 export default VideoPlayer;

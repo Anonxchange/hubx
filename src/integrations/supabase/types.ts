@@ -85,7 +85,6 @@ export type Database = {
           dislikes: number | null
           duration: string | null
           id: string
-          is_premium: boolean
           likes: number | null
           preview_url: string | null
           tags: string[] | null
@@ -101,7 +100,6 @@ export type Database = {
           dislikes?: number | null
           duration?: string | null
           id?: string
-          is_premium?: boolean
           likes?: number | null
           preview_url?: string | null
           tags?: string[] | null
@@ -117,7 +115,6 @@ export type Database = {
           dislikes?: number | null
           duration?: string | null
           id?: string
-          is_premium?: boolean
           likes?: number | null
           preview_url?: string | null
           tags?: string[] | null

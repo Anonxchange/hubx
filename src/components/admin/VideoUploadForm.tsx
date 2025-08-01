@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
@@ -23,15 +22,14 @@ const VideoUploadForm = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
 
-  const [formData, setFormData] = useState<VideoUpload & { is_premium?: boolean }>({
+  const [formData, setFormData] = useState<VideoUpload>({
     title: '',
     description: '',
     video_url: '',
     thumbnail_url: '',
     preview_url: '',
     duration: '',
-    tags: [],
-    is_premium: false
+    tags: []
   });
 
   const uploadMutation = useMutation({
@@ -64,8 +62,7 @@ const VideoUploadForm = () => {
       thumbnail_url: '',
       preview_url: '',
       duration: '',
-      tags: [],
-      is_premium: false
+      tags: []
     });
     setCustomTags([]);
     setSelectedFile(null);
@@ -307,23 +304,6 @@ const VideoUploadForm = () => {
                 onChange={handleInputChange}
                 placeholder="e.g., 12:34"
               />
-            </div>
-          </div>
-
-          {/* Premium Toggle */}
-          <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
-            <Switch
-              id="premium"
-              checked={formData.is_premium}
-              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_premium: checked }))}
-            />
-            <div className="flex-1">
-              <Label htmlFor="premium" className="text-base font-medium cursor-pointer">
-                Premium Content
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Mark this video as premium content (requires VIP access)
-              </p>
             </div>
           </div>
 

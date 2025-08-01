@@ -1,9 +1,8 @@
 
 import React, { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv, X, Upload, Image } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,12 +14,6 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 
 const categories = [
@@ -29,28 +22,15 @@ const categories = [
 
 const mobileNavItems = [
   { name: 'Featured Videos', icon: Play, path: '/', badge: null },
-  { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
-  { name: 'Channel', icon: Tv, path: '/channel', badge: null },
   { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
+  { name: 'Premium', icon: Star, path: '/?category=premium', badge: 'VIP' },
   { name: 'Live Cams', icon: Users, url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default', badge: null },
 ];
 
 const Header = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`);
-      setIsSearchOpen(false);
-      setSearchQuery('');
-    }
-  };
 
   const navTabs = [
     { name: 'LIVE CAM', url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default' },
@@ -60,206 +40,42 @@ const Header = () => {
   ];
 
   return (
-    <>
-      {/* Main Header - Redesigned horizontal layout */}
-      <header className="sticky top-0 z-50 w-full bg-black">
-        <div className="container mx-auto px-4">
-          <div className="flex h-16 items-center justify-between">
-            {/* Left side - Logo */}
-            <Link to="/" className="flex items-center space-x-2">
-              <div className="gradient-overlay rounded-lg p-2">
-                <span className="text-xl font-bold text-white">HubX</span>
-              </div>
-            </Link>
-
-            {/* Center - Search Bar with Upload Icons (Desktop) */}
-            <div className="hidden lg:flex flex-1 max-w-md mx-8 items-center space-x-3">
-              <form onSubmit={handleSearch} className="relative w-full">
-                <Input
-                  placeholder="Search videos..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-gray-800 border-gray-600 text-white placeholder-gray-400 pr-10"
-                />
-                <Button 
-                  type="submit"
-                  variant="ghost" 
-                  size="sm" 
-                  className="absolute right-0 top-0 h-full text-gray-400 hover:text-white hover:bg-transparent"
-                >
-                  <Search className="h-4 w-4" />
-                </Button>
-              </form>
-              
-              {/* Upload Icons */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-orange-500 hover:text-orange-400 hover:bg-white/10 p-2"
-                title="Upload Video"
-              >
-                <Upload className="h-5 w-5" />
-              </Button>
-              
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-orange-500 hover:text-orange-400 hover:bg-white/10 p-2"
-                title="Upload Photo"
-              >
-                <Image className="h-5 w-5" />
-              </Button>
+    <header className="sticky top-0 z-50 w-full bg-black">
+      <div className="container mx-auto px-4">
+        <div className="flex h-16 items-center justify-between">
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="gradient-overlay rounded-lg p-2">
+              <span className="text-xl font-bold text-white">HubX</span>
             </div>
+          </Link>
 
-            {/* Right side - User actions */}
-            <div className="flex items-center space-x-4">
-              {/* Mobile search button */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="lg:hidden text-white hover:bg-white/10"
-                onClick={() => setIsSearchOpen(true)}
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-              
-              <Link to="/auth">
-                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
-
-              {/* Mobile Menu Button */}
-              <Sheet>
-                <SheetTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="lg:hidden text-white hover:bg-white/10"
-                  >
-                    <Menu className="h-5 w-5" />
-                  </Button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-80 bg-background border-l border-border p-0">
-                  <div className="flex flex-col h-full">
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-6 border-b border-border">
-                      <h2 className="text-lg font-semibold">Menu</h2>
-                    </div>
-                    
-                    {/* Navigation Items */}
-                    <div className="flex-1 overflow-y-auto">
-                      <div className="p-4 space-y-2">
-                        {mobileNavItems.map((item) => (
-                          <div key={item.name}>
-                            {item.url ? (
-                              <a
-                                href={item.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
-                              >
-                                <div className="flex items-center space-x-3">
-                                  <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-                                  <span className="font-medium">{item.name}</span>
-                                </div>
-                                {item.badge && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {item.badge}
-                                  </Badge>
-                                )}
-                              </a>
-                            ) : (
-                              <Link
-                                to={item.path}
-                                className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
-                              >
-                                <div className="flex items-center space-x-3">
-                                  <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
-                                  <span className="font-medium">{item.name}</span>
-                                </div>
-                                {item.badge && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    {item.badge}
-                                  </Badge>
-                                )}
-                              </Link>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Categories Section */}
-                      <div className="px-4 pb-4">
-                        <div className="border-t border-border pt-4">
-                          <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Categories</h3>
-                          <div className="space-y-1">
-                            {categories.map((category) => (
-                              <Link
-                                key={category}
-                                to={`/category/${category.toLowerCase()}`}
-                                className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors"
-                              >
-                                <span className="text-sm capitalize">{category}</span>
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
-
-              {/* Admin Link - Hidden */}
-              <Link 
-                to="/admin-hubx-2024" 
-                className="nav-item opacity-0 pointer-events-none absolute"
-                style={{ left: '-9999px' }}
-              >
-                <Settings className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Navigation Tabs Bar - Desktop horizontal menu */}
-      <div className="hidden lg:block w-full bg-black border-t border-gray-800">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center h-12 space-x-8">
+          {/* Desktop Navigation */}
+          <nav className="hidden lg:flex items-center space-x-6">
             <Link
               to="/"
-              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors ${location.pathname === '/' ? 'text-orange-500' : ''}`}
+              className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}
             >
-              HOME
-            </Link>
-
-            <Link
-              to="/premium"
-              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors flex items-center space-x-1 ${location.pathname === '/premium' ? 'text-orange-500' : ''}`}
-            >
-              <Star className="w-4 h-4" />
-              <span>VIDEOS</span>
+              Home
             </Link>
 
             {/* Categories Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-sm font-medium text-white hover:text-orange-500 transition-colors h-auto p-0 flex items-center space-x-1">
-                  <span>CATEGORIES</span>
-                  <ChevronDown className="w-3 h-3" />
+                <Button variant="ghost" className="nav-item flex items-center space-x-1 text-white hover:text-white hover:bg-white/10">
+                  <span>All Categories</span>
+                  <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-black backdrop-blur z-50 border border-gray-800">
+              <DropdownMenuContent className="w-56 bg-popover backdrop-blur z-50 border border-border">
                 <div className="grid grid-cols-1 gap-1 p-2">
                   {categories.map((category) => (
                     <DropdownMenuItem key={category} asChild>
                       <Link
-                        to={`/category/${category.toLowerCase()}`}
-                        className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block capitalize"
+                        to={`/?category=${category.toLowerCase()}`}
+                        className="text-sm hover:bg-accent/20 rounded px-3 py-2 block"
                       >
-                        {category}
+                        {category === 'recommended' ? 'Recommended' : category}
                       </Link>
                     </DropdownMenuItem>
                   ))}
@@ -267,98 +83,118 @@ const Header = () => {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <a
-              href="https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm font-medium text-white hover:text-orange-500 transition-colors"
+            {/* Admin Link - Hidden, accessible via direct URL */}
+            <Link 
+              to="/admin-hubx-2024" 
+              className="nav-item opacity-0 pointer-events-none absolute"
+              style={{ left: '-9999px' }}
             >
-              LIVE CAMS
-            </a>
-
-            <Link
-              to="/premium"
-              className="text-sm font-medium text-white hover:text-orange-500 transition-colors"
-            >
-              PORNSTARS
+              <Settings className="w-4 h-4" />
             </Link>
+          </nav>
 
-            <Link
-              to="/?sort=trending"
-              className="text-sm font-medium text-white hover:text-orange-500 transition-colors"
-            >
-              FUCK NOW
-            </Link>
-
-            <Link
-              to="/channel"
-              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors ${location.pathname === '/channel' ? 'text-orange-500' : ''}`}
-            >
-              COMMUNITY
-            </Link>
-
-            <Link
-              to="/?type=photos"
-              className="text-sm font-medium text-white hover:text-orange-500 transition-colors"
-            >
-              PHOTOS & GIFS
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* Search Modal for Mobile */}
-      <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Search Videos</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-              <Input
-                placeholder="Search videos..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-                autoFocus
-              />
-            </div>
-            <div className="flex space-x-2">
-              <Button type="submit" className="flex-1">
-                Search
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setIsSearchOpen(false)}
+          {/* Mobile Menu Button */}
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden text-white hover:bg-white/10"
               >
-                Cancel
+                <Menu className="h-5 w-5" />
               </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-80 bg-background border-l border-border p-0">
+              <div className="flex flex-col h-full">
+                {/* Header */}
+                <div className="flex items-center justify-between p-6 border-b border-border">
+                  <h2 className="text-lg font-semibold">Menu</h2>
+                </div>
+                
+                {/* Navigation Items */}
+                <div className="flex-1 overflow-y-auto">
+                  <div className="p-4 space-y-2">
+                    {mobileNavItems.map((item) => (
+                      <div key={item.name}>
+                        {item.url ? (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                              <span className="font-medium">{item.name}</span>
+                            </div>
+                            {item.badge && (
+                              <Badge variant="secondary" className="text-xs">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </a>
+                        ) : (
+                          <Link
+                            to={item.path}
+                            className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
+                          >
+                            <div className="flex items-center space-x-3">
+                              <item.icon className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+                              <span className="font-medium">{item.name}</span>
+                            </div>
+                            {item.badge && (
+                              <Badge variant="secondary" className="text-xs">
+                                {item.badge}
+                              </Badge>
+                            )}
+                          </Link>
+                        )}
+                      </div>
+                    ))}
+                  </div>
 
-      {/* Bottom Promotional Tabs - Mobile friendly */}
-      <div className="lg:hidden w-full bg-black border-t border-gray-800">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-center py-3 gap-2 overflow-x-auto">
+                  {/* Categories Section */}
+                  <div className="px-4 pb-4">
+                    <div className="border-t border-border pt-4">
+                      <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Categories</h3>
+                      <div className="space-y-1">
+                        {categories.map((category) => (
+                          <Link
+                            key={category}
+                            to={`/?category=${category.toLowerCase()}`}
+                            className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors"
+                          >
+                            <span className="text-sm capitalize">{category}</span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="border-t border-gray-800">
+          <div className="flex items-center justify-center lg:justify-start py-3 gap-2 lg:gap-4 overflow-x-auto">
             {navTabs.map((tab) => (
               <a
                 key={tab.name}
                 href={tab.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-shrink-0 bg-gray-800 hover:bg-orange-600 text-white font-bold px-3 py-2 rounded-full transition-colors duration-200 text-xs whitespace-nowrap"
+                className="flex-shrink-0 bg-gray-800 hover:bg-orange-600 text-white font-bold px-3 py-2 lg:px-6 lg:py-2 rounded-full transition-colors duration-200 text-xs lg:text-sm whitespace-nowrap"
               >
                 {tab.name}
               </a>
             ))}
           </div>
         </div>
+
       </div>
-    </>
+    </header>
   );
 };
 
