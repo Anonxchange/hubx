@@ -484,7 +484,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   );
 };
 
-// Extend window object to include tracking functions
+// Extend window object to include all tracking functions used by both components
 declare global {
   interface Window {
     popMagic?: any;
