@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Grid3X3, List } from 'lucide-react';
+import { Grid3X3, List } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import Categories from '@/components/Categories';
 import VideoGrid from '@/components/VideoGrid';
@@ -7,7 +7,6 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdComponent from '@/components/AdComponent';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -23,42 +22,27 @@ const categories = [
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [tempSearch, setTempSearch] = useState('');
 
-  // Initialize category and search from URL params
+  // Initialize category from URL params
   useEffect(() => {
     const categoryParam = searchParams.get('category');
-    const searchParam = searchParams.get('search');
     
     if (categoryParam && categories.map(c => c.toLowerCase()).includes(categoryParam)) {
       const matchedCategory = categories.find(c => c.toLowerCase() === categoryParam) || 'All';
       setSelectedCategory(matchedCategory);
-    }
-    
-    if (searchParam) {
-      setSearchQuery(searchParam);
-      setTempSearch(searchParam);
     }
   }, [searchParams]);
   
   const { data, isLoading, error } = useVideos(
     currentPage,
     60,
-    selectedCategory === 'All' ? undefined : selectedCategory,
-    searchQuery
+    selectedCategory === 'All' ? undefined : selectedCategory
   );
 
   const { videos = [], totalPages = 0, totalCount = 0 } = data || {};
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSearchQuery(tempSearch);
-    setCurrentPage(1);
-  };
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
@@ -86,24 +70,6 @@ const Index = () => {
 
         {/* Ad Code Below Hero Text */}
         <AdComponent zoneId="5660536" />
-
-        {/* Search Bar */}
-        <Card className="max-w-2xl mx-auto">
-          <CardContent className="p-4">
-            <form onSubmit={handleSearch} className="flex space-x-2">
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                <Input
-                  placeholder="Search videos..."
-                  value={tempSearch}
-                  onChange={(e) => setTempSearch(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-              <Button type="submit">Search</Button>
-            </form>
-          </CardContent>
-        </Card>
 
         {/* Filters and View Toggle */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -151,18 +117,6 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Results Info */}
-        {searchQuery && (
-          <div className="flex items-center justify-between">
-            <p className="text-muted-foreground">
-              Search results for "<span className="font-medium">{searchQuery}</span>" 
-              {selectedCategory !== 'All' && ` in ${selectedCategory}`}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {totalCount} results found
-            </p>
-          </div>
-        )}
 
         {/* Videos */}
         {isLoading ? (
