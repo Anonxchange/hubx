@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv, X } from 'lucide-react';
+import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv, X, Upload, Image } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -72,8 +72,8 @@ const Header = () => {
               </div>
             </Link>
 
-            {/* Center - Search Bar (Desktop) */}
-            <div className="hidden lg:flex flex-1 max-w-md mx-8">
+            {/* Center - Search Bar with Upload Icons (Desktop) */}
+            <div className="hidden lg:flex flex-1 max-w-md mx-8 items-center space-x-3">
               <form onSubmit={handleSearch} className="relative w-full">
                 <Input
                   placeholder="Search videos..."
@@ -90,6 +90,25 @@ const Header = () => {
                   <Search className="h-4 w-4" />
                 </Button>
               </form>
+              
+              {/* Upload Icons */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-orange-500 hover:text-orange-400 hover:bg-white/10 p-2"
+                title="Upload Video"
+              >
+                <Upload className="h-5 w-5" />
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-orange-500 hover:text-orange-400 hover:bg-white/10 p-2"
+                title="Upload Photo"
+              >
+                <Image className="h-5 w-5" />
+              </Button>
             </div>
 
             {/* Right side - User actions */}
