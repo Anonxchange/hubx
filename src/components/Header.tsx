@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv, X } from 'lucide-react';
@@ -62,116 +61,62 @@ const Header = () => {
 
   return (
     <>
-      {/* Main Header - Sticky at top */}
+      {/* Main Header - Redesigned horizontal layout */}
       <header className="sticky top-0 z-50 w-full bg-black">
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between">
-            {/* Logo */}
+            {/* Left side - Logo */}
             <Link to="/" className="flex items-center space-x-2">
               <div className="gradient-overlay rounded-lg p-2">
                 <span className="text-xl font-bold text-white">HubX</span>
               </div>
             </Link>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center space-x-6">
-              <Link
-                to="/"
-                className={`nav-item ${location.pathname === '/' ? 'active' : ''}`}
-              >
-                Home
-              </Link>
-
-              <Link
-                to="/premium"
-                className={`nav-item flex items-center space-x-1 ${location.pathname === '/premium' ? 'active' : ''}`}
-              >
-                <Star className="w-4 h-4" />
-                <span>Premium</span>
-              </Link>
-
-              <Link
-                to="/channel"
-                className={`nav-item flex items-center space-x-1 ${location.pathname === '/channel' ? 'active' : ''}`}
-              >
-                <Tv className="w-4 h-4" />
-                <span>Channel</span>
-              </Link>
-
-              {/* Categories Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="nav-item flex items-center space-x-1 text-white hover:text-white hover:bg-white/10">
-                    <span>All Categories</span>
-                    <ChevronDown className="w-4 h-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 bg-popover backdrop-blur z-50 border border-border">
-                  <div className="grid grid-cols-1 gap-1 p-2">
-                    {categories.map((category) => (
-                      <DropdownMenuItem key={category} asChild>
-                        <Link
-                          to={`/category/${category.toLowerCase()}`}
-                          className="text-sm hover:bg-accent/20 rounded px-3 py-2 block"
-                        >
-                          {category === 'recommended' ? 'Recommended' : category}
-                        </Link>
-                      </DropdownMenuItem>
-                    ))}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
-
-              {/* Admin Link - Hidden, accessible via direct URL */}
-              <Link 
-                to="/admin-hubx-2024" 
-                className="nav-item opacity-0 pointer-events-none absolute"
-                style={{ left: '-9999px' }}
-              >
-                <Settings className="w-4 h-4" />
-              </Link>
-            </nav>
-
-            {/* Desktop Actions */}
-            <div className="hidden lg:flex items-center space-x-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-white hover:bg-white/10"
-                onClick={() => setIsSearchOpen(true)}
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-              <Link to="/auth">
-                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                  <User className="h-5 w-5" />
+            {/* Center - Search Bar (Desktop) */}
+            <div className="hidden lg:flex flex-1 max-w-md mx-8">
+              <form onSubmit={handleSearch} className="relative w-full">
+                <Input
+                  placeholder="Search videos..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-gray-800 border-gray-600 text-white placeholder-gray-400 pr-10"
+                />
+                <Button 
+                  type="submit"
+                  variant="ghost" 
+                  size="sm" 
+                  className="absolute right-0 top-0 h-full text-gray-400 hover:text-white hover:bg-transparent"
+                >
+                  <Search className="h-4 w-4" />
                 </Button>
-              </Link>
+              </form>
             </div>
 
-            {/* Mobile Actions */}
-            <div className="flex items-center space-x-2 lg:hidden">
+            {/* Right side - User actions */}
+            <div className="flex items-center space-x-4">
+              {/* Mobile search button */}
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="text-white hover:bg-white/10"
+                className="lg:hidden text-white hover:bg-white/10"
                 onClick={() => setIsSearchOpen(true)}
               >
                 <Search className="h-5 w-5" />
               </Button>
+              
               <Link to="/auth">
                 <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
                   <User className="h-5 w-5" />
                 </Button>
               </Link>
-              
+
               {/* Mobile Menu Button */}
               <Sheet>
                 <SheetTrigger asChild>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-white hover:bg-white/10"
+                    className="lg:hidden text-white hover:bg-white/10"
                   >
                     <Menu className="h-5 w-5" />
                   </Button>
@@ -246,12 +191,104 @@ const Header = () => {
                   </div>
                 </SheetContent>
               </Sheet>
+
+              {/* Admin Link - Hidden */}
+              <Link 
+                to="/admin-hubx-2024" 
+                className="nav-item opacity-0 pointer-events-none absolute"
+                style={{ left: '-9999px' }}
+              >
+                <Settings className="w-4 h-4" />
+              </Link>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Search Modal */}
+      {/* Navigation Tabs Bar - Desktop horizontal menu */}
+      <div className="hidden lg:block w-full bg-black border-t border-gray-800">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center h-12 space-x-8">
+            <Link
+              to="/"
+              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors ${location.pathname === '/' ? 'text-orange-500' : ''}`}
+            >
+              HOME
+            </Link>
+
+            <Link
+              to="/premium"
+              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors flex items-center space-x-1 ${location.pathname === '/premium' ? 'text-orange-500' : ''}`}
+            >
+              <Star className="w-4 h-4" />
+              <span>VIDEOS</span>
+            </Link>
+
+            {/* Categories Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="text-sm font-medium text-white hover:text-orange-500 transition-colors h-auto p-0 flex items-center space-x-1">
+                  <span>CATEGORIES</span>
+                  <ChevronDown className="w-3 h-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-black backdrop-blur z-50 border border-gray-800">
+                <div className="grid grid-cols-1 gap-1 p-2">
+                  {categories.map((category) => (
+                    <DropdownMenuItem key={category} asChild>
+                      <Link
+                        to={`/category/${category.toLowerCase()}`}
+                        className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block capitalize"
+                      >
+                        {category}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <a
+              href="https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm font-medium text-white hover:text-orange-500 transition-colors"
+            >
+              LIVE CAMS
+            </a>
+
+            <Link
+              to="/premium"
+              className="text-sm font-medium text-white hover:text-orange-500 transition-colors"
+            >
+              PORNSTARS
+            </Link>
+
+            <Link
+              to="/?sort=trending"
+              className="text-sm font-medium text-white hover:text-orange-500 transition-colors"
+            >
+              FUCK NOW
+            </Link>
+
+            <Link
+              to="/channel"
+              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors ${location.pathname === '/channel' ? 'text-orange-500' : ''}`}
+            >
+              COMMUNITY
+            </Link>
+
+            <Link
+              to="/?type=photos"
+              className="text-sm font-medium text-white hover:text-orange-500 transition-colors"
+            >
+              PHOTOS & GIFS
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* Search Modal for Mobile */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -284,17 +321,17 @@ const Header = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Navigation Tabs - Scrolls with content */}
-      <div className="w-full bg-black border-t border-gray-800">
+      {/* Bottom Promotional Tabs - Mobile friendly */}
+      <div className="lg:hidden w-full bg-black border-t border-gray-800">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-center lg:justify-start py-3 gap-2 lg:gap-4 overflow-x-auto">
+          <div className="flex items-center justify-center py-3 gap-2 overflow-x-auto">
             {navTabs.map((tab) => (
               <a
                 key={tab.name}
                 href={tab.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex-shrink-0 bg-gray-800 hover:bg-orange-600 text-white font-bold px-3 py-2 lg:px-6 lg:py-2 rounded-full transition-colors duration-200 text-xs lg:text-sm whitespace-nowrap"
+                className="flex-shrink-0 bg-gray-800 hover:bg-orange-600 text-white font-bold px-3 py-2 rounded-full transition-colors duration-200 text-xs whitespace-nowrap"
               >
                 {tab.name}
               </a>
@@ -307,4 +344,3 @@ const Header = () => {
 };
 
 export default Header;
-
