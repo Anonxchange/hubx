@@ -29,12 +29,19 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [tempSearch, setTempSearch] = useState('');
 
-  // Initialize category from URL params
+  // Initialize category and search from URL params
   useEffect(() => {
     const categoryParam = searchParams.get('category');
+    const searchParam = searchParams.get('search');
+    
     if (categoryParam && categories.map(c => c.toLowerCase()).includes(categoryParam)) {
       const matchedCategory = categories.find(c => c.toLowerCase() === categoryParam) || 'All';
       setSelectedCategory(matchedCategory);
+    }
+    
+    if (searchParam) {
+      setSearchQuery(searchParam);
+      setTempSearch(searchParam);
     }
   }, [searchParams]);
   

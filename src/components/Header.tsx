@@ -1,9 +1,10 @@
 
 
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,6 +16,12 @@ import {
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 
 const categories = [
@@ -32,7 +39,19 @@ const mobileNavItems = [
 
 const Header = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
 
   const navTabs = [
     { name: 'LIVE CAM', url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default' },
@@ -115,7 +134,12 @@ const Header = () => {
 
             {/* Desktop Actions */}
             <div className="hidden lg:flex items-center space-x-2">
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-white hover:bg-white/10"
+                onClick={() => setIsSearchOpen(true)}
+              >
                 <Search className="h-5 w-5" />
               </Button>
               <Link to="/auth">
@@ -127,7 +151,12 @@ const Header = () => {
 
             {/* Mobile Actions */}
             <div className="flex items-center space-x-2 lg:hidden">
-              <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-white hover:bg-white/10"
+                onClick={() => setIsSearchOpen(true)}
+              >
                 <Search className="h-5 w-5" />
               </Button>
               <Link to="/auth">
@@ -221,6 +250,39 @@ const Header = () => {
           </div>
         </div>
       </header>
+
+      {/* Search Modal */}
+      <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Search Videos</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSearch} className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Search videos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+                autoFocus
+              />
+            </div>
+            <div className="flex space-x-2">
+              <Button type="submit" className="flex-1">
+                Search
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => setIsSearchOpen(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Navigation Tabs - Scrolls with content */}
       <div className="w-full bg-black border-t border-gray-800">
