@@ -91,7 +91,7 @@ const OptimizedVideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid'
 
   const shouldShowPreview = (): boolean => {
     // Only show previews on fast connections and when intersecting
-    return connectionSpeed === 'fast' && isIntersecting && (video.preview_url || video.video_url);
+    return connectionSpeed === 'fast' && isIntersecting && !!(video.preview_url || video.video_url);
   };
 
   const handleMouseEnter = () => {
