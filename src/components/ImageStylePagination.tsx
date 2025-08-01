@@ -21,8 +21,8 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   };
 
   const getVisiblePages = () => {
-    // Reduce visible pages on mobile to prevent overflow
-    const maxVisible = window.innerWidth < 640 ? 3 : 5;
+    // Show 5 visible pages on both mobile and desktop
+    const maxVisible = 5;
     let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
     let end = Math.min(totalPages, start + maxVisible - 1);
     
@@ -40,7 +40,7 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-center gap-1 sm:gap-2 my-8 px-4 max-w-full overflow-x-auto">
+    <div className="flex items-center justify-center gap-1 sm:gap-2 my-8 px-4 w-full">
       {/* Previous Button */}
       <button
         onClick={() => handlePageChange(currentPage - 1)}
@@ -56,7 +56,7 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
       </button>
       
       {/* Page Numbers */}
-      <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-full">
+      <div className="flex items-center gap-1 sm:gap-2 flex-1 justify-center">
         {visiblePages.map((page) => (
           <button
             key={page}

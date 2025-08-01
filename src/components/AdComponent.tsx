@@ -45,11 +45,4 @@ const AdComponent: React.FC<AdComponentProps> = ({ zoneId, className = "" }) => 
   );
 };
 
-// Extend window object to include AdProvider
-declare global {
-  interface Window {
-    AdProvider: any[];
-  }
-}
-
 export default AdComponent;

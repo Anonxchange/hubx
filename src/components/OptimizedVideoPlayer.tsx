@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react';
-import { VideoIcon } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { VideoIcon, Settings, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface VideoPlayerProps {
   src: string;
@@ -9,7 +10,13 @@ interface VideoPlayerProps {
   onCanPlay?: () => void;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
+interface QualityOption {
+  label: string;
+  value: string;
+  bandwidth: number; // in kbps
+}
+
+const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({ 
   src, 
   poster, 
   onError, 
@@ -18,34 +25,126 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const adVideoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [videoError, setVideoError] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [showingAd, setShowingAd] = React.useState(false);
-  const [adShown, setAdShown] = React.useState(false);
-  const [showSkipButton, setShowSkipButton] = React.useState(false);
-  const [adCountdown, setAdCountdown] = React.useState(5);
-  const [viewTracked, setViewTracked] = React.useState(false);
+  
+  // Existing state
+  const [videoError, setVideoError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showingAd, setShowingAd] = useState(false);
+  const [adShown, setAdShown] = useState(false);
+  const [showSkipButton, setShowSkipButton] = useState(false);
+  const [adCountdown, setAdCountdown] = useState(5);
+  const [viewTracked, setViewTracked] = useState(false);
+  
+  // New optimization state
+  const [currentQuality, setCurrentQuality] = useState('auto');
+  const [connectionSpeed, setConnectionSpeed] = useState<'slow' | 'medium' | 'fast'>('medium');
+  const [dataUsage, setDataUsage] = useState(0);
 
-  // Function to track video view with Exoclick
+  // Quality options with different bitrates
+  const qualityOptions: QualityOption[] = [
+    { label: 'Auto', value: 'auto', bandwidth: 0 },
+    { label: '240p', value: '240p', bandwidth: 300 },
+    { label: '360p', value: '360p', bandwidth: 500 },
+    { label: '480p', value: '480p', bandwidth: 1000 },
+    { label: '720p', value: '720p', bandwidth: 2500 },
+    { label: '1080p', value: '1080p', bandwidth: 5000 },
+  ];
+
+  // Network detection and adaptive quality
+  useEffect(() => {
+    const detectConnectionSpeed = () => {
+      if ('connection' in navigator) {
+        const connection = (navigator as any).connection;
+        const effectiveType = connection?.effectiveType;
+        
+        switch (effectiveType) {
+          case 'slow-2g':
+          case '2g':
+            setConnectionSpeed('slow');
+            setCurrentQuality('240p');
+            break;
+          case '3g':
+            setConnectionSpeed('medium');
+            setCurrentQuality('360p');
+            break;
+          case '4g':
+          default:
+            setConnectionSpeed('fast');
+            setCurrentQuality('720p');
+            break;
+        }
+      }
+    };
+
+    detectConnectionSpeed();
+    
+    // Listen for connection changes
+    if ('connection' in navigator) {
+      const connection = (navigator as any).connection;
+      connection?.addEventListener('change', detectConnectionSpeed);
+      
+      return () => {
+        connection?.removeEventListener('change', detectConnectionSpeed);
+      };
+    }
+  }, []);
+
+  // Generate quality-specific video URLs
+  const getQualityUrl = (baseUrl: string, quality: string): string => {
+    if (quality === 'auto') return baseUrl;
+    
+    // For Bunny CDN or similar services that support quality parameters
+    if (baseUrl.includes('bunnycdn.com') || baseUrl.includes('b-cdn.net')) {
+      return `${baseUrl}?quality=${quality}`;
+    }
+    
+    return baseUrl;
+  };
+
+  // Data usage tracking
+  const trackDataUsage = () => {
+    if (videoRef.current && currentQuality !== 'auto') {
+      const quality = qualityOptions.find(q => q.value === currentQuality);
+      if (quality) {
+        const duration = videoRef.current.currentTime;
+        const estimatedUsage = (quality.bandwidth * duration) / 8 / 1024; // MB
+        setDataUsage(prev => prev + estimatedUsage);
+      }
+    }
+  };
+
+  // Preload optimization based on connection
+  const getPreloadStrategy = (): 'none' | 'metadata' | 'auto' => {
+    switch (connectionSpeed) {
+      case 'slow': return 'none';
+      case 'medium': return 'metadata';
+      case 'fast': return 'metadata';
+      default: return 'metadata';
+    }
+  };
+
+  // Existing tracking function (optimized)
   const trackVideoView = () => {
     if (viewTracked) return;
     
     try {
-      // Track with Exoclick - fire impression tracking
       if (window.popMagic && typeof window.popMagic.setAsOpened === 'function') {
         console.log('Tracking video view with Exoclick');
         window.popMagic.setAsOpened();
       }
       
-      // Alternative tracking method if available
       if (window.AdProvider && Array.isArray(window.AdProvider)) {
         console.log('Tracking video impression');
         window.AdProvider.push({"serve": {"type": "impression"}});
       }
       
-      // Custom tracking event
       const trackingEvent = new CustomEvent('videoViewTracked', {
-        detail: { videoSrc: src, timestamp: Date.now() }
+        detail: { 
+          videoSrc: src, 
+          timestamp: Date.now(),
+          quality: currentQuality,
+          connectionSpeed 
+        }
       });
       document.dispatchEvent(trackingEvent);
       
@@ -56,30 +155,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Function to fetch and parse VAST XML
+  // Optimized VAST ad fetching with timeout
   const fetchVastAd = async () => {
     try {
       console.log('Fetching VAST ad...');
-      // Using the working VAST URL from the ad script
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3s timeout
+      
       const response = await fetch('https://s.magsrv.com/v1/vast.php?idzone=5660526', {
         mode: 'cors',
-        headers: {
-          'Accept': 'application/xml, text/xml'
-        }
+        headers: { 'Accept': 'application/xml, text/xml' },
+        signal: controller.signal
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch VAST');
-      }
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) throw new Error('Failed to fetch VAST');
       
       const vastXml = await response.text();
-      console.log('VAST XML received:', vastXml.substring(0, 200) + '...');
-      
-      // Parse VAST XML to extract media file
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(vastXml, 'text/xml');
       
-      // Look for MediaFile elements
       const mediaFiles = xmlDoc.getElementsByTagName('MediaFile');
       let adVideoUrl = null;
       
@@ -92,7 +188,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
       }
       
-      // Also check for ClickThrough URL
       const clickThrough = xmlDoc.getElementsByTagName('ClickThrough')[0];
       const clickThroughUrl = clickThrough ? clickThrough.textContent?.trim() : null;
       
@@ -103,43 +198,53 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Function to play VAST ad - ALWAYS PLAYS ON EVERY VIDEO
+  // Quality change handler
+  const handleQualityChange = (quality: string) => {
+    if (!videoRef.current) return;
+    
+    const currentTime = videoRef.current.currentTime;
+    const wasPlaying = !videoRef.current.paused;
+    
+    setCurrentQuality(quality);
+    const newUrl = getQualityUrl(src, quality);
+    
+    videoRef.current.src = newUrl;
+    videoRef.current.load();
+    
+    const handleLoadedData = () => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = currentTime;
+        if (wasPlaying) {
+          videoRef.current.play();
+        }
+        videoRef.current.removeEventListener('loadeddata', handleLoadedData);
+      }
+    };
+    
+    videoRef.current.addEventListener('loadeddata', handleLoadedData);
+  };
+
+  // Existing ad functions (optimized)
   const playVastAd = async () => {
-    if (adShown) {
-      console.log('Ad already shown for this video');
-      return;
-    }
+    if (adShown) return;
     
     console.log('Attempting to play VAST ad...');
     const vastData = await fetchVastAd();
     
     if (vastData?.adVideoUrl) {
-      console.log('Playing VAST video ad:', vastData.adVideoUrl);
       setShowingAd(true);
       setShowSkipButton(false);
       setAdCountdown(5);
       
-      // Start skip button countdown
-      const skipTimer = setTimeout(() => {
-        setShowSkipButton(true);
-      }, 5000);
-      
-      // Update countdown every second
+      const skipTimer = setTimeout(() => setShowSkipButton(true), 5000);
       const countdownInterval = setInterval(() => {
-        setAdCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownInterval);
-            return 0;
-          }
-          return prev - 1;
-        });
+        setAdCountdown(prev => prev <= 1 ? 0 : prev - 1);
       }, 1000);
       
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
         adVideoRef.current.style.display = 'block';
         
-        // Add click handler if click-through URL exists
         if (vastData.clickThroughUrl) {
           adVideoRef.current.style.cursor = 'pointer';
           adVideoRef.current.onclick = () => {
@@ -156,28 +261,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           setShowingAd(false);
           setAdShown(true);
           setShowSkipButton(false);
-          // Fallback to placeholder ad
           showPlaceholderAd();
         }
       }
       
-      // Cleanup function
-      const cleanup = () => {
+      (window as any).adCleanup = () => {
         clearTimeout(skipTimer);
         clearInterval(countdownInterval);
       };
-      
-      // Store cleanup function for later use
-      (window as any).adCleanup = cleanup;
-      
     } else {
-      console.log('No valid ad video found, showing placeholder ad');
-      // Show placeholder ad overlay
       showPlaceholderAd();
     }
   };
 
-  // Function to show placeholder ad when VAST fails
   const showPlaceholderAd = () => {
     setShowingAd(true);
     setShowSkipButton(false);
@@ -185,20 +281,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     
     const adOverlay = document.createElement('div');
     adOverlay.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: linear-gradient(45deg, #8b5cf6, #a855f7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 18px;
-      font-weight: bold;
-      z-index: 1000;
-      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 18px; font-weight: bold; z-index: 1000; cursor: pointer;
     `;
     
     let countdown = 5;
@@ -213,12 +299,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
     
     updateOverlay();
-    
-    adOverlay.onclick = () => {
-      window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
-    };
-
-    console.log('Showing placeholder ad');
+    adOverlay.onclick = () => window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
     
     if (containerRef.current) {
       containerRef.current.appendChild(adOverlay);
@@ -229,11 +310,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setAdCountdown(countdown);
       updateOverlay();
       
-      if (countdown <= 0) {
-        setShowSkipButton(true);
-      }
-      
-      if (countdown <= -5) { // Auto-skip after 5 seconds of skip availability
+      if (countdown <= 0) setShowSkipButton(true);
+      if (countdown <= -5) {
         clearInterval(countdownInterval);
         if (containerRef.current && adOverlay.parentNode) {
           containerRef.current.removeChild(adOverlay);
@@ -245,30 +323,53 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }, 1000);
   };
 
-  // Reset ad state when video source changes - FRESH START EVERY VIDEO
+  const skipAd = () => {
+    if ((window as any).adCleanup) {
+      (window as any).adCleanup();
+    }
+    
+    if (adVideoRef.current) {
+      adVideoRef.current.pause();
+      adVideoRef.current.style.display = 'none';
+    }
+    
+    const overlays = containerRef.current?.querySelectorAll('div[style*="position: absolute"]');
+    overlays?.forEach(overlay => {
+      if (overlay.parentNode === containerRef.current) {
+        containerRef.current?.removeChild(overlay);
+      }
+    });
+    
+    setShowingAd(false);
+    setAdShown(true);
+    setShowSkipButton(false);
+    
+    if (videoRef.current) {
+      videoRef.current.play();
+    }
+  };
+
+  // Reset state when video changes
   useEffect(() => {
     if (src) {
       setAdShown(false);
       setViewTracked(false);
-      console.log('New video loaded, ad state reset');
+      setDataUsage(0);
     }
   }, [src]);
 
+  // Main video effect with optimization
   useEffect(() => {
     const video = videoRef.current;
     const adVideo = adVideoRef.current;
     if (!video || !src) return;
 
-    console.log('Loading video:', src);
-
     const handleLoadStart = () => {
-      console.log('Video load started');
       setIsLoading(true);
       setVideoError(false);
     };
 
     const handleCanPlay = () => {
-      console.log('Video can play');
       setIsLoading(false);
       setVideoError(false);
       onCanPlay?.();
@@ -282,54 +383,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     const handlePlay = async () => {
-      console.log('Video play triggered - Ad shown:', adShown);
-      
-      // Track video view when it starts playing
       trackVideoView();
-      
-      // Show ad on every video play (like major video platforms)
       if (!adShown) {
-        console.log('Showing ad before video');
         video.pause();
         await playVastAd();
-      } else {
-        console.log('Ad already shown for this video');
       }
     };
 
-    // Track view when video actually starts playing (not just when loaded)
-    const handleVideoStart = () => {
-      if (!viewTracked) {
-        console.log('Video started playing - tracking view');
-        trackVideoView();
-      }
+    const handleProgress = () => {
+      trackDataUsage();
     };
 
-    // Ad video event handlers
     const handleAdEnded = () => {
-      console.log('Ad ended, starting main video');
-      if (adVideo) {
-        adVideo.style.display = 'none';
-      }
+      if (adVideo) adVideo.style.display = 'none';
       setShowingAd(false);
       setAdShown(true);
       setShowSkipButton(false);
-      
-      // Cleanup timers
-      if ((window as any).adCleanup) {
-        (window as any).adCleanup();
-      }
-      
-      if (video) {
-        video.play();
-      }
+      if ((window as any).adCleanup) (window as any).adCleanup();
+      if (video) video.play();
     };
 
     const handleAdError = () => {
-      console.log('Ad error, showing placeholder ad');
-      if (adVideo) {
-        adVideo.style.display = 'none';
-      }
+      if (adVideo) adVideo.style.display = 'none';
       showPlaceholderAd();
     };
 
@@ -338,15 +413,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('error', handleError);
     video.addEventListener('play', handlePlay);
-    video.addEventListener('playing', handleVideoStart);
+    video.addEventListener('progress', handleProgress);
 
     if (adVideo) {
       adVideo.addEventListener('ended', handleAdEnded);
       adVideo.addEventListener('error', handleAdError);
     }
 
-    // Set video source
-    video.src = src;
+    // Set optimized video source
+    const optimizedUrl = getQualityUrl(src, currentQuality);
+    video.src = optimizedUrl;
     video.load();
 
     return () => {
@@ -354,53 +430,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('error', handleError);
       video.removeEventListener('play', handlePlay);
-      video.removeEventListener('playing', handleVideoStart);
+      video.removeEventListener('progress', handleProgress);
       
       if (adVideo) {
         adVideo.removeEventListener('ended', handleAdEnded);
         adVideo.removeEventListener('error', handleAdError);
       }
     };
-  }, [src, onError, onCanPlay, adShown]);
-
-  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-    console.error('Video element error:', e);
-    setVideoError(true);
-    setIsLoading(false);
-    onError?.();
-  };
-
-  const skipAd = () => {
-    console.log('Skipping ad');
-    
-    // Cleanup timers
-    if ((window as any).adCleanup) {
-      (window as any).adCleanup();
-    }
-    
-    // Hide ad video if playing
-    if (adVideoRef.current) {
-      adVideoRef.current.pause();
-      adVideoRef.current.style.display = 'none';
-    }
-    
-    // Remove any placeholder overlays
-    const overlays = containerRef.current?.querySelectorAll('div[style*="position: absolute"]');
-    overlays?.forEach(overlay => {
-      if (overlay.parentNode === containerRef.current) {
-        containerRef.current?.removeChild(overlay);
-      }
-    });
-    
-    setShowingAd(false);
-    setAdShown(true);
-    setShowSkipButton(false);
-    
-    // Start main video
-    if (videoRef.current) {
-      videoRef.current.play();
-    }
-  };
+  }, [src, currentQuality, onError, onCanPlay, adShown]);
 
   if (videoError) {
     return (
@@ -425,12 +462,50 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }
 
   return (
-    <div ref={containerRef} className="relative w-full h-full">
+    <div ref={containerRef} className="relative w-full h-full group">
       {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-10">
           <div className="text-center space-y-2">
             <div className="w-8 h-8 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             <p className="text-sm">Loading video...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Quality Menu */}
+      <div className="absolute top-4 left-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center space-x-2">
+          <div className="bg-black/80 rounded px-2 py-1 flex items-center space-x-2">
+            {connectionSpeed === 'slow' ? (
+              <WifiOff className="h-4 w-4 text-red-400" />
+            ) : (
+              <Wifi className="h-4 w-4 text-green-400" />
+            )}
+            <span className="text-white text-xs">
+              {connectionSpeed} connection
+            </span>
+          </div>
+          
+          <Select value={currentQuality} onValueChange={handleQualityChange}>
+            <SelectTrigger className="w-20 h-8 bg-black/80 border-white/20 text-white text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {qualityOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Data Usage Indicator */}
+      {dataUsage > 0 && (
+        <div className="absolute bottom-4 left-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-black/80 text-white text-xs px-2 py-1 rounded">
+            Data used: {dataUsage.toFixed(1)} MB
           </div>
         </div>
       )}
@@ -463,6 +538,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         controls={false}
         autoPlay
         playsInline
+        preload="none"
       />
       
       {/* Main Video Element */}
@@ -470,21 +546,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ref={videoRef}
         className="w-full h-full"
         poster={poster}
-        preload="metadata"
+        preload={getPreloadStrategy()}
         playsInline
-        onError={handleVideoError}
         controls
         style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
       >
-        <source src={src} type="video/mp4" />
-        <source src={src} type="video/webm" />
+        <source src={getQualityUrl(src, currentQuality)} type="video/mp4" />
         Your browser does not support the video tag.
       </video>
     </div>
   );
 };
 
-// Extend window object to include all tracking functions used by both components
 declare global {
   interface Window {
     popMagic?: any;
@@ -492,4 +565,4 @@ declare global {
   }
 }
 
-export default VideoPlayer;
+export default OptimizedVideoPlayer;

@@ -7,10 +7,12 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import VideoPage from "./pages/VideoPage";
 import CategoryPage from "./pages/CategoryPage";
+import PremiumPage from "./pages/PremiumPage";
 import AdminPanel from "./pages/AdminPanel";
 import ContactUs from "./pages/ContactUs";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +27,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/video/:id" element={<VideoPage />} />
           <Route path="/category/:category" element={<CategoryPage />} />
+          <Route path="/premium" element={<PremiumPage />} />
+          <Route path="/auth" element={<AuthPage />} />
           <Route path="/contact" element={<ContactUs />} />
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />

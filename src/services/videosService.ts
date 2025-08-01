@@ -15,6 +15,7 @@ export interface Video {
   tags: string[];
   created_at: string;
   updated_at: string;
+  is_premium?: boolean;
 }
 
 export interface VideoUpload {
@@ -25,6 +26,7 @@ export interface VideoUpload {
   preview_url?: string;
   duration?: string;
   tags: string[];
+  is_premium?: boolean;
 }
 
 export interface VideoReaction {
@@ -49,31 +51,35 @@ const getSessionId = () => {
 export const getVideos = async (page = 1, limit = 60, category?: string, searchQuery?: string) => {
   let query = supabase
     .from('videos')
-    .select('*', { count: 'exact' }); // Added count: 'exact' to get total count
+    .select('*', { count: 'exact' });
 
   // Apply category-based sorting and filtering
   if (category && category !== 'all') {
     switch (category.toLowerCase()) {
       case 'recommended':
-        // Order by a combination of views and likes for top-performing videos
-        query = query.order('views', { ascending: false });
+        // Exclude premium videos from regular recommendations
+        query = query.eq('is_premium', false).order('views', { ascending: false });
         break;
       case 'trending':
-        // Order by views descending for most viewed recently
-        query = query.order('views', { ascending: false });
+        // Exclude premium videos from trending
+        query = query.eq('is_premium', false).order('views', { ascending: false });
         break;
       case 'most rated':
-        // Order by likes descending for highest rated
-        query = query.order('likes', { ascending: false });
+        // Exclude premium videos from most rated
+        query = query.eq('is_premium', false).order('likes', { ascending: false });
+        break;
+      case 'premium':
+        // Only show premium videos for premium category
+        query = query.eq('is_premium', true).order('created_at', { ascending: false });
         break;
       default:
-        // For any other category, treat as tag-based filtering
-        query = query.contains('tags', [category]).order('created_at', { ascending: false });
+        // For any other category, exclude premium videos
+        query = query.eq('is_premium', false).contains('tags', [category]).order('created_at', { ascending: false });
         break;
     }
   } else {
-    // Default ordering by creation date
-    query = query.order('created_at', { ascending: false });
+    // Default ordering by creation date, exclude premium videos from regular browsing
+    query = query.eq('is_premium', false).order('created_at', { ascending: false });
   }
 
   if (searchQuery) {
@@ -90,7 +96,7 @@ export const getVideos = async (page = 1, limit = 60, category?: string, searchQ
     throw error;
   }
 
-  console.log('Videos fetched:', { videosCount: data?.length, totalCount: count, page, limit }); // Debug log
+  console.log('Videos fetched:', { videosCount: data?.length, totalCount: count, page, limit, category });
 
   return {
     videos: data || [],
