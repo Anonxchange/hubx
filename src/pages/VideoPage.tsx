@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import CommentSection from '@/components/CommentSection';
 import AdComponent from '@/components/AdComponent';
-import VideoPlayer from '@/components/VideoPlayer';
+import OptimizedVideoPlayer from '@/components/OptimizedVideoPlayer';
 import VideoInfo from '@/components/VideoInfo';
 import VideoReactions from '@/components/VideoReactions';
 import VideoTags from '@/components/VideoTags';
@@ -141,12 +141,12 @@ const VideoPage = () => {
               {/* Desktop: Maintain card styling */}
               <Card className="hidden md:block overflow-hidden">
                 <div className="relative aspect-video bg-black">
-                  <VideoPlayer
-                    src={video.video_url}
-                    poster={video.thumbnail_url}
-                    onError={handleVideoError}
-                    onCanPlay={handleVideoCanPlay}
-                  />
+          <OptimizedVideoPlayer
+            src={video.video_url}
+            poster={video.thumbnail_url}
+            onError={handleVideoError}
+            onCanPlay={handleVideoCanPlay}
+          />
                 </div>
               </Card>
             </div>

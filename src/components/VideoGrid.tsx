@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import VideoCard from './VideoCard';
+import OptimizedVideoCard from './OptimizedVideoCard';
 import AdComponent from './AdComponent';
 
 interface Video {
@@ -38,7 +38,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAd
       <div className="space-y-4">
         {videos.map((video, index) => (
           <div key={video.id}>
-            <VideoCard video={video} viewMode="list" />
+            <OptimizedVideoCard video={video} viewMode="list" />
             {/* Insert ad after video 15 (index 14) */}
             {showAds && index === 14 && (
               <div className="my-6">
@@ -55,7 +55,7 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAd
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
       {videos.map((video, index) => (
         <div key={video.id}>
-          <VideoCard video={video} viewMode="grid" />
+          <OptimizedVideoCard video={video} viewMode="grid" />
           {/* Insert ad after video 15 (index 14) - spanning full width */}
           {showAds && index === 14 && (
             <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 my-6">
