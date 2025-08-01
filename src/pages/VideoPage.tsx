@@ -130,7 +130,7 @@ const VideoPage = () => {
             <div className="relative">
               {/* Mobile: Full screen without borders */}
               <div className="block md:hidden -mx-4 relative aspect-video bg-black">
-                <OptimizedVideoPlayer
+                <VideoPlayer
                   src={video.video_url}
                   poster={video.thumbnail_url}
                   onError={handleVideoError}
@@ -141,12 +141,12 @@ const VideoPage = () => {
               {/* Desktop: Maintain card styling */}
               <Card className="hidden md:block overflow-hidden">
                 <div className="relative aspect-video bg-black">
-                  <OptimizedVideoPlayer
-                    src={video.video_url}
-                    poster={video.thumbnail_url}
-                    onError={handleVideoError}
-                    onCanPlay={handleVideoCanPlay}
-                  />
+          <OptimizedVideoPlayer
+            src={video.video_url}
+            poster={video.thumbnail_url}
+            onError={handleVideoError}
+            onCanPlay={handleVideoCanPlay}
+          />
                 </div>
               </Card>
             </div>
