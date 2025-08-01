@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Clock, VideoIcon, Share } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -38,8 +39,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex-1">
-        <h1 className="text-2xl lg:text-3xl font-bold mb-2">{title}</h1>
-        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold mb-3 text-white leading-tight">{title}</h1>
+        <div className="flex items-center space-x-4 text-sm text-gray-400">
           <span className="flex items-center">
             <VideoIcon className="w-4 h-4 mr-1" />
             {formatViews(views)} views
@@ -52,7 +53,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
         </div>
       </div>
       
-      <Button onClick={onShare} variant="outline" size="sm">
+      <Button onClick={onShare} variant="outline" size="sm" className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700">
         <Share className="w-4 h-4 mr-2" />
         Share
       </Button>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -11,7 +12,6 @@ import VideoReactions from '@/components/VideoReactions';
 import VideoTags from '@/components/VideoTags';
 import VideoDescription from '@/components/VideoDescription';
 import RelatedVideos from '@/components/RelatedVideos';
-import { Card } from '@/components/ui/card';
 import { getVideoById, incrementViews } from '@/services/videosService';
 import { useRelatedVideos } from '@/hooks/useVideos';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
@@ -80,14 +80,14 @@ const VideoPage = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-black">
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="animate-pulse space-y-6">
-            <div className="h-4 bg-muted rounded w-24"></div>
-            <div className="aspect-video bg-muted rounded-lg"></div>
-            <div className="h-8 bg-muted rounded w-3/4"></div>
-            <div className="h-4 bg-muted rounded w-1/2"></div>
+            <div className="h-4 bg-gray-800 rounded w-24"></div>
+            <div className="aspect-video bg-gray-800 rounded-lg"></div>
+            <div className="h-8 bg-gray-800 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-800 rounded w-1/2"></div>
           </div>
         </main>
       </div>
@@ -96,12 +96,12 @@ const VideoPage = () => {
 
   if (error || !video) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-black">
         <Header />
         <main className="container mx-auto px-4 py-6">
           <div className="text-center py-12">
-            <h1 className="text-2xl font-bold mb-2">Video Not Found</h1>
-            <p className="text-muted-foreground mb-4">The video you're looking for doesn't exist.</p>
+            <h1 className="text-2xl font-bold mb-2 text-white">Video Not Found</h1>
+            <p className="text-gray-400 mb-4">The video you're looking for doesn't exist.</p>
             <Link to="/" className="text-primary hover:underline">Go back to homepage</Link>
           </div>
         </main>
@@ -110,12 +110,12 @@ const VideoPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-black text-white">
       <Header />
       
       <main className="container mx-auto px-4 py-6 space-y-8">
         {/* Back Button */}
-        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
+        <Link to="/" className="inline-flex items-center text-gray-400 hover:text-white transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </Link>
@@ -126,7 +126,7 @@ const VideoPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Video Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Video Player */}
+            {/* Video Player - Dark theme, full width */}
             <div className="relative">
               {/* Mobile: Full screen without borders */}
               <div className="block md:hidden -mx-4 relative aspect-video bg-black">
@@ -138,21 +138,19 @@ const VideoPage = () => {
                 />
               </div>
               
-              {/* Desktop: Maintain card styling */}
-              <Card className="hidden md:block overflow-hidden">
-                <div className="relative aspect-video bg-black">
-                  <OptimizedVideoPlayer
-                    src={video.video_url}
-                    poster={video.thumbnail_url}
-                    onError={handleVideoError}
-                    onCanPlay={handleVideoCanPlay}
-                  />
-                </div>
-              </Card>
+              {/* Desktop: Clean dark container */}
+              <div className="hidden md:block relative aspect-video bg-black rounded-lg overflow-hidden">
+                <OptimizedVideoPlayer
+                  src={video.video_url}
+                  poster={video.thumbnail_url}
+                  onError={handleVideoError}
+                  onCanPlay={handleVideoCanPlay}
+                />
+              </div>
             </div>
 
-            {/* Video Info */}
-            <div className="space-y-4">
+            {/* Video Info - Dark theme styling */}
+            <div className="space-y-6 px-2 md:px-0">
               <VideoInfo
                 title={video.title}
                 views={video.views}
@@ -161,7 +159,7 @@ const VideoPage = () => {
                 onShare={handleShare}
               />
 
-              {/* Like/Dislike Buttons */}
+              {/* Like/Dislike Buttons - Horizontal layout */}
               <VideoReactions
                 likes={video.likes}
                 dislikes={video.dislikes}
