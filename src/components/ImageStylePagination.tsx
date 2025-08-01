@@ -40,7 +40,7 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   const visiblePages = getVisiblePages();
 
   return (
-    <div className="flex items-center justify-center gap-1 sm:gap-2 my-8 px-4 max-w-full overflow-x-auto">
+    <div className="flex items-center justify-center gap-1 sm:gap-2 my-8 px-4 w-full">
       {/* Previous Button */}
       <button
         onClick={() => handlePageChange(currentPage - 1)}
@@ -56,7 +56,7 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
       </button>
       
       {/* Page Numbers */}
-      <div className="flex items-center gap-1 sm:gap-2 overflow-x-auto max-w-full">
+      <div className="flex items-center gap-1 sm:gap-2 flex-1 justify-center">
         {visiblePages.map((page) => (
           <button
             key={page}
