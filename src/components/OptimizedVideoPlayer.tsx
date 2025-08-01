@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { VideoIcon, Settings, Wifi, WifiOff, Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
+import { VideoIcon, Settings, Wifi, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -39,13 +39,6 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
   const [currentQuality, setCurrentQuality] = useState('auto');
   const [connectionSpeed, setConnectionSpeed] = useState<'slow' | 'medium' | 'fast'>('medium');
   const [dataUsage, setDataUsage] = useState(0);
-
-  // Player control state
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [showControls, setShowControls] = useState(true);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
 
   // Quality options with different bitrates
   const qualityOptions: QualityOption[] = [
@@ -356,34 +349,6 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Player control functions
-  const togglePlay = () => {
-    if (videoRef.current) {
-      if (videoRef.current.paused) {
-        videoRef.current.play();
-      } else {
-        videoRef.current.pause();
-      }
-    }
-  };
-
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
-    }
-  };
-
-  const toggleFullscreen = () => {
-    if (containerRef.current) {
-      if (document.fullscreenElement) {
-        document.exitFullscreen();
-      } else {
-        containerRef.current.requestFullscreen();
-      }
-    }
-  };
-
   // Reset state when video changes
   useEffect(() => {
     if (src) {
@@ -418,7 +383,6 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
     };
 
     const handlePlay = async () => {
-      setIsPlaying(true);
       trackVideoView();
       if (!adShown) {
         video.pause();
@@ -426,22 +390,8 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     };
 
-    const handlePause = () => {
-      setIsPlaying(false);
-    };
-
     const handleProgress = () => {
       trackDataUsage();
-    };
-
-    const handleTimeUpdate = () => {
-      if (video.duration) {
-        setProgress((video.currentTime / video.duration) * 100);
-      }
-    };
-
-    const handleLoadedMetadata = () => {
-      setDuration(video.duration);
     };
 
     const handleAdEnded = () => {
@@ -463,10 +413,7 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
     video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('error', handleError);
     video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
     video.addEventListener('progress', handleProgress);
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
 
     if (adVideo) {
       adVideo.addEventListener('ended', handleAdEnded);
@@ -483,10 +430,7 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('error', handleError);
       video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
       video.removeEventListener('progress', handleProgress);
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       
       if (adVideo) {
         adVideo.removeEventListener('ended', handleAdEnded);
@@ -495,45 +439,18 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, [src, currentQuality, onError, onCanPlay, adShown]);
 
-  // Auto-hide controls
-  useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    
-    const resetTimeout = () => {
-      clearTimeout(timeout);
-      setShowControls(true);
-      if (isPlaying && !showingAd) {
-        timeout = setTimeout(() => setShowControls(false), 3000);
-      }
-    };
-
-    if (containerRef.current) {
-      containerRef.current.addEventListener('mousemove', resetTimeout);
-      containerRef.current.addEventListener('mouseenter', resetTimeout);
-      containerRef.current.addEventListener('mouseleave', () => {
-        if (isPlaying && !showingAd) {
-          setShowControls(false);
-        }
-      });
-    }
-
-    return () => {
-      clearTimeout(timeout);
-    };
-  }, [isPlaying, showingAd]);
-
   if (videoError) {
     return (
-      <div className="w-full h-full flex items-center justify-center bg-black text-white aspect-video">
+      <div className="w-full h-full flex items-center justify-center bg-card text-card-foreground aspect-video">
         <div className="text-center space-y-4">
-          <VideoIcon className="w-16 h-16 mx-auto text-gray-400" />
+          <VideoIcon className="w-16 h-16 mx-auto text-muted-foreground" />
           <div>
             <p className="text-lg font-medium">Video Error</p>
-            <p className="text-sm text-gray-400">Unable to load video. Please try refreshing the page.</p>
+            <p className="text-sm text-muted-foreground">Unable to load video. Please try refreshing the page.</p>
             <Button 
               variant="outline" 
               size="sm" 
-              className="mt-2 bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+              className="mt-2"
               onClick={() => window.location.reload()}
             >
               Refresh Page
@@ -545,65 +462,37 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
   }
 
   return (
-    <div 
-      ref={containerRef} 
-      className="relative w-full h-full bg-black group cursor-pointer"
-      onClick={togglePlay}
-    >
-      {/* Loading State */}
+    <div ref={containerRef} className="relative w-full h-full group">
       {isLoading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black text-white z-10">
-          <div className="text-center space-y-3">
-            <div className="w-10 h-10 mx-auto border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-            <p className="text-sm text-gray-300">Loading video...</p>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-10">
+          <div className="text-center space-y-2">
+            <div className="w-8 h-8 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm">Loading video...</p>
           </div>
         </div>
       )}
-
-      {/* Ad Skip Button */}
-      {showingAd && showSkipButton && (
-        <div className="absolute top-4 right-4 z-30">
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              skipAd();
-            }}
-            size="sm"
-            className="bg-black/80 text-white hover:bg-black/90 border border-white/20"
-          >
-            Skip Ad
-          </Button>
-        </div>
-      )}
       
-      {/* Ad Countdown */}
-      {showingAd && !showSkipButton && adCountdown > 0 && (
-        <div className="absolute top-4 right-4 z-30 bg-black/80 text-white px-3 py-1 rounded text-sm border border-white/20">
-          Skip in {adCountdown}s
-        </div>
-      )}
-
-      {/* Quality and Connection Info - Only show on hover */}
-      <div className={`absolute top-4 left-4 z-30 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
+      {/* Quality Menu */}
+      <div className="absolute top-4 left-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
         <div className="flex items-center space-x-2">
-          <div className="bg-black/80 rounded px-2 py-1 flex items-center space-x-2 border border-white/10">
+          <div className="bg-black/80 rounded px-2 py-1 flex items-center space-x-2">
             {connectionSpeed === 'slow' ? (
-              <WifiOff className="h-3 w-3 text-red-400" />
+              <WifiOff className="h-4 w-4 text-red-400" />
             ) : (
-              <Wifi className="h-3 w-3 text-green-400" />
+              <Wifi className="h-4 w-4 text-green-400" />
             )}
             <span className="text-white text-xs">
-              {connectionSpeed}
+              {connectionSpeed} connection
             </span>
           </div>
           
           <Select value={currentQuality} onValueChange={handleQualityChange}>
-            <SelectTrigger className="w-16 h-7 bg-black/80 border-white/10 text-white text-xs">
+            <SelectTrigger className="w-20 h-8 bg-black/80 border-white/20 text-white text-xs">
               <SelectValue />
             </SelectTrigger>
-            <SelectContent className="bg-black border-white/20">
+            <SelectContent>
               {qualityOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value} className="text-white hover:bg-white/10">
+                <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
               ))}
@@ -613,80 +502,39 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
       </div>
 
       {/* Data Usage Indicator */}
-      {dataUsage > 0 && showControls && (
-        <div className="absolute bottom-16 left-4 z-30 transition-opacity duration-300">
-          <div className="bg-black/80 text-white text-xs px-2 py-1 rounded border border-white/10">
-            Data: {dataUsage.toFixed(1)} MB
+      {dataUsage > 0 && (
+        <div className="absolute bottom-4 left-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-black/80 text-white text-xs px-2 py-1 rounded">
+            Data used: {dataUsage.toFixed(1)} MB
           </div>
         </div>
       )}
-
-      {/* Play/Pause Overlay */}
-      {!isLoading && !showingAd && (
-        <div className={`absolute inset-0 flex items-center justify-center z-20 transition-opacity duration-300 ${!isPlaying ? 'opacity-100' : 'opacity-0 hover:opacity-100'}`}>
-          <div className="bg-black/50 rounded-full p-4">
-            {isPlaying ? (
-              <Pause className="w-12 h-12 text-white" />
-            ) : (
-              <Play className="w-12 h-12 text-white" />
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Custom Controls */}
-      <div className={`absolute bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'}`}>
-        {/* Progress Bar */}
-        <div className="px-4 pb-2">
-          <div className="w-full bg-white/20 h-1 rounded-full">
-            <div 
-              className="bg-white h-full rounded-full transition-all duration-150" 
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Control Buttons */}
-        <div className="flex items-center justify-between px-4 pb-4">
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePlay();
-              }}
-              className="text-white hover:text-gray-300 transition-colors"
-            >
-              {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-            </button>
-            
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleMute();
-              }}
-              className="text-white hover:text-gray-300 transition-colors"
-            >
-              {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-            </button>
-          </div>
-
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleFullscreen();
-            }}
-            className="text-white hover:text-gray-300 transition-colors"
+      
+      {/* Skip Ad Button */}
+      {showingAd && showSkipButton && (
+        <div className="absolute top-4 right-4 z-30">
+          <Button
+            onClick={skipAd}
+            size="sm"
+            className="bg-black/80 text-white hover:bg-black/90 border-white/20"
           >
-            <Maximize className="w-5 h-5" />
-          </button>
+            Skip Ad
+          </Button>
         </div>
-      </div>
+      )}
+      
+      {/* Ad Countdown */}
+      {showingAd && !showSkipButton && adCountdown > 0 && (
+        <div className="absolute top-4 right-4 z-30 bg-black/80 text-white px-3 py-1 rounded text-sm">
+          Skip in {adCountdown}s
+        </div>
+      )}
       
       {/* Ad Video Element */}
       <video
         ref={adVideoRef}
-        className="absolute top-0 left-0 w-full h-full z-20 bg-black"
-        style={{ display: 'none' }}
+        className="absolute top-0 left-0 w-full h-full z-20"
+        style={{ display: 'none', backgroundColor: '#000' }}
         controls={false}
         autoPlay
         playsInline
@@ -696,12 +544,12 @@ const OptimizedVideoPlayer: React.FC<VideoPlayerProps> = ({
       {/* Main Video Element */}
       <video
         ref={videoRef}
-        className="w-full h-full bg-black object-contain"
+        className="w-full h-full"
         poster={poster}
         preload={getPreloadStrategy()}
         playsInline
-        controls={false} // Using custom controls
-        style={{ width: '100%', height: '100%' }}
+        controls
+        style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
       >
         <source src={getQualityUrl(src, currentQuality)} type="video/mp4" />
         Your browser does not support the video tag.

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,17 +18,13 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
   isLoading
 }) => {
   return (
-    <div className="flex items-center space-x-3">
+    <div className="flex items-center space-x-4">
       <Button
         onClick={() => onReaction('like')}
         variant={userReaction === 'like' ? 'default' : 'outline'}
         size="sm"
         disabled={isLoading}
-        className={`flex items-center space-x-2 ${
-          userReaction === 'like' 
-            ? 'bg-white text-black hover:bg-gray-200' 
-            : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
-        }`}
+        className="flex items-center space-x-2"
       >
         <ThumbsUp className="w-4 h-4" />
         <span>{likes || 0}</span>
@@ -40,11 +35,7 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
         variant={userReaction === 'dislike' ? 'default' : 'outline'}
         size="sm"
         disabled={isLoading}
-        className={`flex items-center space-x-2 ${
-          userReaction === 'dislike' 
-            ? 'bg-white text-black hover:bg-gray-200' 
-            : 'bg-gray-800 border-gray-600 text-white hover:bg-gray-700'
-        }`}
+        className="flex items-center space-x-2"
       >
         <ThumbsDown className="w-4 h-4" />
         <span>{dislikes || 0}</span>
