@@ -1,3 +1,4 @@
+
 project_id = "rhahzghkbbiujxjhunob"
 
 [api]
@@ -23,6 +24,3 @@ enabled = true
 port = 54325
 file_size_limit = "50MiB"
 create_image_transform_service = true
-
-[functions.process-video]
-verify_jwt = false

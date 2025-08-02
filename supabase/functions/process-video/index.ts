@@ -1,9 +1,26 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+// Validate file types and size
+function validateFile(file: File): { valid: boolean; error?: string } {
+  const allowedTypes = ['video/mp4', 'video/webm', 'video/ogg'];
+  const maxSize = 100 * 1024 * 1024; // 100MB
+
+  if (!allowedTypes.includes(file.type)) {
+    return { valid: false, error: 'Invalid file type. Only MP4, WebM, and OGG are allowed.' };
+  }
+
+  if (file.size > maxSize) {
+    return { valid: false, error: 'File size exceeds 100MB limit.' };
+  }
+
+  return { valid: true };
 }
 
 // Simple video processing without FFmpeg for now
@@ -45,6 +62,32 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     )
 
+    // Get JWT token from Authorization header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new Error('Missing or invalid authorization header');
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    
+    // Verify the JWT token and get user
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    
+    if (authError || !user) {
+      throw new Error('Invalid authentication token');
+    }
+
+    // Check if user has admin role
+    const { data: roleData, error: roleError } = await supabaseClient
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+
+    if (roleError || !roleData || roleData.role !== 'admin') {
+      throw new Error('Admin privileges required');
+    }
+
     const formData = await req.formData()
     const videoFile = formData.get('video') as File
     const title = formData.get('title') as string
@@ -53,12 +96,30 @@ serve(async (req) => {
       throw new Error('No video file provided')
     }
 
-    console.log(`Processing video: ${videoFile.name}, size: ${videoFile.size}`)
+    // Validate file
+    const validation = validateFile(videoFile);
+    if (!validation.valid) {
+      throw new Error(validation.error);
+    }
+
+    // Sanitize title to prevent XSS
+    const sanitizedTitle = title.replace(/[<>"'&]/g, (char) => {
+      const entities: { [key: string]: string } = {
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#x27;',
+        '&': '&amp;'
+      };
+      return entities[char] || char;
+    });
+
+    console.log(`Processing video: ${videoFile.name}, size: ${videoFile.size}, user: ${user.id}`)
 
     // Generate unique filename
     const timestamp = Date.now()
     const fileExt = videoFile.name.split('.').pop() || 'mp4'
-    const baseFilename = `${timestamp}-${title.replace(/[^a-zA-Z0-9]/g, '-')}`
+    const baseFilename = `${timestamp}-${sanitizedTitle.replace(/[^a-zA-Z0-9]/g, '-')}`
 
     // Process video
     const videoBlob = new Blob([await videoFile.arrayBuffer()], { type: videoFile.type })
@@ -124,7 +185,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ error: error.message }),
       {
-        status: 500,
+        status: error.message.includes('authentication') || error.message.includes('privileges') ? 401 : 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     )
