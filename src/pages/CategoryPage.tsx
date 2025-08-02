@@ -13,7 +13,7 @@ const CategoryPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState('Featured Recently');
   
-  const { data, isLoading, error } = useVideosByCategory(category || '', currentPage, 20);
+  const { data, isLoading, error } = useVideosByCategory(category || '', currentPage, 60);
   
   const videos = data?.videos || [];
   const totalPages = data?.totalPages || 1;

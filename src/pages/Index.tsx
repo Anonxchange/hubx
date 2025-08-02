@@ -38,7 +38,7 @@ const Index = () => {
   
   const { data, isLoading, error } = useVideos(
     currentPage,
-    20,
+    60,
     selectedCategory === 'All' ? undefined : selectedCategory
   );
 
