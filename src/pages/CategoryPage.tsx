@@ -1,16 +1,17 @@
 
 import React, { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import Header from '@/components/Header';
 import VideoGrid from '@/components/VideoGrid';
 import AdComponent from '@/components/AdComponent';
 import ImageStylePagination from '@/components/ImageStylePagination';
+import CategoryFilter from '@/components/CategoryFilter';
 import { useVideosByCategory } from '@/hooks/useVideos';
 
 const CategoryPage = () => {
   const { category } = useParams<{ category: string }>();
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeFilter, setActiveFilter] = useState('Featured Recently');
   
   const { data, isLoading, error } = useVideosByCategory(category || '', currentPage, 60);
   
@@ -26,18 +27,17 @@ const CategoryPage = () => {
     setCurrentPage(page);
   };
 
+  const handleFilterChange = (filter: string) => {
+    setActiveFilter(filter);
+    setCurrentPage(1); // Reset to first page when filter changes
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       
       <main className="container mx-auto px-4 py-6 space-y-8">
-        {/* Back Button */}
-        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </Link>
-
-        {/* Ad Code Below Back to Home */}
+        {/* Ad Code */}
         <AdComponent zoneId="5660536" />
 
         {/* Category Header */}
@@ -52,6 +52,12 @@ const CategoryPage = () => {
               </p>
             </div>
           </div>
+          
+          {/* Category Filter */}
+          <CategoryFilter 
+            activeFilter={activeFilter}
+            onFilterChange={handleFilterChange}
+          />
         </div>
 
         {/* Videos Grid */}

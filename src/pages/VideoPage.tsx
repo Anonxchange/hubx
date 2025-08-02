@@ -114,13 +114,7 @@ const VideoPage = () => {
       <Header />
       
       <main className="container mx-auto px-4 py-6 space-y-8">
-        {/* Back Button */}
-        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Back to Home
-        </Link>
-
-        {/* Ad Code Below Back to Home */}
+        {/* Ad Code */}
         <AdComponent zoneId="5660536" />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
