@@ -1,6 +1,5 @@
 
 import { supabase } from '@/integrations/supabase/client';
-import { sanitizeUserInput } from '@/utils/sanitization';
 
 export interface Comment {
   id: string;
@@ -32,31 +31,11 @@ export const getComments = async (videoId: string) => {
   return data || [];
 };
 
-// Add a new comment with sanitization
+// Add a new comment
 export const addComment = async (comment: CommentInsert) => {
-  // Sanitize user input to prevent XSS
-  const sanitizedComment = {
-    ...comment,
-    name: sanitizeUserInput(comment.name),
-    comment_text: sanitizeUserInput(comment.comment_text)
-  };
-
-  // Validate input lengths
-  if (sanitizedComment.name.length > 100) {
-    throw new Error('Name must be 100 characters or less');
-  }
-
-  if (sanitizedComment.comment_text.length > 1000) {
-    throw new Error('Comment must be 1000 characters or less');
-  }
-
-  if (!sanitizedComment.name.trim() || !sanitizedComment.comment_text.trim()) {
-    throw new Error('Name and comment cannot be empty');
-  }
-
   const { data, error } = await supabase
     .from('comments')
-    .insert([sanitizedComment])
+    .insert([comment])
     .select()
     .single();
 
