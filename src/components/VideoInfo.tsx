@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Clock, VideoIcon, Share } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -19,43 +20,54 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 }) => {
   const formatViews = (views: number) => {
     if (views >= 1000000) {
-      return `${(views / 1000000).toFixed(1)}M`;
+      return `${(views / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
     }
     if (views >= 1000) {
-      return `${(views / 1000).toFixed(1)}K`;
+      return `${(views / 1000).toFixed(1).replace(/\.0$/, '')}K`;
     }
-    return views.toString();
+    return views.toLocaleString();
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMilliseconds = now.getTime() - date.getTime();
+    const diffInDays = Math.floor(diffInMilliseconds / (1000 * 60 * 60 * 24));
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    const diffInMonths = Math.floor(diffInDays / 30);
+    const diffInYears = Math.floor(diffInDays / 365);
+
+    if (diffInYears > 0) {
+      return `${diffInYears} year${diffInYears > 1 ? 's' : ''} ago`;
+    }
+    if (diffInMonths > 0) {
+      return `${diffInMonths} month${diffInMonths > 1 ? 's' : ''} ago`;
+    }
+    if (diffInWeeks > 0) {
+      return `${diffInWeeks} week${diffInWeeks > 1 ? 's' : ''} ago`;
+    }
+    if (diffInDays > 0) {
+      return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    }
+    return 'Today';
   };
 
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex-1">
-        <h1 className="text-2xl lg:text-3xl font-bold mb-2">{title}</h1>
-        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-          <span className="flex items-center">
-            <VideoIcon className="w-4 h-4 mr-1" />
-            {formatViews(views)} views
+    <div className="space-y-3">
+      <div>
+        <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight mb-3">
+          {title}
+        </h1>
+        <div className="flex items-center space-x-2 text-muted-foreground">
+          <span className="font-medium">
+            {formatViews(views)} Views
           </span>
-          <span className="flex items-center">
-            <Clock className="w-4 h-4 mr-1" />
-            {duration}
+          <span>|</span>
+          <span>
+            {formatTimeAgo(createdAt)}
           </span>
-          <span>Uploaded {formatDate(createdAt)}</span>
         </div>
       </div>
-      
-      <Button onClick={onShare} variant="outline" size="sm">
-        <Share className="w-4 h-4 mr-2" />
-        Share
-      </Button>
     </div>
   );
 };
