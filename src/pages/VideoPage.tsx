@@ -20,7 +20,7 @@ import { toast } from 'sonner';
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
   const [videoError, setVideoError] = useState(false);
 
   const { data: video, isLoading, error } = useQuery({
@@ -180,11 +180,7 @@ const VideoPage = () => {
 
           {/* Sidebar - Related Videos */}
           <div>
-            <RelatedVideos
-              videos={relatedVideos}
-              viewMode={viewMode}
-              onViewModeChange={setViewMode}
-            />
+            <RelatedVideos videos={relatedVideos} />
           </div>
         </div>
       </main>

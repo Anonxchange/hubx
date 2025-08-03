@@ -32,7 +32,7 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
     <Link to={`/video/${video.id}`} className="block">
       <Card className="hover:bg-muted/5 transition-colors">
         <CardContent className={`p-3 ${viewMode === 'list' ? 'flex space-x-3' : ''}`}>
-          <div className={`relative bg-muted rounded overflow-hidden flex-shrink-0 ${
+          <div className={`relative bg-muted rounded-lg overflow-hidden flex-shrink-0 border border-border ${
             viewMode === 'grid' ? 'aspect-video mb-3' : 'w-24 h-16'
           }`}>
             <img

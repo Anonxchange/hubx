@@ -1,8 +1,8 @@
-import React from 'react';
-import { Grid3X3, List } from 'lucide-react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import AdComponent from '@/components/AdComponent';
 import RelatedVideoCard from '@/components/RelatedVideoCard';
+import Footer from '@/components/Footer';
 
 interface Video {
   id: string;
@@ -15,54 +15,70 @@ interface Video {
 
 interface RelatedVideosProps {
   videos: Video[];
-  viewMode: 'grid' | 'list';
-  onViewModeChange: (mode: 'grid' | 'list') => void;
 }
 
-const RelatedVideos: React.FC<RelatedVideosProps> = ({
-  videos,
-  viewMode,
-  onViewModeChange
-}) => {
+const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
+  const [activeTab, setActiveTab] = useState('related');
+  
+  const tabs = [
+    { id: 'related', label: 'Related' },
+    { id: 'recommend', label: 'Recommend' },
+    { id: 'comment', label: 'Comment' },
+    { id: 'playlist', label: 'Playlist' }
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Horizontal Scroll Tabs */}
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Related Videos</h3>
-        <div className="flex items-center space-x-1">
-          <Button
-            variant={viewMode === 'grid' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => onViewModeChange('grid')}
-          >
-            <Grid3X3 className="w-4 h-4" />
-          </Button>
-          <Button
-            variant={viewMode === 'list' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => onViewModeChange('list')}
-          >
-            <List className="w-4 h-4" />
-          </Button>
+        <div className="flex overflow-x-auto scrollbar-hide">
+          <div className="flex space-x-1 min-w-max">
+            {tabs.map((tab) => (
+              <Button
+                key={tab.id}
+                variant={activeTab === tab.id ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setActiveTab(tab.id)}
+                className="whitespace-nowrap"
+              >
+                {tab.label}
+              </Button>
+            ))}
+          </div>
         </div>
       </div>
       
-      <div className={viewMode === 'grid' ? 'grid grid-cols-1 gap-4' : 'space-y-3'}>
+      <div className="space-y-3">
         {videos.map((video, index) => (
           <React.Fragment key={video.id}>
-            <RelatedVideoCard video={video} viewMode={viewMode} />
-            {/* Insert ad after 6th related video (index 5) */}
+            <RelatedVideoCard video={video} viewMode="list" />
+            {/* Insert new ad after 6th related video (index 5) */}
             {index === 5 && (
               <div className="my-4">
-                <AdComponent zoneId="5661270" />
+                <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
+                <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
+                <script dangerouslySetInnerHTML={{
+                  __html: '(AdProvider = window.AdProvider || []).push({"serve": {}});'
+                }}></script>
               </div>
             )}
           </React.Fragment>
         ))}
         
+        {/* Move original ad to the last position */}
+        {videos.length > 0 && (
+          <div className="my-4">
+            <AdComponent zoneId="5661270" />
+          </div>
+        )}
+        
         {videos.length === 0 && (
           <p className="text-muted-foreground text-sm">No related videos found</p>
         )}
       </div>
+      
+      {/* Add Footer */}
+      <Footer />
     </div>
   );
 };

@@ -6,6 +6,7 @@ import VideoGrid from '@/components/VideoGrid';
 import AdComponent from '@/components/AdComponent';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import CategoryFilter from '@/components/CategoryFilter';
+import Footer from '@/components/Footer';
 import { useVideosByCategory } from '@/hooks/useVideos';
 
 const CategoryPage = () => {
@@ -71,6 +72,9 @@ const CategoryPage = () => {
           totalPages={totalPages}
           onPageChange={handlePageChange}
         />
+
+        {/* Footer */}
+        <Footer />
       </main>
     </div>
   );
