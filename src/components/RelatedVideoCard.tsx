@@ -38,8 +38,7 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
             <img
               src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=120&fit=crop'}
               alt={video.title}
-              className="w-full h-full object-contain bg-muted"
-              loading="lazy"
+              className="w-full h-full object-cover"
             />
             {video.duration && (
               <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
