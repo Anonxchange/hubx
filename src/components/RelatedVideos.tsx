@@ -54,9 +54,9 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
             <RelatedVideoCard video={video} viewMode="grid" />
             {/* Insert new ad after 6th related video (index 5) */}
             {index === 5 && (
-              <div className="my-4">
+              <div className="my-4 aspect-video">
                 <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
-                <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
+                <ins className="eas6a97888e37" data-zoneid="5686642" style={{display: 'block', width: '100%', height: '100%'}}></ins>
                 <script dangerouslySetInnerHTML={{
                   __html: '(AdProvider = window.AdProvider || []).push({"serve": {}});'
                 }}></script>
