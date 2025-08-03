@@ -48,10 +48,10 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
         </div>
       </div>
       
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {videos.map((video, index) => (
           <React.Fragment key={video.id}>
-            <RelatedVideoCard video={video} viewMode="list" />
+            <RelatedVideoCard video={video} viewMode="grid" />
             {/* Insert new ad after 6th related video (index 5) */}
             {index === 5 && (
               <div className="my-4">
