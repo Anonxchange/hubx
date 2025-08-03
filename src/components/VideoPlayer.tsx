@@ -470,7 +470,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ref={videoRef}
         className="w-full h-full"
         poster={poster}
-        preload="metadata"
+        preload="none"
         playsInline
         onError={handleVideoError}
         controls
