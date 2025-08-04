@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Grid3X3, List } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import Categories from '@/components/Categories';
-import VideoGrid from '@/components/VideoGrid';
+import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdComponent from '@/components/AdComponent';
@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useVideos } from '@/hooks/useVideos';
+import { useOptimizedVideos } from '@/hooks/useOptimizedVideos';
 import ImageStylePagination from '@/components/ImageStylePagination';
 
 const categories = [
@@ -36,7 +36,7 @@ const Index = () => {
     }
   }, [searchParams]);
   
-  const { data, isLoading, error } = useVideos(
+  const { data, isLoading, error } = useOptimizedVideos(
     currentPage,
     60,
     selectedCategory === 'All' ? undefined : selectedCategory
@@ -137,7 +137,7 @@ const Index = () => {
             <p className="text-muted-foreground">Please try again later.</p>
           </div>
         ) : (
-          <VideoGrid videos={videos} viewMode={viewMode} showAds={true} />
+          <OptimizedVideoGrid videos={videos} viewMode={viewMode} showAds={true} />
         )}
 
         {/* Ad Code Before Pagination */}

@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 import { Clock, Eye, ThumbsUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { LazyImage } from '@/components/LazyImage';
+import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 
 interface Video {
   id: string;
@@ -31,6 +33,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previewCycleRef = useRef<NodeJS.Timeout | null>(null);
+  const { shouldLoadPreview, getVideoPreloadStrategy } = useBandwidthOptimization();
 
   // Generate preview URL with timestamp for Bunny CDN videos
   const generateBunnyPreviewUrl = (videoUrl: string, time: number): string => {
@@ -43,7 +46,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const handleMouseEnter = () => {
     setIsHovered(true);
     
-    // Delay to avoid triggering on quick mouse movements
+    // Only load previews if bandwidth allows it
+    if (!shouldLoadPreview()) return;
+    
+    // Increased delay to reduce unnecessary bandwidth usage
     hoverTimeoutRef.current = setTimeout(() => {
       setShowPreview(true);
       
@@ -75,7 +81,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           }, 3000); // Change preview every 3 seconds
         }
       }
-    }, 800); // Reduced delay for better UX
+    }, 2000); // Increased delay to 2 seconds
   };
 
   const handleMouseLeave = () => {
@@ -127,10 +133,12 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
-              <img
+              <LazyImage
                 src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
                 alt={video.title}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
+                width={300}
+                height={200}
+                className={`w-full h-full transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
               />
               {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
                 <video
@@ -139,7 +147,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                   muted
                   loop={!!video.preview_url}
                   playsInline
-                  preload="metadata"
+                  preload={getVideoPreloadStrategy()}
                 />
               ) : null}
               <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
@@ -193,10 +201,12 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <img
+          <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
             alt={video.title}
-            className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
+            width={400}
+            height={300}
+            className={`w-full h-full group-hover:scale-105 transition-all duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
           {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
             <video
@@ -205,7 +215,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               muted
               loop={!!video.preview_url}
               playsInline
-              preload="metadata"
+              preload={getVideoPreloadStrategy()}
             />
           ) : null}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">

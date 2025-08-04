@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 
 interface VideoPlayerProps {
   src: string;
@@ -25,6 +26,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showSkipButton, setShowSkipButton] = React.useState(false);
   const [adCountdown, setAdCountdown] = React.useState(5);
   const [viewTracked, setViewTracked] = React.useState(false);
+  const [vastCache, setVastCache] = React.useState<{[key: string]: any}>({});
+  const { getVideoPreloadStrategy } = useBandwidthOptimization();
 
   // Function to track video view with Exoclick
   const trackVideoView = () => {
@@ -56,8 +59,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Function to fetch and parse VAST XML
+  // Function to fetch and parse VAST XML with caching
   const fetchVastAd = async () => {
+    const cacheKey = 'vast_ad_data';
+    const cacheExpiry = 10 * 60 * 1000; // 10 minutes
+    
+    // Check cache first
+    const cached = vastCache[cacheKey];
+    if (cached && (Date.now() - cached.timestamp) < cacheExpiry) {
+      console.log('Using cached VAST data');
+      return cached.data;
+    }
+
     try {
       console.log('Fetching VAST ad...');
       // Using the working VAST URL from the ad script
@@ -96,7 +109,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       const clickThrough = xmlDoc.getElementsByTagName('ClickThrough')[0];
       const clickThroughUrl = clickThrough ? clickThrough.textContent?.trim() : null;
       
-      return { adVideoUrl, clickThroughUrl };
+      const result = { adVideoUrl, clickThroughUrl };
+      
+      // Cache the result
+      setVastCache(prev => ({
+        ...prev,
+        [cacheKey]: {
+          data: result,
+          timestamp: Date.now()
+        }
+      }));
+      
+      return result;
     } catch (error) {
       console.error('Error fetching VAST:', error);
       return null;
@@ -470,7 +494,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ref={videoRef}
         className="w-full h-full"
         poster={poster}
-        preload="metadata"
+        preload={getVideoPreloadStrategy()}
         playsInline
         onError={handleVideoError}
         controls

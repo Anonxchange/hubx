@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import AdComponent from '@/components/AdComponent';
-import RelatedVideoCard from '@/components/RelatedVideoCard';
+import LazyAdComponent from '@/components/LazyAdComponent';
+import OptimizedRelatedVideoCard from '@/components/OptimizedRelatedVideoCard';
 import Footer from '@/components/Footer';
 
 interface Video {
@@ -50,8 +50,8 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {videos.map((video, index) => (
-          <React.Fragment key={video.id}>
-            <RelatedVideoCard video={video} viewMode="grid" />
+          <div key={video.id}>
+            <OptimizedRelatedVideoCard video={video} viewMode="grid" />
             {/* Insert new ad after 6th related video (index 5) */}
             {index === 5 && (
               <div className="my-4">
@@ -62,13 +62,13 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
                 }}></script>
               </div>
             )}
-          </React.Fragment>
+          </div>
         ))}
         
         {/* Move original ad to the last position */}
         {videos.length > 0 && (
           <div className="my-4">
-            <AdComponent zoneId="5661270" />
+            <LazyAdComponent zoneId="5661270" />
           </div>
         )}
         

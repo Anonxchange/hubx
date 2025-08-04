@@ -47,11 +47,11 @@ const getSessionId = () => {
   return sessionId;
 };
 
-// Get all videos with pagination and search
+// Get all videos with pagination and search - optimized for bandwidth
 export const getVideos = async (page = 1, limit = 60, category?: string, searchQuery?: string) => {
   let query = supabase
     .from('videos')
-    .select('*', { count: 'exact' });
+    .select('id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium', { count: 'exact' });
 
   // Apply category-based sorting and filtering
   if (category && category !== 'all') {
@@ -110,11 +110,11 @@ export const getVideosByCategory = async (category: string, page = 1, limit = 60
   return getVideos(page, limit, category, searchQuery);
 };
 
-// Get related videos by tags (limited to 15, randomly selected)
+// Get related videos by tags (limited to 15, randomly selected) - optimized for bandwidth
 export const getRelatedVideos = async (videoId: string, tags: string[], limit = 15) => {
   const { data, error } = await supabase
     .from('videos')
-    .select('*')
+    .select('id, title, thumbnail_url, duration, views, likes')
     .neq('id', videoId)
     .overlaps('tags', tags)
     .order('created_at', { ascending: false })

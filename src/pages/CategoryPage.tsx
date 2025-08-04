@@ -2,19 +2,19 @@
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from '@/components/Header';
-import VideoGrid from '@/components/VideoGrid';
+import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
 import AdComponent from '@/components/AdComponent';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import CategoryFilter from '@/components/CategoryFilter';
 import Footer from '@/components/Footer';
-import { useVideosByCategory } from '@/hooks/useVideos';
+import { useOptimizedVideos } from '@/hooks/useOptimizedVideos';
 
 const CategoryPage = () => {
   const { category } = useParams<{ category: string }>();
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState('Featured Recently');
   
-  const { data, isLoading, error } = useVideosByCategory(category || '', currentPage, 60);
+  const { data, isLoading, error } = useOptimizedVideos(currentPage, 60, category || '');
   
   const videos = data?.videos || [];
   const totalPages = data?.totalPages || 1;
@@ -62,7 +62,7 @@ const CategoryPage = () => {
         </div>
 
         {/* Videos Grid */}
-        <VideoGrid 
+        <OptimizedVideoGrid 
           videos={videos}
         />
 
