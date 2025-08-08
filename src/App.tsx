@@ -39,9 +39,4 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
-
-const App = () => (
-  // ...your component code
-);
-
 export default App;
