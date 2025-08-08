@@ -488,42 +488,53 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         autoPlay
         playsInline
       />
-      
       {/* Main Video Element */}
-     const [isPlaying, setIsPlaying] = React.useState(false);
+      const [isPlaying, setIsPlaying] = React.useState(false);
+const videoRef = React.useRef(null);
+
+const handlePlayClick = () => {
+  if (videoRef.current) {
+    if (!isPlaying) {
+      const sourceMp4 = document.createElement('source');
+      sourceMp4.src = src;
+      sourceMp4.type = 'video/mp4';
+
+      videoRef.current.appendChild(sourceMp4);
+      videoRef.current.load();
+      videoRef.current.play();
+      setIsPlaying(true);
+    } else {
+      videoRef.current.play();
+    }
+  }
+};
 
 return (
   <div className="relative w-full h-full">
-    {/* Custom Play Button Overlay */}
     {!isPlaying && (
       <button
-        onClick={() => {
-          setIsPlaying(true);
-          videoRef.current?.play();
-        }}
+        onClick={handlePlayClick}
         className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-60 text-white text-xl cursor-pointer"
       >
         Play
       </button>
     )}
 
-    {/* Main Video Element */}
     <video
       ref={videoRef}
       className="w-full h-full"
       poster={poster}
-      preload={isPlaying ? 'auto' : 'none'}
+      preload="none"
       playsInline
-      onError={handleVideoError}
       controls={isPlaying}
       style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
-      src={isPlaying ? src : undefined}
+      onError={handleVideoError}
     >
-      <source src={isPlaying ? src : undefined} type="video/mp4" />
-      <source src={isPlaying ? src : undefined} type="video/webm" />
+      {/* No source tags here initially */}
       Your browser does not support the video tag.
     </video>
   </div>
+
   );
 };
 
