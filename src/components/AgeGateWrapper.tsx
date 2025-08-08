@@ -1,146 +1,116 @@
 import React, { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { ChevronDown, Globe } from 'lucide-react';
 
-const AGE_GATE_KEY = 'hubx_age_verified';
-
-const styles = {
-  overlay: {
-    position: 'fixed' as const,
-    top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 2000,
-    padding: '1rem',
-    color: '#fff',
-  },
-  modal: {
-    backgroundColor: '#222',
-    padding: '2rem',
-    borderRadius: '8px',
-    maxWidth: '600px',
-    textAlign: 'center' as const,
-  },
-  brandName: {
-    color: '#ff9800',
-    fontWeight: 'bold',
-    fontSize: '2rem',
-    marginBottom: '1rem',
-  },
-  acceptBtn: {
-    backgroundColor: '#ff9800',
-    color: '#fff',
-    border: 'none',
-    padding: '0.75rem 1.5rem',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    margin: '0 0.5rem',
-  },
-  rejectBtn: {
-    backgroundColor: '#666',
-    color: '#fff',
-    border: 'none',
-    padding: '0.75rem 1.5rem',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    margin: '0 0.5rem',
-  },
-  buttonsContainer: {
-    marginTop: 20,
-    display: 'flex',
-    justifyContent: 'center',
-    gap: '1rem',
-  },
-  termsLink: {
-    color: '#ff9800',
-    textDecoration: 'none',
-  },
-};
-
-function AgeVerificationModal({
-  onAccept,
-  onReject,
-}: {
-  onAccept: () => void;
-  onReject: () => void;
-}) {
-  return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        <div style={styles.brandName}>HubX</div>
-
-        <h2>This is an adult website</h2>
-        <p>
-          This website contains age-restricted materials including nudity and explicit
-          depictions of sexual activity. By entering, you affirm that you are at least 18
-          years of age or the age of majority in your jurisdiction and consent to viewing
-          sexually explicit content.
-        </p>
-        <p>
-          Our Terms are changing. These changes will or have come into effect on 30 June
-          2025. To see the updated changes, please see our{' '}
-          <a href="/terms" target="_blank" rel="noopener noreferrer" style={styles.termsLink}>
-            New Terms of Service
-          </a>
-          .
-        </p>
-        <div style={styles.buttonsContainer}>
-          <button onClick={onReject} style={styles.rejectBtn}>
-            I am under 18 - Exit
-          </button>
-          <button onClick={onAccept} style={styles.acceptBtn}>
-            I am 18 or older - Enter
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+interface AgeGateWrapperProps {
+  children: React.ReactNode;
 }
 
-export default function AgeGateWrapper({ children }: { children: React.ReactNode }) {
-  const [ageVerified, setAgeVerified] = useState<boolean | null>(null);
+const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
+  const [isVerified, setIsVerified] = useState(false);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(AGE_GATE_KEY);
-    console.log('AgeGateWrapper useEffect, stored:', stored);
-    if (stored === 'true') {
-      setAgeVerified(true);
+    // Check if user has already verified their age
+    const ageVerified = localStorage.getItem('ageVerified');
+    if (ageVerified === 'true') {
+      setIsVerified(true);
     } else {
-      setAgeVerified(false);
+      // Small delay to show the modal after component mounts
+      const timer = setTimeout(() => setShowModal(true), 100);
+      return () => clearTimeout(timer);
     }
   }, []);
 
-  function handleAccept() {
-    localStorage.setItem(AGE_GATE_KEY, 'true');
-    setAgeVerified(true);
-  }
+  const handleEnter = () => {
+    localStorage.setItem('ageVerified', 'true');
+    setIsVerified(true);
+    setShowModal(false);
+  };
 
-  function handleReject() {
-    // Redirect under 18 users away
+  const handleExit = () => {
+    // Redirect to a safe website
     window.location.href = 'https://www.google.com';
+  };
+
+  if (isVerified) {
+    return <>{children}</>;
   }
 
-  if (ageVerified === null) {
+  if (!showModal) {
     return (
-      <div style={{
-        height: '100vh',
-        backgroundColor: '#000',
-        color: '#fff',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        fontSize: '1.5rem',
-      }}>
-        Loading...
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
       </div>
     );
   }
 
-  if (!ageVerified) {
-    return <AgeVerificationModal onAccept={handleAccept} onReject={handleReject} />;
-  }
+  return (
+    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="w-full max-w-md mx-auto">
+        {/* Language Selector */}
+        <div className="mb-6 flex justify-start">
+          <div className="flex items-center space-x-2 bg-gray-800/50 rounded-md px-3 py-2 text-white">
+            <Globe className="w-4 h-4 text-gray-400" />
+            <span className="text-sm">English</span>
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          </div>
+        </div>
 
-  return <>{children}</>;
-}
+        <Card className="bg-black border-gray-700 shadow-2xl">
+          <CardContent className="p-8 text-center space-y-6">
+            {/* Logo */}
+            <div className="flex items-center justify-center space-x-2 mb-6">
+              <div className="gradient-overlay rounded-lg p-2">
+                <span className="text-2xl font-bold text-white">HubX</span>
+              </div>
+            </div>
+
+            {/* Title */}
+            <h1 className="text-2xl font-bold text-white mb-4">
+              This is an adult website
+            </h1>
+
+            {/* Main Content */}
+            <div className="text-gray-300 text-sm leading-relaxed space-y-4">
+              <p>
+                This website contains age-restricted materials including nudity and explicit 
+                depictions of sexual activity. By entering, you affirm that you are at 
+                least 18 years of age or the age of majority in the jurisdiction you are 
+                accessing the website from and you consent to viewing sexually explicit content.
+              </p>
+
+              <p>
+                Our Terms are changing. These changes will or have come into effect on{' '}
+                <span className="font-semibold text-white">30 June 2025</span>. To see the 
+                updated changes, please see our{' '}
+                <span className="text-orange-500 font-semibold">New Terms of Service</span>.
+              </p>
+            </div>
+
+            {/* Buttons */}
+            <div className="space-y-3 pt-6">
+              <Button 
+                onClick={handleEnter}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3 text-base rounded-md transition-colors"
+              >
+                I am 18 or older - Enter
+              </Button>
+
+              <Button 
+                onClick={handleExit}
+                variant="secondary"
+                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 text-base rounded-md transition-colors"
+              >
+                I am under 18 - Exit
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+export default AgeGateWrapper;
