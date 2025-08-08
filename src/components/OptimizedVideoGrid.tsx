@@ -191,7 +191,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
           
           {showAds && viewMode === 'grid' && index === 19 && (
             <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
-              <LazyAdComponent zoneId="5686644" />
+              <LazyAdComponent zoneId="5661270" />
             </div>
           )}
         </React.Fragment>
