@@ -490,21 +490,40 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       />
       
       {/* Main Video Element */}
-      <video
-        ref={videoRef}
-        className="w-full h-full"
-        poster={poster}
-        preload={getVideoPreloadStrategy()}
-        playsInline
-        onError={handleVideoError}
-        controls
-        style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
+     const [isPlaying, setIsPlaying] = React.useState(false);
+
+return (
+  <div className="relative w-full h-full">
+    {/* Custom Play Button Overlay */}
+    {!isPlaying && (
+      <button
+        onClick={() => {
+          setIsPlaying(true);
+          videoRef.current?.play();
+        }}
+        className="absolute inset-0 z-10 flex items-center justify-center bg-black bg-opacity-60 text-white text-xl cursor-pointer"
       >
-        <source src={src} type="video/mp4" />
-        <source src={src} type="video/webm" />
-        Your browser does not support the video tag.
-      </video>
-    </div>
+        Play
+      </button>
+    )}
+
+    {/* Main Video Element */}
+    <video
+      ref={videoRef}
+      className="w-full h-full"
+      poster={poster}
+      preload={isPlaying ? 'auto' : 'none'}
+      playsInline
+      onError={handleVideoError}
+      controls={isPlaying}
+      style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
+      src={isPlaying ? src : undefined}
+    >
+      <source src={isPlaying ? src : undefined} type="video/mp4" />
+      <source src={isPlaying ? src : undefined} type="video/webm" />
+      Your browser does not support the video tag.
+    </video>
+  </div>
   );
 };
 
