@@ -104,6 +104,7 @@ export default function AgeGateWrapper({ children }: { children: React.ReactNode
 
   useEffect(() => {
     const stored = localStorage.getItem(AGE_GATE_KEY);
+    console.log('AgeGateWrapper useEffect, stored:', stored);
     if (stored === 'true') {
       setAgeVerified(true);
     } else {
@@ -122,7 +123,6 @@ export default function AgeGateWrapper({ children }: { children: React.ReactNode
   }
 
   if (ageVerified === null) {
-    // Show visible loading while checking localStorage
     return (
       <div style={{
         height: '100vh',
