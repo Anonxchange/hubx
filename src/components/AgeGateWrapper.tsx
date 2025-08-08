@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 const AGE_GATE_KEY = 'hubx_age_verified';
@@ -27,28 +28,41 @@ const styles = {
     objectFit: 'contain' as const,
   },
   acceptBtn: {
-    backgroundColor: '#4caf50',
+    backgroundColor: '#ff9800',
     color: '#fff',
     border: 'none',
     padding: '0.75rem 1.5rem',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: 'bold',
+    margin: '0 0.5rem',
   },
   rejectBtn: {
-    backgroundColor: '#f44336',
+    backgroundColor: '#666',
     color: '#fff',
     border: 'none',
     padding: '0.75rem 1.5rem',
     borderRadius: '4px',
     cursor: 'pointer',
     fontWeight: 'bold',
+    margin: '0 0.5rem',
   },
   buttonsContainer: {
     marginTop: 20,
     display: 'flex',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    gap: '1rem',
   },
+  brandName: {
+    color: '#ff9800',
+    fontWeight: 'bold',
+    fontSize: '2rem',
+    marginBottom: '1rem',
+  },
+  termsLink: {
+    color: '#ff9800',
+    textDecoration: 'none',
+  }
 };
 
 function AgeVerificationModal({
@@ -61,13 +75,9 @@ function AgeVerificationModal({
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
-        <img
-          src="/your-logo.png" // replace with your logo path
-          alt="HubX Logo"
-          style={styles.logo}
-        />
+        <div style={styles.brandName}>HubX</div>
 
-        <h2>18+ Age Verification</h2>
+        <h2>This is an adult website</h2>
         <p>
           This website contains age-restricted materials including nudity and explicit
           depictions of sexual activity. By entering, you affirm that you are at least 18
@@ -77,21 +87,17 @@ function AgeVerificationModal({
         <p>
           Our Terms are changing. These changes will or have come into effect on 30 June
           2025. To see the updated changes, please see our{' '}
-          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#4caf50' }}>
+          <a href="/terms" target="_blank" rel="noopener noreferrer" style={styles.termsLink}>
             New Terms of Service
           </a>
           .
         </p>
-        <p>
-          Our parental controls page explains how you can easily block access to this site.
-        </p>
-        <p>© Hubxvideo.com, 2025</p>
         <div style={styles.buttonsContainer}>
           <button onClick={onReject} style={styles.rejectBtn}>
-            I am under 18
+            I am under 18 - Exit
           </button>
           <button onClick={onAccept} style={styles.acceptBtn}>
-            I am 18 or older — Enter
+            I am 18 or older - Enter
           </button>
         </div>
       </div>
@@ -122,7 +128,7 @@ export default function AgeGateWrapper({ children }: { children: React.ReactNode
   }
 
   if (ageVerified === null) {
-    // Can show spinner or null while loading
+    // Show loading state while checking localStorage
     return null;
   }
 
