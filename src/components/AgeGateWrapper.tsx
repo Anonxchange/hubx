@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 
 const AGE_GATE_KEY = 'hubx_age_verified';
@@ -22,10 +21,11 @@ const styles = {
     maxWidth: '600px',
     textAlign: 'center' as const,
   },
-  logo: {
-    width: 120,
-    marginBottom: 20,
-    objectFit: 'contain' as const,
+  brandName: {
+    color: '#ff9800',
+    fontWeight: 'bold',
+    fontSize: '2rem',
+    marginBottom: '1rem',
   },
   acceptBtn: {
     backgroundColor: '#ff9800',
@@ -53,16 +53,10 @@ const styles = {
     justifyContent: 'center',
     gap: '1rem',
   },
-  brandName: {
-    color: '#ff9800',
-    fontWeight: 'bold',
-    fontSize: '2rem',
-    marginBottom: '1rem',
-  },
   termsLink: {
     color: '#ff9800',
     textDecoration: 'none',
-  }
+  },
 };
 
 function AgeVerificationModal({
@@ -128,8 +122,20 @@ export default function AgeGateWrapper({ children }: { children: React.ReactNode
   }
 
   if (ageVerified === null) {
-    // Show loading state while checking localStorage
-    return null;
+    // Show visible loading while checking localStorage
+    return (
+      <div style={{
+        height: '100vh',
+        backgroundColor: '#000',
+        color: '#fff',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        fontSize: '1.5rem',
+      }}>
+        Loading...
+      </div>
+    );
   }
 
   if (!ageVerified) {
