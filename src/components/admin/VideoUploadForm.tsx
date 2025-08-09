@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Upload, Video, FileVideo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,16 +14,13 @@ import { uploadVideo, VideoUpload } from '@/services/videosService';
 const VideoUploadForm = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Unified form data includes is_premium and is_moment flags
   const [formData, setFormData] = useState<
     VideoUpload & { is_premium?: boolean; is_moment?: boolean }
   >({
@@ -39,16 +35,6 @@ const VideoUploadForm = () => {
     is_moment: false,
   });
 
-  // When moment toggle changes, update formData.is_moment too
-  const handleMomentToggle = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, is_moment: checked }));
-  };
-
-  // When premium toggle changes, update formData.is_premium
-  const handlePremiumToggle = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, is_premium: checked }));
-  };
-
   const uploadMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       // Combine tags: form tags + custom tags + moment tags if is_moment is true
@@ -56,7 +42,6 @@ const VideoUploadForm = () => {
       if (data.is_moment) {
         finalTags = [...finalTags, 'vertical', 'short', 'moment'];
       }
-      // Call uploadVideo service with updated tags and flags
       return uploadVideo({ ...data, tags: finalTags });
     },
     onSuccess: () => {
@@ -66,17 +51,7 @@ const VideoUploadForm = () => {
       });
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['videos'] });
-
-      // **STOP automatic redirect to homepage**
-      // You can manually navigate or just stay on upload page
-      // Example: navigate('/moments') if you want moments page after moment video upload
-
-      // If you want no redirect at all, just comment out navigate lines:
-      // if (formData.is_moment) {
-      //   navigate('/moments');
-      // } else {
-      //   navigate('/');
-      // }
+      // NO redirect here, stay on upload page
     },
     onError: (error) => {
       toast({
@@ -84,9 +59,7 @@ const VideoUploadForm = () => {
         description: 'Failed to upload video. Please try again.',
         variant: 'destructive',
       });
-      console.error('Upload error:', error);
       setIsProcessing(false);
-      setUploadProgress(0);
     },
   });
 
@@ -104,7 +77,6 @@ const VideoUploadForm = () => {
     });
     setCustomTags([]);
     setSelectedFile(null);
-    setUploadProgress(0);
     setIsProcessing(false);
   };
 
@@ -112,20 +84,14 @@ const VideoUploadForm = () => {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const addCustomTag = () => {
     if (newTag.trim() && !customTags.includes(newTag.trim())) {
       const updatedTags = [...customTags, newTag.trim()];
       setCustomTags(updatedTags);
-      setFormData((prev) => ({
-        ...prev,
-        tags: updatedTags,
-      }));
+      setFormData((prev) => ({ ...prev, tags: updatedTags }));
       setNewTag('');
     }
   };
@@ -133,20 +99,14 @@ const VideoUploadForm = () => {
   const removeCustomTag = (tagToRemove: string) => {
     const updatedTags = customTags.filter((tag) => tag !== tagToRemove);
     setCustomTags(updatedTags);
-    setFormData((prev) => ({
-      ...prev,
-      tags: updatedTags,
-    }));
+    setFormData((prev) => ({ ...prev, tags: updatedTags }));
   };
 
   const addPresetTag = (tag: string) => {
     if (!customTags.includes(tag)) {
       const updatedTags = [...customTags, tag];
       setCustomTags(updatedTags);
-      setFormData((prev) => ({
-        ...prev,
-        tags: updatedTags,
-      }));
+      setFormData((prev) => ({ ...prev, tags: updatedTags }));
     }
   };
 
@@ -276,7 +236,9 @@ const VideoUploadForm = () => {
             <Switch
               id="moment-video"
               checked={!!formData.is_moment}
-              onCheckedChange={handleMomentToggle}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({ ...prev, is_moment: checked }))
+              }
               className="data-[state=checked]:bg-orange-500"
             />
             <div>
@@ -363,7 +325,9 @@ const VideoUploadForm = () => {
             <Switch
               id="premium"
               checked={!!formData.is_premium}
-              onCheckedChange={handlePremiumToggle}
+              onCheckedChange={(checked) =>
+                setFormData((prev) => ({ ...prev, is_premium: checked }))
+              }
             />
             <div className="flex-1">
               <Label
