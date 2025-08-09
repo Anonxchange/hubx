@@ -136,8 +136,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               <LazyImage
                 src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
                 alt={video.title}
-                width={300}
-                height={200}
+                width={400}
+                height={300}
                 className={`w-full h-full transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
               />
               {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
