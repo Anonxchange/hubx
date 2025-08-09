@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv, X, Upload, Image } from 'lucide-react';
+import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv, X, Upload, Image, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -27,7 +27,15 @@ const categories = [
   'anal', 'big-ass', 'blowjob', 'creampie', 'milf', 'teen', 'pov', 'hardcore', 'amateur', 'lesbian'
 ];
 
-const mobileNavItems = [
+interface MobileNavItem {
+  name: string;
+  icon: any;
+  path?: string;
+  url?: string;
+  badge?: string | null;
+}
+
+const mobileNavItems: MobileNavItem[] = [
   { name: 'Featured Videos', icon: Play, path: '/', badge: null },
   { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
   { name: 'Channel', icon: Tv, path: '/channel', badge: null },
@@ -41,15 +49,62 @@ const Header = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isFullScreenSearch, setIsFullScreenSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  
+  // Load recent searches from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('recentSearches');
+    if (saved) {
+      setRecentSearches(JSON.parse(saved));
+    }
+  }, []);
+
+  const trendingSearches = [
+    'latina milf',
+    'teen creampie',
+    'big ass pov',
+    'amateur blowjob',
+    'hardcore anal'
+  ];
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      // Save to recent searches
+      const newRecentSearches = [searchQuery.trim(), ...recentSearches.filter(s => s !== searchQuery.trim())].slice(0, 5);
+      setRecentSearches(newRecentSearches);
+      localStorage.setItem('recentSearches', JSON.stringify(newRecentSearches));
+      
       navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`);
       setIsSearchOpen(false);
+      setIsFullScreenSearch(false);
       setSearchQuery('');
     }
+  };
+
+  const handleSearchClick = (searchTerm: string) => {
+    setSearchQuery(searchTerm);
+    // Save to recent searches
+    const newRecentSearches = [searchTerm, ...recentSearches.filter(s => s !== searchTerm)].slice(0, 5);
+    setRecentSearches(newRecentSearches);
+    localStorage.setItem('recentSearches', JSON.stringify(newRecentSearches));
+    
+    navigate(`/?search=${encodeURIComponent(searchTerm)}`);
+    setIsFullScreenSearch(false);
+    setSearchQuery('');
+  };
+
+  const clearRecentSearch = (searchTerm: string) => {
+    const newRecentSearches = recentSearches.filter(s => s !== searchTerm);
+    setRecentSearches(newRecentSearches);
+    localStorage.setItem('recentSearches', JSON.stringify(newRecentSearches));
+  };
+
+  const clearAllRecentSearches = () => {
+    setRecentSearches([]);
+    localStorage.removeItem('recentSearches');
   };
 
   const navTabs = [
@@ -74,22 +129,23 @@ const Header = () => {
 
             {/* Center - Search Bar with Upload Icons (Desktop) */}
             <div className="hidden lg:flex flex-1 max-w-md mx-8 items-center space-x-3">
-              <form onSubmit={handleSearch} className="relative w-full">
+              <div className="relative w-full">
                 <Input
                   placeholder="Search videos..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsFullScreenSearch(true)}
                   className="w-full bg-gray-800 border-gray-600 text-white placeholder-gray-400 pr-10"
                 />
                 <Button 
-                  type="submit"
                   variant="ghost" 
                   size="sm" 
                   className="absolute right-0 top-0 h-full text-gray-400 hover:text-white hover:bg-transparent"
+                  onClick={() => setIsFullScreenSearch(true)}
                 >
                   <Search className="h-4 w-4" />
                 </Button>
-              </form>
+              </div>
               
               {/* Upload Icons */}
               <Button 
@@ -118,7 +174,7 @@ const Header = () => {
                 variant="ghost" 
                 size="sm" 
                 className="lg:hidden text-white hover:bg-white/10"
-                onClick={() => setIsSearchOpen(true)}
+                onClick={() => setIsFullScreenSearch(true)}
               >
                 <Search className="h-5 w-5" />
               </Button>
@@ -169,7 +225,7 @@ const Header = () => {
                                   </Badge>
                                 )}
                               </a>
-                            ) : (
+                            ) : item.path ? (
                               <Link
                                 to={item.path}
                                 className="flex items-center justify-between p-4 rounded-lg hover:bg-muted/50 transition-colors group"
@@ -184,7 +240,7 @@ const Header = () => {
                                   </Badge>
                                 )}
                               </Link>
-                            )}
+                            ) : null}
                           </div>
                         ))}
                       </div>
@@ -242,6 +298,8 @@ const Header = () => {
               <Star className="w-4 h-4" />
               <span>VIDEOS</span>
             </Link>
+
+
 
             {/* Categories Dropdown */}
             <DropdownMenu>
@@ -307,7 +365,124 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Search Modal for Mobile */}
+      {/* Full Screen Search Overlay */}
+      {isFullScreenSearch && (
+        <div className="fixed inset-0 bg-black bg-opacity-95 z-[100] flex flex-col">
+          {/* Search Header */}
+          <div className="flex items-center justify-between p-4 border-b border-gray-800">
+            <div className="flex items-center flex-1 space-x-4">
+              <form onSubmit={handleSearch} className="flex-1 max-w-2xl">
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                  <Input
+                    placeholder="Search videos..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-gray-900 border-gray-700 text-white placeholder-gray-400 pl-12 pr-4 py-3 rounded-full text-lg"
+                    autoFocus
+                  />
+                </div>
+              </form>
+            </div>
+            <Button 
+              variant="ghost" 
+              onClick={() => setIsFullScreenSearch(false)}
+              className="text-white hover:bg-gray-800 ml-4"
+            >
+              Cancel
+            </Button>
+          </div>
+
+          {/* Search Content */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="max-w-2xl mx-auto space-y-6">
+              
+              {/* Recent Searches */}
+              {recentSearches.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-white text-lg font-semibold">Recent Searches</h3>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={clearAllRecentSearches}
+                      className="text-gray-400 hover:text-white"
+                    >
+                      Clear all
+                    </Button>
+                  </div>
+                  <div className="space-y-2">
+                    {recentSearches.map((search, index) => (
+                      <div 
+                        key={index}
+                        className="flex items-center justify-between group bg-gray-900 hover:bg-gray-800 rounded-lg p-3 cursor-pointer"
+                        onClick={() => handleSearchClick(search)}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Clock className="w-4 h-4 text-gray-400" />
+                          <span className="text-white">{search}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            clearRecentSearch(search);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-white p-1"
+                        >
+                          <X className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Trending Searches */}
+              <div>
+                <h3 className="text-white text-lg font-semibold mb-4">Trending Searches</h3>
+                <div className="space-y-2">
+                  {trendingSearches.map((search, index) => (
+                    <div 
+                      key={index}
+                      className="flex items-center space-x-3 bg-gray-900 hover:bg-gray-800 rounded-lg p-3 cursor-pointer transition-colors"
+                      onClick={() => handleSearchClick(search)}
+                    >
+                      <TrendingUp className="w-4 h-4 text-orange-500" />
+                      <span className="text-white">{search}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Search Suggestions based on current input */}
+              {searchQuery.trim() && (
+                <div>
+                  <h3 className="text-white text-lg font-semibold mb-4">Suggestions</h3>
+                  <div className="space-y-2">
+                    {categories
+                      .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .slice(0, 5)
+                      .map((suggestion, index) => (
+                        <div 
+                          key={index}
+                          className="flex items-center space-x-3 bg-gray-900 hover:bg-gray-800 rounded-lg p-3 cursor-pointer transition-colors"
+                          onClick={() => handleSearchClick(suggestion)}
+                        >
+                          <Search className="w-4 h-4 text-gray-400" />
+                          <span className="text-white capitalize">{suggestion}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Search Modal for Mobile (Legacy - keeping for compatibility) */}
       <Dialog open={isSearchOpen} onOpenChange={setIsSearchOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
