@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import LazyAdComponent from '@/components/LazyAdComponent';
@@ -21,20 +20,25 @@ interface RelatedVideosProps {
 const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
   const [activeTab, setActiveTab] = useState('related');
   const [visibleCount, setVisibleCount] = useState(20);
-  
+
+  // Calculate max visible depending on videos length capped at 30
+  const maxVisible = Math.min(30, videos.length);
+
+  // Show button only if more videos can be revealed
+  const canShowMore = visibleCount < maxVisible;
+
+  const handleShowMore = () => {
+    setVisibleCount((prev) => Math.min(prev + 10, maxVisible));
+  };
+
+  const displayedVideos = videos.slice(0, visibleCount);
+
   const tabs = [
     { id: 'related', label: 'Related' },
     { id: 'recommend', label: 'Recommend' },
     { id: 'comment', label: 'Comment' },
     { id: 'playlist', label: 'Playlist' }
   ];
-
-  const handleShowMore = () => {
-    setVisibleCount(prev => Math.min(prev + 10, 30));
-  };
-
-  const displayedVideos = videos.slice(0, visibleCount);
-  const canShowMore = visibleCount < 30 && videos.length > visibleCount;
 
   return (
     <div className="space-y-6">
@@ -56,7 +60,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
           </div>
         </div>
       </div>
-      
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {displayedVideos.map((video, index) => (
           <div key={video.id}>
@@ -66,14 +70,16 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
               <div className="my-4">
                 <script async type="application/javascript" src="https://a.magsrv.com/ad-provider.js"></script>
                 <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
-                <script dangerouslySetInnerHTML={{
-                  __html: '(AdProvider = window.AdProvider || []).push({"serve": {}});'
-                }}></script>
+                <script
+                  dangerouslySetInnerHTML={{
+                    __html: '(AdProvider = window.AdProvider || []).push({"serve": {}});'
+                  }}
+                ></script>
               </div>
             )}
           </div>
         ))}
-        
+
         {/* Show More Button */}
         {canShowMore && (
           <div className="col-span-full flex justify-center my-6">
@@ -82,23 +88,23 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
               variant="outline"
               className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:text-orange-500 transition-colors px-8 py-2 rounded-lg"
             >
-              Show More ({Math.min(10, videos.length - visibleCount)} more videos)
+              Show More ({Math.min(10, maxVisible - visibleCount)} more videos)
             </Button>
           </div>
         )}
-        
+
         {/* Move original ad to the last position */}
         {videos.length > 0 && visibleCount >= videos.length && (
           <div className="my-4">
             <LazyAdComponent zoneId="5661270" />
           </div>
         )}
-        
+
         {videos.length === 0 && (
           <p className="text-muted-foreground text-sm">No related videos found</p>
         )}
       </div>
-      
+
       {/* Add Footer */}
       <Footer />
     </div>
