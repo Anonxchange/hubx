@@ -110,7 +110,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
             alt={video.title}
-            width={400}
+            width={500}
             height={300}
             className="w-full h-full group-hover:scale-105 transition-all duration-300"
           />
