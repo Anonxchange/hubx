@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import TagManager from './TagManager';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadVideo, VideoUpload } from '@/services/videosService';
-// No more Supabase imports - using our server API instead
+import { supabase } from '@/integrations/supabase/client';
 
 const VideoUploadForm = () => {
   const { toast } = useToast();
