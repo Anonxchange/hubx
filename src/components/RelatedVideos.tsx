@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import LazyAdComponent from '@/components/LazyAdComponent';
@@ -19,6 +20,7 @@ interface RelatedVideosProps {
 
 const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
   const [activeTab, setActiveTab] = useState('related');
+  const [visibleCount, setVisibleCount] = useState(20);
   
   const tabs = [
     { id: 'related', label: 'Related' },
@@ -26,6 +28,13 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
     { id: 'comment', label: 'Comment' },
     { id: 'playlist', label: 'Playlist' }
   ];
+
+  const handleShowMore = () => {
+    setVisibleCount(prev => Math.min(prev + 10, 30));
+  };
+
+  const displayedVideos = videos.slice(0, visibleCount);
+  const canShowMore = visibleCount < 30 && videos.length > visibleCount;
 
   return (
     <div className="space-y-6">
@@ -49,7 +58,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
       </div>
       
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {videos.map((video, index) => (
+        {displayedVideos.map((video, index) => (
           <div key={video.id}>
             <OptimizedRelatedVideoCard video={video} viewMode="grid" />
             {/* Insert new ad after 6th related video (index 5) */}
@@ -65,8 +74,21 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
           </div>
         ))}
         
+        {/* Show More Button */}
+        {canShowMore && (
+          <div className="col-span-full flex justify-center my-6">
+            <Button
+              onClick={handleShowMore}
+              variant="outline"
+              className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:text-orange-500 transition-colors px-8 py-2 rounded-lg"
+            >
+              Show More ({Math.min(10, videos.length - visibleCount)} more videos)
+            </Button>
+          </div>
+        )}
+        
         {/* Move original ad to the last position */}
-        {videos.length > 0 && (
+        {videos.length > 0 && visibleCount >= videos.length && (
           <div className="my-4">
             <LazyAdComponent zoneId="5661270" />
           </div>
