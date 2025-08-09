@@ -26,6 +26,9 @@ const Index = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
+  // Get search query from URL params
+  const searchQuery = searchParams.get('search') || undefined;
+
   // Initialize category from URL params
   useEffect(() => {
     const categoryParam = searchParams.get('category');
@@ -39,7 +42,8 @@ const Index = () => {
   const { data, isLoading, error } = useOptimizedVideos(
     currentPage,
     60,
-    selectedCategory === 'All' ? undefined : selectedCategory
+    selectedCategory === 'All' ? undefined : selectedCategory,
+    searchQuery
   );
 
   const { videos = [], totalPages = 0, totalCount = 0 } = data || {};
@@ -117,6 +121,29 @@ const Index = () => {
           </div>
         </div>
 
+        {/* Search Results Indicator */}
+        {searchQuery && (
+          <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center space-x-2">
+              <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
+                Search Results
+              </Badge>
+              <span className="text-blue-700 dark:text-blue-300">
+                Showing results for "{searchQuery}"
+              </span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => {
+                window.location.href = '/';
+              }}
+              className="text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900"
+            >
+              Clear Search
+            </Button>
+          </div>
+        )}
 
         {/* Videos */}
         {isLoading ? (
