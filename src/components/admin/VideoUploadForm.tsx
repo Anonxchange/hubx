@@ -7,23 +7,23 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { Progress } from '@/components/ui/progress';
 import TagManager from './TagManager';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadVideo, VideoUpload } from '@/services/videosService';
+import { supabase } from '@/integrations/supabase/client';
 
 const VideoUploadForm = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
 
-  const [formData, setFormData] = useState<
-    VideoUpload & { is_premium: boolean; is_moment: boolean }
-  >({
+  const [formData, setFormData] = useState<VideoUpload & { is_premium?: boolean }>({
     title: '',
     description: '',
     video_url: '',
@@ -31,35 +31,28 @@ const VideoUploadForm = () => {
     preview_url: '',
     duration: '',
     tags: [],
-    is_premium: false,
-    is_moment: false,
+    is_premium: false
   });
 
   const uploadMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      // Merge tags: form tags + custom tags + moment tags if enabled
-      let finalTags = [...(data.tags || []), ...customTags];
-      if (data.is_moment) {
-        finalTags = [...finalTags, 'vertical', 'short', 'moment'];
-      }
-      // Send all data including flags exactly as provided, just with final tags merged
-      return uploadVideo({ ...data, tags: finalTags });
-    },
+    mutationFn: uploadVideo,
     onSuccess: () => {
       toast({
-        title: 'Success',
-        description: 'Video uploaded successfully!',
+        title: "Success",
+        description: "Video uploaded successfully!",
       });
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['videos'] });
     },
-    onError: () => {
+    onError: (error) => {
       toast({
-        title: 'Error',
-        description: 'Failed to upload video. Please try again.',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to upload video. Please try again.",
+        variant: "destructive",
       });
+      console.error('Upload error:', error);
       setIsProcessing(false);
+      setUploadProgress(0);
     },
   });
 
@@ -72,41 +65,51 @@ const VideoUploadForm = () => {
       preview_url: '',
       duration: '',
       tags: [],
-      is_premium: false,
-      is_moment: false,
+      is_premium: false
     });
     setCustomTags([]);
     setSelectedFile(null);
+    setUploadProgress(0);
     setIsProcessing(false);
   };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const addCustomTag = () => {
     if (newTag.trim() && !customTags.includes(newTag.trim())) {
       const updatedTags = [...customTags, newTag.trim()];
       setCustomTags(updatedTags);
-      setFormData((prev) => ({ ...prev, tags: updatedTags }));
+      setFormData(prev => ({
+        ...prev,
+        tags: updatedTags
+      }));
       setNewTag('');
     }
   };
 
   const removeCustomTag = (tagToRemove: string) => {
-    const updatedTags = customTags.filter((tag) => tag !== tagToRemove);
+    const updatedTags = customTags.filter(tag => tag !== tagToRemove);
     setCustomTags(updatedTags);
-    setFormData((prev) => ({ ...prev, tags: updatedTags }));
+    setFormData(prev => ({
+      ...prev,
+      tags: updatedTags
+    }));
   };
 
   const addPresetTag = (tag: string) => {
     if (!customTags.includes(tag)) {
       const updatedTags = [...customTags, tag];
       setCustomTags(updatedTags);
-      setFormData((prev) => ({ ...prev, tags: updatedTags }));
+      setFormData(prev => ({
+        ...prev,
+        tags: updatedTags
+      }));
     }
   };
 
@@ -114,44 +117,97 @@ const VideoUploadForm = () => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
+      // Auto-populate title from filename if empty
       if (!formData.title) {
-        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
-        setFormData((prev) => ({ ...prev, title: nameWithoutExt }));
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        setFormData(prev => ({ ...prev, title: nameWithoutExt }));
       }
+    }
+  };
+
+  const processVideoFile = async (file: File) => {
+    setIsProcessing(true);
+    setUploadProgress(0);
+
+    try {
+      // Create form data for the edge function
+      const uploadFormData = new FormData();
+      uploadFormData.append('video', file);
+      uploadFormData.append('title', formData.title || file.name);
+
+      // Call the video processing edge function
+      const { data, error } = await supabase.functions.invoke('process-video', {
+        body: uploadFormData
+      });
+
+      if (error) throw error;
+
+      // Update form with processed video URLs
+      setFormData(prev => ({
+        ...prev,
+        video_url: data.video_url,
+        thumbnail_url: data.thumbnail_url,
+        preview_url: data.preview_url,
+        duration: data.duration
+      }));
+
+      setUploadProgress(100);
+      
+      toast({
+        title: "Processing Complete",
+        description: "Video processed successfully! You can now submit the form.",
+      });
+
+    } catch (error) {
+      console.error('Video processing error:', error);
+      toast({
+        title: "Processing Error",
+        description: "Failed to process video. Please try again.",
+        variant: "destructive",
+      });
+      setIsProcessing(false);
+      setUploadProgress(0);
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    
     if (!formData.title) {
       toast({
-        title: 'Validation Error',
-        description: 'Title is required.',
-        variant: 'destructive',
+        title: "Validation Error",
+        description: "Title is required.",
+        variant: "destructive",
       });
       return;
     }
 
-    if (uploadMethod === 'file' && !formData.video_url && !selectedFile) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please select and process a video file.',
-        variant: 'destructive',
-      });
-      return;
+    if (uploadMethod === 'file') {
+      if (!selectedFile) {
+        toast({
+          title: "Validation Error",
+          description: "Please select a video file.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!formData.video_url) {
+        // Process the file first
+        await processVideoFile(selectedFile);
+        return;
+      }
+    } else {
+      if (!formData.video_url) {
+        toast({
+          title: "Validation Error",
+          description: "Video URL is required.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
-    if (uploadMethod === 'url' && !formData.video_url) {
-      toast({
-        title: 'Validation Error',
-        description: 'Video URL is required.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setIsProcessing(true);
     uploadMutation.mutate(formData);
   };
 
@@ -165,7 +221,7 @@ const VideoUploadForm = () => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Upload method selector */}
+          {/* Upload method selection */}
           <div className="flex space-x-4 p-4 bg-muted rounded-lg">
             <Button
               type="button"
@@ -190,27 +246,49 @@ const VideoUploadForm = () => {
           {/* File upload section */}
           {uploadMethod === 'file' && (
             <div className="space-y-4">
-              <Label htmlFor="video-file">Select Video File</Label>
-              <Input
-                id="video-file"
-                type="file"
-                accept="video/*"
-                onChange={handleFileSelect}
-                className="cursor-pointer"
-              />
-              {selectedFile && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Selected: {selectedFile.name} (
-                  {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
-                </p>
+              <div>
+                <Label htmlFor="video-file">Select Video File</Label>
+                <Input
+                  id="video-file"
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileSelect}
+                  className="cursor-pointer"
+                />
+                {selectedFile && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Selected: {selectedFile.name} ({(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+                  </p>
+                )}
+              </div>
+
+              {isProcessing && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Processing video...</span>
+                    <span className="text-sm text-muted-foreground">{uploadProgress}%</span>
+                  </div>
+                  <Progress value={uploadProgress} className="w-full" />
+                </div>
+              )}
+
+              {formData.video_url && selectedFile && (
+                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800">✅ Video processed successfully!</p>
+                  <div className="mt-2 space-y-1 text-xs text-green-600">
+                    <p>Video URL: {formData.video_url}</p>
+                    <p>Thumbnail URL: {formData.thumbnail_url}</p>
+                    <p>Preview URL: {formData.preview_url}</p>
+                    <p>Duration: {formData.duration}</p>
+                  </div>
+                </div>
               )}
             </div>
           )}
 
-          {/* Title and Duration */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="title">Title *</Label>
+              <Label htmlFor="title">Title*</Label>
               <Input
                 id="title"
                 name="title"
@@ -232,31 +310,23 @@ const VideoUploadForm = () => {
             </div>
           </div>
 
-          {/* Moment toggle */}
+          {/* Premium Toggle */}
           <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
             <Switch
-              id="moment-video"
-              checked={formData.is_moment}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({ ...prev, is_moment: checked }))
-              }
-              className="data-[state=checked]:bg-orange-500"
+              id="premium"
+              checked={formData.is_premium}
+              onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_premium: checked }))}
             />
-            <div>
-              <Label
-                htmlFor="moment-video"
-                className="text-sm font-medium cursor-pointer"
-              >
-                Moment Video
+            <div className="flex-1">
+              <Label htmlFor="premium" className="text-base font-medium cursor-pointer">
+                Premium Content
               </Label>
-              <p className="text-xs text-muted-foreground">
-                Enable for short vertical videos that go to the moments feed
-                (adds 'vertical', 'short', 'moment' tags automatically)
+              <p className="text-sm text-muted-foreground">
+                Mark this video as premium content (requires VIP access)
               </p>
             </div>
           </div>
 
-          {/* Description */}
           <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -269,13 +339,11 @@ const VideoUploadForm = () => {
             />
           </div>
 
-          {/* URLs input, readonly if file method */}
+          {/* URL input section - only show if using URL method or after file processing */}
           {(uploadMethod === 'url' || (uploadMethod === 'file' && formData.video_url)) && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label htmlFor="video_url">
-                  Video URL{uploadMethod === 'url' ? '*' : ''}
-                </Label>
+                <Label htmlFor="video_url">Video URL{uploadMethod === 'url' ? '*' : ''}</Label>
                 <Input
                   id="video_url"
                   name="video_url"
@@ -311,7 +379,6 @@ const VideoUploadForm = () => {
             </div>
           )}
 
-          {/* Tag manager */}
           <TagManager
             customTags={customTags}
             newTag={newTag}
@@ -321,40 +388,19 @@ const VideoUploadForm = () => {
             onAddPresetTag={addPresetTag}
           />
 
-          {/* Premium toggle */}
-          <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
-            <Switch
-              id="premium"
-              checked={formData.is_premium}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({ ...prev, is_premium: checked }))
-              }
-            />
-            <div className="flex-1">
-              <Label
-                htmlFor="premium"
-                className="text-base font-medium cursor-pointer"
-              >
-                Premium Content
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Mark this video as premium content (requires VIP access)
-              </p>
-            </div>
-          </div>
-
-          <Button
-            type="submit"
-            className="w-full"
-            disabled={uploadMutation.isLoading || isProcessing}
+          <Button 
+            type="submit" 
+            className="w-full" 
+            disabled={uploadMutation.isPending || isProcessing}
           >
-            {uploadMutation.isLoading
-              ? 'Uploading...'
-              : isProcessing
-              ? 'Processing Video...'
-              : uploadMethod === 'file' && selectedFile && !formData.video_url
-              ? 'Process Video'
-              : 'Upload Video'}
+            {uploadMutation.isPending 
+              ? 'Uploading...' 
+              : isProcessing 
+                ? 'Processing Video...' 
+                : uploadMethod === 'file' && selectedFile && !formData.video_url
+                  ? 'Process Video'
+                  : 'Upload Video'
+            }
           </Button>
         </form>
       </CardContent>
