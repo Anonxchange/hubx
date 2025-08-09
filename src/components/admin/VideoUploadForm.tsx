@@ -37,13 +37,13 @@ const VideoUploadForm = () => {
 
   const uploadMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Merge tags from form + custom tags + moment tags
+      // Merge tags: form tags + custom tags + moment tags if enabled
       let finalTags = [...(data.tags || []), ...customTags];
       if (data.is_moment) {
         finalTags = [...finalTags, 'vertical', 'short', 'moment'];
       }
-      // Always send the premium and moment flags explicitly
-      return uploadVideo({ ...data, tags: finalTags, is_premium: data.is_premium, is_moment: data.is_moment });
+      // Send all data including flags exactly as provided, just with final tags merged
+      return uploadVideo({ ...data, tags: finalTags });
     },
     onSuccess: () => {
       toast({
