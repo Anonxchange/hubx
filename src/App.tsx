@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +16,7 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
+import RecommendedPage from "./pages/RecommendedPage";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +31,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/video/:id" element={<VideoPage />} />
             <Route path="/category/:category" element={<CategoryPage />} />
+            <Route path="/recommended" element={<RecommendedPage />} />
             <Route path="/premium" element={<PremiumPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/contact" element={<ContactUs />} />
