@@ -45,3 +45,5 @@ export default function Recommended() {
     </div>
   );
 }
+
+export default Recommended;
