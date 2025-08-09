@@ -1,4 +1,5 @@
-// Supabase Edge Function: Search videos table for matches
+// Supabase Edge Function: Search videos by metadata (not storage files)
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -7,23 +8,23 @@ serve(async (req) => {
     const { searchTerm } = await req.json();
 
     if (!searchTerm) {
-      return new Response(JSON.stringify({ error: "searchTerm is required" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "searchTerm is required" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
     }
 
+    // Connect to Supabase with your secrets
     const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+      Deno.env.get("PROJECT_URL")!,
+      Deno.env.get("SERVICE_ROLE_KEY")!
     );
 
-    // Search videos table
+    // Change "videos" to the actual name of your metadata table in Supabase
     const { data, error } = await supabase
       .from("videos")
       .select("*")
-      .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.ilike.%${searchTerm}%`)
-      .limit(50);
+      .ilike("title", `%${searchTerm}%`); // Search case-insensitive in "title" column
 
     if (error) throw error;
 
