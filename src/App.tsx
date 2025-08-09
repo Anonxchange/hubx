@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AgeGateWrapper from "./components/AgeGateWrapper";
 import Index from "./pages/Index";
 import VideoPage from "./pages/VideoPage";
-import Recommended from "./pages/Recommended"
+import Recommended from "./pages/Recommended";
 import CategoryPage from "./pages/CategoryPage";
 import PremiumPage from "./pages/PremiumPage";
 import AdminPanel from "./pages/AdminPanel";
