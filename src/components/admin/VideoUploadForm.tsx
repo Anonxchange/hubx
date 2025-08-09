@@ -8,7 +8,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Progress } from '@/components/ui/progress';
 import TagManager from './TagManager';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadVideo, VideoUpload } from '@/services/videosService';
@@ -24,8 +23,8 @@ const VideoUploadForm = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
-  const [isMomentVideo, setIsMomentVideo] = useState(false);
 
+  // Unified form data includes is_premium and is_moment flags
   const [formData, setFormData] = useState<
     VideoUpload & { is_premium?: boolean; is_moment?: boolean }
   >({
@@ -40,16 +39,25 @@ const VideoUploadForm = () => {
     is_moment: false,
   });
 
+  // When moment toggle changes, update formData.is_moment too
+  const handleMomentToggle = (checked: boolean) => {
+    setFormData((prev) => ({ ...prev, is_moment: checked }));
+  };
+
+  // When premium toggle changes, update formData.is_premium
+  const handlePremiumToggle = (checked: boolean) => {
+    setFormData((prev) => ({ ...prev, is_premium: checked }));
+  };
+
   const uploadMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Combine tags: form tags + custom tags + moment tags if toggled
-      let finalTags = [...data.tags, ...customTags];
-      if (isMomentVideo) {
+      // Combine tags: form tags + custom tags + moment tags if is_moment is true
+      let finalTags = [...(data.tags || []), ...customTags];
+      if (data.is_moment) {
         finalTags = [...finalTags, 'vertical', 'short', 'moment'];
       }
-
-      // Call uploadVideo service with updated tags and is_moment flag
-      return uploadVideo({ ...data, tags: finalTags, is_moment: isMomentVideo });
+      // Call uploadVideo service with updated tags and flags
+      return uploadVideo({ ...data, tags: finalTags });
     },
     onSuccess: () => {
       toast({
@@ -58,11 +66,17 @@ const VideoUploadForm = () => {
       });
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['videos'] });
-      if (isMomentVideo) {
-        navigate('/moments');
-      } else {
-        navigate('/'); // or your default route for normal uploads
-      }
+
+      // **STOP automatic redirect to homepage**
+      // You can manually navigate or just stay on upload page
+      // Example: navigate('/moments') if you want moments page after moment video upload
+
+      // If you want no redirect at all, just comment out navigate lines:
+      // if (formData.is_moment) {
+      //   navigate('/moments');
+      // } else {
+      //   navigate('/');
+      // }
     },
     onError: (error) => {
       toast({
@@ -92,7 +106,6 @@ const VideoUploadForm = () => {
     setSelectedFile(null);
     setUploadProgress(0);
     setIsProcessing(false);
-    setIsMomentVideo(false);
   };
 
   const handleInputChange = (
@@ -147,8 +160,6 @@ const VideoUploadForm = () => {
       }
     }
   };
-
-  // Add your video processing function here if needed
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,8 +275,8 @@ const VideoUploadForm = () => {
           <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
             <Switch
               id="moment-video"
-              checked={isMomentVideo}
-              onCheckedChange={setIsMomentVideo}
+              checked={!!formData.is_moment}
+              onCheckedChange={handleMomentToggle}
               className="data-[state=checked]:bg-orange-500"
             />
             <div>
@@ -351,10 +362,8 @@ const VideoUploadForm = () => {
           <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
             <Switch
               id="premium"
-              checked={formData.is_premium}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({ ...prev, is_premium: checked }))
-              }
+              checked={!!formData.is_premium}
+              onCheckedChange={handlePremiumToggle}
             />
             <div className="flex-1">
               <Label
@@ -372,9 +381,9 @@ const VideoUploadForm = () => {
           <Button
             type="submit"
             className="w-full"
-            disabled={uploadMutation.isPending || isProcessing}
+            disabled={uploadMutation.isLoading || isProcessing}
           >
-            {uploadMutation.isPending
+            {uploadMutation.isLoading
               ? 'Uploading...'
               : isProcessing
               ? 'Processing Video...'
