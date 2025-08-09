@@ -40,7 +40,7 @@ const mobileNavItems: MobileNavItem[] = [
   { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
   { name: 'Featured Videos', icon: Play, path: '/', badge: null },
   { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
-  { name: 'Moment', icon: Clock, path: '/moment', badge: null },
+  { name: 'Moment', icon: Clock, path: '/moments', badge: null },
   { name: 'Hottest', icon: Flame, path: '/hottest', badge: 'HOT' },
   { name: 'Channel', icon: Tv, path: '/channel', badge: null },
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
