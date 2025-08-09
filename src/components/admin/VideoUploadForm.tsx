@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import TagManager from './TagManager';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { uploadVideo, VideoUpload } from '@/services/videosService';
-import { supabase } from '@/integrations/supabase/client';
+// No more Supabase imports - using our server API instead
 
 const VideoUploadForm = () => {
   const { toast } = useToast();
@@ -23,7 +23,7 @@ const VideoUploadForm = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
 
-  const [formData, setFormData] = useState<VideoUpload & { is_premium?: boolean }>({
+  const [formData, setFormData] = useState<VideoUpload & { is_premium?: boolean; is_short?: boolean }>({
     title: '',
     description: '',
     video_url: '',
@@ -31,7 +31,8 @@ const VideoUploadForm = () => {
     preview_url: '',
     duration: '',
     tags: [],
-    is_premium: false
+    is_premium: false,
+    is_short: false
   });
 
   const uploadMutation = useMutation({
@@ -65,7 +66,8 @@ const VideoUploadForm = () => {
       preview_url: '',
       duration: '',
       tags: [],
-      is_premium: false
+      is_premium: false,
+      is_short: false
     });
     setCustomTags([]);
     setSelectedFile(null);
@@ -327,6 +329,37 @@ const VideoUploadForm = () => {
             </div>
           </div>
 
+          {/* Short Video Toggle */}
+          <div className="flex items-center space-x-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+            <Switch
+              id="short"
+              checked={formData.is_short}
+              onCheckedChange={(checked) => {
+                setFormData(prev => ({ ...prev, is_short: checked }));
+                // Auto-add short video tags when enabled
+                if (checked) {
+                  const shortTags = ['vertical', 'short', 'moment'];
+                  const newTags = [...new Set([...customTags, ...shortTags])];
+                  setCustomTags(newTags);
+                  setFormData(prev => ({ ...prev, tags: newTags }));
+                } else {
+                  // Remove short video tags when disabled
+                  const filteredTags = customTags.filter(tag => !['vertical', 'short', 'moment'].includes(tag));
+                  setCustomTags(filteredTags);
+                  setFormData(prev => ({ ...prev, tags: filteredTags }));
+                }
+              }}
+            />
+            <div className="flex-1">
+              <Label htmlFor="short" className="text-base font-medium cursor-pointer text-orange-700">
+                Short Video / Moment
+              </Label>
+              <p className="text-sm text-orange-600">
+                Mark as a short vertical video for the moments feed (auto-adds relevant tags)
+              </p>
+            </div>
+          </div>
+
           <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -390,16 +423,18 @@ const VideoUploadForm = () => {
 
           <Button 
             type="submit" 
-            className="w-full" 
+            className={`w-full ${formData.is_short ? 'bg-orange-600 hover:bg-orange-700' : ''}`}
             disabled={uploadMutation.isPending || isProcessing}
           >
             {uploadMutation.isPending 
-              ? 'Uploading...' 
+              ? formData.is_short ? 'Uploading Short...' : 'Uploading...'
               : isProcessing 
                 ? 'Processing Video...' 
                 : uploadMethod === 'file' && selectedFile && !formData.video_url
                   ? 'Process Video'
-                  : 'Upload Video'
+                  : formData.is_short 
+                    ? 'Upload Short Video'
+                    : 'Upload Video'
             }
           </Button>
         </form>
