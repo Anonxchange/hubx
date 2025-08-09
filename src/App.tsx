@@ -15,7 +15,7 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
-import Recommended from "./components/Recommended"; // Add this import
+import RecommendedPage from "./pages/RecommendedPage";
 
 const queryClient = new QueryClient();
 
@@ -28,7 +28,7 @@ const App = () => (
         <AgeGateWrapper>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/recommended" element={<Recommended />} /> {/* Add this route */}
+            <Route path="/recommended" element={<RecommendedPage />} />
             <Route path="/video/:id" element={<VideoPage />} />
             <Route path="/category/:category" element={<CategoryPage />} />
             <Route path="/premium" element={<PremiumPage />} />
