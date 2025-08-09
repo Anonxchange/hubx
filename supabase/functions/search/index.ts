@@ -1,5 +1,4 @@
-// Search videos stored in BunnyCDN but indexed in Supabase DB
-
+// Supabase Edge Function: Search videos table for matches
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -19,11 +18,12 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Search in metadata table
+    // Search videos table
     const { data, error } = await supabase
-      .from("videos") // <-- replace with your actual table name
+      .from("videos")
       .select("*")
-      .ilike("title", `%${searchTerm}%`); // case-insensitive partial match
+      .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.ilike.%${searchTerm}%`)
+      .limit(50);
 
     if (error) throw error;
 
