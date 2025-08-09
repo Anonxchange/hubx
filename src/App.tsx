@@ -13,7 +13,6 @@ import AdminPanel from "./pages/AdminPanel";
 import ContactUs from "./pages/ContactUs";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
-import Recommended from "./pages/Recommended";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
@@ -35,7 +34,6 @@ const App = () => (
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/terms" element={<TermsOfService />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/recommended" element={<Recommended />} />
             <Route path="/admin-hubx-2024" element={<AdminPanel />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
