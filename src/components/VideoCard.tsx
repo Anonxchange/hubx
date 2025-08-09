@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Eye, ThumbsUp } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Eye, ThumbsUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
@@ -9,26 +8,21 @@ import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 interface Video {
   id: string;
   title: string;
-  description?: string;
   video_url: string;
   thumbnail_url?: string;
   preview_url?: string;
   duration: string;
   views: number;
   likes: number;
-  tags: string[];
-  created_at: string;
 }
 
 interface VideoCardProps {
   video: Video;
-  viewMode?: 'grid' | 'list';
 }
 
-const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
+const VideoCard: React.FC<VideoCardProps> = ({ video }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [currentPreviewTime, setCurrentPreviewTime] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previewCycleRef = useRef<NodeJS.Timeout | null>(null);
@@ -59,21 +53,6 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
         videoRef.current.play().catch((error) => {
           console.error('Video play failed:', error);
         });
-
-        if (!video.preview_url || video.preview_url.trim() === '') {
-          const previewTimes = [10, 30, 60, 90];
-          let timeIndex = 0;
-
-          previewCycleRef.current = setInterval(() => {
-            timeIndex = (timeIndex + 1) % previewTimes.length;
-            const newTime = previewTimes[timeIndex];
-            setCurrentPreviewTime(newTime);
-
-            if (videoRef.current) {
-              videoRef.current.currentTime = newTime;
-            }
-          }, 3000);
-        }
       }
     }, 2000);
   };
@@ -81,20 +60,15 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const handleMouseLeave = () => {
     setIsHovered(false);
     setShowPreview(false);
-    setCurrentPreviewTime(0);
 
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
-      hoverTimeoutRef.current = null;
     }
     if (previewCycleRef.current) {
       clearInterval(previewCycleRef.current);
-      previewCycleRef.current = null;
     }
-
     if (videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.currentTime = 0;
       videoRef.current.src = '';
     }
   };
@@ -105,28 +79,17 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     return views.toString();
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
   return (
     <Link to={`/video/${video.id}`} className="block">
       <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden bg-transparent border-none">
+        {/* Thumbnail */}
         <div
-          className="relative w-full h-[200px] bg-muted overflow-hidden rounded-md"
+          className="relative w-full h-[150px] bg-muted overflow-hidden rounded-md"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
           <LazyImage
-            src={
-              video.thumbnail_url && video.thumbnail_url.trim() !== ''
-                ? video.thumbnail_url
-                : '/fallback-thumbnail.jpg'
-            }
+            src={video.thumbnail_url || '/fallback-thumbnail.jpg'}
             alt={video.title}
             width={400}
             height={300}
@@ -134,29 +97,26 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               showPreview ? 'opacity-0' : 'opacity-100'
             }`}
           />
-          {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
+          {showPreview && (
             <video
               ref={videoRef}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                showPreview ? 'opacity-100' : 'opacity-0'
-              }`}
+              className="absolute inset-0 w-full h-full object-cover opacity-100"
               muted
-              loop={!!video.preview_url}
               playsInline
               preload={getVideoPreloadStrategy()}
             />
-          ) : null}
-          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1.5 py-0.5 rounded">
+          )}
+          <div className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 py-0.5 rounded">
             {video.duration}
           </div>
         </div>
 
+        {/* Content */}
         <CardContent className="p-2 space-y-1">
-          <h3 className="font-medium text-sm line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+          <h3 className="font-medium text-xs text-white line-clamp-2 leading-tight">
             {video.title}
           </h3>
-
-          <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+          <div className="flex items-center space-x-3 text-[11px] text-muted-foreground">
             <span className="flex items-center">
               <ThumbsUp className="w-3 h-3 mr-1" />
               {video.likes || 0}%
