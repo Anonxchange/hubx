@@ -295,11 +295,18 @@ const Header = () => {
             </Link>
 
             <Link
+             to="/recommended"
+            className={`text-sm font-medium text-white hover:text-orange-500 transition-colors ${location.pathname === '/recommended' ? 'text-orange-500' : ''}`}
+             >
+               RECOMMENDED
+             </Link>
+
+            <Link
               to="/premium"
               className={`text-sm font-medium text-white hover:text-orange-500 transition-colors flex items-center space-x-1 ${location.pathname === '/premium' ? 'text-orange-500' : ''}`}
             >
               <Star className="w-4 h-4" />
-              <span>VIDEOS</span>
+              <span>PREMIUM</span>
             </Link>
 
 
