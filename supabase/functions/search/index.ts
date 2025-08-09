@@ -1,4 +1,4 @@
-// Supabase Edge Function: Search files in your "hubx" storage bucket (recursive search)
+// Search videos stored in BunnyCDN but indexed in Supabase DB
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -19,31 +19,15 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Helper function to recursively list all files
-    async function listAllFiles(path = ""): Promise<any[]> {
-      const { data, error } = await supabase.storage.from("hubx").list(path, { limit: 1000 });
-      if (error) throw error;
+    // Search in metadata table
+    const { data, error } = await supabase
+      .from("videos") // <-- replace with your actual table name
+      .select("*")
+      .ilike("title", `%${searchTerm}%`); // case-insensitive partial match
 
-      let files: any[] = [];
-      for (const item of data) {
-        if (item.name.endsWith("/")) {
-          // If it's a folder, search inside
-          const subFiles = await listAllFiles(`${path}${item.name}`);
-          files = files.concat(subFiles);
-        } else {
-          files.push({ ...item, fullPath: `${path}${item.name}` });
-        }
-      }
-      return files;
-    }
+    if (error) throw error;
 
-    const allFiles = await listAllFiles();
-
-    const results = allFiles.filter(file =>
-      file.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    return new Response(JSON.stringify(results), {
+    return new Response(JSON.stringify(data), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
