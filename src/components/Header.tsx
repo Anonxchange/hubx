@@ -36,10 +36,8 @@ interface MobileNavItem {
 }
 
 const mobileNavItems: MobileNavItem[] = [
-  { name: 'Recommended', icon: Thumbsup, path:'/', badge: null },
   { name: 'Featured Videos', icon: Play, path: '/', badge: null },
   { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
-  { nane: 'Moment', icon: Camera, path: '/moment', badge: null },
   { name: 'Channel', icon: Tv, path: '/channel', badge: null },
   { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
