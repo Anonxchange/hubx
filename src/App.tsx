@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import AgeGateWrapper from "./components/AgeGateWrapper";
 import Index from "./pages/Index";
 import VideoPage from "./pages/VideoPage";
-import Recommended from "./pages/Recommended";
 import CategoryPage from "./pages/CategoryPage";
 import PremiumPage from "./pages/PremiumPage";
 import AdminPanel from "./pages/AdminPanel";
@@ -31,7 +30,6 @@ const App = () => (
             <Route path="/video/:id" element={<VideoPage />} />
             <Route path="/category/:category" element={<CategoryPage />} />
             <Route path="/premium" element={<PremiumPage />} />
-            <Route path="/recommended" element={<Recommended />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/terms" element={<TermsOfService />} />
