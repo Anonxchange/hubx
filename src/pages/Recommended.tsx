@@ -1,6 +1,4 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
 
 interface Video {
@@ -9,7 +7,7 @@ interface Video {
   thumbnail_url: string;
   video_url: string;
   views: number;
-  tags: string[];
+  tags: string[]; // Make sure this matches your DB type
 }
 
 export default function Recommended() {
@@ -39,7 +37,7 @@ export default function Recommended() {
       <div className="video-grid">
         {videos.map((video) => (
           <div key={video.uuid} className="video-card">
-            <img src={video.thumbnail_url} alt={video.title} />
+            <img src={video.thumbnail_url} alt={video.title || "video thumbnail"} />
             <p>{video.title}</p>
           </div>
         ))}
@@ -47,5 +45,3 @@ export default function Recommended() {
     </div>
   );
 }
-
-export default Recommended;
