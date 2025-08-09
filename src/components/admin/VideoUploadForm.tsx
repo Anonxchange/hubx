@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Upload, Video, FileVideo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,20 +8,20 @@ import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
-import TagManager from './TagManager';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 const VideoUploadForm = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isMomentVideo, setIsMomentVideo] = useState(false);
-  
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -31,7 +30,7 @@ const VideoUploadForm = () => {
     preview_url: '',
     duration: '',
     tags: [] as string[],
-    is_premium: false
+    is_premium: false,
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -43,69 +42,64 @@ const VideoUploadForm = () => {
     const file = e.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      // Auto-populate title from filename if empty
       if (!formData.title) {
-        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
         setFormData(prev => ({ ...prev, title: nameWithoutExt }));
       }
     }
   };
 
+  // Keep using FormData upload to match your existing edge function
   const processVideoFile = async (file: File) => {
     setIsProcessing(true);
     setUploadProgress(0);
 
     try {
-      // Create form data for the edge function
-      const uploadFormData = new FormData();
-      uploadFormData.append('video', file);
-      uploadFormData.append('title', formData.title || file.name);
+      const formDataToSend = new FormData();
+      formDataToSend.append('video', file);
+      formDataToSend.append('title', formData.title || file.name);
 
-      // Call the video processing edge function
       const { data, error } = await supabase.functions.invoke('process-video', {
-        body: uploadFormData
+        body: formDataToSend,
+        // DO NOT set Content-Type header here! Let the browser handle multipart boundary.
       });
 
       if (error) throw error;
 
-      // Update form with processed video URLs
       setFormData(prev => ({
         ...prev,
         video_url: data.video_url,
         thumbnail_url: data.thumbnail_url,
         preview_url: data.preview_url,
-        duration: data.duration
+        duration: data.duration,
       }));
 
       setUploadProgress(100);
-      
-      toast({
-        title: "Processing Complete",
-        description: "Video processed successfully! You can now submit the form.",
-      });
 
+      toast({
+        title: 'Processing Complete',
+        description: 'Video processed successfully! You can now submit the form.',
+      });
     } catch (error) {
       console.error('Error processing video:', error);
       toast({
-        title: "Processing Failed",
-        description: `Failed to process video: ${error.message}`,
-        variant: "destructive",
+        title: 'Processing Failed',
+        description: `Failed to process video: ${error instanceof Error ? error.message : String(error)}`,
+        variant: 'destructive',
       });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Upload mutation that saves directly to Supabase
   const uploadMutation = useMutation({
     mutationFn: async (videoData: typeof formData) => {
-      // Prepare tags - add moment tags if enabled
+      // Merge tags & add moment tags if toggle is on
       let finalTags = [...videoData.tags, ...customTags];
       if (isMomentVideo) {
         finalTags = [...finalTags, 'vertical', 'short', 'moment'];
       }
 
-      // Insert video directly into Supabase database
       const { data, error } = await supabase
         .from('videos')
         .insert({
@@ -119,7 +113,7 @@ const VideoUploadForm = () => {
           is_premium: videoData.is_premium,
           views: 0,
           likes: 0,
-          dislikes: 0
+          dislikes: 0,
         })
         .select()
         .single();
@@ -129,11 +123,12 @@ const VideoUploadForm = () => {
     },
     onSuccess: () => {
       toast({
-        title: "Success!",
-        description: isMomentVideo ? "Moment video uploaded successfully!" : "Video uploaded successfully!",
+        title: 'Success!',
+        description: isMomentVideo
+          ? 'Moment video uploaded successfully!'
+          : 'Video uploaded successfully!',
       });
-      
-      // Reset form
+
       setFormData({
         title: '',
         description: '',
@@ -142,20 +137,20 @@ const VideoUploadForm = () => {
         preview_url: '',
         duration: '',
         tags: [],
-        is_premium: false
+        is_premium: false,
       });
       setCustomTags([]);
       setSelectedFile(null);
       setIsMomentVideo(false);
       setUploadProgress(0);
-      
+
       queryClient.invalidateQueries({ queryKey: ['videos'] });
     },
-    onError: (error) => {
+    onError: error => {
       toast({
-        title: "Upload Failed",
-        description: `Failed to upload video: ${error.message}`,
-        variant: "destructive",
+        title: 'Upload Failed',
+        description: `Failed to upload video: ${error instanceof Error ? error.message : String(error)}`,
+        variant: 'destructive',
       });
     },
   });
@@ -164,9 +159,9 @@ const VideoUploadForm = () => {
     e.preventDefault();
     if (!formData.video_url) {
       toast({
-        title: "Error",
-        description: "Please process a video file first.",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Please process a video file first.',
+        variant: 'destructive',
       });
       return;
     }
@@ -189,12 +184,12 @@ const VideoUploadForm = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Video className="w-6 h-6" />
-          {isMomentVideo ? "Upload Moment Video" : "Upload Video"}
+          {isMomentVideo ? 'Upload Moment Video' : 'Upload Video'}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Moment Video Toggle */}
+          {/* Moment Toggle */}
           <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
             <Switch
               id="moment-video"
@@ -251,7 +246,7 @@ const VideoUploadForm = () => {
             )}
           </div>
 
-          {/* Progress Bar */}
+          {/* Progress */}
           {(isProcessing || uploadProgress > 0) && (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
@@ -262,7 +257,7 @@ const VideoUploadForm = () => {
             </div>
           )}
 
-          {/* Basic Information */}
+          {/* Title & Duration */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
@@ -289,6 +284,7 @@ const VideoUploadForm = () => {
             </div>
           </div>
 
+          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -301,7 +297,7 @@ const VideoUploadForm = () => {
             />
           </div>
 
-          {/* URLs (Read-only after processing) */}
+          {/* URLs */}
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="video_url">Video URL</Label>
@@ -309,9 +305,8 @@ const VideoUploadForm = () => {
                 id="video_url"
                 name="video_url"
                 value={formData.video_url}
-                onChange={handleInputChange}
-                placeholder="Video URL (auto-filled after processing)"
                 readOnly
+                placeholder="Video URL (auto-filled after processing)"
               />
             </div>
 
@@ -321,31 +316,30 @@ const VideoUploadForm = () => {
                 id="thumbnail_url"
                 name="thumbnail_url"
                 value={formData.thumbnail_url}
-                onChange={handleInputChange}
-                placeholder="Thumbnail URL (auto-filled after processing)"
                 readOnly
+                placeholder="Thumbnail URL (auto-filled after processing)"
               />
             </div>
           </div>
 
-          {/* Tags */}
+          {/* Custom Tags */}
           <div className="space-y-4">
             <Label>Custom Tags</Label>
             <div className="flex space-x-2">
               <Input
                 value={newTag}
-                onChange={(e) => setNewTag(e.target.value)}
+                onChange={e => setNewTag(e.target.value)}
                 placeholder="Add custom tag"
-                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomTag())}
+                onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addCustomTag())}
               />
               <Button type="button" onClick={addCustomTag}>
                 Add Tag
               </Button>
             </div>
-            
+
             {customTags.length > 0 && (
               <div className="flex flex-wrap gap-2">
-                {customTags.map((tag) => (
+                {customTags.map(tag => (
                   <span
                     key={tag}
                     className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary/10 text-primary"
@@ -366,7 +360,8 @@ const VideoUploadForm = () => {
             {isMomentVideo && (
               <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
                 <p className="text-sm text-orange-700 dark:text-orange-300">
-                  <strong>Moment Video Tags:</strong> 'vertical', 'short', 'moment' will be automatically added
+                  <strong>Moment Video Tags:</strong> 'vertical', 'short', 'moment' will be
+                  automatically added
                 </p>
               </div>
             )}
@@ -377,20 +372,18 @@ const VideoUploadForm = () => {
             <Switch
               id="is_premium"
               checked={formData.is_premium}
-              onCheckedChange={(checked) =>
-                setFormData(prev => ({ ...prev, is_premium: checked }))
-              }
+              onCheckedChange={checked => setFormData(prev => ({ ...prev, is_premium: checked }))}
             />
             <Label htmlFor="is_premium">Premium Content</Label>
           </div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <Button
             type="submit"
             className="w-full"
-            disabled={uploadMutation.isPending || !formData.video_url}
+            disabled={uploadMutation.isLoading || !formData.video_url}
           >
-            {uploadMutation.isPending ? (
+            {uploadMutation.isLoading ? (
               <>
                 <Upload className="w-4 h-4 mr-2 animate-spin" />
                 Uploading...
@@ -398,7 +391,7 @@ const VideoUploadForm = () => {
             ) : (
               <>
                 <Upload className="w-4 h-4 mr-2" />
-                {isMomentVideo ? "Upload Moment Video" : "Upload Video"}
+                {isMomentVideo ? 'Upload Moment Video' : 'Upload Video'}
               </>
             )}
           </Button>
