@@ -56,7 +56,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               <LazyImage
                 src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
                 alt={video.title}
-                width={300}
+                width={400}
                 height={200}
                 className="w-full h-full"
               />
