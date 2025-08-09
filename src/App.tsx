@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import VideoPage from "./pages/VideoPage";
 import CategoryPage from "./pages/CategoryPage";
 import AllCategoriesPage from "./pages/AllCategoriesPage";
+import MomentsPage from "./pages/MomentsPage";
 import RecommendedPage from "./pages/RecommendedPage";
 import PremiumPage from "./pages/PremiumPage";
 import AdminPanel from "./pages/AdminPanel";
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/video/:id" element={<VideoPage />} />
             <Route path="/category/:category" element={<CategoryPage />} />
             <Route path="/categories" element={<AllCategoriesPage />} />
+            <Route path="/moments" element={<MomentsPage />} />
             <Route path="/recommended" element={<RecommendedPage />} />
             <Route path="/premium" element={<PremiumPage />} />
             <Route path="/auth" element={<AuthPage />} />
