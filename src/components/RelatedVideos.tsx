@@ -18,26 +18,30 @@ interface RelatedVideosProps {
 }
 
 const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
+  // Start with 10 visible videos so "Show More" can appear if >10 videos exist
+  const [visibleCount, setVisibleCount] = useState(10);
   const [activeTab, setActiveTab] = useState('related');
-  const [visibleCount, setVisibleCount] = useState(20);
 
-  // Calculate max visible depending on videos length capped at 30
   const maxVisible = Math.min(30, videos.length);
-
-  // Show button only if more videos can be revealed
   const canShowMore = visibleCount < maxVisible;
+
+  // Debug logs to check values in console
+  console.log('videos.length:', videos.length);
+  console.log('visibleCount:', visibleCount);
+  console.log('maxVisible:', maxVisible);
+  console.log('canShowMore:', canShowMore);
 
   const handleShowMore = () => {
     setVisibleCount((prev) => Math.min(prev + 10, maxVisible));
   };
 
-  const displayedVideos = videos.slice(0, visibleCount);
+  const displayedVideos = videos.slice(0, visibleCount > videos.length ? videos.length : visibleCount);
 
   const tabs = [
     { id: 'related', label: 'Related' },
     { id: 'recommend', label: 'Recommend' },
     { id: 'comment', label: 'Comment' },
-    { id: 'playlist', label: 'Playlist' }
+    { id: 'playlist', label: 'Playlist' },
   ];
 
   return (
@@ -72,7 +76,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
                 <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
                 <script
                   dangerouslySetInnerHTML={{
-                    __html: '(AdProvider = window.AdProvider || []).push({"serve": {}});'
+                    __html: '(AdProvider = window.AdProvider || []).push({"serve": {}});',
                   }}
                 ></script>
               </div>
@@ -100,9 +104,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
           </div>
         )}
 
-        {videos.length === 0 && (
-          <p className="text-muted-foreground text-sm">No related videos found</p>
-        )}
+        {videos.length === 0 && <p className="text-muted-foreground text-sm">No related videos found</p>}
       </div>
 
       {/* Add Footer */}
