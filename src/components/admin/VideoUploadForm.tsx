@@ -127,30 +127,38 @@ const VideoUploadForm = () => {
     }
   };
 
+  // === UPDATED function ===
   const processVideoFile = async (file: File) => {
     setIsProcessing(true);
     setUploadProgress(0);
 
     try {
-      // Create form data for the edge function
-      const uploadFormData = new FormData();
-      uploadFormData.append('video', file);
-      uploadFormData.append('title', formData.title || file.name);
+      // Convert file to base64 string
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+          if (typeof reader.result === 'string') resolve(reader.result);
+          else reject('Failed to read file');
+        };
+        reader.onerror = (error) => reject(error);
+      });
 
-      // Call the video processing edge function
       const { data, error } = await supabase.functions.invoke('process-video', {
-        body: uploadFormData
+        body: JSON.stringify({
+          title: formData.title || file.name,
+          video_base64: fileBase64,
+        }),
       });
 
       if (error) throw error;
 
-      // Update form with processed video URLs
       setFormData(prev => ({
         ...prev,
         video_url: data.video_url,
         thumbnail_url: data.thumbnail_url,
         preview_url: data.preview_url,
-        duration: data.duration
+        duration: data.duration,
       }));
 
       setUploadProgress(100);
@@ -171,6 +179,7 @@ const VideoUploadForm = () => {
       setUploadProgress(0);
     }
   };
+  // === end updated function ===
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
