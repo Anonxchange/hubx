@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +8,8 @@ import AgeGateWrapper from "./components/AgeGateWrapper";
 import Index from "./pages/Index";
 import VideoPage from "./pages/VideoPage";
 import CategoryPage from "./pages/CategoryPage";
+import AllCategoriesPage from "./pages/AllCategoriesPage";
+import RecommendedPage from "./pages/RecommendedPage";
 import PremiumPage from "./pages/PremiumPage";
 import AdminPanel from "./pages/AdminPanel";
 import ContactUs from "./pages/ContactUs";
@@ -16,7 +17,6 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
-import RecommendedPage from "./pages/RecommendedPage";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +31,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/video/:id" element={<VideoPage />} />
             <Route path="/category/:category" element={<CategoryPage />} />
+            <Route path="/categories" element={<AllCategoriesPage />} />
             <Route path="/recommended" element={<RecommendedPage />} />
             <Route path="/premium" element={<PremiumPage />} />
             <Route path="/auth" element={<AuthPage />} />
