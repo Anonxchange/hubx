@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv, X, Upload, Image, Clock } from 'lucide-react';
@@ -40,7 +39,7 @@ const mobileNavItems: MobileNavItem[] = [
   { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
   { name: 'Featured Videos', icon: Play, path: '/', badge: null },
   { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
-  { name: 'Moment', icon: Clock, path: '/moments', badge: null },
+  { name: 'Moment', icon: Clock, path: '/moment', badge: null },
   { name: 'Hottest', icon: Flame, path: '/hottest', badge: 'HOT' },
   { name: 'Channel', icon: Tv, path: '/channel', badge: null },
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
@@ -55,7 +54,7 @@ const Header = () => {
   const [isFullScreenSearch, setIsFullScreenSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  
+
   // Load recent searches from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('recentSearches');
@@ -79,7 +78,7 @@ const Header = () => {
       const newRecentSearches = [searchQuery.trim(), ...recentSearches.filter(s => s !== searchQuery.trim())].slice(0, 5);
       setRecentSearches(newRecentSearches);
       localStorage.setItem('recentSearches', JSON.stringify(newRecentSearches));
-      
+
       navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`);
       setIsSearchOpen(false);
       setIsFullScreenSearch(false);
@@ -93,7 +92,7 @@ const Header = () => {
     const newRecentSearches = [searchTerm, ...recentSearches.filter(s => s !== searchTerm)].slice(0, 5);
     setRecentSearches(newRecentSearches);
     localStorage.setItem('recentSearches', JSON.stringify(newRecentSearches));
-    
+
     navigate(`/?search=${encodeURIComponent(searchTerm)}`);
     setIsFullScreenSearch(false);
     setSearchQuery('');
@@ -149,7 +148,7 @@ const Header = () => {
                   <Search className="h-4 w-4" />
                 </Button>
               </div>
-              
+
               {/* Upload Icons */}
               <Button 
                 variant="ghost" 
@@ -159,7 +158,7 @@ const Header = () => {
               >
                 <Upload className="h-5 w-5" />
               </Button>
-              
+
               <Button 
                 variant="ghost" 
                 size="sm" 
@@ -181,7 +180,7 @@ const Header = () => {
               >
                 <Search className="h-5 w-5" />
               </Button>
-              
+
               <Link to="/auth">
                 <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
                   <User className="h-5 w-5" />
@@ -205,7 +204,7 @@ const Header = () => {
                     <div className="flex items-center justify-between p-6 border-b border-border">
                       <h2 className="text-lg font-semibold">Menu</h2>
                     </div>
-                    
+
                     {/* Navigation Items */}
                     <div className="flex-1 overflow-y-auto">
                       <div className="p-4 space-y-2">
@@ -371,6 +370,13 @@ const Header = () => {
             >
               PHOTOS & GIFS
             </Link>
+            <Link to="/categories" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Categories
+          </Link>
+          <Link to="/moments" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+            Moments
+            <Badge variant="secondary" className="text-xs px-1 py-0">BETA</Badge>
+          </Link>
           </div>
         </div>
       </div>
@@ -406,7 +412,7 @@ const Header = () => {
           {/* Search Content */}
           <div className="flex-1 overflow-y-auto p-4">
             <div className="max-w-2xl mx-auto space-y-6">
-              
+
               {/* Recent Searches */}
               {recentSearches.length > 0 && (
                 <div>
