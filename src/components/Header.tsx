@@ -202,23 +202,7 @@ const Header = () => {
                   <div className="flex flex-col h-full">
                     {/* Header */}
                     <div className="flex items-center justify-between p-6 border-b border-border">
-                      <div className="flex items-center space-x-3">
-                        <h2 className="text-lg font-semibold">Menu</h2>
-                        <div className="flex items-center space-x-2">
-                          {/* Straight Icon */}
-                          <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center" title="Straight">
-                            <span className="text-white text-xs font-bold">♂♀</span>
-                          </div>
-                          {/* Lesbian Icon */}
-                          <div className="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center" title="Lesbian">
-                            <span className="text-white text-xs font-bold">♀♀</span>
-                          </div>
-                          {/* Gay Icon */}
-                          <div className="w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center" title="Gay">
-                            <span className="text-white text-xs font-bold">♂♂</span>
-                          </div>
-                        </div>
-                      </div>
+                      <h2 className="text-lg font-semibold">Menu</h2>
                     </div>
 
                     {/* Navigation Items */}
@@ -268,12 +252,6 @@ const Header = () => {
                         <div className="border-t border-border pt-4">
                           <h3 className="text-sm font-semibold text-muted-foreground mb-3 px-2">Categories</h3>
                           <div className="space-y-1">
-                            <Link
-                              to="/categories"
-                              className="flex items-center p-3 rounded-lg hover:bg-muted/50 transition-colors border-b border-border mb-2"
-                            >
-                              <span className="text-sm font-semibold text-orange-500">All Categories</span>
-                            </Link>
                             {categories.map((category) => (
                               <Link
                                 key={category}
@@ -330,309 +308,28 @@ const Header = () => {
               <span>PREMIUM</span>
             </Link>
 
+
+
             {/* Categories Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="text-sm font-bold text-white hover:text-orange-500 transition-colors h-auto p-0 flex items-center space-x-1">
+                <Button variant="ghost" className="text-sm font-medium text-white hover:text-orange-500 transition-colors h-auto p-0 flex items-center space-x-1">
                   <span>CATEGORIES</span>
                   <ChevronDown className="w-3 h-3" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-72 bg-black backdrop-blur z-50 border border-gray-800 max-h-96 overflow-y-auto">
-                <div className="p-2">
-                  <DropdownMenuItem asChild>
-                    <Link to="/categories" className="text-sm text-orange-500 hover:bg-gray-800 hover:text-orange-400 rounded px-3 py-2 block font-semibold border-b border-gray-700 mb-2">All Categories</Link>
-                  </DropdownMenuItem>
-                </div>
-                <div className="grid grid-cols-2 gap-1 p-2"></div>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/18-25" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">18-25</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/60fps" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">60FPS</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/amateur" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Amateur</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/anal" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Anal</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/arab" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Arab</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/asian" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Asian</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/babe" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Babe</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/babysitter" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Babysitter (18+)</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/bbw" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">BBW</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/behind-the-scenes" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Behind The Scenes</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/big-ass" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Big Ass</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/big-dick" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Big Dick</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/big-tits" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Big Tits</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/blonde" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Blonde</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/blowjob" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Blowjob</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/bondage" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Bondage</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/brazilian" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Brazilian</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/british" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">British</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/brunette" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Brunette</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/cartoon" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Cartoon</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/casting" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Casting</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/college" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">College (18+)</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/compilation" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Compilation</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/cosplay" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Cosplay</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/creampie" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Creampie</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/cumshot" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Cumshot</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/czech" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Czech</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/double-penetration" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Double Penetration</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/ebony" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Ebony</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/euro" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Euro</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/exclusive" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Exclusive</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/feet" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Feet</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/female-orgasm" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Female Orgasm</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/fetish" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Fetish</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/fingering" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Fingering</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/fisting" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Fisting</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/french" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">French</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/funny" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Funny</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/gaming" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Gaming</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/gangbang" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Gangbang</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/german" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">German</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/handjob" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Handjob</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/hardcore" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Hardcore</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/hd" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">HD Porn</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/hentai" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Hentai</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/indian" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Indian</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/interactive" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Interactive</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/interracial" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Interracial</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/italian" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Italian</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/japanese" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Japanese</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/korean" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Korean</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/latina" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Latina</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/lesbian" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Lesbian</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/massage" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Massage</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/masturbation" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Masturbation</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/mature" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Mature</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/milf" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">MILF</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/music" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Music</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/muscular-men" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Muscular Men</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/old-young" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Old/Young (18+)</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/orgy" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Orgy</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/parody" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Parody</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/party" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Party</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/pissing" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Pissing</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/podcast" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Podcast</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/popular-with-women" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Popular With Women</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/pornstar" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Pornstar</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/pov" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">POV</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/public" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Public</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/pussy-licking" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Pussy Licking</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/reality" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Reality</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/redhead" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Red Head</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/role-play" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Role Play</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/romantic" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Romantic</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/rough-sex" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Rough Sex</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/russian" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Russian</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/school" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">School (18+)</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/sfw" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">SFW</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/small-tits" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Small Tits</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/smoking" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Smoking</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/solo-female" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Solo Female</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/solo-male" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Solo Male</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/squirt" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Squirt</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/step-fantasy" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Step Fantasy</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/strap-on" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Strap On</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/striptease" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Striptease</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/tattooed-women" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Tattooed Women</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/threesome" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Threesome</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/toys" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Toys</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/transgender" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Transgender</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/verified-amateurs" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Verified Amateurs</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/verified-couples" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Verified Couples</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/verified-models" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Verified Models</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/vintage" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Vintage</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/virtual-reality" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Virtual Reality</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link to="/category/webcam" className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block">Webcam</Link>
-                  </DropdownMenuItem>
+              <DropdownMenuContent className="w-56 bg-black backdrop-blur z-50 border border-gray-800">
+                <div className="grid grid-cols-1 gap-1 p-2">
+                  {categories.map((category) => (
+                    <DropdownMenuItem key={category} asChild>
+                      <Link
+                        to={`/category/${category.toLowerCase()}`}
+                        className="text-sm text-white hover:bg-gray-800 hover:text-orange-500 rounded px-3 py-2 block capitalize"
+                      >
+                        {category}
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -673,38 +370,13 @@ const Header = () => {
             >
               PHOTOS & GIFS
             </Link>
-            
-            <Link to="/moments" className="text-sm font-bold text-white hover:text-orange-500 transition-colors flex items-center gap-1">
-              MOMENTS
-              <Badge variant="secondary" className="text-xs px-1 py-0 bg-orange-600 text-white">BETA</Badge>
-            </Link>
-
-            {/* Social Media Icons - positioned at the end */}
-            <div className="flex items-center space-x-3 ml-auto">
-              <a 
-                href="https://twitter.com/your-twitter-handle" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-white hover:text-orange-500 transition-colors p-2 hover:bg-white/10 rounded-lg"
-                title="Follow us on X (Twitter)"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-                </svg>
-              </a>
-              
-              <a 
-                href="https://discord.gg/your-discord-link" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="text-white hover:text-orange-500 transition-colors p-2 hover:bg-white/10 rounded-lg"
-                title="Join our Discord"
-              >
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.191.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z"/>
-                </svg>
-              </a>
-            </div>
+            <Link to="/categories" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Categories
+          </Link>
+          <Link to="/moments" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1">
+            Moments
+            <Badge variant="secondary" className="text-xs px-1 py-0">BETA</Badge>
+          </Link>
           </div>
         </div>
       </div>
