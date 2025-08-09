@@ -154,7 +154,7 @@ const VideoUploadForm = () => {
       }));
 
       setUploadProgress(100);
-      
+
       toast({
         title: "Processing Complete",
         description: "Video processed successfully! You can now submit the form.",
@@ -174,7 +174,7 @@ const VideoUploadForm = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.title) {
       toast({
         title: "Validation Error",
