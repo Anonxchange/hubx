@@ -39,7 +39,7 @@ const mobileNavItems: MobileNavItem[] = [
   { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
   { name: 'Featured Videos', icon: Play, path: '/', badge: null },
   { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
-  { name: 'Moment', icon: Clock, path: '/moments', badge: null },
+  { name: 'Moment', icon: Clock, path: '/moment', badge: null },
   { name: 'Hottest', icon: Flame, path: '/hottest', badge: 'HOT' },
   { name: 'Channel', icon: Tv, path: '/channel', badge: null },
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
@@ -47,12 +47,22 @@ const mobileNavItems: MobileNavItem[] = [
 ];
 
 const Header = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFullScreenSearch, setIsFullScreenSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsFullScreenSearch(false);
+    }
+  };
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
   // Load recent searches from localStorage
