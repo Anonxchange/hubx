@@ -39,7 +39,7 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
           <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
             alt={video.title}
-            width={full}
+            width={100%}
             height={200}
             className="w-full h-full group-hover:scale-105 transition-all duration-300"
           />
