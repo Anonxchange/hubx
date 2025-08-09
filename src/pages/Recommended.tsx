@@ -11,4 +11,4 @@ const RecommendedPage = () => {
   );
 };
 
-export default RecommendedPage;
+export default RecommendedPage
