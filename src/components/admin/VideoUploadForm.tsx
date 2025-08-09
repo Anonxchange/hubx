@@ -22,7 +22,7 @@ const VideoUploadForm = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [formData, setFormData] = useState<
-    VideoUpload & { is_premium?: boolean; is_moment?: boolean }
+    VideoUpload & { is_premium: boolean; is_moment: boolean }
   >({
     title: '',
     description: '',
@@ -37,12 +37,13 @@ const VideoUploadForm = () => {
 
   const uploadMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Combine tags: form tags + custom tags + moment tags if is_moment is true
+      // Merge tags from form + custom tags + moment tags
       let finalTags = [...(data.tags || []), ...customTags];
       if (data.is_moment) {
         finalTags = [...finalTags, 'vertical', 'short', 'moment'];
       }
-      return uploadVideo({ ...data, tags: finalTags });
+      // Always send the premium and moment flags explicitly
+      return uploadVideo({ ...data, tags: finalTags, is_premium: data.is_premium, is_moment: data.is_moment });
     },
     onSuccess: () => {
       toast({
@@ -51,9 +52,8 @@ const VideoUploadForm = () => {
       });
       resetForm();
       queryClient.invalidateQueries({ queryKey: ['videos'] });
-      // NO redirect here, stay on upload page
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: 'Error',
         description: 'Failed to upload video. Please try again.',
@@ -151,6 +151,7 @@ const VideoUploadForm = () => {
       return;
     }
 
+    setIsProcessing(true);
     uploadMutation.mutate(formData);
   };
 
@@ -235,7 +236,7 @@ const VideoUploadForm = () => {
           <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
             <Switch
               id="moment-video"
-              checked={!!formData.is_moment}
+              checked={formData.is_moment}
               onCheckedChange={(checked) =>
                 setFormData((prev) => ({ ...prev, is_moment: checked }))
               }
@@ -324,7 +325,7 @@ const VideoUploadForm = () => {
           <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
             <Switch
               id="premium"
-              checked={!!formData.is_premium}
+              checked={formData.is_premium}
               onCheckedChange={(checked) =>
                 setFormData((prev) => ({ ...prev, is_premium: checked }))
               }
