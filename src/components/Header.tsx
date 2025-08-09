@@ -36,13 +36,13 @@ interface MobileNavItem {
 }
 
 const mobileNavItems: MobileNavItem[] = [
-  { name: 'Featured Videos', icon: Play, path: '/', badge: null },
-  { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
-  { name: 'Channel', icon: Tv, path: '/channel', badge: null },
   { name: 'Recommended', icon: ThumbsUp, path: '/recommended', badge: null },
+  { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
+  { name: 'Featured Videos', icon: Play, path: '/', badge: null },
+  { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
   { name: 'Moment', icon: Clock, path: '/moment', badge: null },
   { name: 'Hottest', icon: Flame, path: '/hottest', badge: 'HOT' },
-  { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
+  { name: 'Channel', icon: Tv, path: '/channel', badge: null },
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
   { name: 'Live Cams', icon: Users, url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default', badge: null },
 ];
