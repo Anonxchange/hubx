@@ -39,10 +39,11 @@ const Index = () => {
     }
   }, [searchParams]);
   
+  // Use featured videos for recommended category with smart shuffle
   const { data, isLoading, error } = useOptimizedVideos(
     currentPage,
     60,
-    selectedCategory === 'All' ? undefined : selectedCategory,
+    selectedCategory === 'All' ? undefined : selectedCategory === 'recommended' ? 'featured' : selectedCategory,
     searchQuery
   );
 
