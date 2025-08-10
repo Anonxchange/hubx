@@ -197,7 +197,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     <Link to={`/video/${video.id}`} className="block">
       <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
         <div 
-          className="relative bg-muted overflow-hidden rounded-lg h-64"
+          className="relative bg-muted overflow-hidden rounded-lg"
+          style={{ aspectRatio: '16/9' }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
