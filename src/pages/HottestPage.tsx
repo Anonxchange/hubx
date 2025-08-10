@@ -75,9 +75,11 @@ const HottestPage = () => {
           {/* Top Ad Banner */}
           <div className="w-full flex justify-center">
             <div className="w-full max-w-4xl">
-              <AdComponent zoneId="5660536" />
+              <AdComponent zoneId="5660534" />
             </div>
           </div>
+        </div>
+        
         {/* Videos Grid */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
