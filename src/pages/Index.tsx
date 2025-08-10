@@ -74,7 +74,7 @@ const Index = () => {
         </div>
 
         {/* Ad Code Below Hero Text */}
-        <AdComponent zoneId="5660536" />
+        <AdComponent zoneId="5660534" />
 
         {/* Filters and View Toggle */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
