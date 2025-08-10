@@ -1,6 +1,8 @@
   import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Video, Star, DollarSign } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,11 +16,80 @@ const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  
+  const { signIn, signUp } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleGoogleAuth = async () => {
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: {
+          user_type: userType
+        }
+      }
+    });
+    
+    if (error) {
+      setError(error.message);
+    }
+  };
+
+  const handleTwitterAuth = async () => {
+    setError(null);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'twitter',
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: {
+          user_type: userType
+        }
+      }
+    });
+    
+    if (error) {
+      setError(error.message);
+    }
+  };
+
+  
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Authentication logic will be implemented later
-    console.log('Auth attempt:', { email, password, userType, isLogin });
+    setError(null);
+    setLoading(true);
+
+    if (!isLogin && password !== confirmPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (error) {
+          setError(error.message);
+        } else {
+          navigate('/');
+        }
+      } else {
+        const { error } = await signUp(email, password, userType);
+        if (error) {
+          setError(error.message);
+        } else {
+          setError('Check your email for a confirmation link');
+        }
+      }
+    } catch (err) {
+      setError('An unexpected error occurred');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -108,6 +179,12 @@ const AuthPage = () => {
             </CardHeader>
             
             <CardContent>
+              {error && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
+                  <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                </div>
+              )}
+              
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -147,8 +224,8 @@ const AuthPage = () => {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full">
-                  {isLogin ? 'Login' : 'Create Account'} as {userType === 'creator' ? 'Creator' : 'User'}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Please wait...' : `${isLogin ? 'Login' : 'Create Account'} as ${userType === 'creator' ? 'Creator' : 'User'}`}
                 </Button>
 
                 {isLogin && (
@@ -174,7 +251,7 @@ const AuthPage = () => {
             </div>
             
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={handleGoogleAuth}>
                 <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -183,11 +260,11 @@ const AuthPage = () => {
                 </svg>
                 Google
               </Button>
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={handleTwitterAuth}>
                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
                 </svg>
-                Facebook
+                Twitter
               </Button>
             </div>
           </div>
