@@ -128,17 +128,7 @@ const TrendingPage = () => {
           {/* Top Ad Banner */}
           <div className="w-full flex justify-center">
             <div className="w-full max-w-4xl">
-              <AdComponent zoneId="5661270" />
-            </div>
-          </div>
-          
-          {/* Secondary Ad Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex justify-center">
-              <AdComponent zoneId="5661270" />
-            </div>
-            <div className="flex justify-center">
-              <AdComponent zoneId="5661270" />
+              <AdComponent zoneId="5660534" />
             </div>
           </div>
         </div>
