@@ -182,10 +182,10 @@ const AllCategoriesPage = () => {
           </div>
           
           <div className="flex gap-2 items-center">
-            <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium">
+            <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold">
               All
             </button>
-            <button className="px-4 py-2 bg-card text-muted-foreground rounded-lg font-medium hover:bg-muted transition-colors">
+            <button className="px-4 py-2 bg-card text-muted-foreground rounded-lg font-bold hover:bg-muted transition-colors">
               Gay
             </button>
           </div>
