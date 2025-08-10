@@ -11,18 +11,59 @@ interface Video {
   duration: string | null;
   views: number | null;
   likes: number | null;
+  tags?: string[] | null;
+  category?: string | null;
 }
 
 interface RelatedVideosProps {
   videos: Video[];
+  currentVideo?: Video;
 }
 
-const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
+const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) => {
   // Start with 10 visible videos so "Show More" can appear if >10 videos exist
   const [visibleCount, setVisibleCount] = useState(10);
   const [activeTab, setActiveTab] = useState('related');
 
-  const maxVisible = Math.min(30, videos.length);
+  // Function to calculate relatedness score
+  const calculateRelatedness = (video: Video, current: Video): number => {
+    let score = 0;
+    
+    // Same category gets high score
+    if (video.category && current.category && video.category === current.category) {
+      score += 5;
+    }
+    
+    // Common tags get medium score
+    if (video.tags && current.tags) {
+      const commonTags = video.tags.filter(tag => current.tags?.includes(tag));
+      score += commonTags.length * 2;
+    }
+    
+    // Similar title words get low score
+    if (video.title && current.title) {
+      const videoWords = video.title.toLowerCase().split(' ').filter(word => word.length > 3);
+      const currentWords = current.title.toLowerCase().split(' ').filter(word => word.length > 3);
+      const commonWords = videoWords.filter(word => currentWords.includes(word));
+      score += commonWords.length * 0.5;
+    }
+    
+    return score;
+  };
+
+  // Filter and sort videos by relatedness
+  const filteredVideos = currentVideo 
+    ? videos
+        .filter(video => video.id !== currentVideo.id) // Exclude current video
+        .map(video => ({
+          ...video,
+          relatednessScore: calculateRelatedness(video, currentVideo)
+        }))
+        .sort((a, b) => b.relatednessScore - a.relatednessScore)
+        .filter(video => video.relatednessScore > 0) // Only show videos with some relation
+    : videos;
+
+  const maxVisible = Math.min(30, filteredVideos.length);
   const canShowMore = visibleCount < maxVisible;
 
   // Debug logs to check values in console
@@ -35,7 +76,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
     setVisibleCount((prev) => Math.min(prev + 10, maxVisible));
   };
 
-  const displayedVideos = videos.slice(0, visibleCount > videos.length ? videos.length : visibleCount);
+  const displayedVideos = filteredVideos.slice(0, visibleCount > filteredVideos.length ? filteredVideos.length : visibleCount);
 
   const tabs = [
     { id: 'related', label: 'Related' },
@@ -98,13 +139,13 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos }) => {
         )}
 
         {/* Move original ad to the last position */}
-        {videos.length > 0 && visibleCount >= videos.length && (
+        {filteredVideos.length > 0 && visibleCount >= filteredVideos.length && (
           <div className="my-4">
-            <LazyAdComponent zoneId="5661270" />
+            <LazyAdComponent zoneId="5660534" />
           </div>
         )}
 
-        {videos.length === 0 && <p className="text-muted-foreground text-sm">No related videos found</p>}
+        {filteredVideos.length === 0 && <p className="text-muted-foreground text-sm">No related videos found</p>}
       </div>
 
       {/* Add Footer */}
