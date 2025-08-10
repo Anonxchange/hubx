@@ -1,13 +1,13 @@
-
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Video, Star, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '../supabaseClient'; // Adjust path if needed
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -15,11 +15,63 @@ const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Authentication logic will be implemented later
-    console.log('Auth attempt:', { email, password, userType, isLogin });
+
+    if (!email || !password) {
+      alert('Please enter email and password');
+      return;
+    }
+
+    if (!isLogin && password !== confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      if (isLogin) {
+        // Login
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+
+        alert('Logged in successfully!');
+        navigate('/profile'); // Redirect to profile or dashboard
+      } else {
+        // Signup
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+
+        // Get new user
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          // Update the profile with userType ('user' or 'creator')
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({ role: userType }) // Make sure you add 'role' column to profiles table
+            .eq('id', user.id);
+
+          if (updateError) {
+            console.error('Error updating user role:', updateError.message);
+          }
+        }
+
+        alert('Signup successful! Please check your email to confirm your account.');
+        setIsLogin(true); // Switch to login tab automatically after signup
+      }
+    } catch (error: any) {
+      alert(error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -49,7 +101,7 @@ const AuthPage = () => {
               {isLogin ? 'Welcome Back' : 'Join HubX'}
             </h1>
             <div className="grid grid-cols-2 gap-3">
-              <Card 
+              <Card
                 className={`cursor-pointer transition-all hover:scale-105 ${userType === 'user' ? 'ring-2 ring-primary' : ''}`}
                 onClick={() => setUserType('user')}
               >
@@ -59,8 +111,8 @@ const AuthPage = () => {
                   <p className="text-sm text-muted-foreground">Watch & enjoy content</p>
                 </CardContent>
               </Card>
-              
-              <Card 
+
+              <Card
                 className={`cursor-pointer transition-all hover:scale-105 ${userType === 'creator' ? 'ring-2 ring-primary' : ''}`}
                 onClick={() => setUserType('creator')}
               >
@@ -68,7 +120,7 @@ const AuthPage = () => {
                   <Video className="w-8 h-8 mx-auto mb-2 text-orange-500" />
                   <h3 className="font-semibold">Creator</h3>
                   <p className="text-sm text-muted-foreground">Earn with HubX</p>
-                  <Badge variant="secondary" className="mt-1 text-xs">
+                  <Badge variant="secondary" className="mt-1 text-xs flex items-center justify-center">
                     <DollarSign className="w-3 h-3 mr-1" />
                     Monetize
                   </Badge>
@@ -107,7 +159,7 @@ const AuthPage = () => {
                 </TabsList>
               </Tabs>
             </CardHeader>
-            
+
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
@@ -121,7 +173,7 @@ const AuthPage = () => {
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <Input
@@ -148,13 +200,13 @@ const AuthPage = () => {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full">
-                  {isLogin ? 'Login' : 'Create Account'} as {userType === 'creator' ? 'Creator' : 'User'}
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? 'Please wait...' : isLogin ? 'Login' : `Create Account as ${userType === 'creator' ? 'Creator' : 'User'}`}
                 </Button>
 
                 {isLogin && (
                   <div className="text-center">
-                    <Button variant="link" className="text-sm text-muted-foreground">
+                    <Button variant="link" className="text-sm text-muted-foreground" onClick={() => alert('Password reset flow coming soon!')}>
                       Forgot your password?
                     </Button>
                   </div>
@@ -173,9 +225,9 @@ const AuthPage = () => {
                 <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
               </div>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-3">
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={() => alert('Google login coming soon!')}>
                 <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
                   <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                   <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -184,7 +236,7 @@ const AuthPage = () => {
                 </svg>
                 Google
               </Button>
-              <Button variant="outline" className="w-full">
+              <Button variant="outline" className="w-full" onClick={() => alert('Facebook login coming soon!')}>
                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                 </svg>
