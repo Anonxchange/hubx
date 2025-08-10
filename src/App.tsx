@@ -21,6 +21,9 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 
+// Import your AuthProvider
+import { AuthProvider } from "@/contexts/AuthContext";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -28,28 +31,31 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <BrowserRouter>
-        <AgeGateWrapper>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/video/:id" element={<VideoPage />} />
-            <Route path="/category/:category" element={<CategoryPage />} />
-            <Route path="/categories" element={<AllCategoriesPage />} />
-            <Route path="/moments" element={<MomentsPage />} />
-            <Route path="/recommended" element={<RecommendedPage />} />
-            <Route path="/hottest" element={<HottestPage />} />
-            <Route path="/hottest/:country" element={<HottestPage />} />
-            <Route path="/trending" element={<TrendingPage />} />
-            <Route path="/premium" element={<PremiumPage />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route path="/contact" element={<ContactUs />} />
-            <Route path="/terms" element={<TermsOfService />} />
-            <Route path="/privacy" element={<PrivacyPolicy />} />
-            <Route path="/admin-hubx-2024" element={<AdminPanel />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </AgeGateWrapper>
-      </BrowserRouter>
+      {/* Wrap BrowserRouter inside AuthProvider */}
+      <AuthProvider>
+        <BrowserRouter>
+          <AgeGateWrapper>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/video/:id" element={<VideoPage />} />
+              <Route path="/category/:category" element={<CategoryPage />} />
+              <Route path="/categories" element={<AllCategoriesPage />} />
+              <Route path="/moments" element={<MomentsPage />} />
+              <Route path="/recommended" element={<RecommendedPage />} />
+              <Route path="/hottest" element={<HottestPage />} />
+              <Route path="/hottest/:country" element={<HottestPage />} />
+              <Route path="/trending" element={<TrendingPage />} />
+              <Route path="/premium" element={<PremiumPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/contact" element={<ContactUs />} />
+              <Route path="/terms" element={<TermsOfService />} />
+              <Route path="/privacy" element={<PrivacyPolicy />} />
+              <Route path="/admin-hubx-2024" element={<AdminPanel />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </AgeGateWrapper>
+        </BrowserRouter>
+      </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
