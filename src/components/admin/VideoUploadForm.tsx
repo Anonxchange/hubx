@@ -42,8 +42,17 @@ const VideoUploadForm = () => {
       if (data.is_moment) {
         finalTags = [...finalTags, 'vertical', 'short', 'moment'];
       }
-      // Send all data including flags exactly as provided, just with final tags merged
-      return uploadVideo({ ...data, tags: finalTags });
+      
+      // Ensure is_moment flag is properly set
+      const uploadData = { 
+        ...data, 
+        tags: finalTags,
+        is_moment: data.is_moment, // Explicitly preserve the moment flag
+        is_premium: data.is_premium // Explicitly preserve the premium flag
+      };
+      
+      console.log('Uploading video with data:', uploadData); // Debug log
+      return uploadVideo(uploadData);
     },
     onSuccess: () => {
       toast({
