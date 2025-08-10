@@ -52,15 +52,15 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       <Link to={`/video/${video.id}`} className="block">
         <Card className="hover:bg-muted/5 transition-colors">
           <CardContent className="p-4 flex space-x-4">
-            <div className="relative w-48 h-28 bg-muted rounded overflow-hidden flex-shrink-0">
+            <div className="relative w-48 bg-muted rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '4/3' }}>
               <LazyImage
                 src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
                 alt={video.title}
                 width={400}
                 height={300}
-                className="w-full h-full"
+                className="w-full h-full object-cover"
               />
-              <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+              <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
               </div>
             </div>
@@ -106,26 +106,32 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   return (
     <Link to={`/video/${video.id}`} className="block">
       <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
-        <div className="relative aspect-video bg-muted overflow-hidden">
+        <div className="relative bg-muted overflow-hidden rounded-lg h-64">
           <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
             alt={video.title}
             width={400}
             height={300}
-            className="w-full h-full group-hover:scale-105 transition-all duration-300"
+            className="w-full h-full object-cover"
           />
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+          
+          {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
+          
+          {/* Duration badge in top corner */}
+          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
         </div>
         
-        <CardContent className="p-4 space-y-3">
-          <h3 className="font-semibold line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+        <CardContent className="p-3 space-y-2">
+          {/* Title in separate area below thumbnail */}
+          <h3 className="font-semibold text-sm line-clamp-2 leading-tight">
             {video.title}
           </h3>
           
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <div className="flex items-center space-x-3">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center space-x-2">
               <span className="flex items-center">
                 <Eye className="w-3 h-3 mr-1" />
                 {formatViews(video.views)}
