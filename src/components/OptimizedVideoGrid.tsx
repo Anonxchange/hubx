@@ -106,7 +106,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   return (
     <Link to={`/video/${video.id}`} className="block">
       <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
-        <div className="relative bg-muted overflow-hidden rounded-lg h-64">
+        <div className="relative bg-muted overflow-hidden rounded-lg" style={{ aspectRatio: '16/9' }}>
           <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
             alt={video.title}
@@ -180,7 +180,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   }
 
   const gridClass = viewMode === 'grid' 
-    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'
+    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3'
     : 'space-y-4';
 
   return (
