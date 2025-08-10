@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Eye, ThumbsUp } from 'lucide-react';
@@ -45,20 +44,20 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
   const handleMouseEnter = () => {
     setIsHovered(true);
-    
+
     // Only load previews if bandwidth allows it
     if (!shouldLoadPreview()) return;
-    
+
     // Increased delay to reduce unnecessary bandwidth usage
     hoverTimeoutRef.current = setTimeout(() => {
       setShowPreview(true);
-      
+
       if (videoRef.current) {
         // Use preview_url if available, otherwise use main video with timestamp
         const previewUrl = video.preview_url && video.preview_url.trim() !== '' 
           ? video.preview_url 
           : generateBunnyPreviewUrl(video.video_url, 10); // Start at 10 seconds
-        
+
         videoRef.current.src = previewUrl;
         videoRef.current.currentTime = video.preview_url ? 0 : 10;
         videoRef.current.play().catch((error) => {
@@ -69,12 +68,12 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
         if (!video.preview_url || video.preview_url.trim() === '') {
           const previewTimes = [10, 30, 60, 90]; // Different preview points
           let timeIndex = 0;
-          
+
           previewCycleRef.current = setInterval(() => {
             timeIndex = (timeIndex + 1) % previewTimes.length;
             const newTime = previewTimes[timeIndex];
             setCurrentPreviewTime(newTime);
-            
+
             if (videoRef.current) {
               videoRef.current.currentTime = newTime;
             }
@@ -88,7 +87,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     setIsHovered(false);
     setShowPreview(false);
     setCurrentPreviewTime(0);
-    
+
     // Clear timeouts and intervals
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
@@ -98,7 +97,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       clearInterval(previewCycleRef.current);
       previewCycleRef.current = null;
     }
-    
+
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
@@ -129,7 +128,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
         <Card className="hover:bg-muted/5 transition-colors">
           <CardContent className="p-4 flex space-x-4">
             <div 
-              className="relative w-48 h-28 bg-muted rounded overflow-hidden flex-shrink-0"
+              className="relative w-48 bg-muted rounded-lg overflow-hidden flex-shrink-0"
+              style={{ aspectRatio: '4/3' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -138,7 +138,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                 alt={video.title}
                 width={400}
                 height={300}
-                className={`w-full h-full transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
               />
               {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
                 <video
@@ -150,7 +150,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                   preload={getVideoPreloadStrategy()}
                 />
               ) : null}
-              <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+              <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
               </div>
             </div>
@@ -197,7 +197,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     <Link to={`/video/${video.id}`} className="block">
       <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
         <div 
-          className="relative aspect-video bg-muted overflow-hidden"
+          className="relative bg-muted overflow-hidden rounded-lg h-64"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -206,7 +206,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             alt={video.title}
             width={400}
             height={300}
-            className={`w-full h-full group-hover:scale-105 transition-all duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
+            className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
           {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
             <video
@@ -218,23 +218,30 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               preload={getVideoPreloadStrategy()}
             />
           ) : null}
-          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+
+          {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
+
+          {/* Duration badge in top corner */}
+          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
+
           {showPreview && (
             <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded animate-fade-in">
               {video.preview_url ? 'Preview' : `Preview ${Math.floor(currentPreviewTime)}s`}
             </div>
           )}
         </div>
-        
-        <CardContent className="p-4 space-y-3">
-          <h3 className="font-semibold line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+
+        <CardContent className="p-3 space-y-2">
+          {/* Title in separate area below thumbnail */}
+          <h3 className="font-semibold text-sm line-clamp-2 leading-tight">
             {video.title}
           </h3>
-          
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <div className="flex items-center space-x-3">
+
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex items-center space-x-2">
               <span className="flex items-center">
                 <Eye className="w-3 h-3 mr-1" />
                 {formatViews(video.views)}
@@ -249,7 +256,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               {formatDate(video.created_at)}
             </span>
           </div>
-          
+
           <div className="flex flex-wrap gap-1">
             {video.tags.slice(0, 2).map((tag) => (
               <Badge key={tag} variant="secondary" className="text-xs">
