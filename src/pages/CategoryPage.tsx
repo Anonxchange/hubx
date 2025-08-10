@@ -37,12 +37,12 @@ const CategoryPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-6 space-y-8">
+      <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Ad Code */}
         <AdComponent zoneId="5660536" />
 
         {/* Category Header */}
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl lg:text-4xl font-bold capitalize mb-2">
