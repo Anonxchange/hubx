@@ -11,24 +11,39 @@ import VideoReactions from '@/components/VideoReactions';
 import VideoTags from '@/components/VideoTags';
 import VideoDescription from '@/components/VideoDescription';
 import RelatedVideos from '@/components/RelatedVideos';
+import Recommended from '@/components/Recommended';
 import { Card } from '@/components/ui/card';
-import { getVideoById, incrementViews } from '@/services/videosService';
+import { getVideoById, incrementViews } from '@/services/apiVideosService';
 import { useRelatedVideos } from '@/hooks/useVideos';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge'; // Assuming Badge component is available
+import Footer from '@/components/Footer'; // Assuming Footer component is available
 
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  
+
   const [videoError, setVideoError] = useState(false);
+
+  // Removed existing state declarations as they are being replaced by useQuery
+  // const [video, setVideo] = useState<Video | null>(null);
+  // const [loading, setLoading] = useState(true);
+  // const [error, setError] = useState<string | null>(null);
+  // const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
+  // const [relatedLoading, setRelatedLoading] = useState(false);
+  // const [comments, setComments] = useState<Comment[]>([]);
+  // const [commentsLoading, setCommentsLoading] = useState(true);
+  // const [pageError, setPageError] = useState<string | null>(null); // Added for page-level errors
 
   const { data: video, isLoading, error } = useQuery({
     queryKey: ['video', id],
     queryFn: () => getVideoById(id!),
     enabled: !!id,
+    retry: false, // Disable automatic retries for immediate feedback
   });
 
+  // Fetching related videos using the data from the main video query
   const { data: relatedVideos = [] } = useRelatedVideos(
     video?.id || '',
     video?.tags || [],
@@ -39,13 +54,10 @@ const VideoPage = () => {
 
   useEffect(() => {
     if (video?.id) {
-      incrementViews(video.id);
-      // Invalidate and refetch video to get updated view count
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['video', id] });
-      }, 1000);
+      // Increment views without waiting or refetching - improves page load
+      incrementViews(video.id).catch(() => {}); // Fire and forget
     }
-  }, [video?.id, id, queryClient]);
+  }, [video?.id]);
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -60,6 +72,7 @@ const VideoPage = () => {
       }
     } else {
       navigator.clipboard.writeText(window.location.href);
+      toast.success('Link copied to clipboard!');
     }
   };
 
@@ -94,6 +107,7 @@ const VideoPage = () => {
     );
   }
 
+  // Use both query error and pageError for comprehensive error display
   if (error || !video) {
     return (
       <div className="min-h-screen bg-background">
@@ -101,7 +115,7 @@ const VideoPage = () => {
         <main className="container mx-auto px-4 py-6">
           <div className="text-center py-12">
             <h1 className="text-2xl font-bold mb-2">Video Not Found</h1>
-            <p className="text-muted-foreground mb-4">The video you're looking for doesn't exist.</p>
+            <p className="text-muted-foreground mb-4">{error?.message || 'The video you\'re looking for doesn\'t exist or could not be loaded.'}</p>
             <Link to="/" className="text-primary hover:underline">Go back to homepage</Link>
           </div>
         </main>
@@ -112,17 +126,17 @@ const VideoPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
-      <main className="container mx-auto px-4 py-6 space-y-8">
-        {/* Ad Code */}
-        <AdComponent zoneId="5660536" />
 
+      {/* Ad Code in Header - Same as homepage */}
+      <AdComponent zoneId="5660534" />
+
+      <main className="container mx-auto px-4 py-6 space-y-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Main Video Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Video Player */}
             <div className="relative">
-              {/* Mobile: Full screen without borders */}
+              {/* Mobile: Full width without borders */}
               <div className="block md:hidden -mx-4 relative aspect-video bg-black">
                 <VideoPlayer
                   src={video.video_url}
@@ -131,7 +145,7 @@ const VideoPage = () => {
                   onCanPlay={handleVideoCanPlay}
                 />
               </div>
-              
+
               {/* Desktop: Maintain card styling */}
               <Card className="hidden md:block overflow-hidden">
                 <div className="relative aspect-video bg-black">
@@ -143,6 +157,11 @@ const VideoPage = () => {
                   />
                 </div>
               </Card>
+              {videoError && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg">
+                  Failed to load video.
+                </div>
+              )}
             </div>
 
             {/* Video Info */}
@@ -184,6 +203,45 @@ const VideoPage = () => {
           </div>
         </div>
       </main>
+
+      {/* Mobile Categories Scroll - Mobile Only */}
+      <div className="block md:hidden px-4 py-6">
+        <h2 className="text-xl font-bold mb-4">Categories</h2>
+        <div className="flex items-center space-x-3 overflow-x-auto scrollbar-hide pb-2">
+          {['Amateur', 'Big Tits', 'MILF', 'Teen', 'Anal', 'Lesbian', 'Ebony', 'Blowjob', 'Hardcore', 'POV', 'Big Ass', 'Latina', 'Asian', 'Mature', 'Creampie', 'Cumshot'].map((category) => (
+            <Link
+              key={category}
+              to={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
+              className="flex-shrink-0"
+            >
+              <Badge
+                variant="outline"
+                className="whitespace-nowrap px-3 py-1 text-sm font-bold hover:bg-primary hover:text-primary-foreground transition-colors"
+              >
+                {category}
+              </Badge>
+            </Link>
+          ))}
+          <Link
+            to="/categories"
+            className="flex-shrink-0"
+          >
+            <Badge
+              variant="default"
+              className="whitespace-nowrap px-3 py-1 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              View All
+            </Badge>
+          </Link>
+        </div>
+      </div>
+
+      {/* Mobile Recommended Section */}
+      <div className="block md:hidden">
+        <Recommended />
+      </div>
+
+      <Footer />
     </div>
   );
 };
