@@ -39,7 +39,7 @@ const CategoryPage = () => {
       
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Ad Code */}
-        <AdComponent zoneId="5660536" />
+        <AdComponent zoneId="5660534" />
 
         {/* Category Header */}
         <div className="space-y-3">
