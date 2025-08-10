@@ -13,7 +13,7 @@ import VideoDescription from '@/components/VideoDescription';
 import RelatedVideos from '@/components/RelatedVideos';
 import Recommended from '@/components/Recommended';
 import { Card } from '@/components/ui/card';
-import { getVideoById, incrementViews } from '@/services/apiVideosService';
+import { getVideoById, incrementViews } from '@/services/VideosService';
 import { useRelatedVideos } from '@/hooks/useVideos';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { toast } from 'sonner';
