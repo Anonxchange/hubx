@@ -163,7 +163,7 @@ const AllCategoriesPage = () => {
       
       <main className="container mx-auto px-4 py-6 space-y-8">
         {/* Ad Component */}
-        <AdComponent zoneId="5660536" />
+        <AdComponent zoneId="5660534" />
 
         {/* Header and Search */}
         <div className="space-y-4">
