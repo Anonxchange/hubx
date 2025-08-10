@@ -1,13 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { TrendingUp, MapPin } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
+import AdComponent from '@/components/AdComponent';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getHottestByCountry, getUserCountry } from '@/services/videosService';
+import { getUserCountry, getHottestByCountry } from '@/services/videosService';
 import type { Video } from '@/services/videosService';
 
 const HottestPage = () => {
@@ -20,15 +20,15 @@ const HottestPage = () => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        
+
         // Get user's actual country
         const userCountry = await getUserCountry();
         setActualCountry(userCountry);
-        
+
         // Use country from URL or user's actual country
         const targetCountry = country || userCountry;
         const result = await getHottestByCountry(targetCountry);
-        
+
         setVideos(result.videos || []);
       } catch (error) {
         console.error('Error fetching hottest videos:', error);
@@ -45,7 +45,7 @@ const HottestPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Hero Section */}
         <div className="text-center space-y-3">
@@ -70,22 +70,25 @@ const HottestPage = () => {
           </div>
         </div>
 
-        {/* Stats */}
-        {!loading && (
-          <div className="bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950 dark:to-orange-950 rounded-lg p-6 border border-red-200 dark:border-red-800">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <TrendingUp className="h-5 w-5 text-red-600 dark:text-red-400" />
-                <span className="font-medium text-red-700 dark:text-red-300">
-                  {videos.length} trending videos found in {displayCountry}
-                </span>
-              </div>
-              <Badge variant="outline" className="border-red-300 text-red-700 dark:border-red-700 dark:text-red-300">
-                Auto-refreshed
-              </Badge>
+        {/* Homepage Style Ads */}
+        <div className="space-y-4">
+          {/* Top Ad Banner */}
+          <div className="w-full flex justify-center">
+            <div className="w-full max-w-4xl">
+              <AdComponent zoneId="5661270" />
             </div>
           </div>
-        )}
+          
+          {/* Secondary Ad Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex justify-center">
+              <AdComponent zoneId="5661270" />
+            </div>
+            <div className="flex justify-center">
+              <AdComponent zoneId="5661270" />
+            </div>
+          </div>
+        </div>
 
         {/* Videos Grid */}
         {loading ? (
