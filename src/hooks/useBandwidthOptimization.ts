@@ -102,7 +102,10 @@ export const useBandwidthOptimization = () => {
   };
 
   const getVideoPreloadStrategy = () => {
-    return settings.dataSaverMode ? 'none' : settings.preloadStrategy;
+    if (settings.dataSaverMode) return 'none';
+    // Always start with 'none' to improve initial page load
+    // Let user interaction trigger actual loading
+    return 'none';
   };
 
   const shouldLoadPreview = () => {
