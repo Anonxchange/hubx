@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame, Star, Users, User, Tv, X, Upload, Image, Clock } from 'lucide-react';
+import { getUserCountry } from '@/services/videosService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -34,13 +35,13 @@ interface MobileNavItem {
   badge?: string | null;
 }
 
-const mobileNavItems: MobileNavItem[] = [
+const mobileNavItems = (country: string): MobileNavItem[] => [
   { name: 'Recommended', icon: ThumbsUp, path: '/recommended', badge: null },
   { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
   { name: 'Featured Videos', icon: Play, path: '/', badge: null },
-  { name: 'Trending', icon: TrendingUp, path: '/?sort=trending', badge: 'HOT' },
+  { name: 'Trending', icon: TrendingUp, path: '/trending', badge: 'HOT' },
   { name: 'Moments', icon: Clock, path: '/moments', badge: null },
-  { name: 'Hottest', icon: Flame, path: '/hottest', badge: 'HOT' },
+  { name: `Hottest in ${country}`, icon: Flame, path: `/hottest/${country.toLowerCase().replace(/\s+/g, '-')}`, badge: 'HOT' },
   { name: 'Channel', icon: Tv, path: '/channel', badge: null },
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
   { name: 'Live Cams', icon: Users, url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default', badge: null },
@@ -53,6 +54,7 @@ const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isFullScreenSearch, setIsFullScreenSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [userCountry, setUserCountry] = useState<string>('Global');
 
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
 
@@ -62,6 +64,20 @@ const Header = () => {
     if (saved) {
       setRecentSearches(JSON.parse(saved));
     }
+  }, []);
+
+  // Get user's country
+  useEffect(() => {
+    const fetchCountry = async () => {
+      try {
+        const country = await getUserCountry();
+        setUserCountry(country);
+      } catch (error) {
+        console.error('Error fetching user country:', error);
+        setUserCountry('Global');
+      }
+    };
+    fetchCountry();
   }, []);
 
   const trendingSearches = [
@@ -225,7 +241,7 @@ const Header = () => {
                     {/* Navigation Items */}
                     <div className="flex-1 overflow-y-auto">
                       <div className="p-4 space-y-2">
-                        {mobileNavItems.map((item) => (
+                        {mobileNavItems(userCountry).map((item) => (
                           <div key={item.name}>
                             {item.url ? (
                               <a
@@ -647,6 +663,21 @@ const Header = () => {
             </a>
 
             <Link
+              to="/trending"
+              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors ${location.pathname === '/trending' ? 'text-orange-500' : ''}`}
+            >
+              TRENDING
+            </Link>
+
+            <Link
+              to={`/hottest/${userCountry.toLowerCase().replace(/\s+/g, '-')}`}
+              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors flex items-center space-x-1 ${location.pathname.includes('/hottest') ? 'text-orange-500' : ''}`}
+            >
+              <Flame className="w-4 h-4" />
+              <span>HOTTEST IN {userCountry.toUpperCase()}</span>
+            </Link>
+
+            <Link
               to="/premium"
               className="text-sm font-medium text-white hover:text-orange-500 transition-colors"
             >
@@ -741,6 +772,28 @@ const Header = () => {
           <div className="flex-1 overflow-y-auto p-4">
             <div className="max-w-2xl mx-auto space-y-6">
 
+              {/* Search Suggestions based on current input */}
+              {searchQuery.trim() && (
+                <div>
+                  <h3 className="text-white text-lg font-semibold mb-4">Suggestions</h3>
+                  <div className="space-y-2">
+                    {categories
+                      .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .slice(0, 5)
+                      .map((suggestion, index) => (
+                        <div 
+                          key={index}
+                          className="flex items-center space-x-3 bg-gray-900 hover:bg-gray-800 rounded-lg p-3 cursor-pointer transition-colors"
+                          onClick={() => handleSearchClick(suggestion)}
+                        >
+                          <Search className="w-4 h-4 text-gray-400" />
+                          <span className="text-white capitalize">{suggestion}</span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               {/* Recent Searches */}
               {recentSearches.length > 0 && (
                 <div>
@@ -799,28 +852,6 @@ const Header = () => {
                   ))}
                 </div>
               </div>
-
-              {/* Search Suggestions based on current input */}
-              {searchQuery.trim() && (
-                <div>
-                  <h3 className="text-white text-lg font-semibold mb-4">Suggestions</h3>
-                  <div className="space-y-2">
-                    {categories
-                      .filter(cat => cat.toLowerCase().includes(searchQuery.toLowerCase()))
-                      .slice(0, 5)
-                      .map((suggestion, index) => (
-                        <div 
-                          key={index}
-                          className="flex items-center space-x-3 bg-gray-900 hover:bg-gray-800 rounded-lg p-3 cursor-pointer transition-colors"
-                          onClick={() => handleSearchClick(suggestion)}
-                        >
-                          <Search className="w-4 h-4 text-gray-400" />
-                          <span className="text-white capitalize">{suggestion}</span>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>
