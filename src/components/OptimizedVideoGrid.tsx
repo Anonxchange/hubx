@@ -4,7 +4,7 @@ import { Clock, Eye, ThumbsUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
-import LazyAdComponent from '@/components/LazyAdComponent';
+import AdComponent from '@/components/AdComponent';
 
 interface LightVideo {
   id: string;
@@ -191,13 +191,13 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
           
           {showAds && viewMode === 'grid' && index === 7 && (
             <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
-              <LazyAdComponent zoneId="5686642" />
+              <AdComponent zoneId="5686642" />
             </div>
           )}
           
           {showAds && viewMode === 'grid' && index === 19 && (
             <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
-              <LazyAdComponent zoneId="5661270" />
+              <AdComponent zoneId="5661270" />
             </div>
           )}
         </React.Fragment>
