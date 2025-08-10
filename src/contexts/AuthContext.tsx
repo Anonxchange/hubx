@@ -11,6 +11,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, userType: UserType) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
+  isEmailConfirmed: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -19,6 +20,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [userType, setUserType] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEmailConfirmed, setIsEmailConfirmed] = useState(false);
 
   useEffect(() => {
     const getSession = async () => {
@@ -28,11 +30,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        // Read user_type from user_metadata or profiles table if needed
+        // Check user_type metadata or fallback to profiles table
         const metadataUserType = session.user.user_metadata?.user_type as UserType | undefined;
         if (metadataUserType) setUserType(metadataUserType);
         else {
-          // fallback: try to get user_type from profiles table
           const { data: profile } = await supabase
             .from('profiles')
             .select('user_type')
@@ -41,6 +42,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           setUserType((profile?.user_type as UserType) ?? 'user');
         }
+        // Check if email confirmed
+        setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
+      } else {
+        setIsEmailConfirmed(false);
       }
 
       setLoading(false);
@@ -63,8 +68,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           setUserType((profile?.user_type as UserType) ?? 'user');
         }
+        setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
       } else {
         setUserType(null);
+        setIsEmailConfirmed(false);
       }
 
       setLoading(false);
@@ -73,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Sign up function: creates user then inserts into profiles table
+  // Sign up function with email confirmation redirect
   const signUp = async (email: string, password: string, userType: UserType) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -82,6 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         data: {
           user_type: userType,
         },
+        emailRedirectTo: window.location.origin + '/auth', // Redirect after email confirmation
       },
     });
 
@@ -116,10 +124,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     await supabase.auth.signOut();
     setUser(null);
     setUserType(null);
+    setIsEmailConfirmed(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, userType, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{ user, userType, loading, signUp, signIn, signOut, isEmailConfirmed }}
+    >
       {children}
     </AuthContext.Provider>
   );
