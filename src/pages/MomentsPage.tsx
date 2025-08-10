@@ -33,18 +33,11 @@ const MomentsPage = () => {
   // Fetch videos and filter only those where is_moment is true
   const { data: videosData, isLoading } = useQuery({
     queryKey: ['moments'],
-    queryFn: () =>
-      getVideos({
-        page: 1,
-        limit: 20,
-        search: '',
-        category: '',
-        tags: ['vertical', 'short', 'moment'], // you can keep or remove this filter as you want
-      }),
+    queryFn: () => getVideos(1, 50, undefined, undefined, true), // Use the API filter for moments
   });
 
-  // Filter videos with is_moment = true
-  const videos = (videosData?.videos || []).filter(video => video.is_moment === true);
+  // Get all moment videos
+  const videos = videosData?.videos || [];
 
   const { userReaction, reactToVideo } = useVideoReaction(videos[currentIndex]?.id || '');
 
@@ -209,7 +202,11 @@ const MomentsPage = () => {
               playsInline
               onEnded={() => handleVideoEnd(index)}
               onClick={togglePlayPause}
-              style={{ cursor: 'pointer' }}
+              style={{ 
+                cursor: 'pointer',
+                objectFit: 'cover',
+                objectPosition: 'center'
+              }}
             />
 
             {/* Overlay Content */}
