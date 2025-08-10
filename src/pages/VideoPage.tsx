@@ -203,46 +203,7 @@ const VideoPage = () => {
           </div>
         </div>
       </main>
-
-      {/* Mobile Categories Scroll - Mobile Only */}
-      <div className="block md:hidden px-4 py-6">
-        <h2 className="text-xl font-bold mb-4">Categories</h2>
-        <div className="flex items-center space-x-3 overflow-x-auto scrollbar-hide pb-2">
-          {['Amateur', 'Big Tits', 'MILF', 'Teen', 'Anal', 'Lesbian', 'Ebony', 'Blowjob', 'Hardcore', 'POV', 'Big Ass', 'Latina', 'Asian', 'Mature', 'Creampie', 'Cumshot'].map((category) => (
-            <Link
-              key={category}
-              to={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
-              className="flex-shrink-0"
-            >
-              <Badge
-                variant="outline"
-                className="whitespace-nowrap px-3 py-1 text-sm font-bold hover:bg-primary hover:text-primary-foreground transition-colors"
-              >
-                {category}
-              </Badge>
-            </Link>
-          ))}
-          <Link
-            to="/categories"
-            className="flex-shrink-0"
-          >
-            <Badge
-              variant="default"
-              className="whitespace-nowrap px-3 py-1 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white"
-            >
-              View All
-            </Badge>
-          </Link>
-        </div>
-      </div>
-
-      {/* Mobile Recommended Section */}
-      <div className="block md:hidden">
-        <Recommended />
-      </div>
-
       <Footer />
-    </div>
   );
 };
 
