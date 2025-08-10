@@ -92,7 +92,7 @@ const Footer = () => {
           <div className="space-y-4">
             <h4 className="font-semibold text-foreground">About HubX</h4>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Experience premium video content with our modern, responsive platform designed for all devices.
+              HubX is your ultimate playground for unfiltered pleasure ,where raw passion meets cinematic seduction. From real amateur encounters to polished studio masterpieces, every scene is hand-picked for your desire. Unlock HubX Premium for exclusive, high-definition experiences you won’t see anywhere else. Updated daily, tailored for your cravings, and always ready to satisfy.
             </p>
             <div className="flex flex-wrap gap-2">
               <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full">
