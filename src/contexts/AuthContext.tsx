@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, AuthError, Session } from '@supabase/supabase-js';
+import { User, AuthError } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
 type UserType = 'user' | 'creator';
@@ -52,17 +52,34 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signUp = async (email: string, password: string, userType: UserType) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          user_type: userType
-        }
-      }
+          user_type: userType,
+        },
+      },
     });
 
-    return { error };
+    if (error) return { error };
+
+    // Insert user profile record in 'profiles' table
+    if (data.user) {
+      const { error: profileError } = await supabase.from('profiles').insert({
+        id: data.user.id,
+        email,
+        user_type: userType,
+        created_at: new Date().toISOString(),
+      });
+
+      if (profileError) {
+        // Optionally handle error - you might want to sign out the user here if critical
+        return { error: profileError };
+      }
+    }
+
+    return { error: null };
   };
 
   const signIn = async (email: string, password: string) => {
