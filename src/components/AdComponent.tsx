@@ -1,6 +1,12 @@
 
 import React, { useEffect, useRef } from 'react';
 
+declare global {
+  interface Window {
+    AdProvider: any[];
+  }
+}
+
 interface AdComponentProps {
   zoneId: string;
   className?: string;
@@ -15,21 +21,21 @@ const AdComponent: React.FC<AdComponentProps> = ({ zoneId, className = "" }) => 
       if (isInitialized.current) return;
       
       try {
-        // Check if AdProvider is available
-        if (window.AdProvider) {
-          console.log(`Initializing ad for zone ${zoneId}`);
-          window.AdProvider.push({"serve": {}});
-          isInitialized.current = true;
-        } else {
-          console.warn(`AdProvider not available for zone ${zoneId}`);
+        // Ensure AdProvider array exists
+        if (!window.AdProvider) {
+          window.AdProvider = [];
         }
+        
+        console.log(`Initializing ad for zone ${zoneId}`);
+        window.AdProvider.push({"serve": {}});
+        isInitialized.current = true;
       } catch (error) {
         console.error(`Error initializing ad for zone ${zoneId}:`, error);
       }
     };
 
     // Small delay to ensure DOM is ready
-    const timer = setTimeout(initializeAd, 100);
+    const timer = setTimeout(initializeAd, 500);
     
     return () => {
       clearTimeout(timer);
