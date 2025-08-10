@@ -32,7 +32,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previewCycleRef = useRef<NodeJS.Timeout | null>(null);
-  const { shouldLoadPreview, getVideoPreloadStrategy } = useBandwidthOptimization();
+  // Simplified optimization - avoid heavy hook on every card
+  const shouldLoadPreview = true; // Always load previews for better UX
 
   // Generate preview URL with timestamp for Bunny CDN videos
   const generateBunnyPreviewUrl = (videoUrl: string, time: number): string => {
@@ -54,8 +55,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
       if (videoRef.current) {
         // Use preview_url if available, otherwise use main video with timestamp
-        const previewUrl = video.preview_url && video.preview_url.trim() !== '' 
-          ? video.preview_url 
+        const previewUrl = video.preview_url && video.preview_url.trim() !== ''
+          ? video.preview_url
           : generateBunnyPreviewUrl(video.video_url, 10); // Start at 10 seconds
 
         videoRef.current.src = previewUrl;
@@ -127,9 +128,9 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       <Link to={`/video/${video.id}`} className="block">
         <Card className="hover:bg-muted/5 transition-colors">
           <CardContent className="p-4 flex space-x-4">
-            <div 
-              className="relative w-48 bg-muted rounded-lg overflow-hidden flex-shrink-0"
-              style={{ aspectRatio: '4/3' }}
+            <div
+              className="relative w-64 bg-muted rounded-lg overflow-hidden flex-shrink-0"
+              style={{ aspectRatio: '16/9' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -195,9 +196,9 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
   return (
     <Link to={`/video/${video.id}`} className="block">
-      <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
-        <div 
-          className="relative bg-muted overflow-hidden rounded-lg"
+      <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden w-full">
+        <div
+          className="relative bg-muted overflow-hidden rounded-lg w-full"
           style={{ aspectRatio: '16/9' }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -235,9 +236,9 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           )}
         </div>
 
-        <CardContent className="p-3 space-y-2">
+        <CardContent className="p-4 space-y-3">
           {/* Title in separate area below thumbnail */}
-          <h3 className="font-semibold text-sm line-clamp-2 leading-tight">
+          <h3 className="font-semibold text-base line-clamp-2 leading-tight">
             {video.title}
           </h3>
 
