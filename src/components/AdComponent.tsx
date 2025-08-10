@@ -37,7 +37,7 @@ const AdComponent: React.FC<AdComponentProps> = ({ zoneId, className = "" }) => 
   }, [zoneId]);
 
   return (
-    <div className={`w-full flex justify-center ${className}`} ref={adRef}>
+    <div className={`w-full flex justify-center md:hidden ${className}`} ref={adRef}>
       <div>
         <ins className="eas6a97888e10" data-zoneid={zoneId}></ins>
       </div>
