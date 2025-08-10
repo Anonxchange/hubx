@@ -113,10 +113,10 @@ const Footer = () => {
         {/* Bottom Section */}
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
           <div className="text-sm text-muted-foreground">
-            © 2024 HubX. All rights reserved.
+            © 2025 HubX. All rights reserved.
           </div>
           <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-            <span>Powered by modern web technology</span>
+            <span>Powered by pleasure, perfected by technology.</span>
           </div>
         </div>
       </div>
