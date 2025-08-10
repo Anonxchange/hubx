@@ -1,4 +1,4 @@
-
+import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Video {
@@ -16,6 +16,7 @@ export interface Video {
   created_at: string;
   updated_at: string;
   is_premium?: boolean;
+  is_moment?: boolean;
 }
 
 export interface VideoUpload {
@@ -27,6 +28,7 @@ export interface VideoUpload {
   duration?: string;
   tags: string[];
   is_premium?: boolean;
+  is_moment?: boolean;
 }
 
 export interface VideoReaction {
@@ -48,38 +50,47 @@ const getSessionId = () => {
 };
 
 // Get all videos with pagination and search - optimized for bandwidth
-export const getVideos = async (page = 1, limit = 60, category?: string, searchQuery?: string) => {
+export const getVideos = async (page = 1, limit = 60, category?: string, searchQuery?: string, isMoment?: boolean) => {
   let query = supabase
     .from('videos')
-    .select('id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium', { count: 'exact' });
+    .select('id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment', { count: 'exact' });
+
+  // Filter by moment videos if specified
+  if (isMoment !== undefined) {
+    query = query.eq('is_moment', isMoment);
+  }
 
   // Apply category-based sorting and filtering
   if (category && category !== 'all') {
     switch (category.toLowerCase()) {
       case 'recommended':
-        // Exclude premium videos from regular recommendations
-        query = query.eq('is_premium', false).order('views', { ascending: false });
+        // Exclude premium videos and moments from regular recommendations
+        query = query.eq('is_premium', false).eq('is_moment', false).order('views', { ascending: false });
         break;
       case 'trending':
-        // Exclude premium videos from trending
-        query = query.eq('is_premium', false).order('views', { ascending: false });
+        // Exclude premium videos and moments from trending
+        query = query.eq('is_premium', false).eq('is_moment', false).order('views', { ascending: false });
         break;
       case 'most rated':
-        // Exclude premium videos from most rated
-        query = query.eq('is_premium', false).order('likes', { ascending: false });
+        // Exclude premium videos and moments from most rated
+        query = query.eq('is_premium', false).eq('is_moment', false).order('likes', { ascending: false });
         break;
       case 'premium':
-        // Only show premium videos for premium category
-        query = query.eq('is_premium', true).order('created_at', { ascending: false });
+        // Only show premium videos for premium category (exclude moments)
+        query = query.eq('is_premium', true).eq('is_moment', false).order('created_at', { ascending: false });
+        break;
+      case 'moments':
+        // Only show moment videos
+        query = query.eq('is_moment', true).order('created_at', { ascending: false });
         break;
       default:
-        // For any other category, exclude premium videos
-        query = query.eq('is_premium', false).contains('tags', [category]).order('created_at', { ascending: false });
+        // For any other category, exclude premium videos and moments
+        query = query.eq('is_premium', false).eq('is_moment', false).contains('tags', [category]).order('created_at', { ascending: false });
         break;
     }
-  } else {
-    // Default ordering by creation date, exclude premium videos from regular browsing
-    query = query.eq('is_premium', false).order('created_at', { ascending: false });
+  } else if (isMoment === undefined) {
+    // Default: exclude premium videos and moments, sort by creation date
+    query = query.eq('is_premium', false).eq('is_moment', false).order('created_at', { ascending: false });
   }
 
   if (searchQuery) {
@@ -96,8 +107,6 @@ export const getVideos = async (page = 1, limit = 60, category?: string, searchQ
     throw error;
   }
 
-  console.log('Videos fetched:', { videosCount: data?.length, totalCount: count, page, limit, category });
-
   return {
     videos: data || [],
     totalCount: count || 0,
@@ -107,35 +116,55 @@ export const getVideos = async (page = 1, limit = 60, category?: string, searchQ
 
 // Get videos by category
 export const getVideosByCategory = async (category: string, page = 1, limit = 60, searchQuery?: string) => {
-  return getVideos(page, limit, category, searchQuery);
-};
-
-// Get related videos by tags (limited to 15, randomly selected) - optimized for bandwidth
-export const getRelatedVideos = async (videoId: string, tags: string[], limit = 15) => {
-  const { data, error } = await supabase
+  let query = supabase
     .from('videos')
-    .select('id, title, thumbnail_url, duration, views, likes')
-    .neq('id', videoId)
-    .overlaps('tags', tags)
-    .order('created_at', { ascending: false })
-    .limit(50); // Get more to randomly select from
+    .select('*', { count: 'exact' });
+
+  switch (category.toLowerCase()) {
+    case 'recommended':
+      query = query.eq('is_premium', false).order('views', { ascending: false });
+      break;
+    case 'trending':
+      query = query.eq('is_premium', false).order('views', { ascending: false });
+      break;
+    case 'most rated':
+      query = query.eq('is_premium', false).order('likes', { ascending: false });
+      break;
+    case 'premium':
+      query = query.eq('is_premium', true).order('created_at', { ascending: false });
+      break;
+    default:
+      query = query.eq('is_premium', false).contains('tags', [category]).order('created_at', { ascending: false });
+      break;
+  }
+
+  if (searchQuery) {
+    query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,tags.cs.{${searchQuery}}`);
+  }
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, error, count } = await query.range(from, to);
 
   if (error) {
-    console.error('Error fetching related videos:', error);
+    console.error('Error fetching videos by category:', error);
     throw error;
   }
 
-  // Randomly shuffle and limit to 15
-  const shuffled = (data || []).sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, limit);
+  return {
+    videos: data || [],
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / limit)
+  };
 };
 
-// Get single video by ID
-export const getVideoById = async (id: string) => {
+// Get a single video by ID
+export const getVideoById = async (videoId: string) => {
   const { data, error } = await supabase
     .from('videos')
     .select('*')
-    .eq('id', id)
+    .eq('id', videoId)
     .single();
 
   if (error) {
@@ -146,11 +175,33 @@ export const getVideoById = async (id: string) => {
   return data;
 };
 
-// Upload new video
-export const uploadVideo = async (video: VideoUpload) => {
+// Get related videos
+export const getRelatedVideos = async (videoId: string, tags: string[], limit = 15) => {
+  if (!tags || tags.length === 0) {
+    return [];
+  }
+
   const { data, error } = await supabase
     .from('videos')
-    .insert([video])
+    .select('*')
+    .neq('id', videoId)
+    .overlaps('tags', tags)
+    .order('views', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching related videos:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+// Upload a new video
+export const uploadVideo = async (videoData: VideoUpload) => {
+  const { data, error } = await supabase
+    .from('videos')
+    .insert([videoData])
     .select()
     .single();
 
@@ -162,12 +213,12 @@ export const uploadVideo = async (video: VideoUpload) => {
   return data;
 };
 
-// Update video
-export const updateVideo = async (id: string, updates: Partial<VideoUpload>) => {
+// Update a video
+export const updateVideo = async (videoId: string, updates: Partial<VideoUpload>) => {
   const { data, error } = await supabase
     .from('videos')
-    .update({ ...updates, updated_at: new Date().toISOString() })
-    .eq('id', id)
+    .update(updates)
+    .eq('id', videoId)
     .select()
     .single();
 
@@ -179,134 +230,111 @@ export const updateVideo = async (id: string, updates: Partial<VideoUpload>) => 
   return data;
 };
 
-// Delete video
-export const deleteVideo = async (id: string) => {
+// Delete a video
+export const deleteVideo = async (videoId: string) => {
   const { error } = await supabase
     .from('videos')
     .delete()
-    .eq('id', id);
+    .eq('id', videoId);
 
   if (error) {
     console.error('Error deleting video:', error);
     throw error;
   }
+
+  return true;
 };
 
 // Increment view count
-export const incrementViews = async (id: string) => {
-  // First get the current view count
+export const incrementViews = async (videoId: string) => {
   const { data: video, error: fetchError } = await supabase
     .from('videos')
     .select('views')
-    .eq('id', id)
+    .eq('id', videoId)
     .single();
-    
+
   if (fetchError) {
     console.error('Error fetching video for view increment:', fetchError);
     return;
   }
-  
-  // Then increment the view count
-  const { error: updateError } = await supabase
+
+  const { error } = await supabase
     .from('videos')
     .update({ views: (video.views || 0) + 1 })
-    .eq('id', id);
-    
-  if (updateError) {
-    console.error('Error incrementing views:', updateError);
+    .eq('id', videoId);
+
+  if (error) {
+    console.error('Error incrementing views:', error);
   }
 };
 
-// Like/Dislike functionality
+// React to video (like/dislike)
 export const reactToVideo = async (videoId: string, reactionType: 'like' | 'dislike') => {
   const sessionId = getSessionId();
   
-  try {
-    // First, check if user already reacted
-    const { data: existingReaction } = await supabase
+  // Check if user already reacted
+  const { data: existingReaction } = await supabase
+    .from('video_reactions')
+    .select('*')
+    .eq('video_id', videoId)
+    .eq('user_session', sessionId)
+    .single();
+
+  if (existingReaction) {
+    // Update existing reaction
+    const { data, error } = await supabase
       .from('video_reactions')
-      .select('*')
-      .eq('video_id', videoId)
-      .eq('user_session', sessionId)
+      .update({ reaction_type: reactionType })
+      .eq('id', existingReaction.id)
+      .select()
       .single();
 
-    if (existingReaction) {
-      if (existingReaction.reaction_type === reactionType) {
-        // Remove reaction if same type
-        await supabase
-          .from('video_reactions')
-          .delete()
-          .eq('id', existingReaction.id);
-        
-        // Update video count
-        const field = reactionType === 'like' ? 'likes' : 'dislikes';
-        const { data: video } = await supabase
-          .from('videos')
-          .select(field)
-          .eq('id', videoId)
-          .single();
-        
-        if (video) {
-          await supabase
-            .from('videos')
-            .update({ [field]: Math.max(0, (video[field] || 1) - 1) })
-            .eq('id', videoId);
-        }
-      } else {
-        // Change reaction type
-        await supabase
-          .from('video_reactions')
-          .update({ reaction_type: reactionType })
-          .eq('id', existingReaction.id);
-        
-        // Update both counts
-        const { data: video } = await supabase
-          .from('videos')
-          .select('likes, dislikes')
-          .eq('id', videoId)
-          .single();
-        
-        if (video) {
-          const oldField = existingReaction.reaction_type === 'like' ? 'likes' : 'dislikes';
-          const newField = reactionType === 'like' ? 'likes' : 'dislikes';
-          
-          await supabase
-            .from('videos')
-            .update({
-              [oldField]: Math.max(0, (video[oldField] || 1) - 1),
-              [newField]: (video[newField] || 0) + 1
-            })
-            .eq('id', videoId);
-        }
-      }
-    } else {
-      // Add new reaction
-      await supabase
-        .from('video_reactions')
-        .insert([{
-          video_id: videoId,
-          user_session: sessionId,
-          reaction_type: reactionType
-        }]);
-      
-      // Update video count
-      const field = reactionType === 'like' ? 'likes' : 'dislikes';
-      const { data: video } = await supabase
-        .from('videos')
-        .select(field)
-        .eq('id', videoId)
-        .single();
-      
-      if (video) {
-        await supabase
-          .from('videos')
-          .update({ [field]: (video[field] || 0) + 1 })
-          .eq('id', videoId);
-      }
+    if (error) {
+      console.error('Error updating reaction:', error);
+      throw error;
     }
-  } catch (error) {
-    console.error('Error reacting to video:', error);
-    throw error;
+
+    // Update video counts
+    await updateVideoReactionCounts(videoId);
+    return data;
+  } else {
+    // Create new reaction
+    const { data, error } = await supabase
+      .from('video_reactions')
+      .insert([{
+        video_id: videoId,
+        user_session: sessionId,
+        reaction_type: reactionType
+      }])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating reaction:', error);
+      throw error;
+    }
+
+    // Update video counts
+    await updateVideoReactionCounts(videoId);
+    return data;
+  }
+};
+
+// Helper function to update video reaction counts
+const updateVideoReactionCounts = async (videoId: string) => {
+  const { data: reactions } = await supabase
+    .from('video_reactions')
+    .select('reaction_type')
+    .eq('video_id', videoId);
+
+  if (reactions) {
+    const likes = reactions.filter(r => r.reaction_type === 'like').length;
+    const dislikes = reactions.filter(r => r.reaction_type === 'dislike').length;
+
+    await supabase
+      .from('videos')
+      .update({ likes, dislikes })
+      .eq('id', videoId);
   }
 };
 
@@ -326,4 +354,83 @@ export const getUserReaction = async (videoId: string) => {
   }
   
   return data?.reaction_type || null;
+};
+
+// Search videos
+export const searchVideos = async (searchTerm: string) => {
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*')
+    .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`)
+    .order('views', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('Error searching videos:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+// Get user's country (placeholder implementation)
+export const getUserCountry = async (): Promise<string> => {
+  try {
+    // Try to get user's country from IP geolocation API
+    const response = await fetch('https://ipapi.co/json/');
+    const data = await response.json();
+    return data.country_name || 'Nigeria';
+  } catch (error) {
+    console.error('Error getting user country:', error);
+    return 'Nigeria'; // Default fallback
+  }
+};
+
+// Get hottest videos by country
+export const getHottestByCountry = async (country: string, page = 1, limit = 60) => {
+  let query = supabase
+    .from('videos')
+    .select('*', { count: 'exact' })
+    .eq('is_premium', false);
+
+  // Filter by country-specific tags if applicable
+  if (country && country.toLowerCase() !== 'global') {
+    query = query.contains('tags', [country.toLowerCase()]);
+  }
+
+  // Order by views and likes for "hottest" content
+  query = query.order('views', { ascending: false });
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    console.error('Error fetching hottest videos by country:', error);
+    throw error;
+  }
+
+  return {
+    videos: data || [],
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / limit)
+  };
+};
+
+// Apply human behavior-like shuffling to video recommendations
+export const applyHumanBehaviorShuffle = (videos: Video[]): Video[] => {
+  if (!videos || videos.length === 0) return videos;
+  
+  // Create a copy to avoid mutating the original array
+  const shuffled = [...videos];
+  
+  // Apply weighted shuffling that favors popular content but adds variety
+  return shuffled.sort((a, b) => {
+    // Combine views, likes, and random factor for more natural ordering
+    const scoreA = (a.views * 0.6) + (a.likes * 0.3) + (Math.random() * 0.1);
+    const scoreB = (b.views * 0.6) + (b.likes * 0.3) + (Math.random() * 0.1);
+    
+    return scoreB - scoreA;
+  });
 };
