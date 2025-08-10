@@ -22,12 +22,25 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const type = session.user.user_metadata?.user_type as UserType || 'user';
-        setUserType(type);
+        // Read user_type from user_metadata or profiles table if needed
+        const metadataUserType = session.user.user_metadata?.user_type as UserType | undefined;
+        if (metadataUserType) setUserType(metadataUserType);
+        else {
+          // fallback: try to get user_type from profiles table
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('user_type')
+            .eq('id', session.user.id)
+            .single();
+
+          setUserType((profile?.user_type as UserType) ?? 'user');
+        }
       }
 
       setLoading(false);
@@ -35,12 +48,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
-        const type = session.user.user_metadata?.user_type as UserType || 'user';
-        setUserType(type);
+        const metadataUserType = session.user.user_metadata?.user_type as UserType | undefined;
+        if (metadataUserType) setUserType(metadataUserType);
+        else {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('user_type')
+            .eq('id', session.user.id)
+            .single();
+
+          setUserType((profile?.user_type as UserType) ?? 'user');
+        }
       } else {
         setUserType(null);
       }
@@ -51,6 +73,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Sign up function: creates user then inserts into profiles table
   const signUp = async (email: string, password: string, userType: UserType) => {
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -64,24 +87,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (error) return { error };
 
-    // Insert user profile record in 'profiles' table
     if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert({
-        id: data.user.id,
-        email,
-        user_type: userType,
-        created_at: new Date().toISOString(),
-      });
+      const { error: profileError } = await supabase.from('profiles').insert([
+        {
+          id: data.user.id,
+          user_type: userType,
+        },
+      ]);
 
-      if (profileError) {
-        // Optionally handle error - you might want to sign out the user here if critical
-        return { error: profileError };
-      }
+      if (profileError) return { error: profileError };
     }
 
     return { error: null };
   };
 
+  // Sign in function
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -91,8 +111,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return { error };
   };
 
+  // Sign out function
   const signOut = async () => {
     await supabase.auth.signOut();
+    setUser(null);
+    setUserType(null);
   };
 
   return (
@@ -104,8 +127,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
