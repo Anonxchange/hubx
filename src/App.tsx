@@ -20,6 +20,7 @@ import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
+import ProfilePage from './pages/ProfilePage';
 
 // Import your AuthProvider
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/admin-hubx-2024" element={<AdminPanel />} />
+              <Route path="/profile" element={<ProfilePage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </AgeGateWrapper>
