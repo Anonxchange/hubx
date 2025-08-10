@@ -204,6 +204,7 @@ const VideoPage = () => {
         </div>
       </main>
       <Footer />
+      </div>
   );
 };
 
