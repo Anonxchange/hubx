@@ -11,6 +11,8 @@ import CategoryPage from "./pages/CategoryPage";
 import AllCategoriesPage from "./pages/AllCategoriesPage";
 import MomentsPage from "./pages/MomentsPage";
 import RecommendedPage from "./pages/RecommendedPage";
+import HottestPage from './pages/HottestPage';
+import TrendingPage from './pages/TrendingPage';
 import PremiumPage from "./pages/PremiumPage";
 import AdminPanel from "./pages/AdminPanel";
 import ContactUs from "./pages/ContactUs";
@@ -35,6 +37,9 @@ const App = () => (
             <Route path="/categories" element={<AllCategoriesPage />} />
             <Route path="/moments" element={<MomentsPage />} />
             <Route path="/recommended" element={<RecommendedPage />} />
+            <Route path="/hottest" element={<HottestPage />} />
+            <Route path="/hottest/:country" element={<HottestPage />} />
+            <Route path="/trending" element={<TrendingPage />} />
             <Route path="/premium" element={<PremiumPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/contact" element={<ContactUs />} />
