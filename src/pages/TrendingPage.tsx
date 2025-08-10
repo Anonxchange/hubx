@@ -4,6 +4,7 @@ import { TrendingUp, Flame, Eye, Heart } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
+import AdComponent from '@/components/AdComponent';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getVideos } from '@/services/videosService';
@@ -122,37 +123,23 @@ const TrendingPage = () => {
           </div>
         </div>
 
-        {/* Stats */}
-        {!loading && (
-          <div className="bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950 dark:to-red-950 rounded-lg p-6 border border-orange-200 dark:border-orange-800">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Flame className="h-5 w-5 text-orange-600 dark:text-orange-400" />
-                <span className="font-medium text-orange-700 dark:text-orange-300">
-                  {videos.length} trending videos with smart shuffle enabled
-                </span>
-              </div>
-              <div className="flex space-x-2">
-                <Badge variant="outline" className="border-orange-300 text-orange-700 dark:border-orange-700 dark:text-orange-300">
-                  Real-time Algorithm
-                </Badge>
-                <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-                  Live Updates
-                </Badge>
-              </div>
+        {/* Homepage Style Ads */}
+        <div className="space-y-4">
+          {/* Top Ad Banner */}
+          <div className="w-full flex justify-center">
+            <div className="w-full max-w-4xl">
+              <AdComponent zoneId="5661270" />
             </div>
           </div>
-        )}
-
-        {/* Algorithm Info */}
-        <div className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950 dark:to-purple-950 rounded-lg p-6 border border-blue-200 dark:border-blue-800">
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-blue-700 dark:text-blue-300 mb-2">
-              Smart Trending Algorithm
-            </h2>
-            <p className="text-sm text-blue-600 dark:text-blue-400">
-              Our algorithm considers recency, engagement, time-of-day patterns, and user behavior to surface the most relevant content
-            </p>
+          
+          {/* Secondary Ad Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex justify-center">
+              <AdComponent zoneId="5661270" />
+            </div>
+            <div className="flex justify-center">
+              <AdComponent zoneId="5661270" />
+            </div>
           </div>
         </div>
 
