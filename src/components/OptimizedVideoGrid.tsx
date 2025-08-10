@@ -25,9 +25,9 @@ interface OptimizedVideoGridProps {
   showAds?: boolean;
 }
 
-const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'list' }> = ({ 
-  video, 
-  viewMode = 'grid' 
+const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'list' }> = ({
+  video,
+  viewMode = 'grid'
 }) => {
   const formatViews = (views: number) => {
     if (views >= 1000000) {
@@ -114,22 +114,22 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             height={300}
             className="w-full h-full object-cover"
           />
-          
+
           {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
-          
+
           {/* Duration badge in top corner */}
           <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
         </div>
-        
+
         <CardContent className="p-3 space-y-2">
           {/* Title in separate area below thumbnail */}
           <h3 className="font-semibold text-sm line-clamp-2 leading-tight">
             {video.title}
           </h3>
-          
+
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center space-x-2">
               <span className="flex items-center">
@@ -146,7 +146,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               {formatDate(video.created_at)}
             </span>
           </div>
-          
+
           <div className="flex flex-wrap gap-1">
             {video.tags.slice(0, 2).map((tag) => (
               <Badge key={tag} variant="secondary" className="text-xs">
@@ -165,10 +165,10 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   );
 };
 
-const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({ 
-  videos, 
-  viewMode = 'grid', 
-  showAds = false 
+const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
+  videos,
+  viewMode = 'grid',
+  showAds = false
 }) => {
   if (videos.length === 0) {
     return (
@@ -179,8 +179,8 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
     );
   }
 
-  const gridClass = viewMode === 'grid' 
-    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3'
+  const gridClass = viewMode === 'grid'
+    ? 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-3'
     : 'space-y-4';
 
   return (
@@ -188,15 +188,15 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
       {videos.map((video, index) => (
         <React.Fragment key={video.id}>
           <OptimizedVideoCard video={video} viewMode={viewMode} />
-          
+
           {showAds && viewMode === 'grid' && index === 7 && (
-            <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
+            <div className="col-span-full md:hidden">
               <AdComponent zoneId="5686642" />
             </div>
           )}
-          
+
           {showAds && viewMode === 'grid' && index === 19 && (
-            <div className="sm:col-span-2 lg:col-span-3 xl:col-span-4">
+            <div className="col-span-full md:hidden">
               <AdComponent zoneId="5661270" />
             </div>
           )}
