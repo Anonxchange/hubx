@@ -18,7 +18,7 @@ import { useRelatedVideos } from '@/hooks/useVideos';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge'; // Assuming Badge component is available
-import Footer from '@/components/Footer'; // Assuming Footer component is available
+
 
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -203,7 +203,6 @@ const VideoPage = () => {
           </div>
         </div>
       </main>
-      <Footer />
       </div>
   );
 };
