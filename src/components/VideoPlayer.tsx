@@ -47,68 +47,47 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   
   const { getVideoPreloadStrategy } = useBandwidthOptimization();
 
-  // Initialize video qualities based on the main src
-  useEffect(() => {
+  // Initialize video qualities lazily - only when needed
+  const initializeQualities = () => {
+    if (availableQualities.length > 0) return;
+    
     const qualities: VideoQuality[] = [
-      {
-        label: "Auto",
-        height: 0,
-        bandwidth: 0,
-        url: src
-      },
-      {
-        label: "1080p",
-        height: 1080,
-        bandwidth: 5000000, // 5 Mbps
-        url: src.replace('.mp4', '_1080p.mp4')
-      },
       {
         label: "720p",
         height: 720,
-        bandwidth: 2500000, // 2.5 Mbps
-        url: src.replace('.mp4', '_720p.mp4')
+        bandwidth: 2500000,
+        url: src
       },
       {
-        label: "480p",
+        label: "480p", 
         height: 480,
-        bandwidth: 1000000, // 1 Mbps
+        bandwidth: 1000000,
         url: src.replace('.mp4', '_480p.mp4')
       },
       {
         label: "360p",
         height: 360,
-        bandwidth: 500000, // 500 Kbps
+        bandwidth: 500000,
         url: src.replace('.mp4', '_360p.mp4')
       }
     ];
     
     setAvailableQualities(qualities);
-    // Default to 720p as requested
-    const defaultQuality = qualities.find(q => q.height === 720) || qualities[2];
-    setSelectedQuality(defaultQuality);
+    setSelectedQuality(qualities[0]); // Default to 720p
     setIsAutoQuality(false);
-  }, [src]);
+  };
 
-  // Measure connection speed
-  const measureConnectionSpeed = async () => {
-    try {
-      const startTime = performance.now();
-      const response = await fetch(src, { 
-        method: 'HEAD',
-        cache: 'no-cache'
-      });
-      const endTime = performance.now();
-      
-      const contentLength = response.headers.get('content-length');
-      if (contentLength) {
-        const bytes = parseInt(contentLength);
-        const duration = (endTime - startTime) / 1000; // seconds
-        const speed = (bytes * 8) / duration; // bits per second
-        setConnectionSpeed(speed);
-        console.log(`Connection speed: ${(speed / 1000000).toFixed(2)} Mbps`);
-      }
-    } catch (error) {
-      console.error('Error measuring connection speed:', error);
+  // Lightweight connection estimation - no network requests
+  const estimateConnectionSpeed = () => {
+    if (connectionSpeed > 0) return;
+    
+    // Use Network Information API if available
+    const connection = (navigator as any).connection;
+    if (connection) {
+      const downlink = connection.downlink || 2; // Mbps
+      setConnectionSpeed(downlink * 1000000); // Convert to bps
+    } else {
+      setConnectionSpeed(2000000); // Default to 2 Mbps
     }
   };
 
@@ -187,18 +166,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Handle play button click with lazy loading
   const handlePlayClick = () => {
-    if (!videoRef.current || !selectedQuality) return;
+    if (!videoRef.current) return;
     
     const video = videoRef.current;
     
     if (!hasStartedPlaying) {
-      // First time playing - load the selected quality
-      setHasStartedPlaying(true);
-      video.src = selectedQuality.url;
-      video.load();
+      // Initialize qualities and connection estimate
+      initializeQualities();
+      estimateConnectionSpeed();
       
-      // Measure connection speed on first play
-      measureConnectionSpeed();
+      setHasStartedPlaying(true);
+      video.src = src; // Use original source
+      video.load();
     }
     
     if (video.paused) {
@@ -211,15 +190,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Monitor video events for ABR
+  // Monitor video events for ABR - optimized with throttling
   useEffect(() => {
     if (!videoRef.current || !hasStartedPlaying) return;
     
     const video = videoRef.current;
+    let timeUpdateThrottle: NodeJS.Timeout;
     
     const handleTimeUpdate = () => {
-      monitorBufferHealth();
-      selectOptimalQuality();
+      // Throttle time update events to reduce CPU usage
+      if (!timeUpdateThrottle) {
+        timeUpdateThrottle = setTimeout(() => {
+          monitorBufferHealth();
+          selectOptimalQuality();
+          timeUpdateThrottle = null as any;
+        }, 2000); // Check every 2 seconds instead of constantly
+      }
     };
     
     const handleLoadedData = () => {
@@ -241,8 +227,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
     
-    // Monitor buffer health every second
-    const bufferInterval = setInterval(monitorBufferHealth, 1000);
+    // Monitor buffer health every 3 seconds instead of every second
+    const bufferInterval = setInterval(monitorBufferHealth, 3000);
     
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
@@ -251,6 +237,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
       clearInterval(bufferInterval);
+      if (timeUpdateThrottle) clearTimeout(timeUpdateThrottle);
     };
   }, [hasStartedPlaying, selectedQuality, isAutoQuality]);
 
@@ -289,34 +276,37 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Function to fetch and parse VAST XML with caching
+  // Function to fetch and parse VAST XML with caching - optimized
   const fetchVastAd = async () => {
     const cacheKey = 'vast_ad_data';
-    const cacheExpiry = 10 * 60 * 1000; // 10 minutes
+    const cacheExpiry = 15 * 60 * 1000; // 15 minutes for better caching
     
     // Check cache first
     const cached = vastCache[cacheKey];
     if (cached && (Date.now() - cached.timestamp) < cacheExpiry) {
-      console.log('Using cached VAST data');
       return cached.data;
     }
 
     try {
-      console.log('Fetching VAST ad...');
-      // Using the working VAST URL from the ad script
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      
       const response = await fetch('https://s.magsrv.com/v1/vast.php?idzone=5660526', {
         mode: 'cors',
         headers: {
           'Accept': 'application/xml, text/xml'
-        }
+        },
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         throw new Error('Failed to fetch VAST');
       }
       
       const vastXml = await response.text();
-      console.log('VAST XML received:', vastXml.substring(0, 200) + '...');
       
       // Parse VAST XML to extract media file
       const parser = new DOMParser();
@@ -352,7 +342,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       
       return result;
     } catch (error) {
-      console.error('Error fetching VAST:', error);
+      console.error('Error fetching VAST (using fallback):', error);
       return null;
     }
   };
@@ -599,9 +589,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       adVideo.addEventListener('error', handleAdError);
     }
 
-    // Set video source
-    video.src = src;
-    video.load();
+    // Don't load video until user interaction - save bandwidth and loading time
+    video.preload = 'none';
 
     return () => {
       video.removeEventListener('loadstart', handleLoadStart);
