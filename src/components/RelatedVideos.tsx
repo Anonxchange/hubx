@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import LazyAdComponent from '@/components/LazyAdComponent';
+import AdComponent from '@/components/AdComponent';
 import OptimizedRelatedVideoCard from '@/components/OptimizedRelatedVideoCard';
 import Footer from '@/components/Footer';
 
@@ -141,7 +141,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) =
         {/* Move original ad to the last position */}
         {filteredVideos.length > 0 && visibleCount >= filteredVideos.length && (
           <div className="my-4">
-            <LazyAdComponent zoneId="5660534" />
+            <AdComponent zoneId="5660534" />
           </div>
         )}
 
