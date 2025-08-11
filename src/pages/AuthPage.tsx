@@ -70,7 +70,7 @@ const AuthPage = () => {
 
     try {
       if (isLogin) {
-        const { error } = await signIn(email, password);
+        const { error } = await signIn(email, password, userType);
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
             setError('Invalid email or password');
@@ -89,6 +89,8 @@ const AuthPage = () => {
             setError('An account with this email already exists');
           } else if (error.message.includes('Password should be at least')) {
             setError('Password must be at least 6 characters long');
+          } else if (error.message.includes('Database error') || error.code === 'unexpected_failure') {
+            setError('Account created but there was a database issue. Please try logging in.');
           } else {
             setError(error.message || 'Failed to create account');
           }
@@ -130,7 +132,7 @@ const AuthPage = () => {
         <div className="max-w-md mx-auto">
           <h1 className="text-2xl font-bold text-center mb-4">{isLogin ? 'Welcome Back' : 'Join HubX'}</h1>
 
-          {/* Show userType selector for both Login and Sign Up */}
+          {/* Show userType selector for both Sign Up and Login */}
           <div className="mb-6 grid grid-cols-3 gap-2">
             <Card
               className={`cursor-pointer transition-all hover:scale-105 ${
@@ -287,10 +289,15 @@ const AuthPage = () => {
                 <Button type="submit" className="w-full" disabled={loading || (!isLogin && emailSent)}>
                   {loading
                     ? 'Please wait...'
-                    : `${isLogin ? 'Login' : 'Create Account'} as ${
-                        userType === 'individual_creator' ? 'Individual Creator' :
-                        userType === 'studio_creator' ? 'Studio Creator' : 'User'
-                      }`}
+                    : isLogin 
+                      ? `Login as ${
+                          userType === 'individual_creator' ? 'Individual Creator' :
+                          userType === 'studio_creator' ? 'Studio Creator' : 'User'
+                        }`
+                      : `Create Account as ${
+                          userType === 'individual_creator' ? 'Individual Creator' :
+                          userType === 'studio_creator' ? 'Studio Creator' : 'User'
+                        }`}
                 </Button>
 
                 {isLogin && (
