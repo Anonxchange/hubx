@@ -24,7 +24,7 @@ interface AuthContextType {
   userType: UserType | null;
   loading: boolean;
   signUp: (email: string, password: string, userType: UserType) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string, userType?: UserType) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   isEmailConfirmed: boolean;
 }
@@ -39,7 +39,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserAndSetType = async (currentUser: User) => {
     setUser(currentUser);
-    const metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
+    let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
+    
+    // If no user type in metadata, check localStorage as fallback
+    if (!metadataUserType) {
+      const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
+      if (storedUserType) {
+        metadataUserType = storedUserType;
+        console.log('Retrieved user type from localStorage:', storedUserType);
+      }
+    }
+    
     if (metadataUserType) {
       setUserType(metadataUserType);
     } else {
@@ -96,14 +106,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Sign up function with email confirmation redirect
   const signUp = async (email: string, password: string, userType: UserType) => {
     try {
+      // First attempt with minimal metadata
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             user_type: userType,
-            first_name: '',
-            last_name: '',
           },
           emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
         },
@@ -111,6 +120,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) {
         console.error('Signup error:', error);
+        
+        // If it's a database error, try a simpler approach
+        if (error.message.includes('Database error') || error.code === 'unexpected_failure') {
+          console.log('Retrying signup with minimal data...');
+          
+          // Retry with even simpler signup
+          const { data: retryData, error: retryError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
+            },
+          });
+
+          if (retryError) {
+            return { error: retryError };
+          }
+
+          // Store user type in localStorage as fallback
+          if (retryData.user) {
+            localStorage.setItem(`user_type_${retryData.user.id}`, userType);
+            console.log('User created with fallback method, type stored locally');
+          }
+
+          return { error: null };
+        }
+
         return { error };
       }
 
@@ -122,13 +158,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       // If email is auto-confirmed (in development), create profile immediately
       if (data.user && data.user.email_confirmed_at) {
-        try {
-          // Create user profile in your database if needed
-          console.log('User created and confirmed with type:', userType);
-        } catch (profileError) {
-          console.error('Profile creation error:', profileError);
-          // Don't fail the signup if profile creation fails
-        }
+        console.log('User created and confirmed with type:', userType);
       }
 
       return { error: null };
@@ -139,14 +169,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   // Sign in function
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, selectedUserType?: UserType) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      return { error };
+      if (error) {
+        return { error };
+      }
+
+      // If a userType was selected during login, store it as fallback
+      if (selectedUserType && data.user) {
+        localStorage.setItem(`user_type_${data.user.id}`, selectedUserType);
+        console.log('Updated user type during login:', selectedUserType);
+      }
+
+      // After successful login, the auth state change will handle setting the user type
+      // from their metadata or localStorage fallback
+      return { error: null };
     } catch (err) {
       console.error('Sign in error:', err);
       return { error: { message: 'An unexpected error occurred during sign in' } as AuthError };
