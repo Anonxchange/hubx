@@ -4,6 +4,18 @@ import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame,
 import { getUserCountry } from '@/services/videosService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthProvider"; // adjust path if different
+const { user } = useAuth();
+const navigate = useNavigate();
+
+const handleProfileClick = () => {
+  if (user) {
+    navigate("/profile"); // if logged in → profile page
+  } else {
+    navigate("/auth"); // if not logged in → login page
+  }
+};
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -198,11 +210,14 @@ const Header = () => {
                 <Search className="h-5 w-5" />
               </Button>
 
-              <Link to="/auth">
-                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
+             <Button
+  onClick={handleProfileClick}
+  variant="ghost"
+  size="sm"
+  className="text-white hover:bg-white/10"
+>
+  <User className="h-5 w-5" />
+</Button>
 
               {/* Mobile Menu Button */}
               <Sheet>
