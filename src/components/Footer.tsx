@@ -144,7 +144,6 @@ const Footer = () => {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-           </div>
           </div>
         </div>
       </div>
