@@ -27,13 +27,15 @@ import CreatorDashboard from '@/pages/CreatorDashboard';
 
 // Import your AuthProvider
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
         <Toaster />
         <Sonner />
         <BrowserRouter>
@@ -62,7 +64,8 @@ const App = () => (
             </Routes>
           </AgeGateWrapper>
         </BrowserRouter>
-      </AuthProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
