@@ -58,8 +58,12 @@ const AuthPage = () => {
         else navigate('/');
       } else {
         const { error } = await signUp(email, password, userType);
-        if (error) setError(error.message);
-        else setError('Check your email for a confirmation link');
+        if (error) {
+          console.error('Signup error:', error);
+          setError(error.message || 'An error occurred during signup');
+        } else {
+          setError('Check your email for a confirmation link');
+        }
       }
     } catch {
       setError('An unexpected error occurred');
