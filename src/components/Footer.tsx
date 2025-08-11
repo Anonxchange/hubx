@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
-import { useLanguage, languageNames, type Language } from '@/contexts/LanguageContext';
 
 const categories = [
   'Big Ass', 'Big Tits', 'Ebony', 'MILF', 'Lesbian', 'Teen'
@@ -118,32 +117,6 @@ const Footer = () => {
           </div>
           <div className="flex items-center space-x-4 text-sm text-muted-foreground">
             <span>Powered by pleasure, perfected by technology.</span>
-         
-             {/* Language Selector */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto p-2 text-sm text-muted-foreground hover:text-primary font-normal"
-                >
-                  <Globe className="w-4 h-4 mr-1" />
-                  {languageNames[language]}
-                  <ChevronDown className="w-3 h-3 ml-1" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 max-h-60 overflow-y-auto">
-                {(Object.keys(languageNames) as Language[]).map((lang) => (
-                  <DropdownMenuItem 
-                    key={lang} 
-                    onClick={() => setLanguage(lang)}
-                    className="text-sm cursor-pointer"
-                  >
-                    {languageNames[lang]}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </div>
       </div>
