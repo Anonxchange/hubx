@@ -4,16 +4,6 @@ import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame,
 import { getUserCountry } from '@/services/videosService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useAuth } from "@/contexts/AuthContext"; // adjust path if different
-const { user } = useAuth();
-const navigate = useNavigate();
-
-const handleProfileClick = () => {
-  if (user) {
-    navigate("/profile"); // if logged in → profile page
-  } else {
-    navigate("/auth"); // if not logged in → login page
-  }
 
 import {
   DropdownMenu,
