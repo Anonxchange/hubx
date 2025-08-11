@@ -1,8 +1,22 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, AuthError } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 
 type UserType = 'user' | 'creator';
+
+interface User {
+  id: string;
+  email: string;
+  user_metadata?: {
+    first_name?: string;
+    last_name?: string;
+    avatar_url?: string;
+    user_type?: UserType;
+  };
+  email_confirmed_at?: string;
+}
+
+interface AuthError {
+  message: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -24,49 +38,77 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        setUser(session?.user ?? null);
 
-      if (session?.user) {
-        // Check user_type metadata or fallback to profiles table
-        const metadataUserType = session.user.user_metadata?.user_type as UserType | undefined;
-        if (metadataUserType) setUserType(metadataUserType);
-        else {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('user_type')
-            .eq('id', session.user.id)
-            .single();
+        if (session?.user) {
+          // Check user_type metadata or fallback to profiles table
+          const metadataUserType = session.user.user_metadata?.user_type as UserType | undefined;
+          if (metadataUserType) {
+            setUserType(metadataUserType);
+          } else {
+            try {
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('user_type')
+                .eq('id', session.user.id)
+                .single();
 
-          setUserType((profile?.user_type as UserType) ?? 'user');
+              if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
+                console.error('Error fetching profile:', error);
+              }
+
+              setUserType((profile?.user_type as UserType) ?? 'user');
+            } catch (profileError) {
+              console.error('Profile fetch error:', profileError);
+              setUserType('user'); // Default fallback
+            }
+          }
+          // Check if email confirmed
+          setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
+        } else {
+          setUserType(null);
+          setIsEmailConfirmed(false);
         }
-        // Check if email confirmed
-        setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
-      } else {
+      } catch (error) {
+        console.error('Session error:', error);
+        setUser(null);
+        setUserType(null);
         setIsEmailConfirmed(false);
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     };
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setUser(session?.user ?? null);
 
       if (session?.user) {
         const metadataUserType = session.user.user_metadata?.user_type as UserType | undefined;
-        if (metadataUserType) setUserType(metadataUserType);
-        else {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('user_type')
-            .eq('id', session.user.id)
-            .single();
+        if (metadataUserType) {
+          setUserType(metadataUserType);
+        } else {
+          try {
+            const { data: profile, error } = await supabase
+              .from('profiles')
+              .select('user_type')
+              .eq('id', session.user.id)
+              .single();
 
-          setUserType((profile?.user_type as UserType) ?? 'user');
+            if (error && error.code !== 'PGRST116') {
+              console.error('Error fetching profile:', error);
+            }
+
+            setUserType((profile?.user_type as UserType) ?? 'user');
+          } catch (profileError) {
+            console.error('Profile fetch error:', profileError);
+            setUserType('user');
+          }
         }
         setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
       } else {
@@ -82,31 +124,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Sign up function with email confirmation redirect
   const signUp = async (email: string, password: string, userType: UserType) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          user_type: userType,
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            user_type: userType,
+          },
+          emailRedirectTo: window.location.origin + '/auth', // Redirect after email confirmation
         },
-        emailRedirectTo: window.location.origin + '/auth', // Redirect after email confirmation
-      },
-    });
+      });
 
-    if (error) return { error };
+      if (error) return { error };
 
-    if (data.user) {
-      const { error: profileError } = await supabase.from('profiles').insert([
-        {
-          id: data.user.id,
-          user_type: userType,
-        },
-      ]);
+      if (data.user && !data.user.email_confirmed_at) {
+        // User needs to confirm email, don't create profile yet
+        return { error: null };
+      }
 
-      if (profileError) return { error: profileError };
+      if (data.user) {
+        // Check if profile already exists before inserting
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('id', data.user.id)
+          .single();
+
+        if (!existingProfile) {
+          const { error: profileError } = await supabase.from('profiles').upsert([
+            {
+              id: data.user.id,
+              user_type: userType,
+            },
+          ]);
+
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            return { error: profileError };
+          }
+        }
+      }
+
+      return { error: null };
+    } catch (err) {
+      console.error('Signup error:', err);
+      return { error: { message: 'An unexpected error occurred during signup' } as AuthError };
     }
-
-    return { error: null };
   };
 
   // Sign in function
