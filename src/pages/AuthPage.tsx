@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, User, Video, Star, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,16 +12,26 @@ import { Badge } from '@/components/ui/badge';
 
 const AuthPage = () => {
   const [isLogin, setIsLogin] = useState(true);
-  const [userType, setUserType] = useState<'user' | 'creator'>('user');
+  const [userType, setUserType] = useState<'user' | 'individual_creator' | 'studio_creator'>('user');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [emailSent, setEmailSent] = useState(false); // State to track if email confirmation is sent
+  const [emailSent, setEmailSent] = useState(false);
+  const [confirmationSuccess, setConfirmationSuccess] = useState(false);
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    // Check if user came back from email confirmation
+    if (searchParams.get('confirmed') === 'true') {
+      setConfirmationSuccess(true);
+      setIsLogin(true); // Switch to login mode
+    }
+  }, [searchParams]);
 
   const handleGoogleAuth = async () => {
     setError(null);
@@ -52,32 +62,43 @@ const AuthPage = () => {
       return;
     }
 
+    if (!isLogin && password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
     try {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
-          setError(error.message);
-        } else {
-          // Redirect based on selected user type during login
-          if (userType === 'creator') {
-            navigate('/creator-dashboard');
+          if (error.message.includes('Invalid login credentials')) {
+            setError('Invalid email or password');
+          } else if (error.message.includes('Email not confirmed')) {
+            setError('Please check your email and click the confirmation link');
           } else {
-            navigate('/');
+            setError(error.message);
           }
+        } else {
+          navigate('/');
         }
       } else {
         const { error } = await signUp(email, password, userType);
         if (error) {
-          console.error('Signup error:', error);
-          setError(error.message || 'An error occurred during signup');
+          if (error.message.includes('User already registered')) {
+            setError('An account with this email already exists');
+          } else if (error.message.includes('Password should be at least')) {
+            setError('Password must be at least 6 characters long');
+          } else {
+            setError(error.message || 'Failed to create account');
+          }
         } else {
-          // Successfully sent confirmation email
           setEmailSent(true);
-          setError(null);
         }
       }
-    } catch (err) {
-      setError('An unexpected error occurred');
+    } catch (err: any) {
+      console.error('Auth error:', err);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -110,50 +131,76 @@ const AuthPage = () => {
           <h1 className="text-2xl font-bold text-center mb-4">{isLogin ? 'Welcome Back' : 'Join HubX'}</h1>
 
           {/* Show userType selector for both Login and Sign Up */}
-          <div className="mb-6 grid grid-cols-2 gap-3">
+          <div className="mb-6 grid grid-cols-3 gap-2">
             <Card
               className={`cursor-pointer transition-all hover:scale-105 ${
                 userType === 'user' ? 'ring-2 ring-primary' : ''
               }`}
               onClick={() => setUserType('user')}
             >
-              <CardContent className="p-4 text-center">
-                <User className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <h3 className="font-semibold">User</h3>
-                <p className="text-sm text-muted-foreground">Watch & enjoy content</p>
+              <CardContent className="p-3 text-center">
+                <User className="w-6 h-6 mx-auto mb-2 text-primary" />
+                <h3 className="font-semibold text-sm">User</h3>
+                <p className="text-xs text-muted-foreground">Watch content</p>
               </CardContent>
             </Card>
 
             <Card
               className={`cursor-pointer transition-all hover:scale-105 ${
-                userType === 'creator' ? 'ring-2 ring-primary' : ''
+                userType === 'individual_creator' ? 'ring-2 ring-primary' : ''
               }`}
-              onClick={() => setUserType('creator')}
+              onClick={() => setUserType('individual_creator')}
             >
-              <CardContent className="p-4 text-center">
-                <Video className="w-8 h-8 mx-auto mb-2 text-orange-500" />
-                <h3 className="font-semibold">Creator</h3>
-                <p className="text-sm text-muted-foreground">Earn with HubX</p>
+              <CardContent className="p-3 text-center">
+                <Video className="w-6 h-6 mx-auto mb-2 text-orange-500" />
+                <h3 className="font-semibold text-sm">Individual</h3>
+                <p className="text-xs text-muted-foreground">Solo creator</p>
                 <Badge variant="secondary" className="mt-1 text-xs">
                   <DollarSign className="w-3 h-3 mr-1" />
-                  Monetize
+                  Earn
+                </Badge>
+              </CardContent>
+            </Card>
+
+            <Card
+              className={`cursor-pointer transition-all hover:scale-105 ${
+                userType === 'studio_creator' ? 'ring-2 ring-primary' : ''
+              }`}
+              onClick={() => setUserType('studio_creator')}
+            >
+              <CardContent className="p-3 text-center">
+                <Star className="w-6 h-6 mx-auto mb-2 text-purple-500" />
+                <h3 className="font-semibold text-sm">Studio</h3>
+                <p className="text-xs text-muted-foreground">Team/Agency</p>
+                <Badge variant="secondary" className="mt-1 text-xs">
+                  <DollarSign className="w-3 h-3 mr-1" />
+                  Pro
                 </Badge>
               </CardContent>
             </Card>
           </div>
 
           {/* Creator Benefits */}
-          {!isLogin && userType === 'creator' && (
+          {!isLogin && (userType === 'individual_creator' || userType === 'studio_creator') && (
             <div className="mb-6 p-4 bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 rounded-lg border">
               <div className="flex items-center space-x-2 mb-2">
                 <Star className="w-5 h-5 text-orange-500" />
-                <h3 className="font-semibold text-orange-700 dark:text-orange-400">Creator Benefits</h3>
+                <h3 className="font-semibold text-orange-700 dark:text-orange-400">
+                  {userType === 'studio_creator' ? 'Studio' : 'Individual'} Creator Benefits
+                </h3>
               </div>
               <ul className="space-y-1 text-sm text-orange-600 dark:text-orange-300">
                 <li>• Upload and monetize your content</li>
                 <li>• Earn revenue from views and subscriptions</li>
                 <li>• Build your audience and brand</li>
                 <li>• Analytics and performance insights</li>
+                {userType === 'studio_creator' && (
+                  <>
+                    <li>• Team management tools</li>
+                    <li>• Advanced revenue sharing</li>
+                    <li>• Priority support</li>
+                  </>
+                )}
               </ul>
             </div>
           )}
@@ -180,11 +227,20 @@ const AuthPage = () => {
                 </div>
               )}
 
+              {/* Display confirmation success message */}
+              {confirmationSuccess && (
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    Email confirmed successfully! You can now log in.
+                  </p>
+                </div>
+              )}
+
               {/* Display "Check your email" message if emailSent is true */}
               {!isLogin && emailSent && (
                 <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
                   <p className="text-sm text-green-600 dark:text-green-400">
-                    A confirmation email has been sent. Please check your inbox.
+                    A confirmation email has been sent. Please check your inbox and click the confirmation link.
                   </p>
                 </div>
               )}
@@ -232,7 +288,8 @@ const AuthPage = () => {
                   {loading
                     ? 'Please wait...'
                     : `${isLogin ? 'Login' : 'Create Account'} as ${
-                        userType === 'creator' ? 'Creator' : 'User'
+                        userType === 'individual_creator' ? 'Individual Creator' :
+                        userType === 'studio_creator' ? 'Studio Creator' : 'User'
                       }`}
                 </Button>
 
