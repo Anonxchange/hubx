@@ -5,6 +5,7 @@ import { getUserCountry } from '@/services/videosService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
+import ProfileDropdown from '@/components/ProfileDropdown';
 
 import {
   DropdownMenu,
@@ -48,6 +49,31 @@ const mobileNavItems = (country: string): MobileNavItem[] => [
   { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
   { name: 'Live Cams', icon: Users, url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default', badge: null },
 ];
+
+// User Authentication Section Component
+const UserAuthSection = () => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <Button variant="ghost" size="sm" className="text-white hover:bg-white/10" disabled>
+        <User className="h-5 w-5" />
+      </Button>
+    );
+  }
+
+  if (user) {
+    return <ProfileDropdown />;
+  }
+
+  return (
+    <Link to="/auth">
+      <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
+        <User className="h-5 w-5" />
+      </Button>
+    </Link>
+  );
+};
 
 const Header = () => {
   const navigate = useNavigate();
@@ -200,11 +226,8 @@ const Header = () => {
                 <Search className="h-5 w-5" />
               </Button>
 
-                        <Link to="/auth">
-                <Button variant="ghost" size="sm" className="text-white hover:bg-white/10">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
+                        {/* User Authentication */}
+              <UserAuthSection />
 
 
               {/* Mobile Menu Button */}
