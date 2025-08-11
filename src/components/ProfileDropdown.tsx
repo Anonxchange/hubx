@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Settings, User, Heart, Bell, Upload, List, Rss, MessageCircle, ThumbsUp, Clock, HelpCircle, MessageSquare, Crown } from 'lucide-react';
+import { LogOut, Settings, User, Heart, Bell, Upload, List, Rss, MessageCircle, ThumbsUp, Clock, HelpCircle, MessageSquare, Crown, Globe } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -11,12 +11,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 
 const ProfileDropdown = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { language, setLanguage, t } = useLanguage();
 
   const handleSignOut = async () => {
     try {
@@ -64,13 +66,13 @@ const ProfileDropdown = () => {
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-80 bg-black/95 border-gray-800 text-white p-4" align="start" forceMount>
+      <DropdownMenuContent className="w-80 bg-black/95 border-gray-800 text-white p-4 max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" align="start" forceMount>
         {/* Profile Header */}
         <DropdownMenuLabel className="font-normal pb-4">
           <div className="flex flex-col space-y-1">
             <p className="text-lg font-medium leading-none text-white">{getDisplayName()}</p>
-            <p className="text-sm leading-none text-gray-400">
-              See Your Profile
+            <p className="text-sm leading-none text-gray-400 cursor-pointer hover:text-gray-300" onClick={() => navigate('/profile')}>
+              {t('see_profile')}
             </p>
           </div>
         </DropdownMenuLabel>
@@ -86,7 +88,7 @@ const ProfileDropdown = () => {
               onClick={() => navigate('/notifications')}
             >
               <Bell className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">Notifications</span>
+              <span className="text-xs text-gray-300">{t('notifications')}</span>
             </div>
 
             <div
@@ -94,7 +96,7 @@ const ProfileDropdown = () => {
               onClick={() => navigate('/inbox')}
             >
               <MessageCircle className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">Inbox</span>
+              <span className="text-xs text-gray-300">{t('inbox')}</span>
             </div>
 
             <div
@@ -102,7 +104,7 @@ const ProfileDropdown = () => {
               onClick={() => navigate('/upload')}
             >
               <Upload className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">Upload</span>
+              <span className="text-xs text-gray-300">{t('upload')}</span>
             </div>
 
             {/* Second Row */}
@@ -111,7 +113,7 @@ const ProfileDropdown = () => {
               onClick={() => navigate('/favorites')}
             >
               <Heart className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">Favorites</span>
+              <span className="text-xs text-gray-300">{t('favorites')}</span>
             </div>
 
             <div
@@ -119,7 +121,7 @@ const ProfileDropdown = () => {
               onClick={() => navigate('/liked')}
             >
               <ThumbsUp className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">Liked Videos</span>
+              <span className="text-xs text-gray-300">{t('liked_videos')}</span>
             </div>
 
             <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors">
@@ -130,7 +132,7 @@ const ProfileDropdown = () => {
             {/* Third Row */}
             <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors">
               <Settings className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">Settings</span>
+              <span className="text-xs text-gray-300">{t('settings')}</span>
             </div>
 
             {isCreator && (
@@ -148,7 +150,7 @@ const ProfileDropdown = () => {
               onClick={handleSignOut}
             >
               <LogOut className="h-6 w-6 text-red-400" />
-              <span className="text-xs text-red-400">Logout</span>
+              <span className="text-xs text-red-400">{t('logout')}</span>
             </div>
           </div>
         </div>
@@ -171,7 +173,35 @@ const ProfileDropdown = () => {
           >
             <div className="flex items-center">
               <Clock className="mr-3 h-5 w-5 text-blue-400 stroke-[3]" />
-              <span>Become a Model</span>
+              <span>Become a Creator</span>
+            </div>
+          </DropdownMenuItem>
+
+          <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3">
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center">
+                <Globe className="mr-3 h-5 w-5 text-gray-300" />
+                <span>{t('language')}</span>
+              </div>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as any)}
+                className="bg-gray-700 text-white text-sm rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <option value="en">English</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+                <option value="it">Italiano</option>
+                <option value="pt">Português</option>
+                <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
+                <option value="zh">中文</option>
+                <option value="ar">العربية</option>
+                <option value="ru">Русский</option>
+                <option value="hi">हिन्दी</option>
+              </select>
             </div>
           </DropdownMenuItem>
 
@@ -196,7 +226,7 @@ const ProfileDropdown = () => {
             onClick={() => navigate('/profile')}
           >
             <User className="mr-3 h-5 w-5 text-gray-300" />
-            <span>Profile</span>
+            <span>{t('profile')}</span>
           </DropdownMenuItem>
         </div>
 
@@ -207,7 +237,7 @@ const ProfileDropdown = () => {
           onClick={handleSignOut}
         >
           <LogOut className="mr-3 h-5 w-5 text-red-400" />
-          <span>Log Out</span>
+          <span>{t('logout')}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
