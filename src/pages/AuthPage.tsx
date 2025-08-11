@@ -17,8 +17,6 @@ const AuthPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [loading, setLoading] = useState(false);
 
   const { signIn } = useAuth();
@@ -96,8 +94,6 @@ const AuthPage = () => {
           options: {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
-              first_name: firstName,
-              last_name: lastName,
               user_type: userType,
             },
           },
@@ -221,23 +217,6 @@ const AuthPage = () => {
 
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
-                <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="First Name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
-                  <Input
-                    placeholder="Last Name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
-                </div>
-              )}
-
               <div className="space-y-2">
                 <Label>Email</Label>
                 <Input
