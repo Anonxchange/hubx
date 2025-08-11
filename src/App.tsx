@@ -74,7 +74,7 @@ const App = () => (
                 <Route
                   path="/admin-hubx-2024"
                   element={
-                    <ProtectedRoute allowedUserTypes={['studio_creator'] /* or add admin role if you have it */}>
+                    <ProtectedRoute allowedUserTypes={['admin']}>
                       <AdminPanel />
                     </ProtectedRoute>
                   }
