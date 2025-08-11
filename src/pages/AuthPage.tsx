@@ -18,6 +18,7 @@ const AuthPage = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false); // State to track if email confirmation is sent
 
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
@@ -54,18 +55,28 @@ const AuthPage = () => {
     try {
       if (isLogin) {
         const { error } = await signIn(email, password);
-        if (error) setError(error.message);
-        else navigate('/');
+        if (error) {
+          setError(error.message);
+        } else {
+          // Redirect based on selected user type during login
+          if (userType === 'creator') {
+            navigate('/creator-dashboard');
+          } else {
+            navigate('/');
+          }
+        }
       } else {
         const { error } = await signUp(email, password, userType);
         if (error) {
           console.error('Signup error:', error);
           setError(error.message || 'An error occurred during signup');
         } else {
-          setError('Check your email for a confirmation link');
+          // Successfully sent confirmation email
+          setEmailSent(true);
+          setError(null);
         }
       }
-    } catch {
+    } catch (err) {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
@@ -98,40 +109,38 @@ const AuthPage = () => {
         <div className="max-w-md mx-auto">
           <h1 className="text-2xl font-bold text-center mb-4">{isLogin ? 'Welcome Back' : 'Join HubX'}</h1>
 
-          {/* Show userType selector ONLY on Sign Up */}
-          {!isLogin && (
-            <div className="mb-6 grid grid-cols-2 gap-3">
-              <Card
-                className={`cursor-pointer transition-all hover:scale-105 ${
-                  userType === 'user' ? 'ring-2 ring-primary' : ''
-                }`}
-                onClick={() => setUserType('user')}
-              >
-                <CardContent className="p-4 text-center">
-                  <User className="w-8 h-8 mx-auto mb-2 text-primary" />
-                  <h3 className="font-semibold">User</h3>
-                  <p className="text-sm text-muted-foreground">Watch & enjoy content</p>
-                </CardContent>
-              </Card>
+          {/* Show userType selector for both Login and Sign Up */}
+          <div className="mb-6 grid grid-cols-2 gap-3">
+            <Card
+              className={`cursor-pointer transition-all hover:scale-105 ${
+                userType === 'user' ? 'ring-2 ring-primary' : ''
+              }`}
+              onClick={() => setUserType('user')}
+            >
+              <CardContent className="p-4 text-center">
+                <User className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <h3 className="font-semibold">User</h3>
+                <p className="text-sm text-muted-foreground">Watch & enjoy content</p>
+              </CardContent>
+            </Card>
 
-              <Card
-                className={`cursor-pointer transition-all hover:scale-105 ${
-                  userType === 'creator' ? 'ring-2 ring-primary' : ''
-                }`}
-                onClick={() => setUserType('creator')}
-              >
-                <CardContent className="p-4 text-center">
-                  <Video className="w-8 h-8 mx-auto mb-2 text-orange-500" />
-                  <h3 className="font-semibold">Creator</h3>
-                  <p className="text-sm text-muted-foreground">Earn with HubX</p>
-                  <Badge variant="secondary" className="mt-1 text-xs">
-                    <DollarSign className="w-3 h-3 mr-1" />
-                    Monetize
-                  </Badge>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+            <Card
+              className={`cursor-pointer transition-all hover:scale-105 ${
+                userType === 'creator' ? 'ring-2 ring-primary' : ''
+              }`}
+              onClick={() => setUserType('creator')}
+            >
+              <CardContent className="p-4 text-center">
+                <Video className="w-8 h-8 mx-auto mb-2 text-orange-500" />
+                <h3 className="font-semibold">Creator</h3>
+                <p className="text-sm text-muted-foreground">Earn with HubX</p>
+                <Badge variant="secondary" className="mt-1 text-xs">
+                  <DollarSign className="w-3 h-3 mr-1" />
+                  Monetize
+                </Badge>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Creator Benefits */}
           {!isLogin && userType === 'creator' && (
@@ -168,6 +177,15 @@ const AuthPage = () => {
               {error && (
                 <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-md">
                   <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                </div>
+              )}
+
+              {/* Display "Check your email" message if emailSent is true */}
+              {!isLogin && emailSent && (
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    A confirmation email has been sent. Please check your inbox.
+                  </p>
                 </div>
               )}
 
@@ -210,7 +228,7 @@ const AuthPage = () => {
                   </div>
                 )}
 
-                <Button type="submit" className="w-full" disabled={loading}>
+                <Button type="submit" className="w-full" disabled={loading || (!isLogin && emailSent)}>
                   {loading
                     ? 'Please wait...'
                     : `${isLogin ? 'Login' : 'Create Account'} as ${
