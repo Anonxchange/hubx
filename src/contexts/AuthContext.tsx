@@ -39,23 +39,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchUserAndSetType = async (currentUser: User) => {
     setUser(currentUser);
-    let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
-    
-    // If no user type in metadata, check localStorage as fallback
-    if (!metadataUserType) {
-      const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
-      if (storedUserType) {
-        metadataUserType = storedUserType;
-        console.log('Retrieved user type from localStorage:', storedUserType);
-      }
-    }
-    
-    if (metadataUserType) {
-      setUserType(metadataUserType);
+
+    // Fetch user profile from DB for accurate user_type
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('user_type')
+      .eq('id', currentUser.id)
+      .single();
+
+    if (!error && profile?.user_type) {
+      setUserType(profile.user_type as UserType);
     } else {
-      // Default to 'user' type if no profile data is found
-      setUserType('user');
+      // Fallback to metadata or localStorage
+      let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
+      if (!metadataUserType) {
+        const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
+        if (storedUserType) {
+          metadataUserType = storedUserType;
+          console.log('Retrieved user type from localStorage:', storedUserType);
+        }
+      }
+      setUserType(metadataUserType ?? 'user');
     }
+
     setIsEmailConfirmed(Boolean(currentUser.email_confirmed_at));
   };
 
@@ -103,62 +109,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Sign up function with email confirmation redirect
+  // Sign up function with profile creation in DB
   const signUp = async (email: string, password: string, userType: UserType) => {
     try {
-      // First attempt with minimal metadata
+      // Signup without user metadata (to avoid DB errors)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            user_type: userType,
-          },
           emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
         },
       });
 
       if (error) {
         console.error('Signup error:', error);
-        
-        // If it's a database error, try a simpler approach
-        if (error.message.includes('Database error') || error.code === 'unexpected_failure') {
-          console.log('Retrying signup with minimal data...');
-          
-          // Retry with even simpler signup
-          const { data: retryData, error: retryError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
-            },
-          });
-
-          if (retryError) {
-            return { error: retryError };
-          }
-
-          // Store user type in localStorage as fallback
-          if (retryData.user) {
-            localStorage.setItem(`user_type_${retryData.user.id}`, userType);
-            console.log('User created with fallback method, type stored locally');
-          }
-
-          return { error: null };
-        }
-
         return { error };
       }
 
-      // For email confirmation flow, we don't create profile until email is confirmed
-      if (data.user && !data.user.email_confirmed_at) {
-        console.log('User created, waiting for email confirmation');
-        return { error: null };
-      }
+      if (data.user) {
+        // Insert profile row with user_type immediately after signup
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: data.user.id,
+          email,
+          user_type: userType,
+        });
 
-      // If email is auto-confirmed (in development), create profile immediately
-      if (data.user && data.user.email_confirmed_at) {
-        console.log('User created and confirmed with type:', userType);
+        if (profileError) {
+          console.error('Error inserting profile:', profileError);
+          return { error: profileError };
+        }
       }
 
       return { error: null };
@@ -180,14 +159,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      // If a userType was selected during login, store it as fallback
+      // Store userType in localStorage as fallback
       if (selectedUserType && data.user) {
         localStorage.setItem(`user_type_${data.user.id}`, selectedUserType);
         console.log('Updated user type during login:', selectedUserType);
       }
 
-      // After successful login, the auth state change will handle setting the user type
-      // from their metadata or localStorage fallback
       return { error: null };
     } catch (err) {
       console.error('Sign in error:', err);
