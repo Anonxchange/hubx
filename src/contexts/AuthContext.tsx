@@ -125,13 +125,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      // If email confirmation is required, we don't immediately create the profile.
-      // The profile creation will be handled after email confirmation or on first login.
       if (data.user && !data.user.email_confirmed_at) {
+        // User needs to confirm email, don't create profile yet
         return { error: null };
       }
 
-      // If user is created and email is already confirmed (e.g., during testing or specific configurations)
       if (data.user) {
         const { data: existingProfile } = await supabase
           .from('profiles')
@@ -171,128 +169,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         password,
       });
 
-      // The user state and type will be updated by the onAuthStateChange listener
-      // after a successful sign-in.
       return { error };
     } catch (err) {
       console.error('Sign in error:', err);
       return { error: { message: 'An unexpected error occurred during sign in' } as AuthError };
     }
-  };
-
-  // Sign out function
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setUserType(null);
-    setIsEmailConfirmed(false);
-  };
-
-  return (
-    <AuthContext.Provider
-      value={{ user, userType, loading, signUp, signIn, signOut, isEmailConfirmed }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
-};
-
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
-  return context;
-};efined;
-        if (metadataUserType) {
-          setUserType(metadataUserType);
-        } else {
-          try {
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('user_type')
-              .eq('id', session.user.id)
-              .single();
-
-            if (error && error.code !== 'PGRST116') {
-              console.error('Error fetching profile:', error);
-            }
-
-            setUserType((profile?.user_type as UserType) ?? 'user');
-          } catch (profileError) {
-            console.error('Profile fetch error:', profileError);
-            setUserType('user');
-          }
-        }
-        setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
-      } else {
-        setUserType(null);
-        setIsEmailConfirmed(false);
-      }
-
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Sign up function with email confirmation redirect
-  const signUp = async (email: string, password: string, userType: UserType) => {
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            user_type: userType,
-          },
-          emailRedirectTo: window.location.origin + '/auth', // Redirect after email confirmation
-        },
-      });
-
-      if (error) return { error };
-
-      if (data.user && !data.user.email_confirmed_at) {
-        // User needs to confirm email, don't create profile yet
-        return { error: null };
-      }
-
-      if (data.user) {
-        // Check if profile already exists before inserting
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', data.user.id)
-          .single();
-
-        if (!existingProfile) {
-          const { error: profileError } = await supabase.from('profiles').upsert([
-            {
-              id: data.user.id,
-              user_type: userType,
-            },
-          ]);
-
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-            return { error: profileError };
-          }
-        }
-      }
-
-      return { error: null };
-    } catch (err) {
-      console.error('Signup error:', err);
-      return { error: { message: 'An unexpected error occurred during signup' } as AuthError };
-    }
-  };
-
-  // Sign in function
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    return { error };
   };
 
   // Sign out function
