@@ -4,6 +4,7 @@ import { ChevronDown, Search, Settings, Menu, Play, TrendingUp, ThumbsUp, Flame,
 import { getUserCountry } from '@/services/videosService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useAuth } from '@/contexts/AuthContext';
 
 import {
   DropdownMenu,
