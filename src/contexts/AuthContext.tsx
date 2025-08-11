@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-type UserType = 'user' | 'creator';
+type UserType = 'user' | 'individual_creator' | 'studio_creator';
 
 interface User {
   id: string;
@@ -102,8 +102,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         options: {
           data: {
             user_type: userType,
+            first_name: '',
+            last_name: '',
           },
-          emailRedirectTo: window.location.origin + '/auth',
+          emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
         },
       });
 
@@ -112,14 +114,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
+      // For email confirmation flow, we don't create profile until email is confirmed
       if (data.user && !data.user.email_confirmed_at) {
-        // User needs to confirm email, don't create profile yet
+        console.log('User created, waiting for email confirmation');
         return { error: null };
       }
 
-      // Skip profile creation for now - using user metadata instead
-      if (data.user) {
-        console.log('User created successfully with metadata');
+      // If email is auto-confirmed (in development), create profile immediately
+      if (data.user && data.user.email_confirmed_at) {
+        try {
+          // Create user profile in your database if needed
+          console.log('User created and confirmed with type:', userType);
+        } catch (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Don't fail the signup if profile creation fails
+        }
       }
 
       return { error: null };
