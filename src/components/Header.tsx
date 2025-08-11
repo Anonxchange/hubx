@@ -14,7 +14,7 @@ const handleProfileClick = () => {
   } else {
     navigate("/auth"); // if not logged in → login page
   }
-};
+
 import {
   DropdownMenu,
   DropdownMenuContent,
