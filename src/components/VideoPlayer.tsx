@@ -2,6 +2,8 @@ import React, { useRef, useEffect, useState } from 'react';
 import { VideoIcon, Settings, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
+import { useAuth } from '@/contexts/AuthContext';
+import { trackVideoView } from '@/services/userStatsService';
 
 interface VideoQuality {
   label: string;
@@ -15,13 +17,15 @@ interface VideoPlayerProps {
   poster?: string;
   onError?: () => void;
   onCanPlay?: () => void;
+  videoId?: string; // Added videoId prop
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
   src, 
   poster, 
   onError, 
-  onCanPlay 
+  onCanPlay,
+  videoId // Destructure videoId
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const adVideoRef = useRef<HTMLVideoElement>(null);
@@ -32,9 +36,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [adShown, setAdShown] = useState(false);
   const [showSkipButton, setShowSkipButton] = useState(false);
   const [adCountdown, setAdCountdown] = useState(5);
-  const [viewTracked, setViewTracked] = useState(false);
+  const [viewTracked, setViewTracked] = useState(false); // State to track if view has been logged
   const [vastCache, setVastCache] = useState<{[key: string]: any}>({});
-  
+  const { user } = useAuth(); // Get user from AuthContext
+
   // ABR and Quality Selection State
   const [showQualityMenu, setShowQualityMenu] = useState(false);
   const [selectedQuality, setSelectedQuality] = useState<VideoQuality | null>(null);
@@ -44,13 +49,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [bufferHealth, setBufferHealth] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
-  
+
   const { getVideoPreloadStrategy } = useBandwidthOptimization();
 
   // Initialize video qualities lazily - only when needed
   const initializeQualities = () => {
     if (availableQualities.length > 0) return;
-    
+
     const qualities: VideoQuality[] = [
       {
         label: "720p",
@@ -71,7 +76,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         url: src.replace('.mp4', '_360p.mp4')
       }
     ];
-    
+
     setAvailableQualities(qualities);
     setSelectedQuality(qualities[0]); // Default to 720p
     setIsAutoQuality(false);
@@ -80,7 +85,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Lightweight connection estimation - no network requests
   const estimateConnectionSpeed = () => {
     if (connectionSpeed > 0) return;
-    
+
     // Use Network Information API if available
     const connection = (navigator as any).connection;
     if (connection) {
@@ -94,9 +99,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Auto quality selection based on connection speed and buffer health
   const selectOptimalQuality = () => {
     if (!isAutoQuality || availableQualities.length === 0) return;
-    
+
     let optimalQuality = availableQualities[availableQualities.length - 1]; // Start with lowest quality
-    
+
     // Select based on connection speed
     if (connectionSpeed > 4000000) { // > 4 Mbps
       optimalQuality = availableQualities.find(q => q.height === 1080) || optimalQuality;
@@ -105,7 +110,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     } else if (connectionSpeed > 800000) { // > 800 Kbps
       optimalQuality = availableQualities.find(q => q.height === 480) || optimalQuality;
     }
-    
+
     // Adjust based on buffer health
     if (bufferHealth < 5 && selectedQuality && selectedQuality.height > 480) {
       // Step down quality if buffer is low
@@ -114,7 +119,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         optimalQuality = availableQualities[currentIndex + 1];
       }
     }
-    
+
     if (optimalQuality && optimalQuality !== selectedQuality) {
       console.log(`Auto-switching to ${optimalQuality.label}`);
       setSelectedQuality(optimalQuality);
@@ -124,11 +129,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Monitor buffer health
   const monitorBufferHealth = () => {
     if (!videoRef.current) return;
-    
+
     const video = videoRef.current;
     const buffered = video.buffered;
     const currentTime = video.currentTime;
-    
+
     if (buffered.length > 0) {
       // Find the buffer range that contains current time
       for (let i = 0; i < buffered.length; i++) {
@@ -144,20 +149,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Handle quality change
   const handleQualityChange = (quality: VideoQuality) => {
     if (!videoRef.current) return;
-    
+
     const video = videoRef.current;
     const currentTime = video.currentTime;
     const wasPlaying = !video.paused;
-    
+
     setSelectedQuality(quality);
     setIsAutoQuality(quality.label === "Auto");
     setShowQualityMenu(false);
-    
+
     // Don't load new source until user starts playing (bandwidth saving)
     if (hasStartedPlaying) {
       video.src = quality.url;
       video.currentTime = currentTime;
-      
+
       if (wasPlaying) {
         video.play().catch(console.error);
       }
@@ -167,19 +172,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Handle play button click with lazy loading
   const handlePlayClick = () => {
     if (!videoRef.current) return;
-    
+
     const video = videoRef.current;
-    
+
     if (!hasStartedPlaying) {
       // Initialize qualities and connection estimate
       initializeQualities();
       estimateConnectionSpeed();
-      
+
       setHasStartedPlaying(true);
       video.src = src; // Use original source
       video.load();
     }
-    
+
     if (video.paused) {
       video.play().then(() => {
         setIsPlaying(true);
@@ -193,10 +198,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Monitor video events for ABR - optimized with throttling
   useEffect(() => {
     if (!videoRef.current || !hasStartedPlaying) return;
-    
+
     const video = videoRef.current;
     let timeUpdateThrottle: NodeJS.Timeout;
-    
+
     const handleTimeUpdate = () => {
       // Throttle time update events to reduce CPU usage
       if (!timeUpdateThrottle) {
@@ -207,29 +212,29 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }, 2000); // Check every 2 seconds instead of constantly
       }
     };
-    
+
     const handleLoadedData = () => {
       setIsLoading(false);
       if (onCanPlay) onCanPlay();
     };
-    
+
     const handleError = () => {
       setVideoError(true);
       if (onError) onError();
     };
-    
+
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
-    
+
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadeddata', handleLoadedData);
     video.addEventListener('error', handleError);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
-    
+
     // Monitor buffer health every 3 seconds instead of every second
     const bufferInterval = setInterval(monitorBufferHealth, 3000);
-    
+
     return () => {
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadeddata', handleLoadedData);
@@ -247,28 +252,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   // Function to track video view with Exoclick
-  const trackVideoView = () => {
+  const trackVideoViewExoclick = () => {
     if (viewTracked) return;
-    
+
     try {
       // Track with Exoclick - fire impression tracking
       if (window.popMagic && typeof window.popMagic.setAsOpened === 'function') {
         console.log('Tracking video view with Exoclick');
         window.popMagic.setAsOpened();
       }
-      
+
       // Alternative tracking method if available
       if (window.AdProvider && Array.isArray(window.AdProvider)) {
         console.log('Tracking video impression');
         window.AdProvider.push({"serve": {"type": "impression"}});
       }
-      
+
       // Custom tracking event
       const trackingEvent = new CustomEvent('videoViewTracked', {
         detail: { videoSrc: src, timestamp: Date.now() }
       });
       document.dispatchEvent(trackingEvent);
-      
+
       setViewTracked(true);
       console.log('Video view tracked successfully');
     } catch (error) {
@@ -280,7 +285,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const fetchVastAd = async () => {
     const cacheKey = 'vast_ad_data';
     const cacheExpiry = 15 * 60 * 1000; // 15 minutes for better caching
-    
+
     // Check cache first
     const cached = vastCache[cacheKey];
     if (cached && (Date.now() - cached.timestamp) < cacheExpiry) {
@@ -291,7 +296,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       // Add timeout to prevent hanging
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
-      
+
       const response = await fetch('https://s.magsrv.com/v1/vast.php?idzone=5660526', {
         mode: 'cors',
         headers: {
@@ -299,23 +304,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         },
         signal: controller.signal
       });
-      
+
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch VAST');
       }
-      
+
       const vastXml = await response.text();
-      
+
       // Parse VAST XML to extract media file
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(vastXml, 'text/xml');
-      
+
       // Look for MediaFile elements
       const mediaFiles = xmlDoc.getElementsByTagName('MediaFile');
       let adVideoUrl = null;
-      
+
       for (let i = 0; i < mediaFiles.length; i++) {
         const mediaFile = mediaFiles[i];
         const type = mediaFile.getAttribute('type');
@@ -324,13 +329,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           break;
         }
       }
-      
+
       // Also check for ClickThrough URL
       const clickThrough = xmlDoc.getElementsByTagName('ClickThrough')[0];
       const clickThroughUrl = clickThrough ? clickThrough.textContent?.trim() : null;
-      
+
       const result = { adVideoUrl, clickThroughUrl };
-      
+
       // Cache the result
       setVastCache(prev => ({
         ...prev,
@@ -339,7 +344,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           timestamp: Date.now()
         }
       }));
-      
+
       return result;
     } catch (error) {
       console.error('Error fetching VAST (using fallback):', error);
@@ -353,21 +358,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       console.log('Ad already shown for this video');
       return;
     }
-    
+
     console.log('Attempting to play VAST ad...');
     const vastData = await fetchVastAd();
-    
+
     if (vastData?.adVideoUrl) {
       console.log('Playing VAST video ad:', vastData.adVideoUrl);
       setShowingAd(true);
       setShowSkipButton(false);
       setAdCountdown(5);
-      
+
       // Start skip button countdown
       const skipTimer = setTimeout(() => {
         setShowSkipButton(true);
       }, 5000);
-      
+
       // Update countdown every second
       const countdownInterval = setInterval(() => {
         setAdCountdown(prev => {
@@ -378,11 +383,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           return prev - 1;
         });
       }, 1000);
-      
+
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
         adVideoRef.current.style.display = 'block';
-        
+
         // Add click handler if click-through URL exists
         if (vastData.clickThroughUrl) {
           adVideoRef.current.style.cursor = 'pointer';
@@ -390,7 +395,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             window.open(vastData.clickThroughUrl, '_blank');
           };
         }
-        
+
         try {
           await adVideoRef.current.play();
         } catch (playError) {
@@ -404,16 +409,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           showPlaceholderAd();
         }
       }
-      
+
       // Cleanup function
       const cleanup = () => {
         clearTimeout(skipTimer);
         clearInterval(countdownInterval);
       };
-      
+
       // Store cleanup function for later use
       (window as any).adCleanup = cleanup;
-      
+
     } else {
       console.log('No valid ad video found, showing placeholder ad');
       // Show placeholder ad overlay
@@ -426,7 +431,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setShowingAd(true);
     setShowSkipButton(false);
     setAdCountdown(5);
-    
+
     const adOverlay = document.createElement('div');
     adOverlay.style.cssText = `
       position: absolute;
@@ -444,7 +449,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       z-index: 1000;
       cursor: pointer;
     `;
-    
+
     let countdown = 5;
     const updateOverlay = () => {
       adOverlay.innerHTML = `
@@ -455,28 +460,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       `;
     };
-    
+
     updateOverlay();
-    
+
     adOverlay.onclick = () => {
       window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
     };
 
     console.log('Showing placeholder ad');
-    
+
     if (containerRef.current) {
       containerRef.current.appendChild(adOverlay);
     }
-    
+
     const countdownInterval = setInterval(() => {
       countdown--;
       setAdCountdown(countdown);
       updateOverlay();
-      
+
       if (countdown <= 0) {
         setShowSkipButton(true);
       }
-      
+
       if (countdown <= -5) { // Auto-skip after 5 seconds of skip availability
         clearInterval(countdownInterval);
         if (containerRef.current && adOverlay.parentNode) {
@@ -493,7 +498,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => {
     if (src) {
       setAdShown(false);
-      setViewTracked(false);
+      setViewTracked(false); // Reset view tracked status
       console.log('New video loaded, ad state reset');
     }
   }, [src]);
@@ -527,10 +532,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     const handlePlay = async () => {
       console.log('Video play triggered - Ad shown:', adShown);
-      
+
       // Track video view when it starts playing
-      trackVideoView();
-      
+      if (!viewTracked && user?.id && videoId) {
+        console.log(`Tracking video view for videoId: ${videoId}, userId: ${user.id}`);
+        await trackVideoView(videoId, user.id);
+        setViewTracked(true);
+      }
+
       // Show ad on every video play (like major video platforms)
       if (!adShown) {
         console.log('Showing ad before video');
@@ -541,48 +550,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }
     };
 
-    // Track view when video actually starts playing (not just when loaded)
-    const handleVideoStart = () => {
-      if (!viewTracked) {
-        console.log('Video started playing - tracking view');
-        trackVideoView();
-      }
-    };
-
-    // Ad video event handlers
-    const handleAdEnded = () => {
-      console.log('Ad ended, starting main video');
-      if (adVideo) {
-        adVideo.style.display = 'none';
-      }
-      setShowingAd(false);
-      setAdShown(true);
-      setShowSkipButton(false);
-      
-      // Cleanup timers
-      if ((window as any).adCleanup) {
-        (window as any).adCleanup();
-      }
-      
-      if (video) {
-        video.play();
-      }
-    };
-
-    const handleAdError = () => {
-      console.log('Ad error, showing placeholder ad');
-      if (adVideo) {
-        adVideo.style.display = 'none';
-      }
-      showPlaceholderAd();
-    };
-
     // Add event listeners
     video.addEventListener('loadstart', handleLoadStart);
     video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('error', handleError);
     video.addEventListener('play', handlePlay);
-    video.addEventListener('playing', handleVideoStart);
 
     if (adVideo) {
       adVideo.addEventListener('ended', handleAdEnded);
@@ -597,14 +569,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('error', handleError);
       video.removeEventListener('play', handlePlay);
-      video.removeEventListener('playing', handleVideoStart);
-      
+
       if (adVideo) {
         adVideo.removeEventListener('ended', handleAdEnded);
         adVideo.removeEventListener('error', handleAdError);
       }
     };
-  }, [src, onError, onCanPlay, adShown]);
+  }, [src, onError, onCanPlay, adShown, viewTracked, user, videoId]); // Added dependencies
 
   const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
     console.error('Video element error:', e);
@@ -615,18 +586,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const skipAd = () => {
     console.log('Skipping ad');
-    
+
     // Cleanup timers
     if ((window as any).adCleanup) {
       (window as any).adCleanup();
     }
-    
+
     // Hide ad video if playing
     if (adVideoRef.current) {
       adVideoRef.current.pause();
       adVideoRef.current.style.display = 'none';
     }
-    
+
     // Remove any placeholder overlays
     const overlays = containerRef.current?.querySelectorAll('div[style*="position: absolute"]');
     overlays?.forEach(overlay => {
@@ -634,15 +605,44 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         containerRef.current?.removeChild(overlay);
       }
     });
-    
+
     setShowingAd(false);
     setAdShown(true);
     setShowSkipButton(false);
-    
+
     // Start main video
     if (videoRef.current) {
       videoRef.current.play();
     }
+  };
+
+  // Handles the end of the ad video
+  const handleAdEnded = () => {
+    console.log('Ad ended, starting main video');
+    if (adVideoRef.current) {
+      adVideoRef.current.style.display = 'none';
+    }
+    setShowingAd(false);
+    setAdShown(true);
+    setShowSkipButton(false);
+
+    // Cleanup timers
+    if ((window as any).adCleanup) {
+      (window as any).adCleanup();
+    }
+
+    if (videoRef.current) {
+      videoRef.current.play();
+    }
+  };
+
+  // Handles errors during ad playback
+  const handleAdError = () => {
+    console.log('Ad error, showing placeholder ad');
+    if (adVideoRef.current) {
+      adVideoRef.current.style.display = 'none';
+    }
+    showPlaceholderAd();
   };
 
   if (videoError) {
@@ -707,7 +707,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <Settings className="w-4 h-4 mr-1" />
               {selectedQuality?.label || "720p"}
             </Button>
-            
+
             {showQualityMenu && (
               <div className="absolute top-full right-0 mt-2 bg-black/90 rounded-md shadow-lg border border-white/20 min-w-32">
                 {availableQualities.map((quality) => (
@@ -737,7 +737,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </div>
         </div>
       )}
-      
+
       {/* Skip Ad Button */}
       {showingAd && showSkipButton && (
         <div className="absolute top-4 right-4 z-40">
@@ -750,14 +750,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </Button>
         </div>
       )}
-      
+
       {/* Ad Countdown */}
       {showingAd && !showSkipButton && adCountdown > 0 && (
         <div className="absolute top-4 right-4 z-40 bg-black/80 text-white px-3 py-1 rounded text-sm">
           Skip in {adCountdown}s
         </div>
       )}
-      
+
       {/* Ad Video Element */}
       <video
         ref={adVideoRef}
@@ -767,7 +767,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         autoPlay
         playsInline
       />
-      
+
       {/* Main Video Element */}
       <video
         ref={videoRef}
