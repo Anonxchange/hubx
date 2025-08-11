@@ -25,7 +25,8 @@ import BecomeModelPage from "@/pages/BecomeModelPage";
 import FAQPage from "@/pages/FAQPage";
 import CreatorDashboard from '@/pages/CreatorDashboard';
 
-// Import your AuthProvider
+import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
+
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
@@ -36,34 +37,54 @@ const App = () => (
     <TooltipProvider>
       <LanguageProvider>
         <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AgeGateWrapper>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/video/:id" element={<VideoPage />} />
-              <Route path="/category/:category" element={<CategoryPage />} />
-              <Route path="/categories" element={<AllCategoriesPage />} />
-              <Route path="/moments" element={<MomentsPage />} />
-              <Route path="/recommended" element={<RecommendedPage />} />
-              <Route path="/hottest" element={<HottestPage />} />
-              <Route path="/hottest/:country" element={<HottestPage />} />
-              <Route path="/trending" element={<TrendingPage />} />
-              <Route path="/premium" element={<PremiumPage />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/contact" element={<ContactUs />} />
-              <Route path="/become-model" element={<BecomeModelPage />} />
-              <Route path="/faq" element={<FAQPage />} />
-              <Route path="/creator-dashboard" element={<CreatorDashboard />} />
-              <Route path="/terms" element={<TermsOfService />} />
-              <Route path="/privacy" element={<PrivacyPolicy />} />
-              <Route path="/admin-hubx-2024" element={<AdminPanel />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </AgeGateWrapper>
-        </BrowserRouter>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AgeGateWrapper>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/video/:id" element={<VideoPage />} />
+                <Route path="/category/:category" element={<CategoryPage />} />
+                <Route path="/categories" element={<AllCategoriesPage />} />
+                <Route path="/moments" element={<MomentsPage />} />
+                <Route path="/recommended" element={<RecommendedPage />} />
+                <Route path="/hottest" element={<HottestPage />} />
+                <Route path="/hottest/:country" element={<HottestPage />} />
+                <Route path="/trending" element={<TrendingPage />} />
+                <Route path="/premium" element={<PremiumPage />} />
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/contact" element={<ContactUs />} />
+                <Route path="/become-model" element={<BecomeModelPage />} />
+                <Route path="/faq" element={<FAQPage />} />
+
+                {/* Protected Creator Dashboard */}
+                <Route
+                  path="/creator-dashboard"
+                  element={
+                    <ProtectedRoute allowedUserTypes={['individual_creator', 'studio_creator']}>
+                      <CreatorDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+
+                {/* Protected Admin Panel */}
+                <Route
+                  path="/admin-hubx-2024"
+                  element={
+                    <ProtectedRoute allowedUserTypes={['studio_creator'] /* or add admin role if you have it */}>
+                      <AdminPanel />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AgeGateWrapper>
+          </BrowserRouter>
         </AuthProvider>
       </LanguageProvider>
     </TooltipProvider>
