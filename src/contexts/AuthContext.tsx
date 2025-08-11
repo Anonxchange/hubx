@@ -43,21 +43,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (metadataUserType) {
       setUserType(metadataUserType);
     } else {
-      try {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('user_type')
-          .eq('id', currentUser.id)
-          .single();
-
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.error('Error fetching profile:', profileError);
-        }
-        setUserType((profile?.user_type as UserType) ?? 'user');
-      } catch (profileError) {
-        console.error('Profile fetch error:', profileError);
-        setUserType('user');
-      }
+      // Default to 'user' type if no profile data is found
+      setUserType('user');
     }
     setIsEmailConfirmed(Boolean(currentUser.email_confirmed_at));
   };
@@ -130,28 +117,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error: null };
       }
 
+      // Skip profile creation for now - using user metadata instead
       if (data.user) {
-        const { data: existingProfile } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('id', data.user.id)
-          .single();
-
-        if (!existingProfile) {
-          const { error: profileError } = await supabase.from('profiles').upsert([
-            {
-              id: data.user.id,
-              user_type: userType,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            },
-          ]);
-
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-            return { error: profileError };
-          }
-        }
+        console.log('User created successfully with metadata');
       }
 
       return { error: null };
