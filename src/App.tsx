@@ -21,6 +21,9 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AuthPage from "./pages/AuthPage";
 import NotFound from "./pages/NotFound";
 import ProfilePage from "./pages/ProfilePage";
+import BecomeModelPage from "@/pages/BecomeModelPage";
+import FAQPage from "@/pages/FAQPage";
+import CreatorDashboard from '@/pages/CreatorDashboard';
 
 // Import your AuthProvider
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -30,10 +33,9 @@ const queryClient = new QueryClient();
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      {/* Wrap BrowserRouter inside AuthProvider */}
       <AuthProvider>
+        <Toaster />
+        <Sonner />
         <BrowserRouter>
           <AgeGateWrapper>
             <Routes>
@@ -49,6 +51,9 @@ const App = () => (
               <Route path="/premium" element={<PremiumPage />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/contact" element={<ContactUs />} />
+              <Route path="/become-model" element={<BecomeModelPage />} />
+              <Route path="/faq" element={<FAQPage />} />
+              <Route path="/creator-dashboard" element={<CreatorDashboard />} />
               <Route path="/terms" element={<TermsOfService />} />
               <Route path="/privacy" element={<PrivacyPolicy />} />
               <Route path="/admin-hubx-2024" element={<AdminPanel />} />
