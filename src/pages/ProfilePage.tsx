@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserStats, getUserFavorites, getUserWatchHistory, UserStats } from '@/services/userStatsService';
 import { Button } from '@/components/ui/button';
@@ -31,9 +31,12 @@ import {
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import VerificationBadge from '@/components/VerificationBadge';
 
 const ProfilePage = () => {
   const { user, userType, loading } = useAuth();
+  const { username } = useParams();
+  const isOwnProfile = !username || username === user?.email?.split('@')[0];
   const [isEditing, setIsEditing] = useState(false);
   const [coverPhoto, setCoverPhoto] = useState<string>('');
   const [profilePhoto, setProfilePhoto] = useState<string>('');
@@ -89,7 +92,14 @@ const ProfilePage = () => {
     );
   }
 
-  if (!user) return <Navigate to="/auth" replace />;
+  // If viewing own profile and not logged in, redirect to auth
+  if (!username && !user) return <Navigate to="/auth" replace />;
+  
+  // If viewing someone else's profile, allow public access
+  if (username && !isOwnProfile) {
+    // This would be a public profile view - you can customize this later
+    // For now, show a placeholder or fetch the public profile data
+  }
 
   const handleCoverPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -227,10 +237,18 @@ const ProfilePage = () => {
                   <h1 className="text-2xl md:text-3xl font-bold text-white">
                     {displayName || user.email?.split('@')[0] || 'User'}
                   </h1>
-                  <Badge className={`${userTypeInfo.bgColor} ${userTypeInfo.color} border-0 bg-white/10 backdrop-blur-sm`}>
-                    <TypeIcon className="w-3 h-3 mr-1" />
-                    {userTypeInfo.label}
-                  </Badge>
+                  <div className="flex items-center space-x-2">
+                    {(userType === 'individual_creator' || userType === 'studio_creator') && (
+                      <VerificationBadge
+                        userType={userType}
+                        showText={false}
+                      />
+                    )}
+                    <Badge className={`${userTypeInfo.bgColor} ${userTypeInfo.color} border-0 bg-white/10 backdrop-blur-sm`}>
+                      <TypeIcon className="w-3 h-3 mr-1" />
+                      {userTypeInfo.label}
+                    </Badge>
+                  </div>
                 </div>
                 
                 {/* Stats inline */}
@@ -320,7 +338,15 @@ const ProfilePage = () => {
         <div className="mt-6">
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-white mb-3">About {displayName || user.email?.split('@')[0] || 'User'}</h3>
+              <div className="flex items-center space-x-2 mb-3">
+                <h3 className="text-lg font-semibold text-white">About {displayName || user.email?.split('@')[0] || 'User'}</h3>
+                {(userType === 'individual_creator' || userType === 'studio_creator') && (
+                  <VerificationBadge
+                    userType={userType}
+                    showText={false}
+                  />
+                )}
+              </div>
               <p className="text-gray-300 mb-4">{bio}</p>
               
               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
