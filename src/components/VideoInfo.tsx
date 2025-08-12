@@ -1,7 +1,11 @@
-
 import React from 'react';
 import { Clock, VideoIcon, Share } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import VideoReactions from './VideoReactions';
+import VideoTags from './VideoTags';
+import VerificationBadge from './VerificationBadge';
 
 interface VideoInfoProps {
   title: string;
@@ -9,6 +13,16 @@ interface VideoInfoProps {
   duration: string;
   createdAt: string;
   onShare: () => void;
+  video: { // Assuming video object contains uploader details
+    id: string;
+    uploader_avatar?: string;
+    uploader_username?: string;
+    uploader_type?: 'user' | 'studio_creator' | 'individual_creator';
+    uploader_id?: string;
+    uploader_subscribers?: number;
+    uploader_total_views?: number;
+    tags: string[];
+  };
 }
 
 const VideoInfo: React.FC<VideoInfoProps> = ({
@@ -16,8 +30,14 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   views,
   duration,
   createdAt,
-  onShare
+  onShare,
+  video, // Destructure video object
 }) => {
+  const navigate = useNavigate();
+
+  const handleProfileClick = () => {
+    navigate(`/profile/${video.uploader_username}`);
+  };
   const formatViews = (views: number) => {
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
@@ -68,6 +88,60 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
           </span>
         </div>
       </div>
+
+      <VideoReactions videoId={video.id} />
+
+      {/* Creator Profile Section */}
+      <div className="flex items-center space-x-3 py-4 border-y border-border">
+        {/* Clickable Avatar - Navigate to profile */}
+        <div className="cursor-pointer" onClick={handleProfileClick}>
+          <Avatar className="h-12 w-12 hover:ring-2 hover:ring-blue-500 transition-all">
+            <AvatarImage src={video.uploader_avatar || ''} alt={video.uploader_username || 'Creator'} />
+            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+              {(video.uploader_username || 'A')[0].toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </div>
+        
+        <div className="flex-1">
+          {/* Clickable Username with Verification Badge */}
+          <div 
+            className="flex items-center space-x-2 cursor-pointer hover:text-blue-500 transition-colors"
+            onClick={handleProfileClick}
+          >
+            <h3 className="font-semibold text-lg">{video.uploader_username || 'Anonymous'}</h3>
+            {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+              <VerificationBadge
+                userType={video.uploader_type}
+                showText={false}
+              />
+            )}
+          </div>
+          
+          {/* Creator Stats */}
+          <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+            <span>{formatViews(video.uploader_total_views || 0)} total views</span>
+            <span>{formatViews(video.uploader_subscribers || 0)} subscribers</span>
+            {video.uploader_type === 'studio_creator' && (
+              <span className="text-purple-400">Studio</span>
+            )}
+            {video.uploader_type === 'individual_creator' && (
+              <span className="text-orange-400">Creator</span>
+            )}
+          </div>
+        </div>
+        
+        {/* Subscribe Button */}
+        <Button 
+          variant="default" 
+          size="sm"
+          className="bg-orange-500 hover:bg-orange-600 text-white px-6"
+        >
+          Subscribe
+        </Button>
+      </div>
+
+      <VideoTags tags={video.tags} />
     </div>
   );
 };
