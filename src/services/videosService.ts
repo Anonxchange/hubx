@@ -18,7 +18,7 @@ export interface Video {
   updated_at: string;
   is_premium?: boolean;
   is_moment?: boolean;
-  users?: {
+  profiles?: {
     id: string;
     username: string;
     avatar_url?: string;
@@ -47,7 +47,7 @@ export interface VideoReaction {
 }
 
 // Generate session ID for anonymous users
-const getSessionId = () => {
+const getSessionId = (): string => {
   let sessionId = localStorage.getItem('user_session');
   if (!sessionId) {
     sessionId = crypto.randomUUID();
@@ -69,7 +69,7 @@ export const getVideos = async (
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      users:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url)
       `,
       { count: 'exact' }
     );
@@ -140,7 +140,7 @@ export const getVideosByCategory = async (
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      users:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url)
       `,
       { count: 'exact' }
     );
@@ -195,7 +195,7 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      users:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url)
       `
     )
     .neq('id', videoId)
@@ -218,7 +218,7 @@ export const getVideoById = async (videoId: string) => {
     .select(
       `
       *,
-      users:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url)
       `
     )
     .eq('id', videoId)
