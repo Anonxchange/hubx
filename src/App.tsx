@@ -25,6 +25,7 @@ import BecomeModelPage from "@/pages/BecomeModelPage";
 import FAQPage from "@/pages/FAQPage";
 import CreatorDashboard from '@/pages/CreatorDashboard';
 import StudioDashboard from './pages/StudioDashboard';
+import UploadPage from './pages/UploadPage';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
@@ -53,6 +54,8 @@ const App = () => (
                 <Route path="/hottest/:country" element={<HottestPage />} />
                 <Route path="/trending" element={<TrendingPage />} />
                 <Route path="/premium" element={<PremiumPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/profile/:username" element={<ProfilePage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/contact" element={<ContactUs />} />
                 <Route path="/become-model" element={<BecomeModelPage />} />
@@ -89,8 +92,21 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
+                {/* Protected Upload Page */}
+                <Route
+                  path="/upload"
+                  element={
+                    <ProtectedRoute requiredUserType={['individual_creator', 'studio_creator']}>
+                      <UploadPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/creator/upload" element={
+                  <ProtectedRoute requiredUserType={['individual_creator', 'studio_creator']}>
+                    <UploadPage />
+                  </ProtectedRoute>
+                } />
 
-                <Route path="/profile" element={<ProfilePage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AgeGateWrapper>
