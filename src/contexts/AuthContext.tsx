@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-type UserType = 'user' | 'individual_creator' | 'studio_creator';
+export type UserType = 'user' | 'individual_creator' | 'studio_creator';
 
 interface User {
   id: string;
@@ -23,8 +23,17 @@ interface AuthContextType {
   user: User | null;
   userType: UserType | null;
   loading: boolean;
-  signUp: (email: string, password: string, userType: UserType) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string, userType?: UserType) => Promise<{ error: AuthError | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    userType: UserType,
+    fullName?: string
+  ) => Promise<{ error: AuthError | null }>;
+  signIn: (
+    email: string,
+    password: string,
+    userType?: UserType
+  ) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
   isEmailConfirmed: boolean;
 }
@@ -37,10 +46,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isEmailConfirmed, setIsEmailConfirmed] = useState(false);
 
+  // Fetch profile and set userType & email confirmation state
   const fetchUserAndSetType = async (currentUser: User) => {
     setUser(currentUser);
 
-    // Fetch user profile from DB for accurate user_type
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('user_type')
@@ -50,7 +59,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (!error && profile?.user_type) {
       setUserType(profile.user_type as UserType);
     } else {
-      // Fallback to metadata or localStorage
+      // Fallback: check user_metadata or localStorage
       let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
       if (!metadataUserType) {
         const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
@@ -67,9 +76,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const getSession = async () => {
+      setLoading(true);
       try {
-        setLoading(true);
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession();
 
         if (error) {
           console.error('Session error:', error);
@@ -95,7 +107,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     getSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         await fetchUserAndSetType(session.user as User);
       } else {
@@ -109,10 +123,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Sign up function with profile creation in DB
-  const signUp = async (email: string, password: string, userType: UserType) => {
+  // Sign up user and create profile with userType and optional fullName
+  const signUp = async (
+    email: string,
+    password: string,
+    userType: UserType,
+    fullName?: string
+  ): Promise<{ error: AuthError | null }> => {
     try {
-      // Signup without user metadata (to avoid DB errors)
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -127,12 +145,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (data.user) {
-        // Insert profile row with user_type immediately after signup
-        const { error: profileError } = await supabase.from('profiles').insert({
+        const profileInsert: any = {
           id: data.user.id,
           email,
           user_type: userType,
-        });
+        };
+        if (fullName) {
+          profileInsert.full_name = fullName;
+        }
+
+        const { error: profileError } = await supabase.from('profiles').insert(profileInsert);
 
         if (profileError) {
           console.error('Error inserting profile:', profileError);
@@ -147,8 +169,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Sign in function
-  const signIn = async (email: string, password: string, selectedUserType?: UserType) => {
+  // Sign in user and optionally store userType in localStorage as fallback
+  const signIn = async (
+    email: string,
+    password: string,
+    selectedUserType?: UserType
+  ): Promise<{ error: AuthError | null }> => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -159,7 +185,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      // Store userType in localStorage as fallback
       if (selectedUserType && data.user) {
         localStorage.setItem(`user_type_${data.user.id}`, selectedUserType);
         console.log('Updated user type during login:', selectedUserType);
@@ -172,7 +197,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Sign out function
+  // Sign out user and clear local state
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
