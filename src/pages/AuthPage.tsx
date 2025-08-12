@@ -21,16 +21,22 @@ const AuthPage = () => {
   const [emailSent, setEmailSent] = useState(false);
   const [confirmationSuccess, setConfirmationSuccess] = useState(false);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
     if (searchParams.get('confirmed') === 'true') {
+      // Clear any existing session so fresh login works after confirmation
+      signOut();
+
       setConfirmationSuccess(true);
       setIsLogin(true);
+
+      // Remove the ?confirmed=true param so message shows only once
+      navigate('/auth', { replace: true });
     }
-  }, [searchParams]);
+  }, [searchParams, signOut, navigate]);
 
   const handleGoogleAuth = async () => {
     setError(null);
