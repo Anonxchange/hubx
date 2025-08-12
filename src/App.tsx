@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
 import AgeGateWrapper from "./components/AgeGateWrapper";
 import Index from "./pages/Index";
@@ -26,6 +26,7 @@ import FAQPage from "@/pages/FAQPage";
 import CreatorDashboard from '@/pages/CreatorDashboard';
 import StudioDashboard from './pages/StudioDashboard';
 import UploadPage from './pages/UploadPage';
+import DebugAuth from './pages/DebugAuth';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
@@ -41,7 +42,7 @@ const App = () => (
         <AuthProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter>
+          <Router>
             <AgeGateWrapper>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -80,6 +81,16 @@ const App = () => (
                   }
                 />
 
+                {/* Protected Upload Page */}
+                <Route
+                  path="/upload"
+                  element={
+                    <ProtectedRoute allowedUserTypes={['individual_creator', 'studio_creator']}>
+                      <UploadPage />
+                    </ProtectedRoute>
+                  }
+                />
+
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
 
@@ -92,25 +103,13 @@ const App = () => (
                     </ProtectedRoute>
                   }
                 />
-                {/* Protected Upload Page */}
-                <Route
-                  path="/upload"
-                  element={
-                    <ProtectedRoute requiredUserType={['individual_creator', 'studio_creator']}>
-                      <UploadPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route path="/creator/upload" element={
-                  <ProtectedRoute requiredUserType={['individual_creator', 'studio_creator']}>
-                    <UploadPage />
-                  </ProtectedRoute>
-                } />
 
+                <Route path="/contact" element={<ContactUs />} />
+                <Route path="/debug-auth" element={<DebugAuth />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AgeGateWrapper>
-          </BrowserRouter>
+          </Router>
         </AuthProvider>
       </LanguageProvider>
     </TooltipProvider>
