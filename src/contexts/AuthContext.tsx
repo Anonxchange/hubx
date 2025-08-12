@@ -13,6 +13,9 @@ interface User {
     user_type?: UserType;
   };
   email_confirmed_at?: string;
+  app_metadata?: {
+    user_type?: UserType;
+  };
 }
 
 interface AuthError {
@@ -74,16 +77,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const fetchUserAndSetType = async (currentUser: User) => {
+    console.log('fetchUserAndSetType called for user:', currentUser.id);
+    
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('user_type')
       .eq('id', currentUser.id)
       .single();
 
+    console.log('Profile fetch result:', { profile, error });
+
     if (!error && profile?.user_type) {
+      console.log('Setting user type from profile:', profile.user_type);
       setUserAndCache(currentUser, profile.user_type as UserType);
     } else {
       let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
+      console.log('User metadata type:', metadataUserType);
+      
       if (!metadataUserType) {
         const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
         if (storedUserType) {
@@ -91,7 +101,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log('Retrieved user type from localStorage:', storedUserType);
         }
       }
-      setUserAndCache(currentUser, metadataUserType ?? 'user');
+      
+      const finalUserType = metadataUserType ?? 'user';
+      console.log('Setting final user type:', finalUserType);
+      setUserAndCache(currentUser, finalUserType);
     }
   };
 
