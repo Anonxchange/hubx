@@ -169,7 +169,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Sign in user and optionally store userType in localStorage as fallback
+  // Sign in user and verify userType matches profile record
   const signIn = async (
     email: string,
     password: string,
@@ -185,9 +185,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return { error };
       }
 
-      if (selectedUserType && data.user) {
-        localStorage.setItem(`user_type_${data.user.id}`, selectedUserType);
-        console.log('Updated user type during login:', selectedUserType);
+      if (data.user) {
+        // Check user_type from profiles table
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('user_type')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profileError) {
+          await supabase.auth.signOut();
+          return {
+            error: { message: 'Could not verify user type. Please try again later.' },
+          };
+        }
+
+        if (selectedUserType && profile.user_type !== selectedUserType) {
+          await supabase.auth.signOut();
+          return {
+            error: {
+              message: `You are registered as "${profile.user_type.replace(
+                '_',
+                ' '
+              )}" but tried to login as "${selectedUserType.replace('_', ' ')}". Please select the correct user type.`,
+            },
+          };
+        }
+
+        localStorage.setItem(`user_type_${data.user.id}`, selectedUserType ?? profile.user_type);
+        console.log('Updated user type during login:', selectedUserType ?? profile.user_type);
       }
 
       return { error: null };
