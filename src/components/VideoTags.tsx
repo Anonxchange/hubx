@@ -6,18 +6,20 @@ interface VideoTagsProps {
   tags: string[];
 }
 
-const VideoTags: React.FC<VideoTagsProps> = ({ tags }) => {
+const VideoTags = ({ tags }: VideoTagsProps) => {
+  if (!tags || tags.length === 0) {
+    return null;
+  }
+
+  // Remove duplicates and filter empty tags
+  const uniqueTags = Array.from(new Set(tags.filter(tag => tag && tag.trim())));
+
   return (
     <div className="flex flex-wrap gap-2">
-      {tags.map((tag) => (
-        <Link key={tag} to={`/category/${tag.toLowerCase()}`}>
-          <Badge 
-            variant="secondary" 
-            className="hover:bg-primary/20 transition-colors cursor-pointer"
-          >
-            {tag}
-          </Badge>
-        </Link>
+      {uniqueTags.map((tag, index) => (
+        <Badge key={`tag-${index}-${tag.replace(/\s+/g, '-').toLowerCase()}`} variant="secondary" className="text-xs">
+          {tag}
+        </Badge>
       ))}
     </div>
   );
