@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isEmailConfirmed, setIsEmailConfirmed] = useState(false);
 
-  // Restore from localStorage instantly to prevent "unclickable" phase
+  // Restore user info from localStorage immediately
   useEffect(() => {
     const cachedUser = localStorage.getItem('auth_user');
     const cachedUserType = localStorage.getItem('auth_user_type') as UserType | null;
@@ -66,7 +66,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  // Helper to set user in state + localStorage
+  // Helper to update user state and cache in localStorage
   const setUserAndCache = (currentUser: User, type: UserType) => {
     setUser(currentUser);
     setUserType(type);
@@ -76,9 +76,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('auth_user_type', type);
   };
 
+  // Fetch user profile to get user_type, then set in state and localStorage
   const fetchUserAndSetType = async (currentUser: User) => {
     console.log('fetchUserAndSetType called for user:', currentUser.id);
-    
+
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('user_type')
@@ -93,7 +94,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } else {
       let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
       console.log('User metadata type:', metadataUserType);
-      
+
       if (!metadataUserType) {
         const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
         if (storedUserType) {
@@ -101,13 +102,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           console.log('Retrieved user type from localStorage:', storedUserType);
         }
       }
-      
+
       const finalUserType = metadataUserType ?? 'user';
       console.log('Setting final user type:', finalUserType);
       setUserAndCache(currentUser, finalUserType);
     }
   };
 
+  // On component mount, get session and subscribe to auth state changes
   useEffect(() => {
     const getSession = async () => {
       setLoading(true);
@@ -165,6 +167,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Signup function
   const signUp = async (
     email: string,
     password: string,
@@ -210,6 +213,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Signin function with email confirmation check
   const signIn = async (
     email: string,
     password: string,
@@ -226,6 +230,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (data.user) {
+        // Email confirmation check
+        if (!data.user.email_confirmed_at) {
+          await supabase.auth.signOut();
+          return {
+            error: {
+              message: 'Email not confirmed. Please check your inbox and verify your email.',
+            },
+          };
+        }
+
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('user_type')
@@ -262,6 +276,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Signout function
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
