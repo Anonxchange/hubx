@@ -24,6 +24,7 @@ import ProfilePage from "./pages/ProfilePage";
 import BecomeModelPage from "@/pages/BecomeModelPage";
 import FAQPage from "@/pages/FAQPage";
 import CreatorDashboard from '@/pages/CreatorDashboard';
+import StudioDashboard from './pages/StudioDashboard';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
@@ -63,6 +64,15 @@ const App = () => (
                   element={
                     <ProtectedRoute allowedUserTypes={['individual_creator', 'studio_creator']}>
                       <CreatorDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+ {/* Protected Studio Dashboard */}
+                <Route
+                  path="/studio-dashboard"
+                  element={
+                    <ProtectedRoute allowedUserTypes={['studio_creator']}>
+                      <StudioDashboard />
                     </ProtectedRoute>
                   }
                 />
