@@ -26,10 +26,9 @@ const AuthPage = () => {
   const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    // Check if user came back from email confirmation
     if (searchParams.get('confirmed') === 'true') {
       setConfirmationSuccess(true);
-      setIsLogin(true); // Switch to login mode
+      setIsLogin(true);
     }
   }, [searchParams]);
 
@@ -76,6 +75,8 @@ const AuthPage = () => {
             setError('Invalid email or password');
           } else if (error.message.includes('Email not confirmed')) {
             setError('Please check your email and click the confirmation link');
+          } else if (error.message.includes('User type mismatch')) {
+            setError('You are registered as a different user type. Please select the correct user type.');
           } else {
             setError(error.message);
           }
@@ -132,7 +133,7 @@ const AuthPage = () => {
         <div className="max-w-md mx-auto">
           <h1 className="text-2xl font-bold text-center mb-4">{isLogin ? 'Welcome Back' : 'Join HubX'}</h1>
 
-          {/* Show userType selector for both Sign Up and Login */}
+          {/* userType selector */}
           <div className="mb-6 grid grid-cols-3 gap-2">
             <Card
               className={`cursor-pointer transition-all hover:scale-105 ${
@@ -229,7 +230,6 @@ const AuthPage = () => {
                 </div>
               )}
 
-              {/* Display confirmation success message */}
               {confirmationSuccess && (
                 <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
                   <p className="text-sm text-green-600 dark:text-green-400">
@@ -238,7 +238,6 @@ const AuthPage = () => {
                 </div>
               )}
 
-              {/* Display "Check your email" message if emailSent is true */}
               {!isLogin && emailSent && (
                 <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
                   <p className="text-sm text-green-600 dark:text-green-400">
