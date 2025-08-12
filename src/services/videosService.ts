@@ -81,8 +81,6 @@ export const getVideos = async (
   if (category && category !== 'all') {
     switch (category.toLowerCase()) {
       case 'recommended':
-        query = query.eq('is_premium', false).eq('is_moment', false).order('views', { ascending: false });
-        break;
       case 'trending':
         query = query.eq('is_premium', false).eq('is_moment', false).order('views', { ascending: false });
         break;
@@ -149,8 +147,6 @@ export const getVideosByCategory = async (
 
   switch (category.toLowerCase()) {
     case 'recommended':
-      query = query.eq('is_premium', false).order('views', { ascending: false });
-      break;
     case 'trending':
       query = query.eq('is_premium', false).order('views', { ascending: false });
       break;
@@ -188,6 +184,33 @@ export const getVideosByCategory = async (
   };
 };
 
+// Get related videos based on tags excluding the current video
+export const getRelatedVideos = async (videoId: string, tags: string[], limit = 15) => {
+  if (!tags || tags.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from('videos')
+    .select(
+      `
+      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+      users:owner_id (id, username, avatar_url)
+      `
+    )
+    .neq('id', videoId)
+    .overlaps('tags', tags)
+    .order('views', { ascending: false })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching related videos:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
 // Get a single video by ID, with uploader info
 export const getVideoById = async (videoId: string) => {
   const { data, error } = await supabase
@@ -209,7 +232,7 @@ export const getVideoById = async (videoId: string) => {
   return data;
 };
 
-// Upload a new video (requires owner_id now)
+// Upload a new video
 export const uploadVideo = async (videoData: VideoUpload) => {
   const { data, error } = await supabase
     .from('videos')
@@ -379,7 +402,7 @@ export const searchVideos = async (searchTerm: string) => {
   return data || [];
 };
 
-// Get user's country (placeholder implementation)
+// Get user's country (used in Header)
 export const getUserCountry = async (): Promise<string> => {
   try {
     const response = await fetch('https://ipapi.co/json/');
