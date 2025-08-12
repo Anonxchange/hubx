@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 
 export interface Video {
   id: string;
-  owner_id: string; // Added owner_id
+  owner_id: string;
   title: string;
   description?: string;
   video_url: string;
@@ -26,7 +26,7 @@ export interface Video {
 }
 
 export interface VideoUpload {
-  owner_id: string; // Added owner_id required on upload
+  owner_id: string;
   title: string;
   description?: string;
   video_url: string;
@@ -188,5 +188,246 @@ export const getVideosByCategory = async (
   };
 };
 
-// (Other functions like getVideoById, uploadVideo, updateVideo etc. remain unchanged)
-// You can add similar uploader profile joins in other functions if needed.
+// Get a single video by ID, with uploader info
+export const getVideoById = async (videoId: string) => {
+  const { data, error } = await supabase
+    .from('videos')
+    .select(
+      `
+      *,
+      users:owner_id (id, username, avatar_url)
+      `
+    )
+    .eq('id', videoId)
+    .single();
+
+  if (error) {
+    console.error('Error fetching video:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+// Upload a new video (requires owner_id now)
+export const uploadVideo = async (videoData: VideoUpload) => {
+  const { data, error } = await supabase
+    .from('videos')
+    .insert([videoData])
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error uploading video:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+// Update a video
+export const updateVideo = async (videoId: string, updates: Partial<VideoUpload>) => {
+  const { data, error } = await supabase
+    .from('videos')
+    .update(updates)
+    .eq('id', videoId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error('Error updating video:', error);
+    throw error;
+  }
+
+  return data;
+};
+
+// Delete a video
+export const deleteVideo = async (videoId: string) => {
+  const { error } = await supabase.from('videos').delete().eq('id', videoId);
+
+  if (error) {
+    console.error('Error deleting video:', error);
+    throw error;
+  }
+
+  return true;
+};
+
+// Increment view count
+export const incrementViews = async (videoId: string) => {
+  const { data: video, error: fetchError } = await supabase
+    .from('videos')
+    .select('views')
+    .eq('id', videoId)
+    .single();
+
+  if (fetchError) {
+    console.error('Error fetching video for view increment:', fetchError);
+    return;
+  }
+
+  const { error } = await supabase
+    .from('videos')
+    .update({ views: (video.views || 0) + 1 })
+    .eq('id', videoId);
+
+  if (error) {
+    console.error('Error incrementing views:', error);
+  }
+};
+
+// React to video (like/dislike)
+export const reactToVideo = async (videoId: string, reactionType: 'like' | 'dislike') => {
+  const sessionId = getSessionId();
+
+  // Check if user already reacted
+  const { data: existingReaction } = await supabase
+    .from('video_reactions')
+    .select('*')
+    .eq('video_id', videoId)
+    .eq('user_session', sessionId)
+    .single();
+
+  if (existingReaction) {
+    // Update existing reaction
+    const { data, error } = await supabase
+      .from('video_reactions')
+      .update({ reaction_type: reactionType })
+      .eq('id', existingReaction.id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating reaction:', error);
+      throw error;
+    }
+
+    await updateVideoReactionCounts(videoId);
+    return data;
+  } else {
+    // Create new reaction
+    const { data, error } = await supabase
+      .from('video_reactions')
+      .insert([
+        {
+          video_id: videoId,
+          user_session: sessionId,
+          reaction_type: reactionType,
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error creating reaction:', error);
+      throw error;
+    }
+
+    await updateVideoReactionCounts(videoId);
+    return data;
+  }
+};
+
+// Helper function to update video reaction counts
+const updateVideoReactionCounts = async (videoId: string) => {
+  const { data: reactions } = await supabase
+    .from('video_reactions')
+    .select('reaction_type')
+    .eq('video_id', videoId);
+
+  if (reactions) {
+    const likes = reactions.filter((r) => r.reaction_type === 'like').length;
+    const dislikes = reactions.filter((r) => r.reaction_type === 'dislike').length;
+
+    await supabase.from('videos').update({ likes, dislikes }).eq('id', videoId);
+  }
+};
+
+// Get user's reaction to a video
+export const getUserReaction = async (videoId: string) => {
+  const sessionId = getSessionId();
+
+  const { data, error } = await supabase
+    .from('video_reactions')
+    .select('reaction_type')
+    .eq('video_id', videoId)
+    .eq('user_session', sessionId)
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Error fetching user reaction:', error);
+  }
+
+  return data?.reaction_type || null;
+};
+
+// Search videos
+export const searchVideos = async (searchTerm: string) => {
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*')
+    .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`)
+    .order('views', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('Error searching videos:', error);
+    throw error;
+  }
+
+  return data || [];
+};
+
+// Get user's country (placeholder implementation)
+export const getUserCountry = async (): Promise<string> => {
+  try {
+    const response = await fetch('https://ipapi.co/json/');
+    const data = await response.json();
+    return data.country_name || 'Nigeria';
+  } catch (error) {
+    console.error('Error getting user country:', error);
+    return 'Nigeria';
+  }
+};
+
+// Get hottest videos by country
+export const getHottestByCountry = async (country: string, page = 1, limit = 60) => {
+  let query = supabase.from('videos').select('*', { count: 'exact' }).eq('is_premium', false);
+
+  if (country && country.toLowerCase() !== 'global') {
+    query = query.contains('tags', [country.toLowerCase()]);
+  }
+
+  query = query.order('views', { ascending: false });
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+
+  const { data, error, count } = await query.range(from, to);
+
+  if (error) {
+    console.error('Error fetching hottest videos by country:', error);
+    throw error;
+  }
+
+  return {
+    videos: data || [],
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / limit),
+  };
+};
+
+// Apply human behavior-like shuffling to video recommendations
+export const applyHumanBehaviorShuffle = (videos: Video[]): Video[] => {
+  if (!videos || videos.length === 0) return videos;
+
+  const shuffled = [...videos];
+
+  return shuffled.sort((a, b) => {
+    const scoreA = a.views * 0.6 + a.likes * 0.3 + Math.random() * 0.1;
+    const scoreB = b.views * 0.6 + b.likes * 0.3 + Math.random() * 0.1;
+
+    return scoreB - scoreA;
+  });
+};
