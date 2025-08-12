@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Settings, User, Heart, Bell, Upload, List, Rss, MessageCircle, ThumbsUp, Clock, HelpCircle, MessageSquare, Crown, Globe } from 'lucide-react';
+import { LogOut, Settings, User, Heart, Bell, Upload, List, Rss, MessageCircle, ThumbsUp, Clock, HelpCircle, MessageSquare, Crown, Globe, DollarSign, Video, Users, ChevronDown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   DropdownMenu,
@@ -15,10 +15,15 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 
 const ProfileDropdown = () => {
-  const { user, signOut } = useAuth();
+  const { user, userType, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { language, setLanguage, t } = useLanguage();
+
+  // Don't render if no user (but allow rendering while loading if user exists)
+  if (!user) {
+    return null;
+  }
 
   const handleSignOut = async () => {
     try {
@@ -124,13 +129,19 @@ const ProfileDropdown = () => {
               <span className="text-xs text-gray-300">{t('liked_videos')}</span>
             </div>
 
-            <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors">
+            <div
+              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
+              onClick={() => navigate('/playlists')}
+            >
               <List className="h-6 w-6 text-gray-300" />
               <span className="text-xs text-gray-300">Playlists</span>
             </div>
 
             {/* Third Row */}
-            <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors">
+            <div
+              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
+              onClick={() => navigate('/settings')}
+            >
               <Settings className="h-6 w-6 text-gray-300" />
               <span className="text-xs text-gray-300">{t('settings')}</span>
             </div>
@@ -157,7 +168,100 @@ const ProfileDropdown = () => {
 
         <DropdownMenuSeparator className="bg-gray-700" />
 
-        {/* Menu Items */}
+        {/* Creator-specific menu items */}
+        {isCreator && (
+          <div className="py-2">
+            <DropdownMenuItem
+              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+              onClick={() => navigate(user?.user_metadata?.user_type === 'studio_creator' ? '/studio-dashboard' : '/creator-dashboard')}
+            >
+              <Crown className="mr-3 h-5 w-5 text-blue-400" />
+              <span>Dashboard</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+              onClick={() => navigate('/earnings')}
+            >
+              <DollarSign className="mr-3 h-5 w-5 text-green-400" />
+              <span>Earnings</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+              onClick={() => navigate('/upload')}
+            >
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center">
+                  <Upload className="mr-3 h-5 w-5 text-orange-400" />
+                  <span>Upload to HubX</span>
+                </div>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+              onClick={() => navigate('/content-management')}
+            >
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center">
+                  <Video className="mr-3 h-5 w-5 text-purple-400" />
+                  <span>HubX Content Management</span>
+                </div>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </div>
+            </DropdownMenuItem>
+
+            {user?.user_metadata?.user_type === 'studio_creator' && (
+              <DropdownMenuItem
+                className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+                onClick={() => navigate('/performers')}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center">
+                    <Users className="mr-3 h-5 w-5 text-pink-400" />
+                    <span>Performers</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-gray-400" />
+                </div>
+              </DropdownMenuItem>
+            )}
+
+            <DropdownMenuItem
+              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+              onClick={() => navigate('/core-settings')}
+            >
+              <div className="flex items-center justify-between w-full">
+                <div className="flex items-center">
+                  <Settings className="mr-3 h-5 w-5 text-gray-400" />
+                  <span>Core Settings</span>
+                </div>
+                <ChevronDown className="h-4 w-4 text-gray-400" />
+              </div>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+              onClick={() => navigate('/contests')}
+            >
+              <Crown className="mr-3 h-5 w-5 text-yellow-400" />
+              <span>HubX Contests</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuItem
+              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+              onClick={() => navigate('/support')}
+            >
+              <HelpCircle className="mr-3 h-5 w-5 text-blue-400" />
+              <span>Support</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator className="bg-gray-700" />
+          </div>
+        )}
+
+        {/* Regular Menu Items */}
         <div className="py-2">
           <DropdownMenuItem
             className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
@@ -227,6 +331,18 @@ const ProfileDropdown = () => {
           >
             <User className="mr-3 h-5 w-5 text-gray-300" />
             <span>{t('profile')}</span>
+          </DropdownMenuItem>
+        </div>
+
+        {/* New section for Featured Videos */}
+        <DropdownMenuSeparator className="bg-gray-700" />
+        <div className="py-2">
+          <DropdownMenuItem
+            className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+            onClick={() => navigate('/featured-videos')}
+          >
+            <Video className="mr-3 h-5 w-5 text-blue-400" />
+            <span>Featured Videos</span>
           </DropdownMenuItem>
         </div>
 
