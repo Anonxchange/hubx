@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
+import VerificationBadge from './VerificationBadge'; // Added import for VerificationBadge
 
 interface Video {
   id: string;
@@ -18,6 +19,9 @@ interface Video {
   likes: number;
   tags: string[];
   created_at: string;
+  uploader_username?: string; // Added uploader_username
+  uploader_type?: 'user' | 'creator' | 'studio'; // Added uploader_type
+  is_premium?: boolean; // Added is_premium
 }
 
 interface VideoCardProps {
@@ -122,6 +126,19 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       day: 'numeric'
     });
   };
+
+  // Placeholder for formatNumber if it's used elsewhere
+  const formatNumber = (num: number | undefined) => {
+    if (num === undefined) return '0';
+    return num.toString();
+  };
+
+
+  const getVideoPreloadStrategy = () => {
+    // Example strategy: 'auto' for better preview experience, or 'metadata' for less bandwidth
+    return 'auto';
+  };
+
 
   if (viewMode === 'list') {
     return (
@@ -234,6 +251,19 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               {video.preview_url ? 'Preview' : `Preview ${Math.floor(currentPreviewTime)}s`}
             </div>
           )}
+          {/* Updated thumbnail to show username and verification badge */}
+          <div className="absolute bottom-2 left-2 flex items-center space-x-1">
+            <span className="text-white text-xs font-medium bg-black/70 px-2 py-1 rounded">
+              {video.uploader_username || 'Anonymous'}
+            </span>
+            {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+              <VerificationBadge 
+                userType={video.uploader_type} 
+                className="h-5"
+                showText={false}
+              />
+            )}
+          </div>
         </div>
 
         <CardContent className="p-4 space-y-3">
@@ -242,19 +272,34 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             {video.title}
           </h3>
 
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center space-x-2">
+          {/* Creator name with verification badge */}
+          {video.uploader_username && (
+            <div className="flex items-center space-x-2 mb-2">
+              <span className="text-sm font-medium text-white">
+                {video.uploader_username}
+              </span>
+              {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+                <VerificationBadge
+                  userType={video.uploader_type}
+                  showText={false}
+                />
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between text-sm text-muted-foreground">
+            <div className="flex items-center space-x-4">
               <span className="flex items-center">
-                <Eye className="w-3 h-3 mr-1" />
+                <Eye className="w-4 h-4 mr-1" />
                 {formatViews(video.views)}
               </span>
               <span className="flex items-center">
-                <ThumbsUp className="w-3 h-3 mr-1" />
-                {video.likes || 0}
+                <ThumbsUp className="w-4 h-4 mr-1" />
+                {formatNumber(video.likes)}
               </span>
             </div>
             <span className="flex items-center">
-              <Clock className="w-3 h-3 mr-1" />
+              <Clock className="w-4 h-4 mr-1" />
               {formatDate(video.created_at)}
             </span>
           </div>
