@@ -128,46 +128,48 @@ const ProfilePage = () => {
       <Header />
       
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Cover Photo Section */}
-        <div className="relative">
+        {/* Cover Photo Section - Mobile-style overlay design */}
+        <div className="relative w-full">
+          {/* Cover Photo */}
           <div 
-            className="h-64 md:h-80 w-full rounded-t-xl bg-gradient-to-br from-purple-600 via-pink-500 to-orange-500 relative overflow-hidden"
+            className="h-48 md:h-64 w-full bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
             style={{
               backgroundImage: coverPhoto ? `url(${coverPhoto})` : undefined,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             }}
           >
-            {!coverPhoto && (
-              <div className="absolute inset-0 bg-gradient-to-br from-purple-600/80 via-pink-500/80 to-orange-500/80" />
-            )}
+            {/* Dark overlay for better text readability */}
+            <div className="absolute inset-0 bg-black/40" />
             
+            {/* Change Cover Button */}
             <Dialog>
               <DialogTrigger asChild>
                 <Button
                   variant="secondary"
                   size="sm"
-                  className="absolute top-4 right-4 bg-black/50 hover:bg-black/70 text-white border-0"
+                  className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
                 >
                   <Camera className="w-4 h-4 mr-2" />
                   Change Cover
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="bg-gray-900 border-gray-700">
                 <DialogHeader>
-                  <DialogTitle>Update Cover Photo</DialogTitle>
+                  <DialogTitle className="text-white">Update Cover Photo</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="coverPhoto">Upload Cover Photo</Label>
+                    <Label htmlFor="coverPhoto" className="text-gray-200">Upload Cover Photo</Label>
                     <Input
                       id="coverPhoto"
                       type="file"
                       accept="image/*"
                       onChange={handleCoverPhotoChange}
+                      className="bg-gray-800 border-gray-600 text-white"
                     />
                   </div>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-sm text-gray-400">
                     Recommended size: 1200x320px. Max file size: 5MB
                   </p>
                 </div>
@@ -175,162 +177,185 @@ const ProfilePage = () => {
             </Dialog>
           </div>
 
-          {/* Profile Info Section */}
-          <Card className="relative -mt-16 mx-4 md:mx-8">
-            <CardContent className="p-6">
-              <div className="flex flex-col md:flex-row items-start md:items-end space-y-4 md:space-y-0 md:space-x-6">
-                {/* Profile Picture */}
-                <div className="relative">
-                  <Avatar className="h-32 w-32 border-4 border-background shadow-lg">
-                    <AvatarImage src={profilePhoto || user.user_metadata?.avatar_url} />
-                    <AvatarFallback className="text-2xl font-bold bg-gradient-to-br from-purple-500 to-pink-500 text-white">
-                      {user.email?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        size="sm"
-                        className="absolute -bottom-2 -right-2 rounded-full h-10 w-10 p-0 shadow-lg"
-                      >
-                        <Camera className="w-4 h-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Update Profile Picture</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="profilePhoto">Upload Profile Picture</Label>
-                          <Input
-                            id="profilePhoto"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleProfilePhotoChange}
-                          />
-                        </div>
-                        <p className="text-sm text-muted-foreground">
-                          Recommended size: 400x400px. Max file size: 2MB
-                        </p>
+          {/* Profile Info Overlay - Positioned over cover photo */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-6">
+            <div className="flex flex-col md:flex-row items-start md:items-end space-y-4 md:space-y-0 md:space-x-6">
+              {/* Profile Picture */}
+              <div className="relative">
+                <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-white/20 shadow-2xl">
+                  <AvatarImage src={profilePhoto || user.user_metadata?.avatar_url} />
+                  <AvatarFallback className="text-xl md:text-2xl font-bold bg-gradient-to-br from-orange-500 to-red-600 text-white">
+                    {user.email?.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      className="absolute -bottom-1 -right-1 rounded-full h-8 w-8 p-0 shadow-lg bg-orange-500 hover:bg-orange-600"
+                    >
+                      <Camera className="w-3 h-3" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-gray-900 border-gray-700">
+                    <DialogHeader>
+                      <DialogTitle className="text-white">Update Profile Picture</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="profilePhoto" className="text-gray-200">Upload Profile Picture</Label>
+                        <Input
+                          id="profilePhoto"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProfilePhotoChange}
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-
-                {/* User Info */}
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center space-x-3">
-                    <h1 className="text-3xl font-bold">
-                      {displayName || user.email?.split('@')[0] || 'User'}
-                    </h1>
-                    <Badge className={`${userTypeInfo.bgColor} ${userTypeInfo.color} border-0`}>
-                      <TypeIcon className="w-3 h-3 mr-1" />
-                      {userTypeInfo.label}
-                    </Badge>
-                  </div>
-                  
-                  <p className="text-muted-foreground max-w-2xl">{bio}</p>
-                  
-                  <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center space-x-1">
-                      <Calendar className="w-4 h-4" />
-                      <span>Joined {joinDate}</span>
+                      <p className="text-sm text-gray-400">
+                        Recommended size: 400x400px. Max file size: 2MB
+                      </p>
                     </div>
-                    {location && (
-                      <div className="flex items-center space-x-1">
-                        <MapPin className="w-4 h-4" />
-                        <span>{location}</span>
-                      </div>
-                    )}
-                    {website && (
-                      <div className="flex items-center space-x-1">
-                        <LinkIcon className="w-4 h-4" />
-                        <a href={website} className="hover:text-primary" target="_blank" rel="noopener noreferrer">
-                          Website
-                        </a>
-                      </div>
-                    )}
+                  </DialogContent>
+                </Dialog>
+              </div>
+
+              {/* User Info */}
+              <div className="flex-1 space-y-2">
+                <div className="flex items-center space-x-3">
+                  <h1 className="text-2xl md:text-3xl font-bold text-white">
+                    {displayName || user.email?.split('@')[0] || 'User'}
+                  </h1>
+                  <Badge className={`${userTypeInfo.bgColor} ${userTypeInfo.color} border-0 bg-white/10 backdrop-blur-sm`}>
+                    <TypeIcon className="w-3 h-3 mr-1" />
+                    {userTypeInfo.label}
+                  </Badge>
+                </div>
+                
+                {/* Stats inline */}
+                <div className="flex items-center space-x-6 text-white/90">
+                  <div className="text-center">
+                    <div className="text-lg font-bold">{stats.videosWatched}</div>
+                    <div className="text-xs text-white/70">Videos Watched</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold">{stats.subscribers}</div>
+                    <div className="text-xs text-white/70">Subscribers</div>
                   </div>
                 </div>
+              </div>
 
-                {/* Action Buttons */}
-                <div className="flex space-x-2">
-                  <Dialog open={isEditing} onOpenChange={setIsEditing}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline">
-                        <Edit3 className="w-4 h-4 mr-2" />
-                        Edit Profile
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Edit Profile</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="displayName">Display Name</Label>
-                          <Input
-                            id="displayName"
-                            value={displayName}
-                            onChange={(e) => setDisplayName(e.target.value)}
-                            placeholder="Enter your display name"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="bio">Bio</Label>
-                          <Textarea
-                            id="bio"
-                            value={bio}
-                            onChange={(e) => setBio(e.target.value)}
-                            placeholder="Tell us about yourself"
-                            rows={3}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="location">Location</Label>
-                          <Input
-                            id="location"
-                            value={location}
-                            onChange={(e) => setLocation(e.target.value)}
-                            placeholder="Your location"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="website">Website</Label>
-                          <Input
-                            id="website"
-                            value={website}
-                            onChange={(e) => setWebsite(e.target.value)}
-                            placeholder="https://yourwebsite.com"
-                          />
-                        </div>
-                        <Button onClick={() => setIsEditing(false)} className="w-full">
-                          Save Changes
-                        </Button>
+              {/* Action Buttons */}
+              <div className="flex space-x-2">
+                <Dialog open={isEditing} onOpenChange={setIsEditing}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm">
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Edit profile
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md bg-gray-900 border-gray-700">
+                    <DialogHeader>
+                      <DialogTitle className="text-white">Edit Profile</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="displayName" className="text-gray-200">Display Name</Label>
+                        <Input
+                          id="displayName"
+                          value={displayName}
+                          onChange={(e) => setDisplayName(e.target.value)}
+                          placeholder="Enter your display name"
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
                       </div>
-                    </DialogContent>
-                  </Dialog>
+                      <div className="space-y-2">
+                        <Label htmlFor="bio" className="text-gray-200">Bio</Label>
+                        <Textarea
+                          id="bio"
+                          value={bio}
+                          onChange={(e) => setBio(e.target.value)}
+                          placeholder="Tell us about yourself"
+                          rows={3}
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="location" className="text-gray-200">Location</Label>
+                        <Input
+                          id="location"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          placeholder="Your location"
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="website" className="text-gray-200">Website</Label>
+                        <Input
+                          id="website"
+                          value={website}
+                          onChange={(e) => setWebsite(e.target.value)}
+                          placeholder="https://yourwebsite.com"
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
+                      </div>
+                      <Button onClick={() => setIsEditing(false)} className="w-full bg-orange-500 hover:bg-orange-600">
+                        Save Changes
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
 
-                  <Button variant="outline">
-                    <Settings className="w-4 h-4" />
-                  </Button>
+                <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm">
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* About Section */}
+        <div className="mt-6">
+          <Card className="bg-gray-900 border-gray-800">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-semibold text-white mb-3">About {displayName || user.email?.split('@')[0] || 'User'}</h3>
+              <p className="text-gray-300 mb-4">{bio}</p>
+              
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
+                <div className="flex items-center space-x-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>Joined {joinDate}</span>
                 </div>
+                {location && (
+                  <div className="flex items-center space-x-1">
+                    <MapPin className="w-4 h-4" />
+                    <span>{location}</span>
+                  </div>
+                )}
+                {website && (
+                  <div className="flex items-center space-x-1">
+                    <LinkIcon className="w-4 h-4" />
+                    <a href={website} className="hover:text-orange-400" target="_blank" rel="noopener noreferrer">
+                      Website
+                    </a>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Stats Section */}
+        {/* Stats Section - Detailed Cards */}
         <div className="mt-6">
           {statsLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[...Array(userType === 'user' ? 4 : 6)].map((_, i) => (
-                <Card key={i} className="p-4">
+                <Card key={i} className="p-4 bg-gray-900 border-gray-800">
                   <div className="animate-pulse">
-                    <div className="h-6 bg-muted rounded mb-2"></div>
-                    <div className="h-4 bg-muted rounded"></div>
+                    <div className="h-6 bg-gray-700 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-700 rounded"></div>
                   </div>
                 </Card>
               ))}
@@ -338,88 +363,88 @@ const ProfilePage = () => {
           ) : userType === 'user' ? (
             /* Regular User Stats */
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card className="p-4 text-center">
+              <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Eye className="w-4 h-4 text-blue-500" />
-                  <span className="font-bold text-lg">{stats.videosWatched}</span>
+                  <Eye className="w-4 h-4 text-blue-400" />
+                  <span className="font-bold text-lg text-white">{stats.videosWatched}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Videos Watched</p>
+                <p className="text-sm text-gray-400">Videos Watched</p>
               </Card>
 
-              <Card className="p-4 text-center">
+              <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Heart className="w-4 h-4 text-red-500" />
-                  <span className="font-bold text-lg">{stats.favoritesCount}</span>
+                  <Heart className="w-4 h-4 text-red-400" />
+                  <span className="font-bold text-lg text-white">{stats.favoritesCount}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Favorites</p>
+                <p className="text-sm text-gray-400">Favorites</p>
               </Card>
 
-              <Card className="p-4 text-center">
+              <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Play className="w-4 h-4 text-purple-500" />
-                  <span className="font-bold text-lg">{Math.floor(stats.watchTimeMinutes / 60)}h {stats.watchTimeMinutes % 60}m</span>
+                  <Play className="w-4 h-4 text-purple-400" />
+                  <span className="font-bold text-lg text-white">{Math.floor(stats.watchTimeMinutes / 60)}h {stats.watchTimeMinutes % 60}m</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Watch Time</p>
+                <p className="text-sm text-gray-400">Watch Time</p>
               </Card>
 
-              <Card className="p-4 text-center bg-gradient-to-br from-orange-50 to-purple-50 dark:from-orange-950/20 dark:to-purple-950/20 border-orange-200 dark:border-orange-800">
+              <Card className="p-4 text-center bg-gradient-to-br from-orange-900/50 to-purple-900/50 border-orange-600 hover:from-orange-800/50 hover:to-purple-800/50 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Video className="w-4 h-4 text-orange-500" />
-                  <span className="font-bold text-lg">{stats.uploadedVideos}</span>
+                  <Video className="w-4 h-4 text-orange-400" />
+                  <span className="font-bold text-lg text-white">{stats.uploadedVideos}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Uploads</p>
-                <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">Become a creator!</p>
+                <p className="text-sm text-gray-400">Uploads</p>
+                <p className="text-xs text-orange-400 mt-1">Become a creator!</p>
               </Card>
             </div>
           ) : (
             /* Creator Stats */
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              <Card className="p-4 text-center">
+              <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Video className="w-4 h-4 text-orange-500" />
-                  <span className="font-bold text-lg">{stats.uploadedVideos}</span>
+                  <Video className="w-4 h-4 text-orange-400" />
+                  <span className="font-bold text-lg text-white">{stats.uploadedVideos}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Videos</p>
+                <p className="text-sm text-gray-400">Videos</p>
               </Card>
 
-              <Card className="p-4 text-center">
+              <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Users className="w-4 h-4 text-green-500" />
-                  <span className="font-bold text-lg">{stats.subscribers}</span>
+                  <Users className="w-4 h-4 text-green-400" />
+                  <span className="font-bold text-lg text-white">{stats.subscribers}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Subscribers</p>
+                <p className="text-sm text-gray-400">Subscribers</p>
               </Card>
 
-              <Card className="p-4 text-center">
+              <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Play className="w-4 h-4 text-purple-500" />
-                  <span className="font-bold text-lg">{stats.totalViews.toLocaleString()}</span>
+                  <Play className="w-4 h-4 text-purple-400" />
+                  <span className="font-bold text-lg text-white">{stats.totalViews.toLocaleString()}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Total Views</p>
+                <p className="text-sm text-gray-400">Total Views</p>
               </Card>
 
-              <Card className="p-4 text-center">
+              <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Heart className="w-4 h-4 text-red-500" />
-                  <span className="font-bold text-lg">{stats.favoritesCount}</span>
+                  <Heart className="w-4 h-4 text-red-400" />
+                  <span className="font-bold text-lg text-white">{stats.favoritesCount}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Likes</p>
+                <p className="text-sm text-gray-400">Likes</p>
               </Card>
 
-              <Card className="p-4 text-center bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/20 dark:to-emerald-950/20 border-green-200 dark:border-green-800">
+              <Card className="p-4 text-center bg-gradient-to-br from-green-900/50 to-emerald-900/50 border-green-600 hover:from-green-800/50 hover:to-emerald-800/50 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <DollarSign className="w-4 h-4 text-green-600" />
-                  <span className="font-bold text-lg">${stats.earnings}</span>
+                  <DollarSign className="w-4 h-4 text-green-400" />
+                  <span className="font-bold text-lg text-white">${stats.earnings}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Earnings</p>
+                <p className="text-sm text-gray-400">Earnings</p>
               </Card>
 
-              <Card className="p-4 text-center">
+              <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
                 <div className="flex items-center justify-center space-x-2 mb-2">
-                  <Eye className="w-4 h-4 text-blue-500" />
-                  <span className="font-bold text-lg">{stats.videosWatched}</span>
+                  <Eye className="w-4 h-4 text-blue-400" />
+                  <span className="font-bold text-lg text-white">{stats.videosWatched}</span>
                 </div>
-                <p className="text-sm text-muted-foreground">Watched</p>
+                <p className="text-sm text-gray-400">Watched</p>
               </Card>
             </div>
           )}
@@ -428,25 +453,25 @@ const ProfilePage = () => {
         {/* Content Tabs */}
         <div className="mt-8">
           <Tabs defaultValue="favorites" className="w-full">
-            <TabsList className={`grid w-full ${userType === 'user' ? 'grid-cols-4' : 'grid-cols-4'}`}>
-              <TabsTrigger value="favorites">Favorites</TabsTrigger>
-              <TabsTrigger value="watchlist">Watch Later</TabsTrigger>
-              <TabsTrigger value="history">History</TabsTrigger>
+            <TabsList className={`grid w-full ${userType === 'user' ? 'grid-cols-4' : 'grid-cols-4'} bg-gray-800 border-gray-700`}>
+              <TabsTrigger value="favorites" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Videos</TabsTrigger>
+              <TabsTrigger value="watchlist" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Photos</TabsTrigger>
+              <TabsTrigger value="history" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Stream</TabsTrigger>
               {userType === 'user' ? (
-                <TabsTrigger value="upgrade">Become Creator</TabsTrigger>
+                <TabsTrigger value="upgrade" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">More</TabsTrigger>
               ) : (
-                <TabsTrigger value="uploads">My Videos</TabsTrigger>
+                <TabsTrigger value="uploads" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">More</TabsTrigger>
               )}
             </TabsList>
 
             <TabsContent value="favorites" className="mt-6">
-              <Card>
+              <Card className="bg-gray-900 border-gray-800">
                 <CardContent className="p-6">
                   {favorites.length > 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                       {favorites.slice(0, 12).map((video) => (
                         <div key={video.id} className="group cursor-pointer">
-                          <div className="relative aspect-video rounded-lg overflow-hidden bg-muted mb-2">
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                             {video.thumbnail_url && (
                               <img
                                 src={video.thumbnail_url}
@@ -459,8 +484,8 @@ const ProfilePage = () => {
                               {video.duration}
                             </div>
                           </div>
-                          <h4 className="font-medium text-sm line-clamp-2 mb-1">{video.title}</h4>
-                          <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                          <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                          <div className="flex items-center space-x-3 text-xs text-gray-400">
                             <span className="flex items-center space-x-1">
                               <Eye className="w-3 h-3" />
                               <span>{video.views?.toLocaleString() || 0}</span>
@@ -475,9 +500,9 @@ const ProfilePage = () => {
                     </div>
                   ) : (
                     <div className="text-center py-12">
-                      <Heart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No favorites yet</h3>
-                      <p className="text-muted-foreground">
+                      <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2 text-white">Favs Videos (1)</h3>
+                      <p className="text-gray-400">
                         Videos you like will appear here. Start exploring to build your collection!
                       </p>
                     </div>
