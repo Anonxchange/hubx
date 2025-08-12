@@ -1,388 +1,426 @@
+
 import React, { useState } from 'react';
-import { Upload, Video, FileVideo } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
+import { X, Upload, Video, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import TagManager from './TagManager';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { uploadVideo, VideoUpload } from '@/services/videosService';
+import { useAuth } from '@/contexts/AuthContext';
 
-const VideoUploadForm = () => {
+interface VideoUploadFormProps {
+  onVideoAdded: () => void;
+}
+
+const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
+  const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState('');
   const [customTags, setCustomTags] = useState<string[]>([]);
-  const [newTag, setNewTag] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [tagInput, setTagInput] = useState('');
+  const [isPremium, setIsPremium] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  const [formData, setFormData] = useState<
-    VideoUpload & { is_premium: boolean; is_moment: boolean }
-  >({
-    title: '',
-    description: '',
-    video_url: '',
-    thumbnail_url: '',
-    preview_url: '',
-    duration: '',
-    tags: [],
-    is_premium: false,
-    is_moment: false,
-  });
+  // Bunny CDN configuration
+  const BUNNY_STORAGE_ZONE = 'hubx-videos';
+  const BUNNY_ACCESS_KEY = process.env.REACT_APP_BUNNY_ACCESS_KEY || 'your-bunny-access-key';
+  const BUNNY_CDN_URL = 'https://hubx-videos.b-cdn.net';
 
-  const uploadMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      // Merge tags: form tags + custom tags + moment tags if enabled
-      let finalTags = [...(data.tags || []), ...customTags];
-      if (data.is_moment) {
-        finalTags = [...finalTags, 'vertical', 'short', 'moment'];
-      }
-      
-      // Ensure is_moment flag is properly set
-      const uploadData = { 
-        ...data, 
-        tags: finalTags,
-        is_moment: data.is_moment, // Explicitly preserve the moment flag
-        is_premium: data.is_premium // Explicitly preserve the premium flag
-      };
-      
-      console.log('Uploading video with data:', uploadData); // Debug log
-      return uploadVideo(uploadData);
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Success',
-        description: 'Video uploaded successfully!',
-      });
-      resetForm();
-      queryClient.invalidateQueries({ queryKey: ['videos'] });
-    },
-    onError: () => {
-      toast({
-        title: 'Error',
-        description: 'Failed to upload video. Please try again.',
-        variant: 'destructive',
-      });
-      setIsProcessing(false);
-    },
-  });
+  const categories = [
+    'Amateur',
+    'Anal',
+    'Asian',
+    'BBW',
+    'BDSM',
+    'Big Ass',
+    'Big Tits',
+    'Blonde',
+    'Blowjob',
+    'Brunette',
+    'Compilation',
+    'Creampie',
+    'Cumshot',
+    'Ebony',
+    'Fetish',
+    'Hardcore',
+    'Lesbian',
+    'MILF',
+    'Pornstar',
+    'POV',
+    'Public',
+    'Teen',
+    'Threesome',
+    'Vintage'
+  ];
 
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      video_url: '',
-      thumbnail_url: '',
-      preview_url: '',
-      duration: '',
-      tags: [],
-      is_premium: false,
-      is_moment: false,
+  const addTag = () => {
+    if (tagInput.trim() && !customTags.includes(tagInput.trim()) && customTags.length < 10) {
+      setCustomTags([...customTags, tagInput.trim()]);
+      setTagInput('');
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setCustomTags(customTags.filter(tag => tag !== tagToRemove));
+  };
+
+  const uploadToBunny = async (file: File, filename: string): Promise<string> => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${filename}`, {
+      method: 'PUT',
+      headers: {
+        'AccessKey': BUNNY_ACCESS_KEY,
+        'Content-Type': file.type,
+      },
+      body: file,
     });
-    setCustomTags([]);
-    setSelectedFile(null);
-    setIsProcessing(false);
-  };
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const addCustomTag = () => {
-    if (newTag.trim() && !customTags.includes(newTag.trim())) {
-      const updatedTags = [...customTags, newTag.trim()];
-      setCustomTags(updatedTags);
-      setFormData((prev) => ({ ...prev, tags: updatedTags }));
-      setNewTag('');
+    if (!response.ok) {
+      throw new Error(`Failed to upload to Bunny CDN: ${response.statusText}`);
     }
+
+    return `${BUNNY_CDN_URL}/${filename}`;
   };
 
-  const removeCustomTag = (tagToRemove: string) => {
-    const updatedTags = customTags.filter((tag) => tag !== tagToRemove);
-    setCustomTags(updatedTags);
-    setFormData((prev) => ({ ...prev, tags: updatedTags }));
-  };
+  const generateThumbnail = (videoFile: File): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
 
-  const addPresetTag = (tag: string) => {
-    if (!customTags.includes(tag)) {
-      const updatedTags = [...customTags, tag];
-      setCustomTags(updatedTags);
-      setFormData((prev) => ({ ...prev, tags: updatedTags }));
-    }
-  };
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        video.currentTime = Math.min(5, video.duration / 2); // Capture at 5 seconds or middle
+      };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      if (!formData.title) {
-        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, '');
-        setFormData((prev) => ({ ...prev, title: nameWithoutExt }));
-      }
-    }
+      video.onseeked = () => {
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to generate thumbnail'));
+            }
+          }, 'image/jpeg', 0.8);
+        } else {
+          reject(new Error('Canvas context not available'));
+        }
+      };
+
+      video.onerror = () => reject(new Error('Error loading video'));
+      video.src = URL.createObjectURL(videoFile);
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!formData.title) {
+    
+    if (!file || !title.trim() || !category) {
       toast({
-        title: 'Validation Error',
-        description: 'Title is required.',
+        title: 'Missing Information',
+        description: 'Please fill in all required fields and select a video file.',
         variant: 'destructive',
       });
       return;
     }
 
-    if (uploadMethod === 'file' && !formData.video_url && !selectedFile) {
-      toast({
-        title: 'Validation Error',
-        description: 'Please select and process a video file.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    setUploading(true);
+    setUploadProgress(0);
 
-    if (uploadMethod === 'url' && !formData.video_url) {
-      toast({
-        title: 'Validation Error',
-        description: 'Video URL is required.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    try {
+      // Generate unique filenames
+      const timestamp = Date.now();
+      const videoFilename = `videos/${timestamp}_${file.name}`;
+      const thumbnailFilename = `thumbnails/${timestamp}_thumbnail.jpg`;
 
-    // Validate duration for moments videos
-    if (formData.is_moment && formData.duration) {
-      const durationParts = formData.duration.split(':');
-      if (durationParts.length >= 2) {
-        const minutes = parseInt(durationParts[0]);
-        const seconds = parseInt(durationParts[1]);
-        const totalSeconds = minutes * 60 + seconds;
-        
-        if (totalSeconds > 90) { // 1:30 = 90 seconds
-          toast({
-            title: 'Validation Error',
-            description: 'Moments videos cannot exceed 1:30 minutes in duration.',
-            variant: 'destructive',
-          });
-          return;
+      // Upload video to Bunny CDN
+      setUploadProgress(20);
+      const videoUrl = await uploadToBunny(file, videoFilename);
+
+      // Generate and upload thumbnail
+      setUploadProgress(40);
+      let thumbnailUrl = '';
+      
+      if (thumbnailFile) {
+        thumbnailUrl = await uploadToBunny(thumbnailFile, thumbnailFilename);
+      } else {
+        // Auto-generate thumbnail from video
+        try {
+          const thumbnailBlob = await generateThumbnail(file);
+          const thumbnailFile = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
+          thumbnailUrl = await uploadToBunny(thumbnailFile, thumbnailFilename);
+        } catch (error) {
+          console.warn('Failed to generate thumbnail:', error);
+          // Continue without thumbnail
         }
       }
-    }
 
-    setIsProcessing(true);
-    uploadMutation.mutate(formData);
+      setUploadProgress(60);
+
+      // Save video metadata to Supabase
+      const videoData = {
+        title: title.trim(),
+        description: description.trim(),
+        category,
+        tags: customTags,
+        video_url: videoUrl,
+        thumbnail_url: thumbnailUrl,
+        uploader_id: user?.id,
+        uploader_username: user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'Anonymous',
+        uploader_type: user?.user_metadata?.user_type || 'user',
+        uploader_avatar: user?.user_metadata?.avatar_url || '',
+        is_premium: isPremium,
+        duration: '00:00', // This would be calculated from the actual video
+        views: 0,
+        likes: 0,
+        created_at: new Date().toISOString(),
+      };
+
+      setUploadProgress(80);
+
+      const response = await fetch('/api/videos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(videoData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save video metadata');
+      }
+
+      setUploadProgress(100);
+
+      toast({
+        title: 'Upload Successful',
+        description: `Your video "${title}" has been uploaded successfully!`,
+      });
+
+      // Reset form
+      setTitle('');
+      setDescription('');
+      setCategory('');
+      setCustomTags([]);
+      setTagInput('');
+      setIsPremium(false);
+      setFile(null);
+      setThumbnailFile(null);
+      onVideoAdded();
+
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Upload Failed',
+        description: error instanceof Error ? error.message : 'An error occurred during upload.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
   };
 
   return (
-    <Card>
+    <Card className="w-full max-w-2xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center space-x-2">
           <Upload className="w-5 h-5" />
-          <span>Upload New Video</span>
+          <span>Upload Video to HubX</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Upload method selector */}
-          <div className="flex space-x-4 p-4 bg-muted rounded-lg">
-            <Button
-              type="button"
-              variant={uploadMethod === 'file' ? 'default' : 'outline'}
-              onClick={() => setUploadMethod('file')}
-              className="flex items-center space-x-2"
-            >
-              <FileVideo className="w-4 h-4" />
-              <span>Upload File</span>
-            </Button>
-            <Button
-              type="button"
-              variant={uploadMethod === 'url' ? 'default' : 'outline'}
-              onClick={() => setUploadMethod('url')}
-              className="flex items-center space-x-2"
-            >
-              <Video className="w-4 h-4" />
-              <span>Use URL</span>
-            </Button>
-          </div>
-
-          {/* File upload section */}
-          {uploadMethod === 'file' && (
-            <div className="space-y-4">
-              <Label htmlFor="video-file">Select Video File</Label>
+          {/* Video File Upload */}
+          <div className="space-y-2">
+            <Label htmlFor="videoFile" className="text-sm font-medium">
+              Video File *
+            </Label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
               <Input
-                id="video-file"
+                id="videoFile"
                 type="file"
                 accept="video/*"
-                onChange={handleFileSelect}
-                className="cursor-pointer"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                className="hidden"
               />
-              {selectedFile && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Selected: {selectedFile.name} (
-                  {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB)
+              <label htmlFor="videoFile" className="cursor-pointer">
+                <Video className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+                <p className="text-gray-600">
+                  {file ? file.name : 'Click to select a video file'}
                 </p>
-              )}
-            </div>
-          )}
-
-          {/* Title and Duration */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="title">Title *</Label>
-              <Input
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                placeholder="Enter video title"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="duration">Duration</Label>
-              <Input
-                id="duration"
-                name="duration"
-                value={formData.duration}
-                onChange={handleInputChange}
-                placeholder="e.g., 12:34"
-              />
+                <p className="text-xs text-gray-400 mt-1">
+                  Supported formats: MP4, AVI, MOV, WMV (Max: 2GB)
+                </p>
+              </label>
             </div>
           </div>
 
-          {/* Moment toggle */}
-          <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
-            <Switch
-              id="moment-video"
-              checked={formData.is_moment}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({ ...prev, is_moment: checked }))
-              }
-              className="data-[state=checked]:bg-orange-500"
+          {/* Thumbnail Upload (Optional) */}
+          <div className="space-y-2">
+            <Label htmlFor="thumbnailFile" className="text-sm font-medium">
+              Custom Thumbnail (Optional)
+            </Label>
+            <Input
+              id="thumbnailFile"
+              type="file"
+              accept="image/*"
+              onChange={(e) => setThumbnailFile(e.target.files?.[0] || null)}
+              className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/80"
             />
-            <div>
-              <Label
-                htmlFor="moment-video"
-                className="text-sm font-medium cursor-pointer"
-              >
-                Moment Video
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Enable for short vertical videos that go to the moments feed (max 1:30 duration).
-                Automatically adds 'vertical', 'short', 'moment' tags.
-              </p>
-            </div>
+            <p className="text-xs text-gray-500">
+              If not provided, a thumbnail will be auto-generated from your video
+            </p>
+          </div>
+
+          {/* Title */}
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-sm font-medium">
+              Video Title *
+            </Label>
+            <Input
+              id="title"
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Enter an engaging title for your video"
+              maxLength={100}
+              required
+            />
+            <p className="text-xs text-gray-500">{title.length}/100 characters</p>
           </div>
 
           {/* Description */}
-          <div>
-            <Label htmlFor="description">Description</Label>
+          <div className="space-y-2">
+            <Label htmlFor="description" className="text-sm font-medium">
+              Description
+            </Label>
             <Textarea
               id="description"
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              placeholder="Enter video description"
-              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Describe your video content..."
+              rows={4}
+              maxLength={1000}
+            />
+            <p className="text-xs text-gray-500">{description.length}/1000 characters</p>
+          </div>
+
+          {/* Category Dropdown */}
+          <div className="space-y-2">
+            <Label htmlFor="category" className="text-sm font-medium">
+              Category *
+            </Label>
+            <Select value={category} onValueChange={setCategory} required>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Custom Tags */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Custom Tags</Label>
+            <div className="flex space-x-2">
+              <Input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                placeholder="Add a tag (press Enter)"
+                onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                maxLength={20}
+              />
+              <Button type="button" onClick={addTag} variant="outline" size="sm">
+                Add
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {customTags.map((tag, index) => (
+                <Badge key={index} variant="secondary" className="flex items-center space-x-1">
+                  <span>{tag}</span>
+                  <X
+                    className="w-3 h-3 cursor-pointer hover:text-red-500"
+                    onClick={() => removeTag(tag)}
+                  />
+                </Badge>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500">
+              Add up to 10 tags to help users discover your content
+            </p>
+          </div>
+
+          {/* Premium Toggle */}
+          <div className="flex items-center space-x-3 p-4 border rounded-lg bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20">
+            <Star className="w-5 h-5 text-yellow-500" />
+            <div className="flex-1">
+              <Label htmlFor="premium" className="text-sm font-medium flex items-center space-x-2">
+                <span>Premium Content</span>
+              </Label>
+              <p className="text-xs text-gray-600 mt-1">
+                Mark this video as premium content (requires subscription to view)
+              </p>
+            </div>
+            <Switch
+              id="premium"
+              checked={isPremium}
+              onCheckedChange={setIsPremium}
             />
           </div>
 
-          {/* URLs input, readonly if file method */}
-          {(uploadMethod === 'url' || (uploadMethod === 'file' && formData.video_url)) && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="video_url">
-                  Video URL{uploadMethod === 'url' ? '*' : ''}
-                </Label>
-                <Input
-                  id="video_url"
-                  name="video_url"
-                  value={formData.video_url}
-                  onChange={handleInputChange}
-                  placeholder="https://example.com/video.mp4"
-                  required={uploadMethod === 'url'}
-                  readOnly={uploadMethod === 'file'}
-                />
+          {/* Upload Progress */}
+          {uploading && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Uploading...</span>
+                <span>{uploadProgress}%</span>
               </div>
-              <div>
-                <Label htmlFor="thumbnail_url">Thumbnail URL</Label>
-                <Input
-                  id="thumbnail_url"
-                  name="thumbnail_url"
-                  value={formData.thumbnail_url}
-                  onChange={handleInputChange}
-                  placeholder="https://example.com/thumb.jpg"
-                  readOnly={uploadMethod === 'file'}
-                />
-              </div>
-              <div>
-                <Label htmlFor="preview_url">Preview URL</Label>
-                <Input
-                  id="preview_url"
-                  name="preview_url"
-                  value={formData.preview_url}
-                  onChange={handleInputChange}
-                  placeholder="https://example.com/preview.mp4"
-                  readOnly={uploadMethod === 'file'}
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-primary h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadProgress}%` }}
                 />
               </div>
             </div>
           )}
 
-          {/* Tag manager */}
-          <TagManager
-            customTags={customTags}
-            newTag={newTag}
-            onNewTagChange={setNewTag}
-            onAddCustomTag={addCustomTag}
-            onRemoveCustomTag={removeCustomTag}
-            onAddPresetTag={addPresetTag}
-          />
-
-          {/* Premium toggle */}
-          <div className="flex items-center space-x-3 p-4 bg-muted/50 rounded-lg">
-            <Switch
-              id="premium"
-              checked={formData.is_premium}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({ ...prev, is_premium: checked }))
-              }
-            />
-            <div className="flex-1">
-              <Label
-                htmlFor="premium"
-                className="text-base font-medium cursor-pointer"
-              >
-                Premium Content
-              </Label>
-              <p className="text-sm text-muted-foreground">
-                Mark this video as premium content (requires VIP access)
-              </p>
-            </div>
-          </div>
-
+          {/* Submit Button */}
           <Button
             type="submit"
             className="w-full"
-            disabled={uploadMutation.isPending || isProcessing}
+            disabled={uploading || !file || !title.trim() || !category}
           >
-            {uploadMutation.isPending
-              ? 'Uploading...'
-              : isProcessing
-              ? 'Processing Video...'
-              : uploadMethod === 'file' && selectedFile && !formData.video_url
-              ? 'Process Video'
-              : 'Upload Video'}
+            {uploading ? (
+              <>
+                <Upload className="w-4 h-4 mr-2 animate-spin" />
+                Uploading... {uploadProgress}%
+              </>
+            ) : (
+              <>
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Video
+              </>
+            )}
           </Button>
         </form>
       </CardContent>
