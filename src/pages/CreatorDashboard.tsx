@@ -1,16 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, FileText, User, CheckCircle, Upload, BarChart3, DollarSign, Settings } from 'lucide-react';
+import { Camera, FileText, User, CheckCircle, Upload, BarChart3, DollarSign, Settings, Play, Eye, ThumbsUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const CreatorDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [accountType] = useState<'individual' | 'business'>('individual');
+  const [uploadedVideos, setUploadedVideos] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalVideos: 0,
+    totalViews: 0,
+    totalLikes: 0,
+    subscribers: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCreatorContent = async () => {
+      if (!user?.id) return;
+      
+      setLoading(true);
+      try {
+        // Fetch uploaded videos
+        const { data: videos, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching creator content:', error);
+          return;
+        }
+
+        setUploadedVideos(videos || []);
+        
+        // Calculate stats
+        const totalViews = videos?.reduce((sum, video) => sum + (video.views || 0), 0) || 0;
+        const totalLikes = videos?.reduce((sum, video) => sum + (video.likes || 0), 0) || 0;
+        
+        setStats({
+          totalVideos: videos?.length || 0,
+          totalViews,
+          totalLikes,
+          subscribers: 0 // TODO: Implement subscriber count
+        });
+      } catch (error) {
+        console.error('Error fetching creator content:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCreatorContent();
+  }, [user?.id]);
 
   if (!user) {
     navigate('/auth');
@@ -62,7 +111,7 @@ const CreatorDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Total Views</p>
-                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-2xl font-bold">{stats.totalViews.toLocaleString()}</p>
                   </div>
                   <BarChart3 className="h-8 w-8 text-muted-foreground" />
                 </div>
@@ -74,7 +123,7 @@ const CreatorDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Videos</p>
-                    <p className="text-2xl font-bold">0</p>
+                    <p className="text-2xl font-bold">{stats.totalVideos}</p>
                   </div>
                   <Upload className="h-8 w-8 text-muted-foreground" />
                 </div>
@@ -150,11 +199,11 @@ const CreatorDashboard = () => {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">Total Views</span>
-                        <span className="font-semibold">0</span>
+                        <span className="font-semibold">{stats.totalViews.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-muted-foreground">Active Videos</span>
-                        <span className="font-semibold">0</span>
+                        <span className="font-semibold">{stats.totalVideos}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -236,17 +285,83 @@ const CreatorDashboard = () => {
             <TabsContent value="management">
               <Card>
                 <CardHeader>
-                  <CardTitle>HubX Content Management</CardTitle>
+                  <CardTitle>HubX Content Management ({stats.totalVideos} videos)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-center py-12">
-                    <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
-                    <h3 className="text-lg font-semibold mb-2">Manage Your Content</h3>
-                    <p className="text-muted-foreground mb-4">
-                      View, edit, and manage all your uploaded content
-                    </p>
-                    <p className="text-sm text-muted-foreground">No content uploaded yet</p>
-                  </div>
+                  {loading ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                      <p className="text-muted-foreground mt-4">Loading your content...</p>
+                    </div>
+                  ) : uploadedVideos.length > 0 ? (
+                    <div className="space-y-4">
+                      {uploadedVideos.map((video) => (
+                        <div key={video.id} className="flex items-center space-x-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                          <div className="relative w-32 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                            {video.thumbnail_url && (
+                              <img
+                                src={video.thumbnail_url}
+                                alt={video.title}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                            )}
+                            <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+                              {video.duration || '00:00'}
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium line-clamp-2 mb-2">{video.title}</h4>
+                            <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-2">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <ThumbsUp className="w-3 h-3" />
+                                <span>{video.likes?.toLocaleString() || 0}</span>
+                              </span>
+                              <span>Uploaded {new Date(video.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {video.tags?.slice(0, 3).map((tag: string) => (
+                                <Badge key={tag} variant="outline" className="text-xs">
+                                  {tag}
+                                </Badge>
+                              ))}
+                              {video.tags?.length > 3 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{video.tags.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/video/${video.id}`)}
+                            >
+                              <Play className="w-4 h-4 mr-1" />
+                              View
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <FileText className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">No content uploaded yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Start uploading content to build your audience and earn revenue
+                      </p>
+                      <Button onClick={() => navigate('/upload')} className="px-8">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Your First Video
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
