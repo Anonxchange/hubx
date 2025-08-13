@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,7 @@ import Footer from '@/components/Footer';
 
 const StudioDashboard = () => {
   const { user, userType, loading } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalVideos: 0,
     totalViews: 0,
@@ -174,7 +175,10 @@ const StudioDashboard = () => {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 gap-3">
-                    <Button className="bg-orange-500 hover:bg-orange-600 text-white">
+                    <Button 
+                      className="bg-orange-500 hover:bg-orange-600 text-white"
+                      onClick={() => navigate('/upload')}
+                    >
                       <Upload className="w-4 h-4 mr-2" />
                       Upload New Content
                     </Button>
@@ -206,7 +210,10 @@ const StudioDashboard = () => {
                   <Video className="w-12 h-12 mx-auto text-gray-400 mb-4" />
                   <h3 className="text-lg font-semibold mb-2">No content uploaded yet</h3>
                   <p className="text-gray-400 mb-6">Start uploading content to build your studio's library</p>
-                  <Button className="bg-orange-500 hover:bg-orange-600">
+                  <Button 
+                    className="bg-orange-500 hover:bg-orange-600"
+                    onClick={() => navigate('/upload')}
+                  >
                     <Upload className="w-4 h-4 mr-2" />
                     Upload First Video
                   </Button>
