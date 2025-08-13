@@ -46,13 +46,11 @@ const UploadPage = () => {
   const userType = user?.user_metadata?.user_type;
   const isCreator = userType === 'individual_creator' || userType === 'studio_creator';
 
-  // If not logged in, go to auth page
   if (!user) {
     navigate('/auth');
     return null;
   }
 
-  // If logged in but not a creator, show "Become a Creator"
   if (!isCreator) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -171,7 +169,18 @@ const UploadPage = () => {
       if (!savedVideo) throw new Error('Failed to save video metadata');
       setUploadProgress(100);
       toast({ title: "Upload successful!", description: "Your video is now live." });
-      navigate('/creator-dashboard');
+
+      // Reset form after success
+      setSelectedFile(null);
+      setPreviewUrl('');
+      setTitle('');
+      setDescription('');
+      setSelectedCategory('');
+      setCustomTags([]);
+      setTagInput('');
+      setIsPremium(false);
+      setUploadProgress(0);
+
     } catch (err) {
       toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Error uploading video.", variant: "destructive" });
     } finally {
@@ -181,7 +190,6 @@ const UploadPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <div className="border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
