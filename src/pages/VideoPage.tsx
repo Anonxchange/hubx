@@ -199,20 +199,11 @@ const VideoPage = () => {
                 createdAt={video.created_at}
                 onShare={() => setIsShareModalOpen(true)} // Open share modal
                 video={video}
-              />
-
-              {/* Video Reactions - Like, Dislike, Playlist, Share buttons - After video title */}
-              <VideoReactions
-                videoId={video.id}
-                videoTitle={video.title}
-                likes={reactionData?.likes || video.likes || 0}
-                dislikes={reactionData?.dislikes || video.dislikes || 0}
-                userReaction={reactionData?.userReaction}
-                onReaction={handleReaction}
-                isLoading={reactionMutationPending}
-                reactToVideo={reactToVideo}
                 reactionData={reactionData}
-                isPending={reactionMutationPending}
+                onReaction={handleReaction}
+                reactToVideo={reactToVideo}
+                isReactionLoading={reactionMutationPending}
+                reactionMutationPending={reactionMutationPending}
               />
 
               {/* Description */}
