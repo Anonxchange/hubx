@@ -54,14 +54,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const cachedUser = localStorage.getItem('auth_user');
     const cachedUserType = localStorage.getItem('auth_user_type') as UserType | null;
 
-    if (cachedUser) {
+    if (cachedUser && cachedUserType) {
       try {
         const parsedUser = JSON.parse(cachedUser) as User;
         setUser(parsedUser);
-        if (cachedUserType) setUserType(cachedUserType);
+        setUserType(cachedUserType);
         setIsEmailConfirmed(Boolean(parsedUser.email_confirmed_at));
+        setLoading(false); // Set loading to false when restoring from cache
       } catch (err) {
         console.error('Error parsing cached user:', err);
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_user_type');
       }
     }
   }, []);
@@ -78,34 +81,47 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch user profile to get user_type, then set in state and localStorage
   const fetchUserAndSetType = async (currentUser: User) => {
+    // Check if we already have this user's data to prevent infinite loops
+    if (user?.id === currentUser.id && userType) {
+      console.log('User already set, skipping fetch');
+      return;
+    }
+
     console.log('fetchUserAndSetType called for user:', currentUser.id);
 
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('user_type')
-      .eq('id', currentUser.id)
-      .single();
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', currentUser.id)
+        .single();
 
-    console.log('Profile fetch result:', { profile, error });
+      console.log('Profile fetch result:', { profile, error });
 
-    if (!error && profile?.user_type) {
-      console.log('Setting user type from profile:', profile.user_type);
-      setUserAndCache(currentUser, profile.user_type as UserType);
-    } else {
-      let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
-      console.log('User metadata type:', metadataUserType);
+      if (!error && profile?.user_type) {
+        console.log('Setting user type from profile:', profile.user_type);
+        setUserAndCache(currentUser, profile.user_type as UserType);
+      } else {
+        let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
+        console.log('User metadata type:', metadataUserType);
 
-      if (!metadataUserType) {
-        const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
-        if (storedUserType) {
-          metadataUserType = storedUserType;
-          console.log('Retrieved user type from localStorage:', storedUserType);
+        if (!metadataUserType) {
+          const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
+          if (storedUserType) {
+            metadataUserType = storedUserType;
+            console.log('Retrieved user type from localStorage:', storedUserType);
+          }
         }
-      }
 
-      const finalUserType = metadataUserType ?? 'user';
-      console.log('Setting final user type:', finalUserType);
-      setUserAndCache(currentUser, finalUserType);
+        const finalUserType = metadataUserType ?? 'user';
+        console.log('Setting final user type:', finalUserType);
+        setUserAndCache(currentUser, finalUserType);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      // Fallback to cached or default user type
+      const cachedUserType = localStorage.getItem('auth_user_type') as UserType;
+      setUserAndCache(currentUser, cachedUserType || 'user');
     }
   };
 
@@ -152,9 +168,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state change:', event, session?.user?.id);
+      
       if (session?.user) {
-        await fetchUserAndSetType(session.user as User);
-      } else {
+        // Only fetch user type if we don't already have it or if it's a different user
+        if (!user || user.id !== session.user.id || !userType) {
+          await fetchUserAndSetType(session.user as User);
+        }
+      } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setUserType(null);
         setIsEmailConfirmed(false);
