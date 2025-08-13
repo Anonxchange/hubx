@@ -371,18 +371,34 @@ const updateVideoReactionCounts = async (videoId: string) => {
 export const getUserReaction = async (videoId: string) => {
   const sessionId = getSessionId();
 
-  const { data, error } = await supabase
+  // Get user's reaction
+  const { data: userReactionData, error: userError } = await supabase
     .from('video_reactions')
     .select('reaction_type')
     .eq('video_id', videoId)
     .eq('user_session', sessionId)
     .single();
 
-  if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching user reaction:', error);
+  if (userError && userError.code !== 'PGRST116') {
+    console.error('Error fetching user reaction:', userError);
   }
 
-  return data?.reaction_type || null;
+  // Get video likes and dislikes counts
+  const { data: videoData, error: videoError } = await supabase
+    .from('videos')
+    .select('likes, dislikes')
+    .eq('id', videoId)
+    .single();
+
+  if (videoError) {
+    console.error('Error fetching video data:', videoError);
+  }
+
+  return {
+    userReaction: userReactionData?.reaction_type || null,
+    likes: videoData?.likes || 0,
+    dislikes: videoData?.dislikes || 0,
+  };
 };
 
 // Search videos
