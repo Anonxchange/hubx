@@ -1,89 +1,135 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ThumbsUp, ThumbsDown, Heart, Share, Plus, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import PlaylistModal from './PlaylistModal';
+import ShareModal from './ShareModal';
+import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface VideoReactionsProps {
+  videoId: string;
+  videoTitle: string;
   likes: number;
   dislikes: number;
   userReaction: 'like' | 'dislike' | null | undefined;
   onReaction: (reactionType: 'like' | 'dislike') => void;
   isLoading: boolean;
+  reactToVideo: ({ videoId, reactionType }: { videoId: string; reactionType: 'like' | 'dislike' }) => void;
+  reactionData?: { userReaction: 'like' | 'dislike' | null | undefined; likes: number; dislikes: number };
+  isPending: boolean;
 }
 
 const VideoReactions: React.FC<VideoReactionsProps> = ({
+  videoId,
+  videoTitle,
   likes,
   dislikes,
   userReaction,
   onReaction,
-  isLoading
+  isLoading,
+  reactToVideo,
+  reactionData,
+  isPending
 }) => {
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
   const formatCount = (count: number) => {
     if (count >= 1000) {
       return `${Math.floor(count / 1000)}K`;
     }
-    return count.toString();
+    return count?.toString() || '0';
+  };
+
+  const handleReaction = (reactionType: 'like' | 'dislike') => {
+    if (!videoId || !reactToVideo) return;
+    reactToVideo({ videoId, reactionType });
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Check out this video on HubX',
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('Link copied to clipboard!');
+    }
+  };
+
+  const handlePlaylistClick = () => {
+    if (!user) {
+      toast.error('Please log in to create and manage playlists');
+      navigate('/auth');
+      return;
+    }
+    setIsPlaylistModalOpen(true);
   };
 
   return (
-    <div className="flex items-center space-x-3">
-      {/* Like/Dislike Combined Button */}
-      <div className="flex items-center bg-muted/20 rounded-full overflow-hidden">
-        <Button
-          onClick={() => onReaction('like')}
-          variant="ghost"
-          size="sm"
-          disabled={isLoading}
-          className={`rounded-none rounded-l-full px-4 py-2 h-12 ${
-            userReaction === 'like' 
-              ? 'bg-primary/20 text-primary' 
-              : 'hover:bg-muted/30 text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <ThumbsUp className="w-5 h-5 mr-2" />
-          <span className="font-medium">{formatCount(likes || 0)}</span>
-        </Button>
-        
-        <div className="w-px bg-border h-6"></div>
-        
-        <Button
-          onClick={() => onReaction('dislike')}
-          variant="ghost"
-          size="sm"
-          disabled={isLoading}
-          className={`rounded-none rounded-r-full px-4 py-2 h-12 ${
-            userReaction === 'dislike' 
-              ? 'bg-destructive/20 text-destructive' 
-              : 'hover:bg-muted/30 text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <ThumbsDown className="w-5 h-5" />
-        </Button>
-      </div>
+    <div className="flex items-center gap-2 flex-wrap">
+      {/* Like Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className={`rounded-full gap-2 px-4 ${
+          userReaction === 'like' 
+            ? 'bg-blue-500/20 text-blue-500 hover:bg-blue-500/30' 
+            : 'bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground'
+        }`}
+        onClick={() => handleReaction('like')}
+        disabled={isLoading || isPending}
+      >
+        <ThumbsUp className={`w-5 h-5 ${userReaction === 'like' ? 'fill-current' : ''}`} />
+        <span className="text-sm font-medium">{formatCount(likes)}</span>
+      </Button>
+
+      {/* Dislike Button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className={`rounded-full gap-2 px-4 ${
+          userReaction === 'dislike' 
+            ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' 
+            : 'bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground'
+        }`}
+        onClick={() => handleReaction('dislike')}
+        disabled={isLoading || isPending}
+      >
+        <ThumbsDown className={`w-5 h-5 ${userReaction === 'dislike' ? 'fill-current' : ''}`} />
+        <span className="text-sm font-medium">{formatCount(dislikes)}</span>
+      </Button>
 
       {/* Heart/Favorite Button */}
       <Button
         variant="ghost"
         size="sm"
-        className="rounded-full w-12 h-12 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+        className="rounded-full w-10 h-10 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
       >
         <Heart className="w-5 h-5" />
       </Button>
+
 
       {/* Share Button */}
       <Button
         variant="ghost"
         size="sm"
-        className="rounded-full w-12 h-12 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+        className="rounded-full w-10 h-10 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+        onClick={() => setIsShareModalOpen(true)}
       >
         <Share className="w-5 h-5" />
       </Button>
 
-      {/* Add/Plus Button */}
+      {/* Add to Playlist Button */}
       <Button
         variant="ghost"
         size="sm"
-        className="rounded-full w-12 h-12 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+        className="rounded-full w-10 h-10 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+        onClick={handlePlaylistClick}
       >
         <Plus className="w-5 h-5" />
       </Button>
@@ -92,10 +138,28 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
       <Button
         variant="ghost"
         size="sm"
-        className="rounded-full w-12 h-12 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+        className="rounded-full w-10 h-10 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+        onClick={() => toast.info('Report functionality coming soon')}
       >
         <Flag className="w-5 h-5" />
       </Button>
+
+      {/* Playlist Modal - Only show if user is logged in */}
+      {user && (
+        <PlaylistModal 
+          videoId={videoId}
+          open={isPlaylistModalOpen}
+          onOpenChange={setIsPlaylistModalOpen}
+        />
+      )}
+
+      {/* Share Modal */}
+      <ShareModal 
+        videoId={videoId}
+        videoTitle={videoTitle}
+        open={isShareModalOpen}
+        onOpenChange={setIsShareModalOpen}
+      />
     </div>
   );
 };
