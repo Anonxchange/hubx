@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,12 +26,14 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
   const [isPremium, setIsPremium] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [videoUrl, setVideoUrl] = useState('');
+  const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Bunny CDN configuration
-  const BUNNY_STORAGE_ZONE = 'hubx-videos';
-  const BUNNY_ACCESS_KEY = process.env.REACT_APP_BUNNY_ACCESS_KEY || 'your-bunny-access-key';
+  const BUNNY_STORAGE_ZONE = import.meta.env.VITE_BUNNY_STORAGE_ZONE || 'hubx-videos';
+  const BUNNY_ACCESS_KEY = import.meta.env.VITE_BUNNY_ACCESS_KEY || '';
   const BUNNY_CDN_URL = 'https://hubx-videos.b-cdn.net';
 
   const categories = [
@@ -93,6 +94,55 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
     return `${BUNNY_CDN_URL}/${filename}`;
   };
 
+  const isValidVideoUrl = (url: string): boolean => {
+    try {
+      const urlObj = new URL(url);
+      const validExtensions = ['.mp4', '.avi', '.mov', '.wmv', '.webm', '.mkv'];
+      const pathname = urlObj.pathname.toLowerCase();
+      return validExtensions.some(ext => pathname.endsWith(ext)) || 
+             url.includes('youtube.com') || 
+             url.includes('youtu.be') || 
+             url.includes('vimeo.com') ||
+             url.includes('bunnycdn.net') ||
+             url.includes('cloudfront.net');
+    } catch {
+      return false;
+    }
+  };
+
+  const generateThumbnailFromUrl = (videoUrl: string): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+      const video = document.createElement('video');
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      video.crossOrigin = 'anonymous';
+      video.onloadedmetadata = () => {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        video.currentTime = Math.min(5, video.duration / 2);
+      };
+
+      video.onseeked = () => {
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to generate thumbnail'));
+            }
+          }, 'image/jpeg', 0.8);
+        } else {
+          reject(new Error('Canvas context not available'));
+        }
+      };
+
+      video.onerror = () => reject(new Error('Error loading video from URL'));
+      video.src = videoUrl;
+    });
+  };
+
   const generateThumbnail = (videoFile: File): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const video = document.createElement('video');
@@ -127,11 +177,29 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!file || !title.trim() || !category) {
+
+    if (uploadMethod === 'file' && !file) {
       toast({
         title: 'Missing Information',
-        description: 'Please fill in all required fields and select a video file.',
+        description: 'Please select a video file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (uploadMethod === 'url' && (!videoUrl.trim() || !isValidVideoUrl(videoUrl))) {
+      toast({
+        title: 'Invalid URL',
+        description: 'Please provide a valid video URL.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!title.trim() || !category) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please fill in all required fields.',
         variant: 'destructive',
       });
       return;
@@ -143,25 +211,40 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
     try {
       // Generate unique filenames
       const timestamp = Date.now();
-      const videoFilename = `videos/${timestamp}_${file.name}`;
-      const thumbnailFilename = `thumbnails/${timestamp}_thumbnail.jpg`;
+      let finalVideoUrl = '';
 
-      // Upload video to Bunny CDN
-      setUploadProgress(20);
-      const videoUrl = await uploadToBunny(file, videoFilename);
+      if (uploadMethod === 'file' && file) {
+        const videoFilename = `videos/${timestamp}_${file.name}`;
+        // Upload video to Bunny CDN
+        setUploadProgress(20);
+        finalVideoUrl = await uploadToBunny(file, videoFilename);
+      } else if (uploadMethod === 'url') {
+        // Use the provided URL directly
+        setUploadProgress(20);
+        finalVideoUrl = videoUrl.trim();
+      }
+
+      const thumbnailFilename = `thumbnails/${timestamp}_thumbnail.jpg`;
 
       // Generate and upload thumbnail
       setUploadProgress(40);
       let thumbnailUrl = '';
-      
+
       if (thumbnailFile) {
         thumbnailUrl = await uploadToBunny(thumbnailFile, thumbnailFilename);
       } else {
         // Auto-generate thumbnail from video
         try {
-          const thumbnailBlob = await generateThumbnail(file);
-          const thumbnailFile = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
-          thumbnailUrl = await uploadToBunny(thumbnailFile, thumbnailFilename);
+          let thumbnailBlob: Blob;
+          if (uploadMethod === 'file' && file) {
+            thumbnailBlob = await generateThumbnail(file);
+          } else if (uploadMethod === 'url') {
+            thumbnailBlob = await generateThumbnailFromUrl(finalVideoUrl);
+          } else {
+            throw new Error('No video source available');
+          }
+          const thumbnailFileObj = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
+          thumbnailUrl = await uploadToBunny(thumbnailFileObj, thumbnailFilename);
         } catch (error) {
           console.warn('Failed to generate thumbnail:', error);
           // Continue without thumbnail
@@ -176,7 +259,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
         description: description.trim(),
         category,
         tags: customTags,
-        video_url: videoUrl,
+        video_url: finalVideoUrl,
         thumbnail_url: thumbnailUrl,
         uploader_id: user?.id,
         uploader_username: user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'Anonymous',
@@ -219,6 +302,8 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
       setIsPremium(false);
       setFile(null);
       setThumbnailFile(null);
+      setVideoUrl('');
+      setUploadMethod('file');
       onVideoAdded();
 
     } catch (error) {
@@ -244,30 +329,94 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Video File Upload */}
-          <div className="space-y-2">
-            <Label htmlFor="videoFile" className="text-sm font-medium">
-              Video File *
-            </Label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
-              <Input
-                id="videoFile"
-                type="file"
-                accept="video/*"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
-                className="hidden"
-              />
-              <label htmlFor="videoFile" className="cursor-pointer">
-                <Video className="w-12 h-12 mx-auto text-gray-400 mb-2" />
-                <p className="text-gray-600">
-                  {file ? file.name : 'Click to select a video file'}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Supported formats: MP4, AVI, MOV, WMV (Max: 2GB)
-                </p>
-              </label>
+          {/* Upload Method Selection */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Upload Method *</Label>
+            <div className="flex space-x-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="file-upload"
+                  name="uploadMethod"
+                  value="file"
+                  checked={uploadMethod === 'file'}
+                  onChange={() => {
+                    setUploadMethod('file');
+                    setVideoUrl('');
+                  }}
+                  className="w-4 h-4 text-primary"
+                />
+                <Label htmlFor="file-upload" className="text-sm">File Upload</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="url-upload"
+                  name="uploadMethod"
+                  value="url"
+                  checked={uploadMethod === 'url'}
+                  onChange={() => {
+                    setUploadMethod('url');
+                    setFile(null);
+                  }}
+                  className="w-4 h-4 text-primary"
+                />
+                <Label htmlFor="url-upload" className="text-sm">URL Upload</Label>
+              </div>
             </div>
           </div>
+
+          {/* Video File Upload */}
+          {uploadMethod === 'file' && (
+            <div className="space-y-2">
+              <Label htmlFor="videoFile" className="text-sm font-medium">
+                Video File *
+              </Label>
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                <Input
+                  id="videoFile"
+                  type="file"
+                  accept="video/*"
+                  onChange={(e) => setFile(e.target.files?.[0] || null)}
+                  className="hidden"
+                />
+                <label htmlFor="videoFile" className="cursor-pointer">
+                  <Video className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+                  <p className="text-gray-600">
+                    {file ? file.name : 'Click to select a video file'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Supported formats: MP4, AVI, MOV, WMV (Max: 2GB)
+                  </p>
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Video URL Upload */}
+          {uploadMethod === 'url' && (
+            <div className="space-y-2">
+              <Label htmlFor="videoUrl" className="text-sm font-medium">
+                Video URL *
+              </Label>
+              <Input
+                id="videoUrl"
+                type="url"
+                value={videoUrl}
+                onChange={(e) => setVideoUrl(e.target.value)}
+                placeholder="https://example.com/video.mp4"
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500">
+                Supported: Direct video URLs (.mp4, .avi, .mov, .wmv, .webm), YouTube, Vimeo, CDN URLs
+              </p>
+              {videoUrl && !isValidVideoUrl(videoUrl) && (
+                <p className="text-xs text-red-500">
+                  Please enter a valid video URL
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Thumbnail Upload (Optional) */}
           <div className="space-y-2">
@@ -408,7 +557,13 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
           <Button
             type="submit"
             className="w-full"
-            disabled={uploading || !file || !title.trim() || !category}
+            disabled={
+              uploading || 
+              !title.trim() || 
+              !category || 
+              (uploadMethod === 'file' && !file) || 
+              (uploadMethod === 'url' && (!videoUrl.trim() || !isValidVideoUrl(videoUrl)))
+            }
           >
             {uploading ? (
               <>
