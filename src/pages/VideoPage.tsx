@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -20,12 +19,21 @@ import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 
+// Import Playlist and Share related components and hooks
+import PlaylistModal from '@/components/PlaylistModal';
+import ShareModal from '@/components/ShareModal';
+import { useAddToPlaylist } from '@/hooks/usePlaylists';
+
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
 
   // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY EARLY RETURNS
   const [videoError, setVideoError] = useState(false);
+
+  // Playlist and Share state
+  const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const { data: video, isLoading, error } = useQuery({
     queryKey: ['video', id],
@@ -41,7 +49,11 @@ const VideoPage = () => {
     15
   );
 
-  const { userReaction, reactToVideo, isLoading: reactionLoading } = useVideoReaction(video?.id || '');
+  // Playlist hook
+  const { mutate: addVideoToPlaylist, isPending: playlistLoading, isError: playlistError } = useAddToPlaylist();
+
+  // Video reaction hook
+  const { data: reactionData, mutate: reactToVideo, isPending: reactionMutationPending } = useVideoReaction(video?.id || '');
 
   // useEffect hooks
   useEffect(() => {
@@ -97,6 +109,29 @@ const VideoPage = () => {
       navigator.clipboard.writeText(window.location.href);
       toast.success('Link copied to clipboard!');
     }
+  };
+
+  // Handle adding video to playlist
+  const handleAddToPlaylist = (playlistId: string) => {
+    if (video?.id) {
+      addVideoToPlaylist({ playlistId, videoId: video.id });
+      setIsPlaylistModalOpen(false);
+    }
+  };
+
+  // Handle sharing video via modal
+  const handleShareVideo = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: video?.title,
+        text: 'Check out this video on HubX',
+        url: window.location.href,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast.success('Link copied to clipboard!');
+    }
+    setIsShareModalOpen(false);
   };
 
   const handleReaction = (reactionType: 'like' | 'dislike') => {
@@ -162,8 +197,22 @@ const VideoPage = () => {
                 views={video.views}
                 duration={video.duration}
                 createdAt={video.created_at}
-                onShare={handleShare}
+                onShare={() => setIsShareModalOpen(true)} // Open share modal
                 video={video}
+              />
+
+              {/* Video Reactions - Like, Dislike, Playlist, Share buttons - After video title */}
+              <VideoReactions
+                videoId={video.id}
+                videoTitle={video.title}
+                likes={reactionData?.likes || video.likes || 0}
+                dislikes={reactionData?.dislikes || video.dislikes || 0}
+                userReaction={reactionData?.userReaction}
+                onReaction={handleReaction}
+                isLoading={reactionMutationPending}
+                reactToVideo={reactToVideo}
+                reactionData={reactionData}
+                isPending={reactionMutationPending}
               />
 
               {/* Description */}
@@ -183,6 +232,22 @@ const VideoPage = () => {
           </div>
         </div>
       </main>
+
+      {/* Playlist Modal */}
+      <PlaylistModal
+        isOpen={isPlaylistModalOpen}
+        onClose={() => setIsPlaylistModalOpen(false)}
+        onAdd={handleAddToPlaylist}
+        video={video}
+      />
+
+      {/* Share Modal */}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        onShare={handleShareVideo}
+        video={video}
+      />
     </div>
   );
 };
