@@ -21,10 +21,12 @@ import {
   TrendingUp,
   Calendar,
   FileText,
-  UserPlus
+  UserPlus,
+  ThumbsUp
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import { supabase } from '@/integrations/supabase/client';
 
 const StudioDashboard = () => {
   const { user, userType, loading } = useAuth();
@@ -37,6 +39,8 @@ const StudioDashboard = () => {
     teamMembers: 0,
     pendingUploads: 0
   });
+  const [uploadedVideos, setUploadedVideos] = useState<any[]>([]);
+  const [contentLoading, setContentLoading] = useState(true);
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -49,6 +53,44 @@ const StudioDashboard = () => {
   if (userType !== 'studio_creator') {
     return <Navigate to="/creator-dashboard" replace />;
   }
+
+  useEffect(() => {
+    const fetchStudioContent = async () => {
+      if (!user?.id) return;
+      
+      setContentLoading(true);
+      try {
+        // Fetch uploaded videos
+        const { data: videos, error } = await supabase
+          .from('videos')
+          .select('*')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching studio content:', error);
+          return;
+        }
+
+        setUploadedVideos(videos || []);
+        
+        // Update stats
+        const totalViews = videos?.reduce((sum, video) => sum + (video.views || 0), 0) || 0;
+        
+        setStats(prev => ({
+          ...prev,
+          totalVideos: videos?.length || 0,
+          totalViews
+        }));
+      } catch (error) {
+        console.error('Error fetching studio content:', error);
+      } finally {
+        setContentLoading(false);
+      }
+    };
+
+    fetchStudioContent();
+  }, [user?.id]);
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -203,21 +245,85 @@ const StudioDashboard = () => {
           <TabsContent value="content" className="mt-6">
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader>
-                <CardTitle>Content Management</CardTitle>
+                <CardTitle>Content Management ({stats.totalVideos} videos)</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Video className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No content uploaded yet</h3>
-                  <p className="text-gray-400 mb-6">Start uploading content to build your studio's library</p>
-                  <Button 
-                    className="bg-orange-500 hover:bg-orange-600"
-                    onClick={() => navigate('/upload')}
-                  >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Upload First Video
-                  </Button>
-                </div>
+                {contentLoading ? (
+                  <div className="text-center py-12">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                    <p className="text-gray-400 mt-4">Loading studio content...</p>
+                  </div>
+                ) : uploadedVideos.length > 0 ? (
+                  <div className="space-y-4">
+                    {uploadedVideos.map((video) => (
+                      <div key={video.id} className="flex items-center space-x-4 p-4 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors">
+                        <div className="relative w-32 aspect-video rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
+                          {video.thumbnail_url && (
+                            <img
+                              src={video.thumbnail_url}
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          )}
+                          <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+                            {video.duration || '00:00'}
+                          </div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium line-clamp-2 mb-2 text-white">{video.title}</h4>
+                          <div className="flex items-center space-x-4 text-sm text-gray-400 mb-2">
+                            <span className="flex items-center space-x-1">
+                              <Eye className="w-3 h-3" />
+                              <span>{video.views?.toLocaleString() || 0}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <ThumbsUp className="w-3 h-3" />
+                              <span>{video.likes?.toLocaleString() || 0}</span>
+                            </span>
+                            <span>Uploaded {new Date(video.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1">
+                            {video.tags?.slice(0, 3).map((tag: string) => (
+                              <Badge key={tag} variant="outline" className="text-xs border-gray-600 text-gray-300">
+                                {tag}
+                              </Badge>
+                            ))}
+                            {video.tags?.length > 3 && (
+                              <Badge variant="outline" className="text-xs border-gray-600 text-gray-300">
+                                +{video.tags.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-gray-700 text-white hover:bg-gray-800"
+                            onClick={() => navigate(`/video/${video.id}`)}
+                          >
+                            <Play className="w-4 h-4 mr-1" />
+                            View
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Video className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No content uploaded yet</h3>
+                    <p className="text-gray-400 mb-6">Start uploading content to build your studio's library</p>
+                    <Button 
+                      className="bg-orange-500 hover:bg-orange-600"
+                      onClick={() => navigate('/upload')}
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload First Video
+                    </Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
