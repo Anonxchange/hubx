@@ -5,6 +5,7 @@ import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import { useAuth } from '@/contexts/AuthContext';
 import { trackVideoView } from '@/services/userStatsService';
 
+
 interface VideoQuality {
   label: string;
   height: number;
@@ -18,14 +19,16 @@ interface VideoPlayerProps {
   onError?: () => void;
   onCanPlay?: () => void;
   videoId?: string; // Added videoId prop
+  videoTitle?: string; // Added videoTitle prop for reactions
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ 
-  src, 
-  poster, 
-  onError, 
+const VideoPlayer: React.FC<VideoPlayerProps> = ({
+  src,
+  poster,
+  onError,
   onCanPlay,
-  videoId // Destructure videoId
+  videoId, // Destructure videoId
+  videoTitle // Destructure videoTitle
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const adVideoRef = useRef<HTMLVideoElement>(null);
@@ -64,7 +67,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         url: src
       },
       {
-        label: "480p", 
+        label: "480p",
         height: 480,
         bandwidth: 1000000,
         url: src.replace('.mp4', '_480p.mp4')
@@ -651,6 +654,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     showPlaceholderAd();
   };
 
+
+
   if (videoError) {
     return (
       <div className="w-full h-full flex items-center justify-center bg-card text-card-foreground aspect-video">
@@ -659,9 +664,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div>
             <p className="text-lg font-medium">Video Error</p>
             <p className="text-sm text-muted-foreground">Unable to load video. Please try refreshing the page.</p>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               className="mt-2"
               onClick={() => window.location.reload()}
             >
@@ -786,12 +791,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
         onError={handleVideoError}
         onContextMenu={handleContextMenu}
+        onPause={() => setIsPlaying(false)}
       >
         {hasStartedPlaying && selectedQuality && (
           <source src={selectedQuality.url} type="video/mp4" />
         )}
         Your browser does not support the video tag.
       </video>
+
+      {/* Video Reactions are handled in VideoPage, not here */}
     </div>
   );
 };
