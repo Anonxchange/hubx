@@ -24,7 +24,15 @@ interface VideoInfoProps {
     uploader_subscribers?: number;
     uploader_total_views?: number;
     tags: string[];
+    likes?: number;
+    dislikes?: number;
   };
+  // Reaction props
+  reactionData?: { userReaction: 'like' | 'dislike' | null | undefined; likes: number; dislikes: number };
+  onReaction: (reactionType: 'like' | 'dislike') => void;
+  reactToVideo: ({ videoId, reactionType }: { videoId: string; reactionType: 'like' | 'dislike' }) => void;
+  isReactionLoading: boolean;
+  reactionMutationPending: boolean;
 }
 
 const VideoInfo: React.FC<VideoInfoProps> = ({
@@ -34,6 +42,11 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   createdAt,
   onShare,
   video, // Destructure video object
+  reactionData,
+  onReaction,
+  reactToVideo,
+  isReactionLoading,
+  reactionMutationPending,
 }) => {
   const navigate = useNavigate();
 
@@ -75,7 +88,21 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
         </span>
       </div>
 
-      {/* Video Reactions will be handled by the parent VideoPage component */}
+      {/* Video Reactions - Like, Dislike, Share, etc. */}
+      <VideoReactions
+        videoId={video?.id || ''}
+        videoTitle={title}
+        likes={reactionData?.likes || video?.likes || 0}
+        dislikes={reactionData?.dislikes || video?.dislikes || 0}
+        userReaction={reactionData?.userReaction}
+        onReaction={onReaction}
+        isLoading={isReactionLoading}
+        reactToVideo={reactToVideo}
+        reactionData={reactionData}
+        isPending={reactionMutationPending}
+      />
+
+      <VideoTags tags={video?.tags || []} />
 
       {/* Creator Profile Section - Only show for individual_creator and studio_creator */}
       {(video?.uploader_type === 'individual_creator' || video?.uploader_type === 'studio_creator') && (
@@ -126,8 +153,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
           </Button>
         </div>
       )}
-
-      <VideoTags tags={video?.tags || []} />
     </div>
   );
 };
