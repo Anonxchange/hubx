@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
-import { Search, Users, Play, Eye, TrendingUp, Star, Crown } from 'lucide-react';
+import { Search, Users, Play, Eye, TrendingUp, Star, Crown, Check, Heart, MessageCircle, Share2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdComponent from '@/components/AdComponent';
@@ -20,6 +21,7 @@ interface Channel {
   verified: boolean;
   description?: string;
   category?: string;
+  isFollowing?: boolean;
 }
 
 const ChannelPage = () => {
@@ -40,8 +42,9 @@ const ChannelPage = () => {
         views: '9.8B',
         rank: 1,
         verified: true,
-        description: 'Premium adult content studio',
-        category: 'Studio'
+        description: 'Premium adult content studio creating high-quality exclusive videos',
+        category: 'Studio',
+        isFollowing: false
       },
       {
         id: '2',
@@ -52,8 +55,9 @@ const ChannelPage = () => {
         views: '6.1B',
         rank: 16,
         verified: true,
-        description: 'Independent content creator',
-        category: 'Individual'
+        description: 'Independent content creator sharing intimate moments',
+        category: 'Individual',
+        isFollowing: true
       },
       {
         id: '3',
@@ -64,8 +68,9 @@ const ChannelPage = () => {
         views: '575M',
         rank: 66,
         verified: false,
-        description: 'Amateur content network',
-        category: 'Network'
+        description: 'Amateur content network featuring real couples',
+        category: 'Network',
+        isFollowing: false
       },
       {
         id: '4',
@@ -76,8 +81,9 @@ const ChannelPage = () => {
         views: '4.2B',
         rank: 8,
         verified: true,
-        description: 'Latina pornstar',
-        category: 'Individual'
+        description: 'International performer creating passionate content',
+        category: 'Individual',
+        isFollowing: false
       },
       {
         id: '5',
@@ -88,8 +94,9 @@ const ChannelPage = () => {
         views: '2.8B',
         rank: 32,
         verified: true,
-        description: 'High quality adult films',
-        category: 'Studio'
+        description: 'Professional studio producing cinematic adult films',
+        category: 'Studio',
+        isFollowing: true
       },
       {
         id: '6',
@@ -100,8 +107,9 @@ const ChannelPage = () => {
         views: '1.2B',
         rank: 45,
         verified: false,
-        description: 'Real amateur couples',
-        category: 'Amateur'
+        description: 'Authentic amateur couples sharing real moments',
+        category: 'Amateur',
+        isFollowing: false
       }
     ];
     
@@ -124,6 +132,8 @@ const ChannelPage = () => {
       filtered = filtered.sort((a, b) => parseInt(a.subscribers.replace(/[^0-9]/g, '')) - parseInt(b.subscribers.replace(/[^0-9]/g, ''))).reverse();
     } else if (activeTab === 'trending') {
       filtered = filtered.sort((a, b) => parseInt(a.views.replace(/[^0-9]/g, '')) - parseInt(b.views.replace(/[^0-9]/g, ''))).reverse();
+    } else if (activeTab === 'following') {
+      filtered = filtered.filter(channel => channel.isFollowing);
     } else {
       filtered = filtered.sort((a, b) => a.rank - b.rank);
     }
@@ -135,141 +145,195 @@ const ChannelPage = () => {
     e.preventDefault();
   };
 
-  const tabs = [
-    { id: 'all', label: 'All Channels', icon: Users },
-    { id: 'popular', label: 'Most Popular', icon: Star },
-    { id: 'trending', label: 'Trending', icon: TrendingUp }
-  ];
+  const handleFollow = (channelId: string) => {
+    setChannels(prevChannels =>
+      prevChannels.map(channel =>
+        channel.id === channelId
+          ? { ...channel, isFollowing: !channel.isFollowing }
+          : channel
+      )
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen bg-background">
       <Header />
       
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Ad Component at the top */}
         <div className="mb-8">
           <AdComponent zoneId="5660534" />
         </div>
 
-        {/* Page Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-2">Browse All Channels</h1>
-          <p className="text-gray-400">Discover your favorite content creators and studios</p>
+        {/* Hero Section */}
+        <div className="mb-12 text-center space-y-4">
+          <div className="relative inline-block">
+            <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-orange-400 via-orange-500 to-orange-600 bg-clip-text text-transparent">
+              Discover Creators
+            </h1>
+            <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-orange-400 to-orange-600 rounded-full"></div>
+          </div>
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Explore the most popular content creators and studios on HubX
+          </p>
         </div>
 
         {/* Search Bar */}
-        <div className="mb-6">
-          <form onSubmit={handleSearchSubmit} className="relative max-w-md">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <div className="mb-8 max-w-2xl mx-auto">
+          <form onSubmit={handleSearchSubmit} className="relative">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
             <Input
-              placeholder="Search Channels"
+              placeholder="Search creators, studios, or content types..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-800 border-gray-600 text-white placeholder-gray-400 pl-12 pr-4 py-3 rounded-lg"
+              className="w-full bg-card border-border text-foreground placeholder-muted-foreground pl-12 pr-4 py-4 rounded-xl text-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all"
             />
           </form>
         </div>
 
         {/* Filter Tabs */}
-        <div className="mb-8">
-          <div className="flex flex-wrap gap-3">
-            {tabs.map((tab) => {
-              const IconComponent = tab.icon;
-              return (
-                <Button
-                  key={tab.id}
-                  variant={activeTab === tab.id ? "default" : "outline"}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 ${
-                    activeTab === tab.id
-                      ? 'bg-orange-600 hover:bg-orange-700 text-white border-orange-600'
-                      : 'bg-gray-800 border-gray-600 text-gray-300 hover:bg-gray-700 hover:text-white'
-                  }`}
-                >
-                  <IconComponent className="w-4 h-4" />
-                  <span>{tab.label}</span>
-                </Button>
-              );
-            })}
-          </div>
+        <div className="mb-10">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-4 max-w-2xl mx-auto bg-card border border-border rounded-xl p-1">
+              <TabsTrigger 
+                value="all" 
+                className="rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all"
+              >
+                <Users className="w-4 h-4 mr-2" />
+                All Creators
+              </TabsTrigger>
+              <TabsTrigger 
+                value="popular" 
+                className="rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all"
+              >
+                <Star className="w-4 h-4 mr-2" />
+                Popular
+              </TabsTrigger>
+              <TabsTrigger 
+                value="trending" 
+                className="rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all"
+              >
+                <TrendingUp className="w-4 h-4 mr-2" />
+                Trending
+              </TabsTrigger>
+              <TabsTrigger 
+                value="following" 
+                className="rounded-lg data-[state=active]:bg-orange-500 data-[state=active]:text-white transition-all"
+              >
+                <Heart className="w-4 h-4 mr-2" />
+                Following
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
 
-        {/* Channel Grid */}
-        <div className="space-y-4">
+        {/* Channels Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
           {filteredChannels.map((channel) => (
-            <Card key={channel.id} className="bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors cursor-pointer">
-              <CardContent className="p-6">
-                <div className="flex items-start space-x-4">
-                  {/* Rank */}
-                  <div className="flex-shrink-0">
-                    <div className="text-gray-400 text-sm font-medium mb-1">Rank</div>
-                    <div className="text-white text-lg font-bold">{channel.rank}</div>
-                  </div>
-
-                  {/* Channel Avatar */}
-                  <div className="flex-shrink-0">
-                    <div className="w-20 h-20 bg-gray-700 rounded-lg overflow-hidden">
-                      <img
-                        src={channel.avatar}
-                        alt={channel.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = '/placeholder.svg';
-                        }}
-                      />
+            <Card key={channel.id} className="bg-card border-border hover:border-orange-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-orange-500/10 group overflow-hidden">
+              <CardContent className="p-0">
+                {/* Card Header with Rank Badge */}
+                <div className="relative p-6 pb-4">
+                  {channel.rank <= 10 && (
+                    <div className="absolute top-4 right-4">
+                      <Badge variant="secondary" className="bg-gradient-to-r from-yellow-400 to-yellow-600 text-black font-bold">
+                        #{channel.rank}
+                      </Badge>
                     </div>
-                  </div>
-
-                  {/* Channel Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-xl font-bold text-orange-400 hover:text-orange-300 transition-colors">
-                        {channel.name}
-                      </h3>
+                  )}
+                  
+                  {/* Avatar and Name */}
+                  <div className="flex items-start space-x-4">
+                    <div className="relative">
+                      <div className="w-16 h-16 bg-muted rounded-full overflow-hidden ring-2 ring-orange-500/20 group-hover:ring-orange-500/40 transition-all">
+                        <img
+                          src={channel.avatar}
+                          alt={channel.name}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement;
+                            target.src = '/placeholder.svg';
+                          }}
+                        />
+                      </div>
                       {channel.verified && (
-                        <Crown className="w-5 h-5 text-yellow-500" title="Verified Channel" />
-                      )}
-                      {channel.category && (
-                        <Badge variant="secondary" className="text-xs bg-gray-700 text-gray-300">
-                          {channel.category}
-                        </Badge>
+                        <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center border-2 border-background">
+                          <Check className="w-3 h-3 text-white" />
+                        </div>
                       )}
                     </div>
-
-                    {channel.description && (
-                      <p className="text-gray-400 text-sm mb-3">{channel.description}</p>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <div className="text-gray-400">Subscribers</div>
-                        <div className="text-white font-semibold text-lg">{channel.subscribers}</div>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <h3 className="text-lg font-bold text-foreground group-hover:text-orange-500 transition-colors truncate">
+                          {channel.name}
+                        </h3>
+                        {channel.category && (
+                          <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-500">
+                            {channel.category}
+                          </Badge>
+                        )}
                       </div>
-                      <div>
-                        <div className="text-gray-400">Videos</div>
-                        <div className="text-white font-semibold text-lg">{channel.videos}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-400">Video Views</div>
-                        <div className="text-white font-semibold text-lg">{channel.views}</div>
-                      </div>
+                      
+                      {channel.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
+                          {channel.description}
+                        </p>
+                      )}
                     </div>
                   </div>
+                </div>
 
-                  {/* Subscribe Button */}
-                  <div className="flex-shrink-0 flex flex-col items-end space-y-3">
-                    <Button className="bg-orange-600 hover:bg-orange-700 text-white font-semibold px-6 py-2 rounded-full">
-                      <Users className="w-4 h-4 mr-2" />
-                      Subscribe
-                    </Button>
-                    
-                    {/* Trophy icon for top channels */}
-                    {channel.rank <= 10 && (
-                      <div className="text-yellow-500">
-                        <Star className="w-6 h-6" />
-                      </div>
+                {/* Stats */}
+                <div className="px-6 pb-4">
+                  <div className="grid grid-cols-3 gap-4 text-center mb-4">
+                    <div>
+                      <div className="text-sm text-muted-foreground">Subscribers</div>
+                      <div className="text-lg font-bold text-orange-500">{channel.subscribers}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Videos</div>
+                      <div className="text-lg font-bold text-foreground">{channel.videos}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Views</div>
+                      <div className="text-lg font-bold text-foreground">{channel.views}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="p-6 pt-0 space-y-3">
+                  <Button
+                    onClick={() => handleFollow(channel.id)}
+                    className={`w-full font-semibold transition-all ${
+                      channel.isFollowing
+                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                        : 'bg-orange-500 hover:bg-orange-600 text-white'
+                    }`}
+                  >
+                    {channel.isFollowing ? (
+                      <>
+                        <Check className="w-4 h-4 mr-2" />
+                        Following
+                      </>
+                    ) : (
+                      <>
+                        <Users className="w-4 h-4 mr-2" />
+                        Follow
+                      </>
                     )}
+                  </Button>
+                  
+                  <div className="flex space-x-2">
+                    <Button variant="outline" size="sm" className="flex-1 border-border hover:border-orange-500/50">
+                      <MessageCircle className="w-4 h-4 mr-1" />
+                      Message
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1 border-border hover:border-orange-500/50">
+                      <Share2 className="w-4 h-4 mr-1" />
+                      Share
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -277,18 +341,43 @@ const ChannelPage = () => {
           ))}
         </div>
 
-        {/* Load More Button */}
-        <div className="text-center mt-12">
-          <Button 
-            variant="outline" 
-            className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 px-8 py-3"
-          >
-            Load More Channels
-          </Button>
-        </div>
+        {/* Load More Section */}
+        {filteredChannels.length > 0 && (
+          <div className="text-center">
+            <Button 
+              variant="outline" 
+              size="lg"
+              className="bg-card border-border hover:border-orange-500 hover:bg-orange-500/10 text-foreground px-12 py-3 text-lg font-semibold transition-all"
+            >
+              Load More Creators
+            </Button>
+          </div>
+        )}
 
-        {/* Another Ad at the bottom */}
-        <div className="mt-12">
+        {/* Empty State */}
+        {filteredChannels.length === 0 && (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-6">
+              <Users className="w-12 h-12 text-muted-foreground" />
+            </div>
+            <h3 className="text-2xl font-bold text-foreground mb-2">No creators found</h3>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              {searchQuery ? `No creators match "${searchQuery}". Try a different search term.` : 'No creators available in this category.'}
+            </p>
+            {searchQuery && (
+              <Button 
+                onClick={() => setSearchQuery('')}
+                variant="outline"
+                className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
+              >
+                Clear Search
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* Bottom Ad */}
+        <div className="mt-16">
           <AdComponent zoneId="5660534" />
         </div>
       </div>
