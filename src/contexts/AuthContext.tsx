@@ -49,27 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isEmailConfirmed, setIsEmailConfirmed] = useState(false);
 
-  // Restore user info from localStorage immediately
-  useEffect(() => {
-    const cachedUser = localStorage.getItem('auth_user');
-    const cachedUserType = localStorage.getItem('auth_user_type') as UserType | null;
-
-    if (cachedUser && cachedUserType) {
-      try {
-        const parsedUser = JSON.parse(cachedUser) as User;
-        setUser(parsedUser);
-        setUserType(cachedUserType);
-        setIsEmailConfirmed(Boolean(parsedUser.email_confirmed_at));
-        setLoading(false); // Set loading to false when restoring from cache
-      } catch (err) {
-        console.error('Error parsing cached user:', err);
-        localStorage.removeItem('auth_user');
-        localStorage.removeItem('auth_user_type');
-      }
-    }
-  }, []);
-
-  // Helper to update user state and cache in localStorage
+  /** Helper: update state and cache */
   const setUserAndCache = (currentUser: User, type: UserType) => {
     setUser(currentUser);
     setUserType(type);
@@ -79,16 +59,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem('auth_user_type', type);
   };
 
-  // Fetch user profile to get user_type, then set in state and localStorage
+  /** Fetch user type from profile or fallback */
   const fetchUserAndSetType = async (currentUser: User) => {
-    // Check if we already have this user's data to prevent infinite loops
-    if (user?.id === currentUser.id && userType) {
-      console.log('User already set, skipping fetch');
-      return;
-    }
-
-    console.log('fetchUserAndSetType called for user:', currentUser.id);
-
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
@@ -96,38 +68,46 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('id', currentUser.id)
         .single();
 
-      console.log('Profile fetch result:', { profile, error });
+      let finalType: UserType = 'user';
 
       if (!error && profile?.user_type) {
-        console.log('Setting user type from profile:', profile.user_type);
-        setUserAndCache(currentUser, profile.user_type as UserType);
+        finalType = profile.user_type as UserType;
+      } else if (currentUser.user_metadata?.user_type) {
+        finalType = currentUser.user_metadata.user_type;
       } else {
-        let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
-        console.log('User metadata type:', metadataUserType);
-
-        if (!metadataUserType) {
-          const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
-          if (storedUserType) {
-            metadataUserType = storedUserType;
-            console.log('Retrieved user type from localStorage:', storedUserType);
-          }
-        }
-
-        const finalUserType = metadataUserType ?? 'user';
-        console.log('Setting final user type:', finalUserType);
-        setUserAndCache(currentUser, finalUserType);
+        const storedType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
+        if (storedType) finalType = storedType;
       }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      // Fallback to cached or default user type
-      const cachedUserType = localStorage.getItem('auth_user_type') as UserType;
-      setUserAndCache(currentUser, cachedUserType || 'user');
+
+      setUserAndCache(currentUser, finalType);
+    } catch (err) {
+      console.error('Error fetching user type:', err);
+      const cachedType = localStorage.getItem('auth_user_type') as UserType;
+      setUserAndCache(currentUser, cachedType || 'user');
     }
   };
 
-  // On component mount, get session and subscribe to auth state changes
+  /** Restore cached user immediately for UI preview */
   useEffect(() => {
-    const getSession = async () => {
+    const cachedUser = localStorage.getItem('auth_user');
+    const cachedType = localStorage.getItem('auth_user_type') as UserType | null;
+    if (cachedUser && cachedType) {
+      try {
+        const parsedUser = JSON.parse(cachedUser) as User;
+        setUser(parsedUser);
+        setUserType(cachedType);
+        setIsEmailConfirmed(Boolean(parsedUser.email_confirmed_at));
+        // do NOT set loading=false here
+      } catch {
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_user_type');
+      }
+    }
+  }, []);
+
+  /** Confirm session on mount */
+  useEffect(() => {
+    const initAuth = async () => {
       setLoading(true);
       try {
         const {
@@ -135,14 +115,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           error,
         } = await supabase.auth.getSession();
 
-        if (error) {
-          console.error('Session error:', error);
-          setUser(null);
-          setUserType(null);
-          setIsEmailConfirmed(false);
-          localStorage.removeItem('auth_user');
-          localStorage.removeItem('auth_user_type');
-        } else if (session?.user) {
+        if (error) throw error;
+
+        if (session?.user) {
           await fetchUserAndSetType(session.user as User);
         } else {
           setUser(null);
@@ -151,8 +126,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           localStorage.removeItem('auth_user');
           localStorage.removeItem('auth_user_type');
         }
-      } catch (error) {
-        console.error('Session error:', error);
+      } catch (err) {
+        console.error('Session init error:', err);
         setUser(null);
         setUserType(null);
         setIsEmailConfirmed(false);
@@ -163,18 +138,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
 
-    getSession();
+    initAuth();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.id);
-      
       if (session?.user) {
-        // Only fetch user type if we don't already have it or if it's a different user
-        if (!user || user.id !== session.user.id || !userType) {
-          await fetchUserAndSetType(session.user as User);
-        }
+        await fetchUserAndSetType(session.user as User);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setUserType(null);
@@ -188,77 +159,50 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
-  // Signup function
+  /** Signup */
   const signUp = async (
     email: string,
     password: string,
-    userType: UserType,
+    type: UserType,
     fullName?: string
   ): Promise<{ error: AuthError | null }> => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
-        },
+        options: { emailRedirectTo: `${window.location.origin}/auth?confirmed=true` },
       });
 
-      if (error) {
-        console.error('Signup error:', error);
-        return { error };
-      }
+      if (error) return { error };
 
       if (data.user) {
-        const profileInsert: any = {
-          id: data.user.id,
-          email,
-          user_type: userType,
-        };
-        if (fullName) {
-          profileInsert.full_name = fullName;
-        }
-
+        const profileInsert: any = { id: data.user.id, email, user_type: type };
+        if (fullName) profileInsert.full_name = fullName;
         const { error: profileError } = await supabase.from('profiles').insert(profileInsert);
-
-        if (profileError) {
-          console.error('Error inserting profile:', profileError);
-          return { error: profileError };
-        }
+        if (profileError) return { error: profileError };
       }
 
       return { error: null };
     } catch (err) {
       console.error('Signup error:', err);
-      return { error: { message: 'An unexpected error occurred during signup' } as AuthError };
+      return { error: { message: 'Unexpected error during signup' } as AuthError };
     }
   };
 
-  // Signin function with email confirmation check
+  /** Signin */
   const signIn = async (
     email: string,
     password: string,
     selectedUserType?: UserType
   ): Promise<{ error: AuthError | null }> => {
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        return { error };
-      }
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error };
 
       if (data.user) {
-        // Email confirmation check
         if (!data.user.email_confirmed_at) {
           await supabase.auth.signOut();
-          return {
-            error: {
-              message: 'Email not confirmed. Please check your inbox and verify your email.',
-            },
-          };
+          return { error: { message: 'Email not confirmed. Check your inbox.' } };
         }
 
         const { data: profile, error: profileError } = await supabase
@@ -269,19 +213,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (profileError) {
           await supabase.auth.signOut();
-          return {
-            error: { message: 'Could not verify user type. Please try again later.' },
-          };
+          return { error: { message: 'Could not verify user type. Try again.' } };
         }
 
         if (selectedUserType && profile.user_type !== selectedUserType) {
           await supabase.auth.signOut();
           return {
             error: {
-              message: `You are registered as "${profile.user_type.replace(
-                '_',
-                ' '
-              )}" but tried to login as "${selectedUserType.replace('_', ' ')}". Please select the correct user type.`,
+              message: `You are registered as "${profile.user_type}" but tried to login as "${selectedUserType}".`,
             },
           };
         }
@@ -293,11 +232,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: null };
     } catch (err) {
       console.error('Sign in error:', err);
-      return { error: { message: 'An unexpected error occurred during sign in' } as AuthError };
+      return { error: { message: 'Unexpected error during sign in' } as AuthError };
     }
   };
 
-  // Signout function
+  /** Signout */
   const signOut = async () => {
     await supabase.auth.signOut();
     setUser(null);
