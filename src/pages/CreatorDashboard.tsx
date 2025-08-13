@@ -165,7 +165,7 @@ const CreatorDashboard = () => {
                     <CardTitle>Quick Actions</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Button onClick={() => navigate('/creator/upload')} className="w-full" variant="outline">
+                    <Button onClick={() => navigate('/upload')} className="w-full" variant="outline">
                       <Upload className="w-4 h-4 mr-2" />
                       Upload New Video
                     </Button>
@@ -223,7 +223,7 @@ const CreatorDashboard = () => {
                     <p className="text-muted-foreground mb-6">
                       Upload high-quality videos to engage your audience and start earning
                     </p>
-                    <Button onClick={() => navigate('/creator/upload')} size="lg" className="px-8">
+                    <Button onClick={() => navigate('/upload')} size="lg" className="px-8">
                       <Upload className="w-4 h-4 mr-2" />
                       Go to Upload Panel
                     </Button>
