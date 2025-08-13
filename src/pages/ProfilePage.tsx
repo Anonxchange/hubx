@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserStats, getUserFavorites, getUserWatchHistory, UserStats } from '@/services/userStatsService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -32,11 +32,13 @@ import {
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import VerificationBadge from '@/components/VerificationBadge';
+import VideoUploadForm from '@/components/admin/VideoUploadForm';
 import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
   const { user, userType, loading } = useAuth();
   const { username } = useParams();
+  const navigate = useNavigate();
   const isOwnProfile = !username || username === user?.email?.split('@')[0];
   const [isEditing, setIsEditing] = useState(false);
   const [coverPhoto, setCoverPhoto] = useState<string>('');
@@ -626,97 +628,98 @@ const ProfilePage = () => {
 
             {userType !== 'user' && (
               <TabsContent value="uploads" className="mt-6">
-                <Card className="bg-gray-900 border-gray-800">
-                  <CardContent className="p-6">
-                    {statsLoading ? (
-                      <div className="text-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                        <p className="text-muted-foreground mt-4">Loading uploads...</p>
-                      </div>
-                    ) : uploadedVideos.length > 0 ? (
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {uploadedVideos.map((video) => (
-                          <div key={video.id} className="group cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>
-                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
-                              {video.thumbnail_url && (
-                                <img
-                                  src={video.thumbnail_url}
-                                  alt={video.title}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                  loading="lazy"
-                                />
-                              )}
-                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                                {video.duration || '00:00'}
+                <div className="space-y-6">
+                  {/* Upload Form Section */}
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2 text-white">
+                        <Upload className="w-5 h-5 text-orange-500" />
+                        <span>Upload New Content</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <VideoUploadForm onVideoAdded={() => window.location.reload()} />
+                    </CardContent>
+                  </Card>
+
+                  {/* My Uploads Section */}
+                  <Card className="bg-gray-900 border-gray-800">
+                    <CardHeader>
+                      <CardTitle className="text-white">My Uploads ({uploadedVideos.length})</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      {statsLoading ? (
+                        <div className="text-center py-12">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                          <p className="text-muted-foreground mt-4">Loading uploads...</p>
+                        </div>
+                      ) : uploadedVideos.length > 0 ? (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                          {uploadedVideos.map((video) => (
+                            <div key={video.id} className="group cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>
+                              <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                                {video.thumbnail_url && (
+                                  <img
+                                    src={video.thumbnail_url}
+                                    alt={video.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    loading="lazy"
+                                  />
+                                )}
+                                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                  {video.duration || '00:00'}
+                                </div>
+                              </div>
+                              <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                              <div className="flex items-center space-x-3 text-xs text-gray-400">
+                                <span className="flex items-center space-x-1">
+                                  <Eye className="w-3 h-3" />
+                                  <span>{video.views?.toLocaleString() || 0}</span>
+                                </span>
+                                <span className="flex items-center space-x-1">
+                                  <Heart className="w-3 h-3" />
+                                  <span>{video.likes?.toLocaleString() || 0}</span>
+                                </span>
                               </div>
                             </div>
-                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
-                            <div className="flex items-center space-x-3 text-xs text-gray-400">
-                              <span className="flex items-center space-x-1">
-                                <Eye className="w-3 h-3" />
-                                <span>{video.views?.toLocaleString() || 0}</span>
-                              </span>
-                              <span className="flex items-center space-x-1">
-                                <Heart className="w-3 h-3" />
-                                <span>{video.likes?.toLocaleString() || 0}</span>
-                              </span>
-                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Video className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">No uploads yet</h3>
+                          <p className="text-gray-400 mb-4">
+                            {userType === 'individual_creator' 
+                              ? "Use the upload form above to start sharing your content!"
+                              : "Use the upload form above to manage your studio's content!"
+                            }
+                          </p>
+                          
+                          {/* Creator Benefits Reminder */}
+                          <div className="mt-8 p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-lg border max-w-md mx-auto">
+                            <h4 className="font-semibold text-sm mb-2 flex items-center justify-center">
+                              <Crown className="w-4 h-4 mr-2 text-purple-500" />
+                              {userType === 'studio_creator' ? 'Pro Studio Benefits' : 'Creator Benefits'}
+                            </h4>
+                            <ul className="text-xs text-muted-foreground space-y-1 text-left">
+                              <li>• Monetize your content</li>
+                              <li>• Earn from views & subscriptions</li>
+                              <li>• Build your fanbase</li>
+                              <li>• Analytics dashboard</li>
+                              {userType === 'studio_creator' && (
+                                <>
+                                  <li>• Team collaboration tools</li>
+                                  <li>• Advanced revenue sharing</li>
+                                  <li>• Priority support</li>
+                                </>
+                              )}
+                            </ul>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <Upload className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2 text-white">No uploads yet</h3>
-                        <p className="text-muted-foreground mb-4">
-                          {userType === 'individual_creator' 
-                            ? "Start creating and sharing your content to build your audience and earn revenue!"
-                            : "Upload content for your studio and manage your team's creations!"
-                          }
-                        </p>
-                        <div className="space-y-3">
-                          <Button className="w-full max-w-sm" onClick={() => navigate('/upload')}>
-                            <Upload className="w-4 h-4 mr-2" />
-                            Upload Your First Video
-                          </Button>
-                          {userType === 'studio_creator' && (
-                            <div className="flex flex-col space-y-2">
-                              <Button variant="outline" className="w-full max-w-sm">
-                                <Users className="w-4 h-4 mr-2" />
-                                Manage Team Members
-                              </Button>
-                              <Button variant="outline" className="w-full max-w-sm">
-                                <Star className="w-4 h-4 mr-2" />
-                                Revenue Analytics
-                              </Button>
-                            </div>
-                          )}
                         </div>
-                        
-                        {/* Creator Benefits Reminder */}
-                        <div className="mt-8 p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-lg border max-w-md mx-auto">
-                          <h4 className="font-semibold text-sm mb-2 flex items-center">
-                            <Crown className="w-4 h-4 mr-2 text-purple-500" />
-                            {userType === 'studio_creator' ? 'Pro Studio Benefits' : 'Creator Benefits'}
-                          </h4>
-                          <ul className="text-xs text-muted-foreground space-y-1 text-left">
-                            <li>• Monetize your content</li>
-                            <li>• Earn from views & subscriptions</li>
-                            <li>• Build your fanbase</li>
-                            <li>• Analytics dashboard</li>
-                            {userType === 'studio_creator' && (
-                              <>
-                                <li>• Team collaboration tools</li>
-                                <li>• Advanced revenue sharing</li>
-                                <li>• Priority support</li>
-                              </>
-                            )}
-                          </ul>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
             )}
 
