@@ -96,10 +96,17 @@ const UploadPage = () => {
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
     const file = event.dataTransfer.files[0];
-    if (file?.type.startsWith('video/')) {
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+    if (!file) return;
+    if (!file.type.startsWith('video/')) {
+      toast({ title: "Invalid file type", description: "Please select a video file.", variant: "destructive" });
+      return;
     }
+    if (file.size > 500 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max 500MB allowed.", variant: "destructive" });
+      return;
+    }
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
   };
 
   const togglePlay = () => {
@@ -118,8 +125,9 @@ const UploadPage = () => {
   };
 
   const addCustomTag = () => {
-    if (tagInput.trim() && !customTags.includes(tagInput.trim()) && customTags.length < 10) {
-      setCustomTags([...customTags, tagInput.trim()]);
+    const value = tagInput.trim();
+    if (value && !customTags.includes(value) && customTags.length < 10) {
+      setCustomTags([...customTags, value]);
       setTagInput('');
     }
   };
@@ -134,6 +142,10 @@ const UploadPage = () => {
   }> => {
     const BUNNY_STREAM_LIBRARY_ID = import.meta.env.VITE_BUNNY_STREAM_LIBRARY_ID || '';
     const BUNNY_STREAM_ACCESS_KEY = import.meta.env.VITE_BUNNY_STREAM_ACCESS_KEY || '';
+
+    if (!BUNNY_STREAM_LIBRARY_ID || !BUNNY_STREAM_ACCESS_KEY) {
+      throw new Error('Bunny Stream credentials are missing. Check VITE_BUNNY_STREAM_LIBRARY_ID and VITE_BUNNY_STREAM_ACCESS_KEY in your .env file.');
+    }
     
     // Create video in Bunny Stream
     const createResponse = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
@@ -158,14 +170,15 @@ const UploadPage = () => {
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.upload.addEventListener('progress', e => {
-        if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 80)); // 80% for upload
+        if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 80)); // track up to 80% for upload
       });
       xhr.onload = () => {
         if (xhr.status === 200) {
           setUploadProgress(100);
           resolve({
             videoId,
-            hlsUrl: `https://iframe.mediadelivery.net/play/${videoId}`,
+            // Use direct HLS playlist (.m3u8) instead of iframe
+            hlsUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/playlist.m3u8`,
             thumbnailUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/thumbnail.jpg`,
             previewUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/preview.webp`,
           });
@@ -195,7 +208,7 @@ const UploadPage = () => {
       const videoData = {
         title: title.trim(),
         description: description.trim() || undefined,
-        video_url: streamData.hlsUrl,
+        video_url: streamData.hlsUrl,        // direct .m3u8 URL
         thumbnail_url: streamData.thumbnailUrl,
         preview_url: streamData.previewUrl,
         duration: '00:00',
@@ -279,6 +292,7 @@ const UploadPage = () => {
                           className="w-full h-64 object-cover rounded-lg"
                           onPlay={() => setIsPlaying(true)}
                           onPause={() => setIsPlaying(false)}
+                          controls={false}
                         />
                         <div className="absolute inset-0 flex items-center justify-center space-x-2">
                           <Button type="button" onClick={togglePlay} size="sm" variant="secondary">
@@ -290,14 +304,27 @@ const UploadPage = () => {
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)</span>
-                        <Button type="button" onClick={() => { setSelectedFile(null); setPreviewUrl(''); }} size="sm" variant="outline">
+                        <span className="text-sm font-medium">
+                          {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                        </span>
+                        <Button
+                          type="button"
+                          onClick={() => { setSelectedFile(null); setPreviewUrl(''); }}
+                          size="sm"
+                          variant="outline"
+                        >
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
                   )}
-                  <input ref={fileInputRef} type="file" accept="video/*" onChange={handleFileSelect} className="hidden" />
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="video/*"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
                 </CardContent>
               </Card>
 
@@ -323,7 +350,13 @@ const UploadPage = () => {
                 <CardContent className="space-y-4">
                   <div>
                     <Label>Title *</Label>
-                    <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Enter video title" maxLength={100} required />
+                    <Input
+                      value={title}
+                      onChange={(e) => setTitle(e.target.value)}
+                      placeholder="Enter video title"
+                      maxLength={100}
+                      required
+                    />
                     <p className="text-xs text-muted-foreground">{title.length}/100</p>
                   </div>
 
@@ -339,14 +372,29 @@ const UploadPage = () => {
 
                   <div>
                     <Label>Description</Label>
-                    <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe your video..." maxLength={500} />
+                    <Textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Describe your video..."
+                      maxLength={500}
+                    />
                     <p className="text-xs text-muted-foreground">{description.length}/500</p>
                   </div>
 
                   <div>
                     <Label>Custom Tags</Label>
                     <div className="flex space-x-2">
-                      <Input value={tagInput} onChange={(e) => setTagInput(e.target.value)} placeholder="Add custom tags" onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomTag())} />
+                      <Input
+                        value={tagInput}
+                        onChange={(e) => setTagInput(e.target.value)}
+                        placeholder="Add custom tags"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addCustomTag();
+                          }
+                        }}
+                      />
                       <Button type="button" onClick={addCustomTag} size="sm">Add</Button>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
@@ -367,7 +415,11 @@ const UploadPage = () => {
 
               <div className="flex space-x-4">
                 <Button type="button" variant="outline" onClick={() => navigate(-1)} className="flex-1">Cancel</Button>
-                <Button type="submit" disabled={!selectedFile || !title.trim() || !selectedCategory || isUploading} className="flex-1">
+                <Button
+                  type="submit"
+                  disabled={!selectedFile || !title.trim() || !selectedCategory || isUploading}
+                  className="flex-1"
+                >
                   {isUploading ? 'Uploading...' : 'Upload Video'}
                 </Button>
               </div>
