@@ -31,10 +31,11 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Bunny CDN configuration
-  const BUNNY_STORAGE_ZONE = import.meta.env.VITE_BUNNY_STORAGE_ZONE || 'hubx-videos';
-  const BUNNY_ACCESS_KEY = import.meta.env.VITE_BUNNY_ACCESS_KEY || '';
-  const BUNNY_CDN_URL = 'https://hubx-videos.b-cdn.net';
+  // Bunny Stream configuration
+  const BUNNY_STREAM_LIBRARY_ID = import.meta.env.VITE_BUNNY_STREAM_LIBRARY_ID || '';
+  const BUNNY_STREAM_ACCESS_KEY = import.meta.env.VITE_BUNNY_STREAM_ACCESS_KEY || '';
+  const BUNNY_STREAM_API_URL = 'https://video.bunnycdn.com/library';
+  const BUNNY_STREAM_CDN_URL = `https://iframe.mediadelivery.net/embed/${BUNNY_STREAM_LIBRARY_ID}`;
 
   const categories = [
     'Amateur',
@@ -74,24 +75,51 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
     setCustomTags(customTags.filter(tag => tag !== tagToRemove));
   };
 
-  const uploadToBunny = async (file: File, filename: string): Promise<string> => {
-    const formData = new FormData();
-    formData.append('file', file);
+  const uploadToBunnyStream = async (file: File, title: string): Promise<{
+    videoId: string;
+    hlsUrl: string;
+    thumbnailUrl: string;
+    previewUrl: string;
+  }> => {
+    // Step 1: Create video object in Bunny Stream
+    const createResponse = await fetch(`${BUNNY_STREAM_API_URL}/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
+      method: 'POST',
+      headers: {
+        'AccessKey': BUNNY_STREAM_ACCESS_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: title,
+      }),
+    });
 
-    const response = await fetch(`https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}/${filename}`, {
+    if (!createResponse.ok) {
+      throw new Error(`Failed to create video in Bunny Stream: ${createResponse.statusText}`);
+    }
+
+    const videoData = await createResponse.json();
+    const videoId = videoData.guid;
+
+    // Step 2: Upload video file
+    const uploadResponse = await fetch(`${BUNNY_STREAM_API_URL}/${BUNNY_STREAM_LIBRARY_ID}/videos/${videoId}`, {
       method: 'PUT',
       headers: {
-        'AccessKey': BUNNY_ACCESS_KEY,
-        'Content-Type': file.type,
+        'AccessKey': BUNNY_STREAM_ACCESS_KEY,
       },
       body: file,
     });
 
-    if (!response.ok) {
-      throw new Error(`Failed to upload to Bunny CDN: ${response.statusText}`);
+    if (!uploadResponse.ok) {
+      throw new Error(`Failed to upload video to Bunny Stream: ${uploadResponse.statusText}`);
     }
 
-    return `${BUNNY_CDN_URL}/${filename}`;
+    // Return URLs for HLS, thumbnail, and preview
+    return {
+      videoId,
+      hlsUrl: `https://iframe.mediadelivery.net/play/${videoId}`,
+      thumbnailUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/thumbnail.jpg`,
+      previewUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/preview.webp`,
+    };
   };
 
   const isValidVideoUrl = (url: string): boolean => {
@@ -213,42 +241,42 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
       const timestamp = Date.now();
       let finalVideoUrl = '';
 
+      let thumbnailUrl = '';
+      let previewUrl = '';
+
       if (uploadMethod === 'file' && file) {
-        const videoFilename = `videos/${timestamp}_${file.name}`;
-        // Upload video to Bunny CDN
+        // Upload video to Bunny Stream
         setUploadProgress(20);
-        finalVideoUrl = await uploadToBunny(file, videoFilename);
+        const streamData = await uploadToBunnyStream(file, title.trim());
+        finalVideoUrl = streamData.hlsUrl;
+        thumbnailUrl = streamData.thumbnailUrl;
+        previewUrl = streamData.previewUrl;
+        setUploadProgress(60);
       } else if (uploadMethod === 'url') {
-        // Use the provided URL directly
+        // For URL uploads, use the provided URL directly (not Stream processing)
         setUploadProgress(20);
         finalVideoUrl = videoUrl.trim();
-      }
-
-      const thumbnailFilename = `thumbnails/${timestamp}_thumbnail.jpg`;
-
-      // Generate and upload thumbnail
-      setUploadProgress(40);
-      let thumbnailUrl = '';
-
-      if (thumbnailFile) {
-        thumbnailUrl = await uploadToBunny(thumbnailFile, thumbnailFilename);
-      } else {
-        // Auto-generate thumbnail from video
+        
+        // Generate thumbnail for URL uploads
         try {
-          let thumbnailBlob: Blob;
-          if (uploadMethod === 'file' && file) {
-            thumbnailBlob = await generateThumbnail(file);
-          } else if (uploadMethod === 'url') {
-            thumbnailBlob = await generateThumbnailFromUrl(finalVideoUrl);
-          } else {
-            throw new Error('No video source available');
+          const thumbnailBlob = await generateThumbnailFromUrl(finalVideoUrl);
+          const thumbnailFilename = `thumbnails/${timestamp}_thumbnail.jpg`;
+          // Upload thumbnail to regular CDN storage for URL-based videos
+          const response = await fetch(`https://storage.bunnycdn.com/${BUNNY_STREAM_LIBRARY_ID}/${thumbnailFilename}`, {
+            method: 'PUT',
+            headers: {
+              'AccessKey': BUNNY_STREAM_ACCESS_KEY,
+              'Content-Type': 'image/jpeg',
+            },
+            body: thumbnailBlob,
+          });
+          if (response.ok) {
+            thumbnailUrl = `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${thumbnailFilename}`;
           }
-          const thumbnailFileObj = new File([thumbnailBlob], 'thumbnail.jpg', { type: 'image/jpeg' });
-          thumbnailUrl = await uploadToBunny(thumbnailFileObj, thumbnailFilename);
         } catch (error) {
-          console.warn('Failed to generate thumbnail:', error);
-          // Continue without thumbnail
+          console.warn('Failed to generate thumbnail for URL upload:', error);
         }
+        setUploadProgress(60);
       }
 
       setUploadProgress(60);
@@ -261,6 +289,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
         tags: customTags,
         video_url: finalVideoUrl,
         thumbnail_url: thumbnailUrl,
+        preview_url: previewUrl,
         uploader_id: user?.id,
         uploader_username: user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'Anonymous',
         uploader_type: user?.user_metadata?.user_type || 'user',
