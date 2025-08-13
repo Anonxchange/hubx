@@ -21,7 +21,7 @@ interface RelatedVideosProps {
 }
 
 const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) => {
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(20);
   const [activeTab, setActiveTab] = useState('related');
 
   // Load the ad script asynchronously once
@@ -76,7 +76,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) =
   const canShowMore = visibleCount < maxVisible;
 
   const handleShowMore = () => {
-    setVisibleCount(prev => Math.min(prev + 10, maxVisible));
+    setVisibleCount(prev => Math.min(prev + 20, maxVisible));
   };
 
   const displayedVideos = filteredVideos.slice(0, visibleCount);
