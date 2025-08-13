@@ -126,27 +126,56 @@ const UploadPage = () => {
 
   const removeTag = (tag: string) => setCustomTags(customTags.filter(t => t !== tag));
 
-  const uploadToBunnyStorage = async (file: File): Promise<string> => {
-    const BUNNY_STORAGE_ZONE = import.meta.env.VITE_BUNNY_STORAGE_ZONE || 'hubx-videos';
-    const BUNNY_ACCESS_KEY = import.meta.env.VITE_BUNNY_ACCESS_KEY || '';
-    const BUNNY_STORAGE_URL = `https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}`;
+  const uploadToBunnyStream = async (file: File): Promise<{
+    videoId: string;
+    hlsUrl: string;
+    thumbnailUrl: string;
+    previewUrl: string;
+  }> => {
+    const BUNNY_STREAM_LIBRARY_ID = import.meta.env.VITE_BUNNY_STREAM_LIBRARY_ID || '';
+    const BUNNY_STREAM_ACCESS_KEY = import.meta.env.VITE_BUNNY_STREAM_ACCESS_KEY || '';
     
-    const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-    const uploadUrl = `${BUNNY_STORAGE_URL}/${fileName}`;
-    
+    // Create video in Bunny Stream
+    const createResponse = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
+      method: 'POST',
+      headers: {
+        'AccessKey': BUNNY_STREAM_ACCESS_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: title || file.name,
+      }),
+    });
+
+    if (!createResponse.ok) {
+      throw new Error(`Failed to create video: ${createResponse.statusText}`);
+    }
+
+    const videoData = await createResponse.json();
+    const videoId = videoData.guid;
+
+    // Upload file with progress tracking
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.upload.addEventListener('progress', e => {
-        if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 100));
+        if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 80)); // 80% for upload
       });
       xhr.onload = () => {
-        if (xhr.status === 201) resolve(`https://${BUNNY_STORAGE_ZONE}.b-cdn.net/${fileName}`);
-        else reject(new Error(`Upload failed with status: ${xhr.status}`));
+        if (xhr.status === 200) {
+          setUploadProgress(100);
+          resolve({
+            videoId,
+            hlsUrl: `https://iframe.mediadelivery.net/play/${videoId}`,
+            thumbnailUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/thumbnail.jpg`,
+            previewUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/preview.webp`,
+          });
+        } else {
+          reject(new Error(`Upload failed with status: ${xhr.status}`));
+        }
       };
       xhr.onerror = () => reject(new Error('Upload failed'));
-      xhr.open('PUT', uploadUrl);
-      xhr.setRequestHeader('AccessKey', BUNNY_ACCESS_KEY);
-      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.open('PUT', `https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos/${videoId}`);
+      xhr.setRequestHeader('AccessKey', BUNNY_STREAM_ACCESS_KEY);
       xhr.send(file);
     });
   };
@@ -160,21 +189,20 @@ const UploadPage = () => {
     setIsUploading(true);
     try {
       setUploadProgress(20);
-      const videoUrl = await uploadToBunnyStorage(selectedFile);
-      setUploadProgress(60);
+      const streamData = await uploadToBunnyStream(selectedFile);
+      setUploadProgress(80);
       const allTags = [selectedCategory, ...customTags];
       const videoData = {
         title: title.trim(),
         description: description.trim() || undefined,
-        video_url: videoUrl,
-        thumbnail_url: undefined,
-        preview_url: undefined,
+        video_url: streamData.hlsUrl,
+        thumbnail_url: streamData.thumbnailUrl,
+        preview_url: streamData.previewUrl,
         duration: '00:00',
         tags: allTags,
         is_premium: isPremium,
         is_moment: false
       };
-      setUploadProgress(80);
       const savedVideo = await uploadVideo(videoData);
       if (!savedVideo) throw new Error('Failed to save video metadata');
       setUploadProgress(100);
