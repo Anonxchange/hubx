@@ -25,7 +25,16 @@ const LazyAdComponent: React.FC<LazyAdComponentProps> = ({
           // Check if AdProvider is available
           if (window.AdProvider) {
             console.log(`Lazy loading ad for zone ${zoneId}`);
-            window.AdProvider.push({"serve": {}});
+            window.AdProvider.push({
+              "serve": {
+                "zoneid": zoneId
+              }
+            });
+
+            // Track lazy ad impression
+            const impressionPixel = new Image();
+            impressionPixel.src = `https://s.magsrv.com/v1/track.php?idzone=${zoneId}&type=lazy_impression&timestamp=${Date.now()}`;
+
             isInitialized.current = true;
           } else {
             console.warn(`AdProvider not available for zone ${zoneId}`);
@@ -35,8 +44,8 @@ const LazyAdComponent: React.FC<LazyAdComponentProps> = ({
         }
       };
 
-      // Small delay to ensure DOM is ready
-      const timer = setTimeout(initializeAd, 100);
+      // Delay to ensure proper loading
+      const timer = setTimeout(initializeAd, 200);
       
       return () => {
         clearTimeout(timer);
