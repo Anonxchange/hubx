@@ -27,6 +27,7 @@ import CreatorDashboard from '@/pages/CreatorDashboard';
 import StudioDashboard from './pages/StudioDashboard';
 import UploadPage from './pages/UploadPage';
 import DebugAuth from './pages/DebugAuth';
+import ChannelPage from '@/pages/ChannelPage';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
@@ -50,6 +51,9 @@ const App = () => (
                 <Route path="/category/:category" element={<CategoryPage />} />
                 <Route path="/categories" element={<AllCategoriesPage />} />
                 <Route path="/moments" element={<MomentsPage />} />
+                <Route path="/channel" element={<ChannelPage />} />
+                <Route path="/contact" element={<ContactUs />} />
+                <Route path="/faq" element={<FAQPage />} />
                 <Route path="/recommended" element={<RecommendedPage />} />
                 <Route path="/hottest" element={<HottestPage />} />
                 <Route path="/hottest/:country" element={<HottestPage />} />
@@ -94,15 +98,8 @@ const App = () => (
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/privacy" element={<PrivacyPolicy />} />
 
-                {/* Protected Admin Panel */}
-                <Route
-                  path="/admin-hubx-2024"
-                  element={
-                    <ProtectedRoute allowedUserTypes={['admin']}>
-                      <AdminPanel />
-                    </ProtectedRoute>
-                  }
-                />
+                {/* Admin Panel with internal auth */}
+                <Route path="/admin-hubx-2024" element={<AdminPanel />} />
 
                 <Route path="/contact" element={<ContactUs />} />
                 <Route path="/debug-auth" element={<DebugAuth />} />
