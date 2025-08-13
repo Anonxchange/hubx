@@ -28,6 +28,7 @@ import StudioDashboard from './pages/StudioDashboard';
 import UploadPage from './pages/UploadPage';
 import DebugAuth from './pages/DebugAuth';
 import ChannelPage from '@/pages/ChannelPage';
+import PlaylistsPage from './pages/PlaylistsPage';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
@@ -65,6 +66,7 @@ const App = () => (
                 <Route path="/contact" element={<ContactUs />} />
                 <Route path="/become-model" element={<BecomeModelPage />} />
                 <Route path="/faq" element={<FAQPage />} />
+                <Route path="/playlists" element={<PlaylistsPage />} />
 
                 {/* Protected Creator Dashboard */}
                 <Route
