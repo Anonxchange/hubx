@@ -256,26 +256,29 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (viewTracked) return;
 
     try {
-      // Track with Exoclick - fire impression tracking
-      if (window.popMagic && typeof window.popMagic.setAsOpened === 'function') {
+      // Track impression with Exoclick using proper method
+      if (window.AdProvider && Array.isArray(window.AdProvider)) {
         console.log('Tracking video view with Exoclick');
-        window.popMagic.setAsOpened();
+        window.AdProvider.push({
+          "serve": {
+            "type": "impression",
+            "zoneid": "5660526"
+          }
+        });
       }
 
-      // Alternative tracking method if available
-      if (window.AdProvider && Array.isArray(window.AdProvider)) {
-        console.log('Tracking video impression');
-        window.AdProvider.push({"serve": {"type": "impression"}});
-      }
+      // Fire custom tracking pixel for additional tracking
+      const trackingPixel = new Image();
+      trackingPixel.src = `https://s.magsrv.com/v1/track.php?idzone=5660526&type=view&timestamp=${Date.now()}`;
 
       // Custom tracking event
       const trackingEvent = new CustomEvent('videoViewTracked', {
-        detail: { videoSrc: src, timestamp: Date.now() }
+        detail: { videoSrc: src, timestamp: Date.now(), zoneId: '5660526' }
       });
       document.dispatchEvent(trackingEvent);
 
       setViewTracked(true);
-      console.log('Video view tracked successfully');
+      console.log('Video view tracked successfully with Exoclick');
     } catch (error) {
       console.error('Error tracking video view:', error);
     }
@@ -539,6 +542,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         await trackVideoView(videoId, user.id);
         setViewTracked(true);
       }
+
+      // Track with Exoclick when video starts playing
+      trackVideoViewExoclick();
 
       // Show ad on every video play (like major video platforms)
       if (!adShown) {
