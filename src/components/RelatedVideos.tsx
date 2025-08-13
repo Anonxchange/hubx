@@ -141,7 +141,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) =
         {/* Move original ad to the last position */}
         {filteredVideos.length > 0 && visibleCount >= filteredVideos.length && (
           <div className="my-4">
-            <AdComponent zoneId="5660534" />
+            <AdComponent zoneId="5660570" />
           </div>
         )}
 
