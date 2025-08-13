@@ -14,15 +14,14 @@ interface AdComponentProps {
 const AdComponent: React.FC<AdComponentProps> = ({ zoneId, className = "" }) => {
   const adRef = useRef<HTMLDivElement>(null);
   const isInitialized = useRef(false);
-  const [hasLoaded, setHasLoaded] = useState(false); // State to track if ad has loaded or timed out
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   useEffect(() => {
     if (!zoneId || hasLoaded || isInitialized.current) return;
 
-    // Reduce timeout to prevent blocking page load
     const timeoutId = setTimeout(() => {
       setHasLoaded(true);
-    }, 2000); // Reduced from 5000ms to 2000ms
+    }, 3000); // Increased timeout for better ad loading
 
     const loadAd = () => {
       clearTimeout(timeoutId);
@@ -33,21 +32,28 @@ const AdComponent: React.FC<AdComponentProps> = ({ zoneId, className = "" }) => 
           window.AdProvider = [];
         }
 
-        window.AdProvider.push({"serve": {}});
+        // Proper Exoclick ad serving with zone ID
+        window.AdProvider.push({
+          "serve": {
+            "zoneid": zoneId
+          }
+        });
+
+        // Track impression
+        const impressionPixel = new Image();
+        impressionPixel.src = `https://s.magsrv.com/v1/track.php?idzone=${zoneId}&type=impression&timestamp=${Date.now()}`;
+
         isInitialized.current = true;
         setHasLoaded(true);
+        console.log(`AdComponent loaded for zone ${zoneId}`);
       } catch (error) {
+        console.error(`Error loading ad for zone ${zoneId}:`, error);
         setHasLoaded(true);
       }
     };
 
-    // Use requestIdleCallback for better performance if available
-    if ('requestIdleCallback' in window) {
-      requestIdleCallback(loadAd, { timeout: 1000 });
-    } else {
-      // Fallback with minimal delay
-      setTimeout(loadAd, 100);
-    }
+    // Load ad immediately for mobile ads
+    setTimeout(loadAd, 500);
 
   }, [zoneId, hasLoaded]);
 
