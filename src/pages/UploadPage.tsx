@@ -14,15 +14,26 @@ import { useAuth } from '@/contexts/AuthContext';
 import { uploadVideo } from '@/services/videosService';
 
 const categories = [
-  'Amateur', 'Anal', 'Asian', 'BBW', 'Big Ass', 'Big Tits', 'Blonde', 'Blowjob',
-  'Brunette', 'Creampie', 'Cumshot', 'Deepthroat', 'Ebony', 'Fetish', 'Hardcore',
-  'Latina', 'MILF', 'Masturbation', 'Mature', 'Oral', 'Orgasm', 'Pornstar',
-  'POV', 'Public', 'Reality', 'Redhead', 'Solo', 'Squirting', 'Teen', 'Threesome'
+  '18-25', '60FPS', 'Amateur', 'Anal', 'Arab', 'Asian', 'Babe', 'Babysitter (18+)', 
+  'BBW', 'Behind The Scenes', 'Big Ass', 'Big Dick', 'Big Tits', 'Blonde', 'Blowjob', 
+  'Bondage', 'Brazilian', 'British', 'Brunette', 'Cartoon', 'Casting', 'College (18+)', 
+  'Compilation', 'Cosplay', 'Creampie', 'Cumshot', 'Czech', 'Double Penetration', 
+  'Ebony', 'Euro', 'Exclusive', 'Feet', 'Female Orgasm', 'Fetish', 'Fingering', 
+  'Fisting', 'French', 'Funny', 'Gaming', 'Gangbang', 'German', 'Handjob', 'Hardcore', 
+  'HD Porn', 'Hentai', 'Indian', 'Interactive', 'Interracial', 'Italian', 'Japanese', 
+  'Korean', 'Latina', 'Lesbian', 'Massage', 'Masturbation', 'Mature', 'MILF', 'Music', 
+  'Muscular Men', 'Old/Young (18+)', 'Orgy', 'Parody', 'Party', 'Pissing', 'Podcast', 
+  'Popular With Women', 'Pornstar', 'POV', 'Public', 'Pussy Licking', 'Reality', 
+  'Red Head', 'Role Play', 'Romantic', 'Rough Sex', 'Russian', 'School (18+)', 'SFW', 
+  'Small Tits', 'Smoking', 'Solo Female', 'Solo Male', 'Squirt', 'Step Fantasy', 
+  'Strap On', 'Striptease', 'Tattooed Women', 'Threesome', 'Toys', 'Transgender', 
+  'Verified Amateurs', 'Verified Couples', 'Verified Models', 'Vintage', 'Virtual Reality', 
+  'Webcam'
 ];
 
 const UploadPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userType } = useAuth();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -43,7 +54,6 @@ const UploadPage = () => {
   const [isPremium, setIsPremium] = useState(false);
 
   // User role check
-  const userType = user?.user_metadata?.user_type;
   const isCreator = userType === 'individual_creator' || userType === 'studio_creator';
 
   if (!user) {
@@ -168,7 +178,7 @@ const UploadPage = () => {
       const savedVideo = await uploadVideo(videoData);
       if (!savedVideo) throw new Error('Failed to save video metadata');
       setUploadProgress(100);
-      toast({ title: "Upload successful!", description: "Your video is now live." });
+      toast({ title: "Upload successful!", description: "Your video is now live on your dashboard." });
 
       // Reset form after success
       setSelectedFile(null);
@@ -180,6 +190,15 @@ const UploadPage = () => {
       setTagInput('');
       setIsPremium(false);
       setUploadProgress(0);
+
+      // Redirect to appropriate dashboard after successful upload
+      setTimeout(() => {
+        if (userType === 'studio_creator') {
+          navigate('/studio-dashboard');
+        } else {
+          navigate('/creator-dashboard');
+        }
+      }, 1500);
 
     } catch (err) {
       toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Error uploading video.", variant: "destructive" });
@@ -202,7 +221,7 @@ const UploadPage = () => {
 
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <h1 className="text-3xl font-bold mb-2 text-center">Upload to HubX</h1>
-        <p className="text-muted-foreground text-center mb-8">Share your content and start earning</p>
+        <p className="text-muted-foreground text-center mb-8">Share your content and start earning - videos will appear in your dashboard</p>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
