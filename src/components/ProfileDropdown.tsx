@@ -20,8 +20,8 @@ const ProfileDropdown = () => {
   const { toast } = useToast();
   const { language, setLanguage, t } = useLanguage();
 
-  // Don't render if no user (but allow rendering while loading if user exists)
-  if (!user) {
+  // Don't render if no user or if still loading initial auth state
+  if (!user || loading) {
     return null;
   }
 
