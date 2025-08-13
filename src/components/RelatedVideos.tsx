@@ -21,7 +21,7 @@ interface RelatedVideosProps {
 }
 
 const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) => {
-  const [visibleCount, setVisibleCount] = useState(20);
+  const [visibleCount, setVisibleCount] = useState(10);
   const [activeTab, setActiveTab] = useState('related');
 
   // Load the ad script asynchronously once
@@ -61,7 +61,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) =
   };
 
   // Filter and sort videos by relatedness
-  const relatedVideos = currentVideo
+  const filteredVideos = currentVideo
     ? videos
         .filter(video => video.id !== currentVideo.id)
         .map(video => ({
@@ -72,20 +72,14 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) =
         .filter(video => video.relatednessScore > 0)
     : videos;
 
-  // If related videos are too few, fallback to all other videos
-  const finalVideos =
-    relatedVideos.length >= 20
-      ? relatedVideos
-      : videos.filter(video => video.id !== currentVideo?.id);
-
-  const maxVisible = finalVideos.length;
+  const maxVisible = Math.min(30, filteredVideos.length);
   const canShowMore = visibleCount < maxVisible;
 
   const handleShowMore = () => {
     setVisibleCount(prev => Math.min(prev + 10, maxVisible));
   };
 
-  const displayedVideos = finalVideos.slice(0, visibleCount);
+  const displayedVideos = filteredVideos.slice(0, visibleCount);
 
   const tabs = [
     { id: 'related', label: 'Related' },
@@ -122,6 +116,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) =
             <OptimizedRelatedVideoCard video={video} viewMode="grid" />
             {index === 5 && (
               <div className="my-4 md:hidden">
+                {/* Ad placeholder, script loads via useEffect */}
                 <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
               </div>
             )}
@@ -142,13 +137,13 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) =
         )}
 
         {/* Last ad after all videos */}
-        {finalVideos.length > 0 && visibleCount >= finalVideos.length && (
+        {filteredVideos.length > 0 && visibleCount >= filteredVideos.length && (
           <div className="my-4">
             <AdComponent zoneId="5661270" />
           </div>
         )}
 
-        {finalVideos.length === 0 && (
+        {filteredVideos.length === 0 && (
           <p className="text-muted-foreground text-sm">No related videos found</p>
         )}
       </div>
