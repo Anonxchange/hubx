@@ -75,7 +75,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
         </span>
       </div>
 
-      <VideoReactions videoId={video?.id || ''} />
+      {/* Video Reactions will be handled by the parent VideoPage component */}
 
       {/* Creator Profile Section - Only show for individual_creator and studio_creator */}
       {(video?.uploader_type === 'individual_creator' || video?.uploader_type === 'studio_creator') && (
