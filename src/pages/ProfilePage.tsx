@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigate, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,14 +64,41 @@ const ProfilePage = () => {
   // Fetch user statistics
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!user?.id) return;
-      
+      // Handle cases where user might not be logged in or profile is public
+      const userId = user?.id || null; // Use null if user is not logged in
+      if (!userId && username) {
+        // If viewing a public profile, we need to fetch user ID based on username
+        try {
+          const { data, error } = await supabase
+            .from('users') // Assuming you have a 'users' table to map usernames to IDs
+            .select('id')
+            .eq('username', username) // Assuming 'username' is a unique field
+            .single();
+          
+          if (error || !data) {
+            console.error('Error fetching user ID for public profile:', error);
+            // Handle error, maybe navigate to a not found page
+            return;
+          }
+          // userId = data.id; // Set userId for public profile fetch
+          // For now, we'll assume public profiles don't have stats fetched this way,
+          // or you'd need a separate public profile service.
+          // This current implementation is primarily for the logged-in user's profile.
+        } catch (error) {
+          console.error('Error fetching user ID for public profile:', error);
+          return;
+        }
+      }
+
+      // Only fetch if we have a user ID (either logged in user or found public user ID)
+      if (!userId) return;
+
       setStatsLoading(true);
       try {
         const promises = [
-          getUserStats(user.id),
-          getUserFavorites(user.id),
-          getUserWatchHistory(user.id)
+          getUserStats(userId),
+          getUserFavorites(userId),
+          getUserWatchHistory(userId)
         ];
 
         // If user is a creator, also fetch their uploaded videos
@@ -81,20 +107,22 @@ const ProfilePage = () => {
             supabase
               .from('videos')
               .select('*')
-              .eq('owner_id', user.id)
+              .eq('owner_id', userId)
               .order('created_at', { ascending: false })
           );
         }
 
         const results = await Promise.all(promises);
         const [userStats, userFavorites, userWatchHistory, uploadsResponse] = results;
-        
+
         setStats(userStats);
         setFavorites(userFavorites);
         setWatchHistory(userWatchHistory);
-        
+
         if (uploadsResponse && !uploadsResponse.error) {
           setUploadedVideos(uploadsResponse.data || []);
+        } else if (uploadsResponse && uploadsResponse.error) {
+          console.error('Error fetching uploaded videos:', uploadsResponse.error);
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -104,7 +132,7 @@ const ProfilePage = () => {
     };
 
     fetchUserData();
-  }, [user?.id]);
+  }, [user?.id, userType, username]); // Added dependencies
 
   if (loading) {
     return (
@@ -116,11 +144,14 @@ const ProfilePage = () => {
 
   // If viewing own profile and not logged in, redirect to auth
   if (!username && !user) return <Navigate to="/auth" replace />;
-  
+
   // If viewing someone else's profile, allow public access
   if (username && !isOwnProfile) {
-    // This would be a public profile view - you can customize this later
-    // For now, show a placeholder or fetch the public profile data
+    // This part would typically render a public view of another user's profile.
+    // The current logic in fetchUserData needs to be adapted to handle fetching
+    // data based on the 'username' param if it's not the current user's profile.
+    // For now, we'll assume the main data fetching is for the logged-in user.
+    // You might want to fetch public profile data here if needed.
   }
 
   const handleCoverPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,10 +186,14 @@ const ProfilePage = () => {
   const userTypeInfo = getUserTypeInfo();
   const TypeIcon = userTypeInfo.icon;
 
+  // Get user's display name or fallback to email prefix
+  const currentUsername = user?.email?.split('@')[0] || 'User';
+  const displayedName = displayName || currentUsername;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Cover Photo Section - Mobile-style overlay design */}
         <div className="relative w-full">
@@ -173,7 +208,7 @@ const ProfilePage = () => {
           >
             {/* Dark overlay for better text readability */}
             <div className="absolute inset-0 bg-black/40" />
-            
+
             {/* Change Cover Button */}
             <Dialog>
               <DialogTrigger asChild>
@@ -217,10 +252,10 @@ const ProfilePage = () => {
                 <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-white/20 shadow-2xl">
                   <AvatarImage src={profilePhoto || user.user_metadata?.avatar_url} />
                   <AvatarFallback className="text-xl md:text-2xl font-bold bg-gradient-to-br from-orange-500 to-red-600 text-white">
-                    {user.email?.charAt(0).toUpperCase()}
+                    {currentUsername.charAt(0).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                
+
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button
@@ -257,7 +292,7 @@ const ProfilePage = () => {
               <div className="flex-1 space-y-2">
                 <div className="flex items-center space-x-3">
                   <h1 className="text-2xl md:text-3xl font-bold text-white">
-                    {displayName || user.email?.split('@')[0] || 'User'}
+                    {displayedName}
                   </h1>
                   <div className="flex items-center space-x-2">
                     {(userType === 'individual_creator' || userType === 'studio_creator') && (
@@ -272,7 +307,7 @@ const ProfilePage = () => {
                     </Badge>
                   </div>
                 </div>
-                
+
                 {/* Stats inline */}
                 <div className="flex items-center space-x-6 text-white/90">
                   <div className="text-center">
@@ -361,7 +396,7 @@ const ProfilePage = () => {
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center space-x-2 mb-3">
-                <h3 className="text-lg font-semibold text-white">About {displayName || user.email?.split('@')[0] || 'User'}</h3>
+                <h3 className="text-lg font-semibold text-white">About {displayedName}</h3>
                 {(userType === 'individual_creator' || userType === 'studio_creator') && (
                   <VerificationBadge
                     userType={userType}
@@ -370,7 +405,7 @@ const ProfilePage = () => {
                 )}
               </div>
               <p className="text-gray-300 mb-4">{bio}</p>
-              
+
               <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
                 <div className="flex items-center space-x-1">
                   <Calendar className="w-4 h-4" />
@@ -516,9 +551,13 @@ const ProfilePage = () => {
               <Card className="bg-gray-900 border-gray-800">
                 <CardContent className="p-6">
                   {favorites.length > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-3">
                       {favorites.slice(0, 12).map((video) => (
-                        <div key={video.id} className="group cursor-pointer">
+                        <div 
+                          key={video.id} 
+                          className="group cursor-pointer"
+                          onClick={() => navigate(`/video/${video.id}`)}
+                        >
                           <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                             {video.thumbnail_url && (
                               <img
@@ -694,7 +733,7 @@ const ProfilePage = () => {
                               : "Use the upload form above to manage your studio's content!"
                             }
                           </p>
-                          
+
                           {/* Creator Benefits Reminder */}
                           <div className="mt-8 p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-lg border max-w-md mx-auto">
                             <h4 className="font-semibold text-sm mb-2 flex items-center justify-center">
@@ -734,7 +773,7 @@ const ProfilePage = () => {
                       <p className="text-muted-foreground mb-6">
                         Become a creator to upload videos, build your audience, and earn revenue from your content.
                       </p>
-                      
+
                       <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto mb-6">
                         {/* Individual Creator Option */}
                         <Card className="p-4 border-2 hover:border-orange-500 transition-colors cursor-pointer">
@@ -772,7 +811,7 @@ const ProfilePage = () => {
                           </div>
                         </Card>
                       </div>
-                      
+
                       <p className="text-xs text-muted-foreground">
                         Ready to start your creator journey? Choose the plan that fits your needs.
                       </p>
@@ -784,7 +823,7 @@ const ProfilePage = () => {
           </Tabs>
         </div>
       </div>
-      
+
       <Footer />
     </div>
   );
