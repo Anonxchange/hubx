@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, ThumbsUp } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
 
 interface Video {
@@ -33,42 +32,46 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
   };
 
   return (
-    <Link to={`/video/${video.id}`} className="block">
-      <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden">
-        <div className="relative aspect-video bg-muted overflow-hidden">
+    <Link to={`/video/${video.id}`} className="block w-full">
+      <div className="group hover:bg-muted/5 transition-all duration-200 w-full">
+        <div className="relative bg-muted overflow-hidden rounded-xl w-full" style={{ aspectRatio: '16/10', height: 'auto' }}>
           <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
             alt={video.title}
             width={300}
             height={200}
-            className="w-full h-full group-hover:scale-105 transition-all duration-300"
+            className="w-full h-full object-cover"
           />
+
+          {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
+          <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
+
+          {/* Duration badge */}
           {video.duration && (
             <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
               {video.duration}
             </div>
           )}
         </div>
-        
-        <CardContent className="p-3 space-y-2">
-          <h3 className="font-medium text-sm line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+
+        <div className="pt-2 space-y-1">
+          {/* Title in separate area below thumbnail */}
+          <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">
             {video.title}
           </h3>
-          
-          <div className="flex items-center justify-between text-xs text-muted-foreground">
-            <div className="flex items-center space-x-2">
-              <span className="flex items-center">
-                <Eye className="w-3 h-3 mr-1" />
-                {formatViews(video.views || 0)}
-              </span>
-              <span className="flex items-center">
-                <ThumbsUp className="w-3 h-3 mr-1" />
-                {video.likes || 0}
-              </span>
-            </div>
+
+          <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+            <span className="flex items-center">
+              <Eye className="w-3 h-3 mr-1" />
+              {formatViews(video.views || 0)}
+            </span>
+            <span className="flex items-center">
+              <ThumbsUp className="w-3 h-3 mr-1" />
+              {video.likes || 0}
+            </span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Link>
   );
 };
