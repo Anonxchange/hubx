@@ -1,21 +1,19 @@
 import React, { useState } from 'react';
-import { ThumbsUp, ThumbsDown, Heart, Share, Plus, Flag } from 'lucide-react';
+import { useLocation } from 'wouter';
+import { ThumbsUp, ThumbsDown, Heart, Share2, Plus, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import PlaylistModal from './PlaylistModal';
 import ShareModal from './ShareModal';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useVideoReaction } from '@/hooks/useVideoReactions';
 
 interface VideoReactionsProps {
   videoId: string;
   videoTitle: string;
   likes: number;
   dislikes: number;
-  userReaction: 'like' | 'dislike' | null | undefined;
-  reactToVideo: ({ videoId, reactionType }: { videoId: string; reactionType: 'like' | 'dislike' }) => void;
-  reactionData?: { userReaction: 'like' | 'dislike' | null; likes: number; dislikes: number };
-  isPending: boolean;
 }
 
 const VideoReactions: React.FC<VideoReactionsProps> = ({
@@ -23,22 +21,21 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
   videoTitle,
   likes,
   dislikes,
-  userReaction,
-  reactToVideo,
-  reactionData,
-  isPending
 }) => {
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Use the video reaction hook
+  const { userReaction, reactToVideo, isLoading } = useVideoReaction(videoId);
+
   const formatCount = (count: number) => {
     if (count >= 1000) return `${Math.floor(count / 1000)}K`;
     return count?.toString() || '0';
   };
 
-  // Trigger reaction (works for logged in or anonymous)
+  // Trigger reaction (works for all users)
   const handleReaction = (reactionType: 'like' | 'dislike') => {
     if (!videoId || !reactToVideo) return;
     reactToVideo({ videoId, reactionType });
@@ -65,10 +62,6 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
     setIsPlaylistModalOpen(true);
   };
 
-  const currentLikes = reactionData?.likes ?? likes;
-  const currentDislikes = reactionData?.dislikes ?? dislikes;
-  const currentUserReaction = reactionData?.userReaction ?? userReaction;
-
   return (
     <div className="flex items-center gap-2 flex-wrap">
       {/* Like Button */}
@@ -76,15 +69,15 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
         variant="ghost"
         size="sm"
         className={`rounded-full gap-2 px-4 ${
-          currentUserReaction === 'like' 
-            ? 'bg-blue-500/20 text-blue-500 hover:bg-blue-500/30' 
+          userReaction === 'like'
+            ? 'bg-blue-500/20 text-blue-500 hover:bg-blue-500/30'
             : 'bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground'
         }`}
         onClick={() => handleReaction('like')}
-        disabled={isPending}
+        disabled={isLoading}
       >
-        <ThumbsUp className={`w-5 h-5 ${currentUserReaction === 'like' ? 'fill-current' : ''}`} />
-        <span className="text-sm font-medium">{formatCount(currentLikes)}</span>
+        <ThumbsUp className={`w-5 h-5 ${userReaction === 'like' ? 'fill-current' : ''}`} />
+        <span className="text-sm font-medium">{formatCount(likes)}</span>
       </Button>
 
       {/* Dislike Button */}
@@ -92,15 +85,15 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
         variant="ghost"
         size="sm"
         className={`rounded-full gap-2 px-4 ${
-          currentUserReaction === 'dislike' 
-            ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' 
+          userReaction === 'dislike'
+            ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
             : 'bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground'
         }`}
         onClick={() => handleReaction('dislike')}
-        disabled={isPending}
+        disabled={isLoading}
       >
-        <ThumbsDown className={`w-5 h-5 ${currentUserReaction === 'dislike' ? 'fill-current' : ''}`} />
-        <span className="text-sm font-medium">{formatCount(currentDislikes)}</span>
+        <ThumbsDown className={`w-5 h-5 ${userReaction === 'dislike' ? 'fill-current' : ''}`} />
+        <span className="text-sm font-medium">{formatCount(dislikes)}</span>
       </Button>
 
       {/* Heart/Favorite */}
@@ -117,9 +110,9 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
         variant="ghost"
         size="sm"
         className="rounded-full w-10 h-10 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
-        onClick={() => setIsShareModalOpen(true)}
+        onClick={handleShare}
       >
-        <Share className="w-5 h-5" />
+        <Share2 className="w-5 h-5" />
       </Button>
 
       {/* Playlist */}
@@ -137,14 +130,14 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
         variant="ghost"
         size="sm"
         className="rounded-full w-10 h-10 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
-        onClick={() => toast.info('Report functionality coming soon')}
+        onClick={() => navigate(`/report/${videoId}`)}
       >
         <Flag className="w-5 h-5" />
       </Button>
 
       {/* Playlist Modal */}
       {user && (
-        <PlaylistModal 
+        <PlaylistModal
           videoId={videoId}
           open={isPlaylistModalOpen}
           onOpenChange={setIsPlaylistModalOpen}
@@ -152,7 +145,7 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
       )}
 
       {/* Share Modal */}
-      <ShareModal 
+      <ShareModal
         videoId={videoId}
         videoTitle={videoTitle}
         open={isShareModalOpen}
