@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
+import { useVideoFavorites } from '@/hooks/useVideoFavorites';
 
 interface VideoReactionsProps {
   videoId: string;
@@ -29,6 +30,13 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
 
   // Use the video reaction hook
   const { userReaction, reactToVideo, isLoading } = useVideoReaction(videoId);
+
+  // Calculate actual counts based on user reaction
+  const actualLikes = userReaction === 'like' ? likes + 1 : likes;
+  const actualDislikes = userReaction === 'dislike' ? dislikes + 1 : dislikes;
+  
+  // Use the video favorites hook
+  const { isFavorited, toggleFavorite, isLoading: favoritesLoading } = useVideoFavorites(videoId);
 
   const formatCount = (count: number) => {
     if (count >= 1000) return `${Math.floor(count / 1000)}K`;
@@ -77,7 +85,7 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
         disabled={isLoading}
       >
         <ThumbsUp className={`w-5 h-5 ${userReaction === 'like' ? 'fill-current' : ''}`} />
-        <span className="text-sm font-medium">{formatCount(likes)}</span>
+        <span className="text-sm font-medium">{formatCount(actualLikes)}</span>
       </Button>
 
       {/* Dislike Button */}
@@ -93,16 +101,22 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
         disabled={isLoading}
       >
         <ThumbsDown className={`w-5 h-5 ${userReaction === 'dislike' ? 'fill-current' : ''}`} />
-        <span className="text-sm font-medium">{formatCount(dislikes)}</span>
+        <span className="text-sm font-medium">{formatCount(actualDislikes)}</span>
       </Button>
 
       {/* Heart/Favorite */}
       <Button
         variant="ghost"
         size="sm"
-        className="rounded-full w-10 h-10 p-0 bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground"
+        className={`rounded-full w-10 h-10 p-0 ${
+          isFavorited
+            ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30'
+            : 'bg-muted/20 hover:bg-muted/30 text-muted-foreground hover:text-foreground'
+        }`}
+        onClick={toggleFavorite}
+        disabled={favoritesLoading}
       >
-        <Heart className="w-5 h-5" />
+        <Heart className={`w-5 h-5 ${isFavorited ? 'fill-current' : ''}`} />
       </Button>
 
       {/* Share */}
