@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import VerificationBadge from './VerificationBadge'; // Added import for VerificationBadge
+import { useVideoReaction } from '@/hooks/useVideoReaction'; // Assuming useVideoReaction is in this path
 
 interface Video {
   id: string;
@@ -20,7 +21,7 @@ interface Video {
   tags: string[];
   created_at: string;
   uploader_username?: string; // Added uploader_username
-  uploader_type?: 'user' | 'creator' | 'studio'; // Added uploader_type
+  uploader_type?: 'user' | 'creator' | 'studio' | 'individual_creator' | 'studio_creator'; // Added uploader_type, expanded options
   is_premium?: boolean; // Added is_premium
 }
 
@@ -38,6 +39,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const previewCycleRef = useRef<NodeJS.Timeout | null>(null);
   // Simplified optimization - avoid heavy hook on every card
   const shouldLoadPreview = true; // Always load previews for better UX
+
+  // --- Hook for dynamic likes/dislikes ---
+  const { likes: actualLikes, dislikes: actualDislikes, toggleLike, toggleDislike, isLiked, isDisliked } = useVideoReaction(video.id);
+  // --- End Hook ---
 
   // Generate preview URL with timestamp for Bunny CDN videos
   const generateBunnyPreviewUrl = (videoUrl: string, time: number): string => {
@@ -127,12 +132,14 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     });
   };
 
-  // Placeholder for formatNumber if it's used elsewhere
   const formatNumber = (num: number | undefined) => {
     if (num === undefined) return '0';
     return num.toString();
   };
 
+  const getActualLikes = () => {
+    return actualLikes;
+  };
 
   const getVideoPreloadStrategy = () => {
     // Example strategy: 'auto' for better preview experience, or 'metadata' for less bandwidth
@@ -168,7 +175,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                   preload={getVideoPreloadStrategy()}
                 />
               ) : null}
-              <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+              <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
               </div>
             </div>
@@ -188,7 +195,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                 </span>
                 <span className="flex items-center">
                   <ThumbsUp className="w-4 h-4 mr-1" />
-                  {video.likes || 0}
+                  {getActualLikes()}
                 </span>
                 <span>{formatDate(video.created_at)}</span>
               </div>
@@ -241,8 +248,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
 
-          {/* Duration badge in top corner */}
-          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+          {/* Duration badge in bottom corner */}
+          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
 
@@ -257,8 +264,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               {video.uploader_username || 'Anonymous'}
             </span>
             {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
-              <VerificationBadge 
-                userType={video.uploader_type} 
+              <VerificationBadge
+                userType={video.uploader_type}
                 className="h-5"
                 showText={false}
               />
@@ -295,7 +302,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               </span>
               <span className="flex items-center">
                 <ThumbsUp className="w-4 h-4 mr-1" />
-                {formatNumber(video.likes)}
+                {getActualLikes()}
               </span>
             </div>
             <span className="flex items-center">
