@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Header from '@/components/Header';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
@@ -7,18 +7,43 @@ import AdComponent from '@/components/AdComponent';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import CategoryFilter from '@/components/CategoryFilter';
 import Footer from '@/components/Footer';
-import { useOptimizedVideos } from '@/hooks/useOptimizedVideos';
+import { getCategoryVideos } from '@/services/videosService';
+import type { Video } from '@/services/videosService';
 
 const CategoryPage = () => {
   const { category } = useParams<{ category: string }>();
   const [currentPage, setCurrentPage] = useState(1);
   const [activeFilter, setActiveFilter] = useState('Featured Recently');
-  
-  const { data, isLoading, error } = useOptimizedVideos(currentPage, 60, category || '');
-  
-  const videos = data?.videos || [];
-  const totalPages = data?.totalPages || 1;
-  const totalVideos = data?.totalCount || 0;
+  const [videos, setVideos] = useState<Video[]>([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalVideos, setTotalVideos] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Check if user is logged in
+  const userId = localStorage.getItem('user_id') || undefined;
+
+  const fetchCategoryVideos = async () => {
+    if (!category) return;
+    
+    try {
+      setIsLoading(true);
+      setError(null);
+      const result = await getCategoryVideos(category, currentPage, 60, undefined, userId);
+      setVideos(result.videos);
+      setTotalPages(result.totalPages);
+      setTotalVideos(result.totalCount);
+    } catch (err) {
+      console.error('Error fetching category videos:', err);
+      setError('Failed to load videos');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchCategoryVideos();
+  }, [category, currentPage, userId]);
 
   const categoryDisplayName = category?.split('-').map(word => 
     word.charAt(0).toUpperCase() + word.slice(1)
@@ -61,17 +86,42 @@ const CategoryPage = () => {
           />
         </div>
 
+        {/* Loading State */}
+        {isLoading && (
+          <div className="text-center py-12">
+            <p className="text-lg">Loading videos...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && (
+          <div className="text-center py-12">
+            <p className="text-lg text-red-500">{error}</p>
+          </div>
+        )}
+
         {/* Videos Grid */}
-        <OptimizedVideoGrid 
-          videos={videos}
-        />
+        {!isLoading && !error && (
+          <OptimizedVideoGrid 
+            videos={videos}
+          />
+        )}
+
+        {/* No Videos State */}
+        {!isLoading && !error && videos.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-lg">No videos found in this category.</p>
+          </div>
+        )}
 
         {/* Pagination */}
-        <ImageStylePagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={handlePageChange}
-        />
+        {!isLoading && !error && totalPages > 1 && (
+          <ImageStylePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        )}
 
         {/* Footer */}
         <Footer />
