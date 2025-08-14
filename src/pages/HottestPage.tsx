@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { TrendingUp, MapPin } from 'lucide-react';
+import { TrendingUp, MapPin, Globe, Eye, Heart } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
 import AdComponent from '@/components/AdComponent';
+import ImageStylePagination from '@/components/ImageStylePagination';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getUserCountry, getHottestByCountry } from '@/services/videosService';
 import type { Video } from '@/services/videosService';
 
@@ -15,32 +17,102 @@ const HottestPage = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [actualCountry, setActualCountry] = useState('');
+  const [selectedLocation, setSelectedLocation] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const videosPerPage = 60;
+
+  // Check if user is logged in
+  const userId = localStorage.getItem('user_id') || undefined;
+
+  // Common countries/regions for filtering
+  const locationOptions = [
+    'Global',
+    'United States',
+    'United Kingdom',
+    'Canada',
+    'Australia',
+    'Germany',
+    'France',
+    'Japan',
+    'Brazil',
+    'India',
+    'Nigeria',
+    'South Africa',
+    'Mexico',
+    'Spain',
+    'Italy',
+    'Netherlands'
+  ];
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchUserCountry = async () => {
       try {
-        setLoading(true);
-
-        // Get user's actual country
         const userCountry = await getUserCountry();
         setActualCountry(userCountry);
+        console.log('User country detected:', userCountry);
 
-        // Use country from URL or user's actual country
-        const targetCountry = country || userCountry;
-        const result = await getHottestByCountry(targetCountry);
-
-        setVideos(result.videos || []);
+        // Set initial location based on URL param or user's country
+        const initialLocation = country?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || userCountry;
+        setSelectedLocation(initialLocation);
       } catch (error) {
-        console.error('Error fetching hottest videos:', error);
-      } finally {
-        setLoading(false);
+        console.error('Error getting user country:', error);
+        // Fallback to a default country if detection fails
+        setActualCountry('Nigeria');
+        setSelectedLocation('Nigeria');
+        console.log('Error getting user country, using default: Nigeria');
       }
     };
 
-    fetchData();
+    fetchUserCountry();
   }, [country]);
 
-  const displayCountry = country?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || actualCountry;
+  useEffect(() => {
+    if (selectedLocation) {
+      fetchHottestVideos();
+    }
+  }, [currentPage, selectedLocation]);
+
+  const fetchHottestVideos = async () => {
+    try {
+      setLoading(true);
+
+      // Adjust targetLocation to be more inclusive for filtering
+      const targetLocation = selectedLocation === 'Global' ? 'global' : selectedLocation;
+      const result = await getHottestByCountry(targetLocation, currentPage, videosPerPage, userId);
+
+      setVideos(result.videos);
+      setTotalCount(result.totalCount);
+      setTotalPages(result.totalPages);
+    } catch (error) {
+      console.error('Error fetching hottest videos:', error);
+      // Handle specific errors or provide a general message
+      if (error.response && error.response.status === 404) {
+        console.log('No videos found for the selected location.');
+        setVideos([]); // Clear videos if none found
+        setTotalCount(0);
+        setTotalPages(1);
+      } else {
+        console.error('An unexpected error occurred while fetching videos.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLocationChange = (location: string) => {
+    setSelectedLocation(location);
+    setCurrentPage(1); // Reset to first page when changing location
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const displayCountry = selectedLocation || actualCountry || 'Global';
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,7 +120,7 @@ const HottestPage = () => {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Hero Section */}
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-4">
           <div className="flex items-center justify-center space-x-2 mb-4">
             <TrendingUp className="h-8 w-8 text-red-500" />
             <MapPin className="h-6 w-6 text-blue-500" />
@@ -57,29 +129,54 @@ const HottestPage = () => {
             Hottest in {displayCountry}
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Trending videos in your region with smart shuffle algorithm
+            Most popular videos in your region, ranked by views, likes, and engagement
           </p>
+
+          {/* Location Filter */}
+          <div className="flex justify-center items-center space-x-4 mt-6">
+            <div className="flex items-center space-x-2">
+              <Globe className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Location:</span>
+            </div>
+            <Select value={selectedLocation} onValueChange={handleLocationChange}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select location" />
+              </SelectTrigger>
+              <SelectContent>
+                {locationOptions.map((location) => (
+                  <SelectItem key={location} value={location}>
+                    {location}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex justify-center space-x-2 mt-4">
             <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
               <TrendingUp className="h-3 w-3 mr-1" />
-              Trending Now
+              Most Popular
             </Badge>
             <Badge variant="outline">
-              Smart Shuffle Enabled
+              <Eye className="h-3 w-3 mr-1" />
+              {totalCount} Videos
             </Badge>
+            {userId && (
+              <Badge variant="outline">
+                <Heart className="h-3 w-3 mr-1" />
+                Personalized
+              </Badge>
+            )}
           </div>
         </div>
 
-        {/* Homepage Style Ads */}
-        <div className="space-y-4">
-          {/* Top Ad Banner */}
-          <div className="w-full flex justify-center">
-            <div className="w-full max-w-4xl">
-              <AdComponent zoneId="5660534" />
-            </div>
+        {/* Top Ad Banner */}
+        <div className="w-full flex justify-center">
+          <div className="w-full max-w-4xl">
+            <AdComponent zoneId="5660534" />
           </div>
         </div>
-        
+
         {/* Videos Grid */}
         {loading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -94,8 +191,39 @@ const HottestPage = () => {
             ))}
           </div>
         ) : videos.length > 0 ? (
-          <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} />
-        ) : null}
+          <>
+            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} />
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center mt-8">
+                <ImageStylePagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                />
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-12">
+            <MapPin className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold mb-2">No hottest videos found</h3>
+            <p className="text-muted-foreground">
+              {selectedLocation === 'Global'
+                ? 'Check back later for popular content.'
+                : `No popular videos found for ${selectedLocation}. Try Global or another location.`
+              }
+            </p>
+          </div>
+        )}
+
+        {/* Bottom Ad */}
+        <div className="w-full flex justify-center mt-8">
+          <div className="w-full max-w-4xl">
+            <AdComponent zoneId="5660534" />
+          </div>
+        </div>
       </main>
 
       <Footer />
