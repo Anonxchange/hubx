@@ -35,10 +35,9 @@ export const getUserStats = async (userId: string): Promise<UserStats> => {
 
     // Get user's favorites count
     const { data: favorites, error: favError } = await supabase
-      .from('video_reactions')
+      .from('video_favorites')
       .select('id')
-      .eq('user_session', userId)
-      .eq('reaction_type', 'like');
+      .eq('user_session', userId);
 
     if (favError && favError.code !== 'PGRST116') {
       console.error('Error fetching favorites:', favError);
@@ -112,7 +111,7 @@ export const trackVideoView = async (videoId: string, userId?: string) => {
 export const getUserFavorites = async (userId: string) => {
   try {
     const { data: favorites, error } = await supabase
-      .from('video_reactions')
+      .from('video_favorites')
       .select(`
         video_id,
         videos (
@@ -125,7 +124,6 @@ export const getUserFavorites = async (userId: string) => {
         )
       `)
       .eq('user_session', userId)
-      .eq('reaction_type', 'like')
       .order('created_at', { ascending: false });
 
     if (error) {
