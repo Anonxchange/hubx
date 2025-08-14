@@ -38,7 +38,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previewCycleRef = useRef<NodeJS.Timeout | null>(null);
   // Simplified optimization - avoid heavy hook on every card
-  const shouldLoadPreview = true; // Always load previews for better UX
+  const { shouldLoadPreview } = useBandwidthOptimization();
 
   // --- Hook for dynamic likes/dislikes ---
   const { likes: actualLikes, dislikes: actualDislikes, toggleLike, toggleDislike, isLiked, isDisliked } = useVideoReaction(video.id);
@@ -56,7 +56,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     setIsHovered(true);
 
     // Only load previews if bandwidth allows it
-    if (!shouldLoadPreview()) return;
+    if (!shouldLoadPreview) return;
 
     // Increased delay to reduce unnecessary bandwidth usage
     hoverTimeoutRef.current = setTimeout(() => {
@@ -355,15 +355,15 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           </div>
 
           <div className="flex flex-wrap gap-1">
-            {/* Special badges for 4K and VR */}
-            {video.tags.some(tag => tag.toLowerCase() === '4k') && (
-              <Badge variant="default" className="text-xs bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold">
-                4K
-              </Badge>
-            )}
+            {/* Special badges for VR and 4K - VR takes priority */}
             {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
               <Badge variant="default" className="text-xs bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold">
                 🥽 VR
+              </Badge>
+            )}
+            {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
+              <Badge variant="default" className="text-xs bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold">
+                4K
               </Badge>
             )}
             {/* Regular tags (excluding 4K and VR which are shown as special badges) */}
