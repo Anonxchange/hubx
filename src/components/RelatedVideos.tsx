@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import AdComponent from '@/components/AdComponent';
 import OptimizedRelatedVideoCard from '@/components/OptimizedRelatedVideoCard';
+import CommentSection from '@/components/CommentSection';
 import Footer from '@/components/Footer';
 
 interface Video {
@@ -18,9 +19,10 @@ interface Video {
 interface RelatedVideosProps {
   videos: Video[];
   currentVideo?: Video;
+  videoId?: string;
 }
 
-const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) => {
+const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, videoId }) => {
   const [visibleCount, setVisibleCount] = useState(10);
   const [activeTab, setActiveTab] = useState('related');
 
@@ -109,44 +111,55 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo }) =
         </div>
       </div>
 
-      {/* Videos grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {displayedVideos.map((video, index) => (
-          <div key={video.id}>
-            <OptimizedRelatedVideoCard video={video} viewMode="grid" />
-            {index === 5 && (
-              <div className="my-4 md:hidden">
-                {/* Ad placeholder, script loads via useEffect */}
-                <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
-              </div>
-            )}
-          </div>
-        ))}
+      {/* Content Area */}
+      {activeTab === 'comment' ? (
+        /* Comments Section */
+        <div className="space-y-6">
+          {videoId && <CommentSection videoId={videoId} />}
+          {!videoId && (
+            <p className="text-muted-foreground text-sm">Video ID not available for comments</p>
+          )}
+        </div>
+      ) : (
+        /* Videos grid */
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {displayedVideos.map((video, index) => (
+            <div key={video.id}>
+              <OptimizedRelatedVideoCard video={video} viewMode="grid" />
+              {index === 5 && (
+                <div className="my-4 md:hidden">
+                  {/* Ad placeholder, script loads via useEffect */}
+                  <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
+                </div>
+              )}
+            </div>
+          ))}
 
-        {/* Show More Button */}
-        {canShowMore && (
-          <div className="col-span-full flex justify-center my-6">
-            <Button
-              onClick={handleShowMore}
-              variant="outline"
-              className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:text-orange-500 transition-colors px-8 py-2 rounded-lg"
-            >
-              Show More ({Math.min(10, maxVisible - visibleCount)} more videos)
-            </Button>
-          </div>
-        )}
+          {/* Show More Button */}
+          {canShowMore && (
+            <div className="col-span-full flex justify-center my-6">
+              <Button
+                onClick={handleShowMore}
+                variant="outline"
+                className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:text-orange-500 transition-colors px-8 py-2 rounded-lg"
+              >
+                Show More ({Math.min(10, maxVisible - visibleCount)} more videos)
+              </Button>
+            </div>
+          )}
 
-        {/* Last ad after all videos */}
-        {filteredVideos.length > 0 && visibleCount >= filteredVideos.length && (
-          <div className="my-4">
-            <AdComponent zoneId="5661270" />
-          </div>
-        )}
+          {/* Last ad after all videos */}
+          {filteredVideos.length > 0 && visibleCount >= filteredVideos.length && (
+            <div className="my-4">
+              <AdComponent zoneId="5661270" />
+            </div>
+          )}
 
-        {filteredVideos.length === 0 && (
-          <p className="text-muted-foreground text-sm">No related videos found</p>
-        )}
-      </div>
+          {filteredVideos.length === 0 && (
+            <p className="text-muted-foreground text-sm">No related videos found</p>
+          )}
+        </div>
+      )}
 
       <Footer />
     </div>
