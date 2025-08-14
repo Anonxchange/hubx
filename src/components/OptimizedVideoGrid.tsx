@@ -60,8 +60,22 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 height={300}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+              <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
+              </div>
+
+              {/* Special quality/format badges on top right for list view */}
+              <div className="absolute top-2 right-2 flex flex-col gap-1">
+                {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
+                  <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white text-xs px-2 py-1 rounded font-bold min-w-[40px] text-center">
+                    🥽 VR
+                  </div>
+                )}
+                {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
+                  <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded font-bold min-w-[40px] text-center">
+                    4K
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex-1 space-y-2">
@@ -85,14 +99,29 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 <span>{formatDate(video.created_at)}</span>
               </div>
               <div className="flex flex-wrap gap-1">
-                {video.tags.slice(0, 3).map((tag) => (
-                  <Badge key={tag} variant="secondary" className="text-xs">
-                    {tag}
+                {/* Special badges for 4K and VR */}
+                {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
+                  <Badge variant="default" className="text-xs bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold">
+                    🥽 VR
                   </Badge>
-                ))}
-                {video.tags.length > 3 && (
+                )}
+                {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
+                  <Badge variant="default" className="text-xs bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold">
+                    4K
+                  </Badge>
+                )}
+                {/* Regular tags (excluding 4K and VR which are shown as special badges) */}
+                {video.tags
+                  .filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase()))
+                  .slice(0, 3)
+                  .map((tag) => (
+                    <Badge key={tag} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                {video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length > 3 && (
                   <Badge variant="outline" className="text-xs">
-                    +{video.tags.length - 3}
+                    +{video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length - 3}
                   </Badge>
                 )}
               </div>
@@ -121,6 +150,20 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           {/* Duration badge */}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
+          </div>
+
+          {/* Special quality/format badges on top right */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1">
+            {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
+              <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white text-xs px-2 py-1 rounded font-bold min-w-[40px] text-center">
+                🥽 VR
+              </div>
+            )}
+            {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
+              <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded font-bold min-w-[40px] text-center">
+                4K
+              </div>
+            )}
           </div>
         </div>
 
