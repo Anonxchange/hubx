@@ -148,12 +148,12 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           </div>
 
           <div className="flex flex-wrap gap-1">
-            {video.tags.slice(0, 2).map((tag) => (
-              <Badge key={tag} variant="secondary" className="text-xs">
+            {video.tags && Array.isArray(video.tags) ? video.tags.slice(0, 2).map((tag: string, index: number) => (
+              <Badge key={index} variant="secondary" className="text-xs">
                 {tag}
               </Badge>
-            ))}
-            {video.tags.length > 2 && (
+            )) : null}
+            {video.tags && Array.isArray(video.tags) && video.tags.length > 2 && (
               <Badge variant="outline" className="text-xs">
                 +{video.tags.length - 2}
               </Badge>
