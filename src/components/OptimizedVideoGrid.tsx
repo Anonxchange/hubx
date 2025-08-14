@@ -118,8 +118,8 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
 
-          {/* Duration badge in top corner */}
-          <div className="absolute top-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+          {/* Duration badge */}
+          <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
         </div>
