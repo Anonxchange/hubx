@@ -1,19 +1,16 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { Music, Play, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { usePlaylists, useDeletePlaylist } from '@/hooks/usePlaylists';
 import { toast } from 'sonner';
-// import { Link } from 'react-router-dom'; // ❌ No need for link if we're embedding
-import VideoPlayer from '@/components/VideoPlayer'; // ✅ Your existing video player
+import { Link } from 'react-router-dom';
 
 const PlaylistsPage: React.FC = () => {
   const { data: playlists, isLoading } = usePlaylists();
   const deletePlaylistMutation = useDeletePlaylist();
-
-  // State to track which video is currently playing
-  const [activeVideo, setActiveVideo] = useState<string | null>(null);
 
   const handleDeletePlaylist = async (playlistId: string, playlistName: string) => {
     if (window.confirm(`Are you sure you want to delete "${playlistName}"?`)) {
@@ -83,20 +80,11 @@ const PlaylistsPage: React.FC = () => {
                     </Badge>
                   </div>
                   <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => {
-                        // Assuming playlist has an array of videos with IDs
-                        if (playlist.videos?.length > 0) {
-                          setActiveVideo(playlist.videos[0].id);
-                        } else {
-                          toast.error("No videos in this playlist");
-                        }
-                      }}
-                    >
-                      <Play className="w-4 h-4" />
-                    </Button>
+                    <Link to={`/playlist/${playlist.id}`}>
+                      <Button size="sm" variant="outline">
+                        <Play className="w-4 h-4" />
+                      </Button>
+                    </Link>
                     <Button
                       size="sm"
                       variant="outline"
@@ -110,13 +98,6 @@ const PlaylistsPage: React.FC = () => {
                 <p className="text-xs text-muted-foreground mt-2">
                   Created {new Date(playlist.created_at).toLocaleDateString()}
                 </p>
-
-                {/* Embedded video player if active */}
-                {activeVideo && activeVideo === playlist.videos?.[0]?.id && (
-                  <div className="mt-4">
-                    <VideoPlayer videoId={activeVideo} />
-                  </div>
-                )}
               </CardContent>
             </Card>
           ))}
