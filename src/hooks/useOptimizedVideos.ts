@@ -1,33 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
-import { getVideos, getVideosByCategory, applyHumanBehaviorShuffle } from '@/services/videosService';
-import type { Video } from '@/services/videosService';
+import { getOptimizedVideos } from '@/services/optimizedVideosService';
+import { getHomepageVideos } from '@/services/videosService';
 
-export const useOptimizedVideos = (
-  page: number = 1,
-  limit: number = 60,
-  category?: string,
-  searchQuery?: string
-) => {
+export const useOptimizedVideos = (page = 1, limit = 60, category?: string, searchQuery?: string) => {
+  // Get user ID for personalization
+  const userId = localStorage.getItem('user_id') || undefined;
+
   return useQuery({
-    queryKey: ['optimized-videos', page, limit, category, searchQuery],
-    queryFn: async () => {
-      let result;
-      if (category) {
-        result = await getVideosByCategory(category, page, limit, searchQuery);
-      } else {
-        result = await getVideos(page, limit, undefined, searchQuery);
+    queryKey: ['optimized-videos', page, limit, category, searchQuery, userId],
+    queryFn: () => {
+      // Use homepage sectioning for default/all categories and no search
+      if ((!category || category === 'all' || category === 'featured') && !searchQuery) {
+        return getHomepageVideos(page, limit, userId);
       }
-
-      // Apply human behavior shuffle to all video results
-      if (result.videos && result.videos.length > 0) {
-        const shuffledVideos = applyHumanBehaviorShuffle(result.videos);
-        result.videos = shuffledVideos;
-      }
-
-      return result;
+      // Use regular optimized service for specific categories or searches
+      return getOptimizedVideos(page, limit, category, searchQuery);
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
-    refetchOnWindowFocus: false,
+    cacheTime: 10 * 60 * 1000, // 10 minutes
   });
 };
