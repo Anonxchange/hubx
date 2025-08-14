@@ -186,7 +186,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   return (
     <div className={gridClass}>
       {videos.map((video, index) => (
-        <React.Fragment key={video.id}>
+        <div key={video.id}>
           <OptimizedVideoCard video={video} viewMode={viewMode} />
 
           {showAds && viewMode === 'grid' && index === 7 && (
@@ -200,7 +200,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
               <AdComponent zoneId="5661270" />
             </div>
           )}
-        </React.Fragment>
+        </div>
       ))}
     </div>
   );
