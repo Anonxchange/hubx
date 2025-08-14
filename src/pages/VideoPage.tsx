@@ -210,16 +210,13 @@ const VideoPage = () => {
               <VideoDescription description={video.description} />
             </div>
 
-            {/* Ad Code Above Comments */}
+            {/* Ad Code */}
             <AdComponent zoneId="5660534" />
-
-            {/* Comments */}
-            <CommentSection videoId={video.id} />
           </div>
 
           {/* Sidebar - Related Videos */}
           <div>
-            <RelatedVideos videos={relatedVideos} />
+            <RelatedVideos videos={relatedVideos} currentVideo={video} videoId={video.id} />
           </div>
         </div>
       </main>
