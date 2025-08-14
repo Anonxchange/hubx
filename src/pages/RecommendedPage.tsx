@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { Brain, Target, TrendingUp, MapPin, Clock, Heart } from "lucide-react";
+import { Brain, Target, TrendingUp } from "lucide-react";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import OptimizedVideoGrid from "@/components/OptimizedVideoGrid";
 import AdComponent from "@/components/AdComponent";
 import ImageStylePagination from "@/components/ImageStylePagination";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { getRecommendedVideos } from "@/services/videosService";
 import type { Video } from "@/services/videosService";
 
@@ -19,8 +18,7 @@ const RecommendedPage = () => {
   const [error, setError] = useState<string | null>(null);
   const videosPerPage = 60;
 
-  // Check if user is logged in (you can implement actual auth check)
-  const userId = localStorage.getItem('user_id') || undefined;
+  const userId = localStorage.getItem("user_id") || undefined;
   const isLoggedIn = !!userId;
 
   const fetchRecommendations = async () => {
@@ -32,8 +30,8 @@ const RecommendedPage = () => {
       setTotalCount(result.totalCount);
       setTotalPages(result.totalPages);
     } catch (err) {
-      console.error('Error fetching recommendations:', err);
-      setError('Failed to load recommendations');
+      console.error("Error fetching recommendations:", err);
+      setError("Failed to load recommendations");
     } finally {
       setIsLoading(false);
     }
@@ -45,7 +43,7 @@ const RecommendedPage = () => {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: "smooth" }); // Scroll up on page change
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -61,10 +59,10 @@ const RecommendedPage = () => {
           <div className="flex items-center gap-3">
             <Brain className="h-8 w-8 text-primary" />
             <h1 className="text-3xl lg:text-4xl font-bold">
-              {isLoggedIn ? 'Recommended For You' : 'Discover Videos'}
+              {isLoggedIn ? "Recommended For You" : "Discover Videos"}
             </h1>
           </div>
-          
+
           {totalCount > 0 && (
             <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
               <span>{totalCount.toLocaleString()} personalized recommendations</span>
@@ -83,18 +81,20 @@ const RecommendedPage = () => {
               </div>
             </div>
           )}
-
+        </div> {/* ✅ Closing the "space-y-4" div */}
 
         {/* Loading / Error */}
         {isLoading && (
           <div className="flex justify-center items-center py-12">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
             <span className="ml-3 text-muted-foreground">
-              {isLoggedIn ? 'Personalizing your recommendations...' : 'Finding great videos for you...'}
+              {isLoggedIn
+                ? "Personalizing your recommendations..."
+                : "Finding great videos for you..."}
             </span>
           </div>
         )}
-        
+
         {error && (
           <div className="text-center py-12">
             <Card className="border-destructive/50 bg-destructive/5">
@@ -117,10 +117,9 @@ const RecommendedPage = () => {
                   <Brain className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-lg font-medium">No recommendations available</p>
                   <p className="text-muted-foreground mt-2">
-                    {isLoggedIn 
-                      ? 'Try watching some videos to help us learn your preferences'
-                      : 'Check back later for personalized recommendations'
-                    }
+                    {isLoggedIn
+                      ? "Try watching some videos to help us learn your preferences"
+                      : "Check back later for personalized recommendations"}
                   </p>
                 </CardContent>
               </Card>
