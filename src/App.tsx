@@ -30,6 +30,7 @@ import DebugAuth from './pages/DebugAuth';
 import ChannelPage from '@/pages/ChannelPage';
 import PlaylistsPage from './pages/PlaylistsPage';
 import ReportVideoPage from './pages/ReportVideoPage';
+import FavoritesPage from '@/pages/FavoritesPage';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
@@ -63,13 +64,14 @@ const App = () => (
                 <Route path="/trending" element={<TrendingPage />} />
                 <Route path="/premium" element={<PremiumPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/profile/:username" element={<ProfilePage />} />
+                <Route path="/profile/:username?" element={<ProfilePage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/contact" element={<ContactUs />} />
                 <Route path="/report/:videoId" element={<ReportVideoPage />} />
                 <Route path="/become-model" element={<BecomeModelPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/playlists" element={<PlaylistsPage />} />
+                <Route path="/favorites" element={<FavoritesPage />} />
 
                 {/* Protected Creator Dashboard */}
                 <Route
