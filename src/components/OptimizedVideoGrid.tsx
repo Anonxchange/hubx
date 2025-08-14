@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
 import AdComponent from '@/components/AdComponent';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LightVideo {
   id: string;
@@ -194,6 +195,18 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   viewMode = 'grid',
   showAds = false
 }) => {
+  const { loading: authLoading } = useAuth();
+
+  // Show loading state during auth verification to prevent content flash
+  if (authLoading) {
+    return (
+      <div className="text-center py-12">
+        <div className="w-8 h-8 mx-auto border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
+
   if (videos.length === 0) {
     return (
       <div className="text-center py-12">
