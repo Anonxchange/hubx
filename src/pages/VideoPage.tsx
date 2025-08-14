@@ -162,8 +162,8 @@ const VideoPage = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Video Player */}
             <div className="relative">
-              {/* Mobile: Full width without borders */}
-              <div className="block md:hidden -mx-4 relative aspect-video bg-black">
+              {/* Mobile: Full width with responsive height */}
+              <div className="block md:hidden -mx-4 relative bg-black" style={{ aspectRatio: '16/10' }}>
                 <VideoPlayer
                   src={video.video_url}
                   poster={video.thumbnail_url}
@@ -172,9 +172,9 @@ const VideoPage = () => {
                 />
               </div>
 
-              {/* Desktop: Maintain card styling */}
+              {/* Desktop: Responsive height with flexible sizing */}
               <Card className="hidden md:block overflow-hidden">
-                <div className="relative aspect-video bg-black">
+                <div className="relative bg-black" style={{ aspectRatio: '16/10', minHeight: '400px', maxHeight: '75vh' }}>
                   <VideoPlayer
                     src={video.video_url}
                     poster={video.thumbnail_url}
