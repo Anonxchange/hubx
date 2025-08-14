@@ -51,14 +51,30 @@ const VideoGrid: React.FC<VideoGridProps> = ({ videos, viewMode = 'grid', showAd
     );
   }
 
+  // Remove duplicates based on video ID
+  const uniqueVideos = videos.filter((video, index, self) => 
+    index === self.findIndex(v => v.id === video.id)
+  );
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-      {videos.map((video, index) => (
-        <div key={video.id}>
+    <div 
+      className="w-full max-w-none" 
+      style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+        gap: '16px',
+        width: '100vw',
+        maxWidth: '100vw',
+        margin: '0 -16px',
+        padding: '0 16px'
+      }}
+    >
+      {uniqueVideos.map((video, index) => (
+        <div key={`video-${video.id}-${index}`} className="w-full">
           <VideoCard video={video} viewMode="grid" />
           {/* Insert ad after video 15 (index 14) - spanning full width */}
           {showAds && index === 14 && (
-            <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 my-6">
+            <div className="col-span-full my-6">
               <AdComponent zoneId="5661270" />
             </div>
           )}
@@ -85,7 +101,7 @@ const JuicyAdComponent: React.FC = () => {
   }, []);
 
   return (
-    <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4 my-6 flex justify-center">
+    <div className="col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4 xl:col-span-5 2xl:col-span-6 my-6 flex justify-center">
       <div>
         <ins id="1097666" data-width="300" data-height="250"></ins>
       </div>
