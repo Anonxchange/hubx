@@ -29,6 +29,7 @@ import UploadPage from './pages/UploadPage';
 import DebugAuth from './pages/DebugAuth';
 import ChannelPage from '@/pages/ChannelPage';
 import PlaylistsPage from './pages/PlaylistsPage';
+import ReportVideoPage from './pages/ReportVideoPage';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
@@ -54,6 +55,7 @@ const App = () => (
                 <Route path="/moments" element={<MomentsPage />} />
                 <Route path="/channel" element={<ChannelPage />} />
                 <Route path="/contact" element={<ContactUs />} />
+                <Route path="/report/:videoId" element={<ReportVideoPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/recommended" element={<RecommendedPage />} />
                 <Route path="/hottest" element={<HottestPage />} />
@@ -64,6 +66,7 @@ const App = () => (
                 <Route path="/profile/:username" element={<ProfilePage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/contact" element={<ContactUs />} />
+                <Route path="/report/:videoId" element={<ReportVideoPage />} />
                 <Route path="/become-model" element={<BecomeModelPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/playlists" element={<PlaylistsPage />} />
