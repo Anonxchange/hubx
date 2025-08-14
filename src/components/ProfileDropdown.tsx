@@ -20,8 +20,17 @@ const ProfileDropdown = () => {
   const { toast } = useToast();
   const { language, setLanguage, t } = useLanguage();
 
-  // Don't render if no user or if still loading initial auth state
-  if (!user || loading) {
+  // Show loading state instead of null to maintain layout
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center">
+        <div className="h-8 w-8 rounded-full bg-muted animate-pulse" />
+      </div>
+    );
+  }
+
+  // Don't render if no user after loading is complete
+  if (!user) {
     return null;
   }
 
