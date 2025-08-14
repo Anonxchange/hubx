@@ -128,13 +128,285 @@ export const getVideos = async (
   };
 };
 
-// Get videos by category with uploader profile info
-export const getVideosByCategory = async (
+// Get recommended videos with advanced personalization
+export const getRecommendedVideos = async (
+  page = 1,
+  limit = 60,
+  userId?: string
+) => {
+  if (userId) {
+    // Logged-in user recommendations
+    return await getLoggedInRecommendations(userId, page, limit);
+  } else {
+    // Guest user recommendations
+    return await getGuestRecommendations(page, limit);
+  }
+};
+
+// Get personalized recommendations for logged-in users
+const getLoggedInRecommendations = async (userId: string, page: number, limit: number) => {
+  // Get user's watch history and preferences
+  const { data: watchHistory } = await supabase
+    .from('video_views')
+    .select('video_id, videos(tags, likes, views)')
+    .eq('user_id', userId)
+    .order('watched_at', { ascending: false })
+    .limit(50);
+
+  const { data: userReactions } = await supabase
+    .from('video_reactions')
+    .select('video_id, reaction_type, videos(tags)')
+    .eq('user_session', userId)
+    .eq('reaction_type', 'like');
+
+  // Extract user preferences from history
+  const userTags = new Set<string>();
+  const watchedVideoIds = new Set<string>();
+  
+  watchHistory?.forEach(view => {
+    watchedVideoIds.add(view.video_id);
+    if (view.videos?.tags) {
+      view.videos.tags.forEach((tag: string) => userTags.add(tag.toLowerCase()));
+    }
+  });
+
+  userReactions?.forEach(reaction => {
+    if (reaction.videos?.tags) {
+      reaction.videos.tags.forEach((tag: string) => userTags.add(tag.toLowerCase()));
+    }
+  });
+
+  // Get all videos for scoring
+  const { data: allVideos, error, count } = await supabase
+    .from('videos')
+    .select(
+      `
+      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+      profiles:owner_id (id, username, avatar_url)
+      `,
+      { count: 'exact' }
+    )
+    .eq('is_premium', false)
+    .eq('is_moment', false);
+
+  if (error) {
+    console.error('Error fetching videos for recommendations:', error);
+    throw error;
+  }
+
+  // Score videos based on user preferences
+  const scoredVideos = (allVideos || []).map(video => {
+    let score = 0;
+    
+    // Skip already watched videos (lower priority)
+    if (watchedVideoIds.has(video.id)) {
+      score -= 0.5;
+    }
+    
+    // Tag similarity scoring
+    const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
+    const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
+    const tagScore = tagMatches / Math.max(videoTagsLower.length, 1);
+    score += tagScore * 0.4;
+    
+    // Popularity factors
+    const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.2;
+    const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.15;
+    score += viewScore + likeScore;
+    
+    // Recency bonus
+    const age = Date.now() - new Date(video.created_at).getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const recencyBonus = Math.max(0, 1 - (age / (7 * dayMs))) * 0.15;
+    score += recencyBonus;
+    
+    // Random discovery factor (10-20%)
+    const randomFactor = Math.random() * 0.1;
+    score += randomFactor;
+
+    return { ...video, recommendationScore: score };
+  });
+
+  // Sort by recommendation score and apply pagination
+  const sortedVideos = scoredVideos
+    .sort((a, b) => (b as any).recommendationScore - (a as any).recommendationScore);
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  const paginatedVideos = sortedVideos.slice(from, to + 1);
+
+  return {
+    videos: paginatedVideos,
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / limit),
+  };
+};
+
+// Get recommendations for guest users
+const getGuestRecommendations = async (page: number, limit: number) => {
+  const sessionId = getSessionId();
+  
+  // Get session-based activity
+  const { data: sessionViews } = await supabase
+    .from('video_reactions')
+    .select('video_id, videos(tags, views, likes)')
+    .eq('user_session', sessionId);
+
+  const { data: userCountryData } = await getUserLocationData();
+  const userCountry = userCountryData?.country?.toLowerCase() || 'nigeria';
+
+  // Get session preferences
+  const sessionTags = new Set<string>();
+  sessionViews?.forEach(view => {
+    if (view.videos?.tags) {
+      view.videos.tags.forEach((tag: string) => sessionTags.add(tag.toLowerCase()));
+    }
+  });
+
+  // Get all videos for scoring
+  const { data: allVideos, error, count } = await supabase
+    .from('videos')
+    .select(
+      `
+      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+      profiles:owner_id (id, username, avatar_url)
+      `,
+      { count: 'exact' }
+    )
+    .eq('is_premium', false)
+    .eq('is_moment', false);
+
+  if (error) {
+    console.error('Error fetching videos for guest recommendations:', error);
+    throw error;
+  }
+
+  // Score videos for guests
+  const scoredVideos = (allVideos || []).map(video => {
+    let score = 0;
+    
+    // Session activity similarity
+    if (sessionTags.size > 0) {
+      const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
+      const tagMatches = videoTagsLower.filter(tag => sessionTags.has(tag)).length;
+      const tagScore = tagMatches / Math.max(videoTagsLower.length, 1);
+      score += tagScore * 0.3;
+    }
+    
+    // Location-based popularity
+    const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
+    const hasLocationTag = videoTagsLower.includes(userCountry) || 
+                          videoTagsLower.some(tag => tag.includes(userCountry));
+    if (hasLocationTag) {
+      score += 0.25;
+    }
+    
+    // General trending factors
+    const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.3;
+    const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.2;
+    score += viewScore + likeScore;
+    
+    // Recency bonus
+    const age = Date.now() - new Date(video.created_at).getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const recencyBonus = Math.max(0, 1 - (age / (14 * dayMs))) * 0.1;
+    score += recencyBonus;
+    
+    // Random discovery factor (20% for guests)
+    const randomFactor = Math.random() * 0.2;
+    score += randomFactor;
+
+    return { ...video, recommendationScore: score };
+  });
+
+  // Sort by recommendation score and apply pagination
+  const sortedVideos = scoredVideos
+    .sort((a, b) => (b as any).recommendationScore - (a as any).recommendationScore);
+
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  const paginatedVideos = sortedVideos.slice(from, to + 1);
+
+  return {
+    videos: paginatedVideos,
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / limit),
+  };
+};
+
+// Helper function to get user location data with better error handling
+const getUserLocationData = async () => {
+  // Check if we have cached location data (valid for 1 hour)
+  const cachedLocation = localStorage.getItem('user_location');
+  if (cachedLocation) {
+    try {
+      const parsed = JSON.parse(cachedLocation);
+      const oneHour = 60 * 60 * 1000;
+      if (parsed.timestamp && (Date.now() - parsed.timestamp) < oneHour) {
+        return parsed;
+      } else {
+        localStorage.removeItem('user_location');
+      }
+    } catch (e) {
+      localStorage.removeItem('user_location');
+    }
+  }
+
+  // Try to get location data with minimal logging
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000); // Reduced to 2 seconds
+    
+    const response = await fetch('https://ipapi.co/json/', {
+      signal: controller.signal,
+      headers: {
+        'Accept': 'application/json',
+      }
+    });
+    
+    clearTimeout(timeoutId);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.country && !data.error && data.country !== 'undefined') {
+        // Cache the result for 1 hour
+        const locationData = {
+          country: data.country,
+          country_name: data.country_name || data.country,
+          timestamp: Date.now()
+        };
+        localStorage.setItem('user_location', JSON.stringify(locationData));
+        return locationData;
+      }
+    }
+  } catch (error) {
+    // Completely silent - no console logs
+  }
+  
+  // Return default location
+  return { country: 'Nigeria', country_name: 'Nigeria' };
+};
+
+// Get videos by category with three sections: Recommended, Hottest/Trending, Random/Discovery
+export const getCategoryVideos = async (
   category: string,
   page = 1,
   limit = 60,
-  searchQuery?: string
+  searchQuery?: string,
+  userId?: string
 ) => {
+  // Special handling for special categories
+  if (category.toLowerCase() === 'recommended') {
+    return await getRecommendedVideos(page, limit, userId);
+  }
+  if (category.toLowerCase() === 'trending') {
+    return await getTrendingVideos(page, limit);
+  }
+  if (category.toLowerCase() === 'premium') {
+    return await getPremiumVideos(page, limit, searchQuery);
+  }
+
+  // Get all videos in the category for sectioning
   let query = supabase
     .from('videos')
     .select(
@@ -143,23 +415,235 @@ export const getVideosByCategory = async (
       profiles:owner_id (id, username, avatar_url)
       `,
       { count: 'exact' }
-    );
+    )
+    .eq('is_premium', false)
+    .eq('is_moment', false)
+    .contains('tags', [category]);
 
-  switch (category.toLowerCase()) {
-    case 'recommended':
-    case 'trending':
-      query = query.eq('is_premium', false).order('views', { ascending: false });
-      break;
-    case 'most rated':
-      query = query.eq('is_premium', false).order('likes', { ascending: false });
-      break;
-    case 'premium':
-      query = query.eq('is_premium', true).order('created_at', { ascending: false });
-      break;
-    default:
-      query = query.eq('is_premium', false).contains('tags', [category]).order('created_at', { ascending: false });
-      break;
+  if (searchQuery) {
+    query = query.or(
+      `title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,tags.cs.{${searchQuery}}`
+    );
   }
+
+  const { data: allCategoryVideos, error, count } = await query;
+
+  if (error) {
+    console.error('Error fetching category videos:', error);
+    throw error;
+  }
+
+  if (!allCategoryVideos || allCategoryVideos.length === 0) {
+    return {
+      videos: [],
+      totalCount: 0,
+      totalPages: 0,
+    };
+  }
+
+  // Apply category sectioning algorithm
+  const sectionedVideos = await applyCategorySectioning(
+    allCategoryVideos,
+    category,
+    userId
+  );
+
+  // Apply pagination to sectioned results
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  const paginatedVideos = sectionedVideos.slice(from, to + 1);
+
+  return {
+    videos: paginatedVideos,
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / limit),
+  };
+};
+
+// Apply category sectioning: Recommended (40%), Hottest/Trending (35%), Random/Discovery (25%)
+const applyCategorySectioning = async (
+  categoryVideos: Video[],
+  category: string,
+  userId?: string
+): Promise<Video[]> => {
+  if (categoryVideos.length === 0) return [];
+
+  // Get user watch history and session data
+  let watchedVideoIds = new Set<string>();
+  let userTags = new Set<string>();
+  
+  if (userId) {
+    const { data: watchHistory } = await supabase
+      .from('video_views')
+      .select('video_id, videos(tags)')
+      .eq('user_id', userId);
+    
+    watchHistory?.forEach(view => {
+      watchedVideoIds.add(view.video_id);
+      if (view.videos?.tags) {
+        view.videos.tags.forEach((tag: string) => userTags.add(tag.toLowerCase()));
+      }
+    });
+  } else {
+    // Guest user - use session data
+    const sessionId = getSessionId();
+    const { data: sessionViews } = await supabase
+      .from('video_reactions')
+      .select('video_id, videos(tags)')
+      .eq('user_session', sessionId);
+    
+    sessionViews?.forEach(view => {
+      watchedVideoIds.add(view.video_id);
+      if (view.videos?.tags) {
+        view.videos.tags.forEach((tag: string) => userTags.add(tag.toLowerCase()));
+      }
+    });
+  }
+
+  // Get user location for guests
+  const userLocationData = userId ? null : await getUserLocationData();
+  const userCountry = userLocationData?.country?.toLowerCase() || 'nigeria';
+
+  // Section 1: Recommended (40%)
+  const recommendedVideos = categoryVideos.map(video => {
+    let score = 0;
+    
+    if (userId) {
+      // Logged-in user recommendations based on history intersection
+      const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
+      const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
+      const tagScore = tagMatches / Math.max(videoTagsLower.length, 1);
+      score += tagScore * 0.6;
+      
+      // Deprioritize watched videos
+      if (watchedVideoIds.has(video.id)) {
+        score *= 0.3;
+      }
+      
+      // Popularity factors
+      score += Math.log(Math.max(video.views, 1) + 1) * 0.2;
+      score += Math.log(Math.max(video.likes, 1) + 1) * 0.15;
+    } else {
+      // Guest recommendations: session clicks, location popularity, trending
+      const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
+      
+      // Session activity similarity
+      if (userTags.size > 0) {
+        const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
+        score += (tagMatches / Math.max(videoTagsLower.length, 1)) * 0.3;
+      }
+      
+      // Location popularity
+      const hasLocationTag = videoTagsLower.includes(userCountry) || 
+                            videoTagsLower.some(tag => tag.includes(userCountry));
+      if (hasLocationTag) {
+        score += 0.25;
+      }
+      
+      // Trending factors
+      score += Math.log(Math.max(video.views, 1) + 1) * 0.25;
+      score += Math.log(Math.max(video.likes, 1) + 1) * 0.15;
+    }
+    
+    // Small randomization
+    score += Math.random() * 0.05;
+    
+    return { ...video, recommendedScore: score };
+  }).sort((a, b) => (b as any).recommendedScore - (a as any).recommendedScore);
+
+  // Section 2: Hottest/Trending (35%)
+  const hottestVideos = categoryVideos.map(video => {
+    // Calculate trending score based on views, likes, comments
+    const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.5;
+    const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.3;
+    
+    // Engagement ratio
+    const engagementRatio = video.views > 0 ? 
+      Math.min((video.likes / video.views) * 0.15, 0.15) : 
+      (video.likes > 0 ? 0.1 : 0);
+    
+    // Recency bonus
+    const age = Date.now() - new Date(video.created_at).getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const recencyBonus = Math.max(0, 1 - (age / (7 * dayMs))) * 0.05;
+    
+    const hottestScore = viewScore + likeScore + engagementRatio + recencyBonus;
+    
+    return { ...video, hottestScore };
+  }).sort((a, b) => (b as any).hottestScore - (a as any).hottestScore);
+
+  // Section 3: Random/Discovery (25%)
+  const discoveryVideos = categoryVideos.map(video => {
+    let score = 0;
+    
+    // Favor less-seen videos
+    const viewPenalty = Math.log(Math.max(video.views, 1) + 1) * -0.3;
+    score += viewPenalty;
+    
+    // Favor fresh uploads
+    const age = Date.now() - new Date(video.created_at).getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const freshnessBonus = Math.max(0, 1 - (age / (30 * dayMs))) * 0.4;
+    score += freshnessBonus;
+    
+    // Large randomization factor for discovery
+    score += Math.random() * 0.6;
+    
+    return { ...video, discoveryScore: score };
+  }).sort((a, b) => (b as any).discoveryScore - (a as any).discoveryScore);
+
+  // Combine sections with appropriate weightings
+  const totalVideos = categoryVideos.length;
+  const recommendedCount = Math.ceil(totalVideos * 0.4);
+  const hottestCount = Math.ceil(totalVideos * 0.35);
+  const discoveryCount = Math.ceil(totalVideos * 0.25);
+
+  // Ensure we don't exceed total count
+  const adjustedRecommendedCount = Math.min(recommendedCount, totalVideos);
+  const adjustedHottestCount = Math.min(hottestCount, totalVideos - adjustedRecommendedCount);
+  const adjustedDiscoveryCount = Math.min(discoveryCount, totalVideos - adjustedRecommendedCount - adjustedHottestCount);
+
+  // Take from each section and shuffle within sections
+  const finalRecommended = shuffleArray(recommendedVideos.slice(0, adjustedRecommendedCount));
+  const finalHottest = shuffleArray(hottestVideos.slice(0, adjustedHottestCount));
+  const finalDiscovery = shuffleArray(discoveryVideos.slice(0, adjustedDiscoveryCount));
+
+  // Interleave the sections for better distribution
+  const result: Video[] = [];
+  const maxLength = Math.max(finalRecommended.length, finalHottest.length, finalDiscovery.length);
+  
+  for (let i = 0; i < maxLength; i++) {
+    if (i < finalRecommended.length) result.push(finalRecommended[i]);
+    if (i < finalHottest.length) result.push(finalHottest[i]);
+    if (i < finalDiscovery.length) result.push(finalDiscovery[i]);
+  }
+
+  return result;
+};
+
+// Helper function to shuffle array
+const shuffleArray = <T>(array: T[]): T[] => {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+};
+
+// Helper function for premium videos
+const getPremiumVideos = async (page: number, limit: number, searchQuery?: string) => {
+  let query = supabase
+    .from('videos')
+    .select(
+      `
+      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+      profiles:owner_id (id, username, avatar_url)
+      `,
+      { count: 'exact' }
+    )
+    .eq('is_premium', true)
+    .order('created_at', { ascending: false });
 
   if (searchQuery) {
     query = query.or(
@@ -173,7 +657,7 @@ export const getVideosByCategory = async (
   const { data, error, count } = await query.range(from, to);
 
   if (error) {
-    console.error('Error fetching videos by category:', error);
+    console.error('Error fetching premium videos:', error);
     throw error;
   }
 
@@ -184,12 +668,37 @@ export const getVideosByCategory = async (
   };
 };
 
+// Legacy function for backward compatibility
+export const getVideosByCategory = async (
+  category: string,
+  page = 1,
+  limit = 60,
+  searchQuery?: string,
+  userId?: string
+) => {
+  return getCategoryVideos(category, page, limit, searchQuery, userId);
+};
+
 // Get related videos based on tags excluding the current video
 export const getRelatedVideos = async (videoId: string, tags: string[], limit = 15) => {
   if (!tags || tags.length === 0) {
-    return [];
+    // If no tags provided, get random recent videos
+    const { data: fallbackData } = await supabase
+      .from('videos')
+      .select(
+        `
+        id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+        profiles:owner_id (id, username, avatar_url)
+        `
+      )
+      .neq('id', videoId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    return fallbackData || [];
   }
 
+  // Try to get videos with overlapping tags
   const { data, error } = await supabase
     .from('videos')
     .select(
@@ -201,14 +710,69 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
     .neq('id', videoId)
     .overlaps('tags', tags)
     .order('views', { ascending: false })
-    .limit(limit);
+    .limit(limit * 2); // Get more initially for better sorting
 
   if (error) {
     console.error('Error fetching related videos:', error);
-    throw error;
+    // Fallback to recent videos if tag search fails
+    const { data: fallbackData } = await supabase
+      .from('videos')
+      .select(
+        `
+        id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+        profiles:owner_id (id, username, avatar_url)
+        `
+      )
+      .neq('id', videoId)
+      .order('views', { ascending: false })
+      .limit(limit);
+    
+    return fallbackData || [];
   }
 
-  return data || [];
+  const relatedVideos = data || [];
+  
+  if (relatedVideos.length === 0) {
+    // If no related videos found, get popular videos as fallback
+    const { data: fallbackData } = await supabase
+      .from('videos')
+      .select(
+        `
+        id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+        profiles:owner_id (id, username, avatar_url)
+        `
+      )
+      .neq('id', videoId)
+      .order('views', { ascending: false })
+      .limit(limit);
+    
+    return fallbackData || [];
+  }
+
+  // Score and sort related videos by relevance
+  const scoredVideos = relatedVideos.map(video => {
+    const videoTags = (video.tags || []).map((tag: string) => tag.toLowerCase());
+    const inputTags = tags.map(tag => tag.toLowerCase());
+    
+    // Calculate tag similarity score
+    const commonTags = videoTags.filter(tag => inputTags.includes(tag)).length;
+    const tagSimilarity = commonTags / Math.max(inputTags.length, videoTags.length);
+    
+    // Combine with popularity metrics
+    const viewScore = Math.log(Math.max(video.views || 0, 1) + 1) * 0.3;
+    const likeScore = Math.log(Math.max(video.likes || 0, 1) + 1) * 0.2;
+    const engagementRatio = (video.views || 0) > 0 ? 
+      ((video.likes || 0) / (video.views || 1)) * 0.1 : 0;
+    
+    const finalScore = (tagSimilarity * 0.4) + viewScore + likeScore + engagementRatio;
+    
+    return { ...video, relevanceScore: finalScore };
+  });
+
+  // Sort by relevance score and return top results
+  return scoredVideos
+    .sort((a, b) => (b as any).relevanceScore - (a as any).relevanceScore)
+    .slice(0, limit);
 };
 
 // Get a single video by ID, with uploader info
@@ -421,40 +985,596 @@ export const searchVideos = async (searchTerm: string) => {
 // Get user's country (used in Header)
 export const getUserCountry = async (): Promise<string> => {
   try {
-    const response = await fetch('https://ipapi.co/json/');
-    const data = await response.json();
-    return data.country_name || 'Nigeria';
+    const locationData = await getUserLocationData();
+    return locationData.country_name || locationData.country || 'Nigeria';
   } catch (error) {
-    console.error('Error getting user country:', error);
+    console.log('Error getting user country, using default');
     return 'Nigeria';
   }
 };
 
-// Get hottest videos by country
-export const getHottestByCountry = async (country: string, page = 1, limit = 60) => {
-  let query = supabase.from('videos').select('*', { count: 'exact' }).eq('is_premium', false);
-
-  if (country && country.toLowerCase() !== 'global') {
-    query = query.contains('tags', [country.toLowerCase()]);
+// Get hottest videos by country with advanced location-based ranking
+export const getHottestByCountry = async (
+  country: string, 
+  page = 1, 
+  limit = 60, 
+  userId?: string
+) => {
+  // Get user's watched videos to deprioritize them
+  let watchedVideoIds = new Set<string>();
+  
+  if (userId) {
+    const { data: watchHistory } = await supabase
+      .from('video_views')
+      .select('video_id')
+      .eq('user_id', userId);
+    
+    watchHistory?.forEach(view => watchedVideoIds.add(view.video_id));
+  } else {
+    // For guests, check session-based reactions
+    const sessionId = getSessionId();
+    const { data: sessionViews } = await supabase
+      .from('video_reactions')
+      .select('video_id')
+      .eq('user_session', sessionId);
+    
+    sessionViews?.forEach(view => watchedVideoIds.add(view.video_id));
   }
 
-  query = query.order('views', { ascending: false });
+  // First, try to get location-specific videos
+  let query = supabase
+    .from('videos')
+    .select(
+      `
+      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+      profiles:owner_id (id, username, avatar_url)
+      `,
+      { count: 'exact' }
+    )
+    .eq('is_premium', false)
+    .eq('is_moment', false);
+
+  let locationSpecificVideos: any[] = [];
+  let locationQuery = null;
+
+  // Apply location filtering with multiple variants for better matching
+  if (country && country.toLowerCase() !== 'global') {
+    const locationVariants = [
+      country.toLowerCase(),
+      country.toLowerCase().replace(/\s+/g, ''),
+      country.split(' ')[0]?.toLowerCase(),
+      // Add common alternative names
+      ...(country.toLowerCase() === 'united states' ? ['usa', 'america', 'us'] : []),
+      ...(country.toLowerCase() === 'united kingdom' ? ['uk', 'britain', 'england'] : []),
+      ...(country.toLowerCase() === 'nigeria' ? ['ng', 'naija'] : []),
+      ...(country.toLowerCase() === 'south africa' ? ['za', 'sa'] : []),
+    ].filter(Boolean);
+    
+    // Try each variant separately to be more flexible
+    for (const variant of locationVariants) {
+      const variantQuery = supabase
+        .from('videos')
+        .select(
+          `
+          id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+          profiles:owner_id (id, username, avatar_url)
+          `
+        )
+        .eq('is_premium', false)
+        .eq('is_moment', false)
+        .contains('tags', [variant]);
+
+      const { data: variantVideos } = await variantQuery;
+      if (variantVideos && variantVideos.length > 0) {
+        locationSpecificVideos.push(...variantVideos);
+      }
+    }
+
+    // Remove duplicates
+    const uniqueVideos = new Map();
+    locationSpecificVideos.forEach(video => {
+      if (!uniqueVideos.has(video.id)) {
+        uniqueVideos.set(video.id, video);
+      }
+    });
+    locationSpecificVideos = Array.from(uniqueVideos.values());
+  }
+
+  // If we found location-specific videos, use them; otherwise get all videos
+  let allVideos: any[], error: any, count: number;
+  
+  if (locationSpecificVideos.length > 0) {
+    allVideos = locationSpecificVideos;
+    count = locationSpecificVideos.length;
+    error = null;
+  } else {
+    // Fallback to all videos if no location-specific videos found
+    const result = await supabase
+      .from('videos')
+      .select(
+        `
+        id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+        profiles:owner_id (id, username, avatar_url)
+        `,
+        { count: 'exact' }
+      )
+      .eq('is_premium', false)
+      .eq('is_moment', false);
+    
+    allVideos = result.data;
+    error = result.error;
+    count = result.count;
+  }
+
+  if (error) {
+    console.error('Error fetching hottest videos by country:', error);
+    // Try a simpler query as last resort
+    const { data: simpleVideos } = await supabase
+      .from('videos')
+      .select(`
+        id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+        profiles:owner_id (id, username, avatar_url)
+      `)
+      .eq('is_premium', false)
+      .order('views', { ascending: false })
+      .limit(limit);
+    
+    return {
+      videos: simpleVideos || [],
+      totalCount: simpleVideos?.length || 0,
+      totalPages: 1,
+    };
+  }
+
+  if (!allVideos || allVideos.length === 0) {
+    console.log('No videos found, trying simple query');
+    // Try to get any videos if none found with filters
+    const { data: anyVideos } = await supabase
+      .from('videos')
+      .select(`
+        id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+        profiles:owner_id (id, username, avatar_url)
+      `)
+      .order('views', { ascending: false })
+      .limit(limit);
+    
+    return {
+      videos: anyVideos || [],
+      totalCount: anyVideos?.length || 0,
+      totalPages: 1,
+    };
+  }
+
+  // Apply hottest algorithm with location-based ranking
+  const hottestVideos = allVideos.map(video => {
+    let score = 0;
+    
+    // Primary ranking factors - popularity based
+    const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.5; // 50% weight on views
+    const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.3; // 30% weight on likes
+    
+    // Engagement ratio (likes vs views)
+    const engagementRatio = video.views > 0 ? 
+      Math.min((video.likes / video.views) * 0.15, 0.15) : 
+      (video.likes > 0 ? 0.1 : 0);
+    
+    // Combine base scores
+    score = viewScore + likeScore + engagementRatio;
+    
+    // Deprioritize already watched content (but don't exclude completely)
+    if (watchedVideoIds.has(video.id)) {
+      score *= 0.7; // Reduce score by 30% for watched videos
+    }
+    
+    // Minor personalization boost for recent content
+    const age = Date.now() - new Date(video.created_at).getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const recencyBonus = Math.max(0, 1 - (age / (30 * dayMs))) * 0.05; // Small 5% bonus for recent content
+    score += recencyBonus;
+
+    return {
+      ...video,
+      hottestScore: score
+    };
+  });
+
+  // Sort by hottest score
+  const sortedVideos = hottestVideos
+    .sort((a, b) => (b as any).hottestScore - (a as any).hottestScore);
+
+  // Apply pagination
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  const paginatedVideos = sortedVideos.slice(from, to + 1);
+
+  return {
+    videos: paginatedVideos,
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / limit),
+  };
+};
+
+// Get trending videos based on recent activity (24-48h)
+export const getTrendingVideos = async (
+  page = 1,
+  limit = 60,
+  location?: string
+) => {
+  // Calculate time range for recent activity (last 7 days to ensure we have content)
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+
+  let query = supabase
+    .from('videos')
+    .select(
+      `
+      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+      profiles:owner_id (id, username, avatar_url)
+      `,
+      { count: 'exact' }
+    )
+    .eq('is_premium', false)
+    .eq('is_moment', false);
+
+  // Filter by location if specified (make location filter more flexible)
+  if (location && location !== 'Global') {
+    // Try exact match first, then fallback to partial match
+    const locationVariants = [
+      location.toLowerCase(),
+      location.toLowerCase().replace(/\s+/g, ''),
+      location.split(' ')[0]?.toLowerCase()
+    ].filter(Boolean);
+    
+    // Use OR condition to match any of the location variants
+    const locationFilter = locationVariants.map(variant => `tags.cs.{${variant}}`).join(',');
+    query = query.or(locationFilter);
+  }
+
+  // Get videos from the last 7 days, but prioritize more recent ones
+  query = query.gte('created_at', sevenDaysAgo.toISOString());
 
   const from = (page - 1) * limit;
   const to = from + limit - 1;
 
   const { data, error, count } = await query.range(from, to);
 
-  if (error) {
-    console.error('Error fetching hottest videos by country:', error);
-    throw error;
+  if (error || !data || data.length === 0) {
+    console.log('No recent trending videos found, using fallback approach');
+    
+    // Fallback to all videos with trending algorithm
+    const fallbackQuery = supabase
+      .from('videos')
+      .select(
+        `
+        id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+        profiles:owner_id (id, username, avatar_url)
+        `,
+        { count: 'exact' }
+      )
+      .eq('is_premium', false)
+      .eq('is_moment', false);
+
+    // Apply location filter to fallback as well
+    if (location && location !== 'Global') {
+      const locationVariants = [
+        location.toLowerCase(),
+        location.toLowerCase().replace(/\s+/g, ''),
+        location.split(' ')[0]?.toLowerCase()
+      ].filter(Boolean);
+      
+      const locationFilter = locationVariants.map(variant => `tags.cs.{${variant}}`).join(',');
+      fallbackQuery.or(locationFilter);
+    }
+
+    const fallbackResult = await fallbackQuery
+      .order('views', { ascending: false })
+      .range(from, to);
+
+    if (fallbackResult.error) {
+      console.error('Error in fallback query:', fallbackResult.error);
+      return {
+        videos: [],
+        totalCount: 0,
+        totalPages: 0,
+      };
+    }
+
+    // Apply trending algorithm to fallback results
+    const trendingVideos = applyTrendingAlgorithm(fallbackResult.data || []);
+
+    return {
+      videos: trendingVideos,
+      totalCount: fallbackResult.count || 0,
+      totalPages: Math.ceil((fallbackResult.count || 0) / limit),
+    };
   }
 
+  // Apply trending algorithm to the results
+  const trendingVideos = applyTrendingAlgorithm(data || []);
+
   return {
-    videos: data || [],
+    videos: trendingVideos,
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit),
   };
+};
+
+// Apply trending algorithm based on recent activity metrics
+const applyTrendingAlgorithm = (videos: Video[]): Video[] => {
+  if (!videos || videos.length === 0) return [];
+
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  return videos
+    .map(video => {
+      const age = now - new Date(video.created_at).getTime();
+      const ageInDays = age / dayMs;
+      
+      // Recency boost - newer content gets higher priority (adjusted for 7 days)
+      const recencyBoost = Math.max(0, 1 - (ageInDays / 7)) * 0.25;
+      
+      // Activity score based on views and likes (enhanced scoring)
+      const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.4;
+      const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.25;
+      
+      // Engagement ratio (likes vs views) with better handling of zero values
+      const engagementRatio = video.views > 0 ? 
+        Math.min((video.likes / video.views) * 0.15, 0.15) : 
+        (video.likes > 0 ? 0.1 : 0);
+      
+      // Velocity bonus for videos with good likes-to-age ratio
+      const velocityBonus = ageInDays > 0 ? 
+        Math.min((video.likes / ageInDays) * 0.05, 0.1) : 
+        (video.likes > 0 ? 0.1 : 0);
+      
+      // Small randomization factor to prevent staleness
+      const randomFactor = Math.random() * 0.05;
+      
+      // Calculate trending score
+      const trendingScore = viewScore + likeScore + recencyBoost + engagementRatio + velocityBonus + randomFactor;
+
+      return {
+        ...video,
+        trendingScore
+      };
+    })
+    .sort((a, b) => (b as any).trendingScore - (a as any).trendingScore);
+};
+
+// Get homepage videos with sectioning: Recommended (40%), Hottest/Trending (30%), Random/Discovery (30%)
+export const getHomepageVideos = async (
+  page = 1,
+  limit = 60,
+  userId?: string
+) => {
+  // Get all videos for sectioning
+  const { data: allVideos, error, count } = await supabase
+    .from('videos')
+    .select(
+      `
+      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+      profiles:owner_id (id, username, avatar_url)
+      `,
+      { count: 'exact' }
+    )
+    .eq('is_premium', false)
+    .eq('is_moment', false);
+
+  if (error) {
+    console.error('Error fetching homepage videos:', error);
+    throw error;
+  }
+
+  if (!allVideos || allVideos.length === 0) {
+    return {
+      videos: [],
+      totalCount: 0,
+      totalPages: 0,
+    };
+  }
+
+  // Apply homepage sectioning algorithm
+  const sectionedVideos = await applyHomepageSectioning(allVideos, userId);
+
+  // Apply pagination to sectioned results
+  const from = (page - 1) * limit;
+  const to = from + limit - 1;
+  const paginatedVideos = sectionedVideos.slice(from, to + 1);
+
+  return {
+    videos: paginatedVideos,
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / limit),
+  };
+};
+
+// Apply homepage sectioning: Recommended (40%), Hottest/Trending (30%), Random/Discovery (30%)
+const applyHomepageSectioning = async (
+  allVideos: Video[],
+  userId?: string
+): Promise<Video[]> => {
+  if (allVideos.length === 0) return [];
+
+  // Get user data for personalization
+  let watchedVideoIds = new Set<string>();
+  let userTags = new Set<string>();
+  
+  if (userId) {
+    const { data: watchHistory } = await supabase
+      .from('video_views')
+      .select('video_id, videos(tags)')
+      .eq('user_id', userId)
+      .limit(50);
+    
+    const { data: userReactions } = await supabase
+      .from('video_reactions')
+      .select('video_id, videos(tags)')
+      .eq('user_session', userId)
+      .eq('reaction_type', 'like');
+    
+    watchHistory?.forEach(view => {
+      watchedVideoIds.add(view.video_id);
+      if (view.videos?.tags) {
+        view.videos.tags.forEach((tag: string) => userTags.add(tag.toLowerCase()));
+      }
+    });
+
+    userReactions?.forEach(reaction => {
+      if (reaction.videos?.tags) {
+        reaction.videos.tags.forEach((tag: string) => userTags.add(tag.toLowerCase()));
+      }
+    });
+  } else {
+    // Guest user - use session data
+    const sessionId = getSessionId();
+    const { data: sessionViews } = await supabase
+      .from('video_reactions')
+      .select('video_id, videos(tags)')
+      .eq('user_session', sessionId);
+    
+    sessionViews?.forEach(view => {
+      watchedVideoIds.add(view.video_id);
+      if (view.videos?.tags) {
+        view.videos.tags.forEach((tag: string) => userTags.add(tag.toLowerCase()));
+      }
+    });
+  }
+
+  // Get user location for guests
+  const userLocationData = userId ? null : await getUserLocationData();
+  const userCountry = userLocationData?.country?.toLowerCase() || 'nigeria';
+
+  // Section 1: Recommended (40%)
+  const recommendedVideos = allVideos.map(video => {
+    let score = 0;
+    
+    if (userId) {
+      // Logged-in: watch history, likes, tags, collaborative filtering
+      const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
+      const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
+      const tagScore = tagMatches / Math.max(videoTagsLower.length, 1);
+      score += tagScore * 0.5;
+      
+      // Collaborative filtering (simplified)
+      score += Math.log(Math.max(video.views, 1) + 1) * 0.25;
+      score += Math.log(Math.max(video.likes, 1) + 1) * 0.15;
+      
+      // Deprioritize watched videos slightly
+      if (watchedVideoIds.has(video.id)) {
+        score *= 0.7;
+      }
+    } else {
+      // Guest: session behavior, location-based popularity, general trending
+      const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
+      
+      // Session behavior similarity
+      if (userTags.size > 0) {
+        const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
+        score += (tagMatches / Math.max(videoTagsLower.length, 1)) * 0.3;
+      }
+      
+      // Location-based popularity
+      const hasLocationTag = videoTagsLower.includes(userCountry) || 
+                            videoTagsLower.some(tag => tag.includes(userCountry));
+      if (hasLocationTag) {
+        score += 0.3;
+      }
+      
+      // General trending patterns
+      score += Math.log(Math.max(video.views, 1) + 1) * 0.25;
+      score += Math.log(Math.max(video.likes, 1) + 1) * 0.15;
+    }
+    
+    return { ...video, recommendedScore: score };
+  }).sort((a, b) => (b as any).recommendedScore - (a as any).recommendedScore);
+
+  // Section 2: Hottest/Trending (30%) - last 24-48h activity
+  const hottestVideos = allVideos.map(video => {
+    const age = Date.now() - new Date(video.created_at).getTime();
+    const hourMs = 60 * 60 * 1000;
+    
+    // Strong recency boost for 24-48h window
+    const recencyBoost = age <= (48 * hourMs) ? 
+      Math.max(0, 1 - (age / (48 * hourMs))) * 0.4 : 0;
+    
+    // Activity metrics
+    const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.4;
+    const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.25;
+    
+    // Engagement ratio
+    const engagementRatio = video.views > 0 ? 
+      Math.min((video.likes / video.views) * 0.15, 0.15) : 
+      (video.likes > 0 ? 0.1 : 0);
+    
+    // Location-based trending for guests
+    let locationBonus = 0;
+    if (!userId) {
+      const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
+      const hasLocationTag = videoTagsLower.includes(userCountry) || 
+                            videoTagsLower.some(tag => tag.includes(userCountry));
+      if (hasLocationTag) {
+        locationBonus = 0.2;
+      }
+    }
+    
+    const hottestScore = viewScore + likeScore + engagementRatio + recencyBoost + locationBonus;
+    
+    return { ...video, hottestScore };
+  }).sort((a, b) => (b as any).hottestScore - (a as any).hottestScore);
+
+  // Section 3: Random/Discovery (30%) - fresh, less-seen, older videos
+  const discoveryVideos = allVideos.map(video => {
+    let score = 0;
+    
+    // Favor fresh uploads
+    const age = Date.now() - new Date(video.created_at).getTime();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const freshnessBonus = Math.max(0, 1 - (age / (30 * dayMs))) * 0.3;
+    score += freshnessBonus;
+    
+    // Favor less-seen videos (inverse popularity)
+    const viewPenalty = Math.log(Math.max(video.views, 1) + 1) * -0.2;
+    score += viewPenalty;
+    
+    // Slight preference for moderately popular videos
+    const moderatePopularityBonus = video.views > 10 && video.views < 1000 ? 0.2 : 0;
+    score += moderatePopularityBonus;
+    
+    // Strong randomization for discovery
+    const randomFactor = Math.random() * 0.5;
+    score += randomFactor;
+    
+    return { ...video, discoveryScore: score };
+  }).sort((a, b) => (b as any).discoveryScore - (a as any).discoveryScore);
+
+  // Calculate section sizes (40%, 30%, 30%)
+  const totalVideos = allVideos.length;
+  const recommendedCount = Math.ceil(totalVideos * 0.4);
+  const hottestCount = Math.ceil(totalVideos * 0.3);
+  const discoveryCount = Math.ceil(totalVideos * 0.3);
+
+  // Ensure we don't exceed total count
+  const adjustedRecommendedCount = Math.min(recommendedCount, totalVideos);
+  const adjustedHottestCount = Math.min(hottestCount, totalVideos - adjustedRecommendedCount);
+  const adjustedDiscoveryCount = Math.min(discoveryCount, totalVideos - adjustedRecommendedCount - adjustedHottestCount);
+
+  // Take from each section and shuffle within sections
+  const finalRecommended = shuffleArray(recommendedVideos.slice(0, adjustedRecommendedCount));
+  const finalHottest = shuffleArray(hottestVideos.slice(0, adjustedHottestCount));
+  const finalDiscovery = shuffleArray(discoveryVideos.slice(0, adjustedDiscoveryCount));
+
+  // Interleave the sections for better distribution
+  const result: Video[] = [];
+  const maxLength = Math.max(finalRecommended.length, finalHottest.length, finalDiscovery.length);
+  
+  for (let i = 0; i < maxLength; i++) {
+    if (i < finalRecommended.length) result.push(finalRecommended[i]);
+    if (i < finalHottest.length) result.push(finalHottest[i]);
+    if (i < finalDiscovery.length) result.push(finalDiscovery[i]);
+  }
+
+  return result;
 };
 
 // Apply human behavior-like shuffling to video recommendations
