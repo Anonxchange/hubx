@@ -368,6 +368,21 @@ const UploadPage = () => {
                         {categories.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                       </SelectContent>
                     </Select>
+                    {/* Show preview of special category badges */}
+                    {selectedCategory && (
+                      <div className="mt-2">
+                        {selectedCategory.toLowerCase() === '4k' && (
+                          <Badge variant="default" className="bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold">
+                            4K Quality Selected
+                          </Badge>
+                        )}
+                        {selectedCategory.toLowerCase() === 'virtual reality' && (
+                          <Badge variant="default" className="bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold">
+                            🥽 VR Experience Selected
+                          </Badge>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -398,11 +413,29 @@ const UploadPage = () => {
                       <Button type="button" onClick={addCustomTag} size="sm">Add</Button>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {customTags.map((tag, i) => (
-                        <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => removeTag(tag)}>
-                          {tag} <X className="w-3 h-3 ml-1" />
-                        </Badge>
-                      ))}
+                      {customTags.map((tag, i) => {
+                        // Special styling for 4K and VR tags
+                        if (tag.toLowerCase() === '4k') {
+                          return (
+                            <Badge key={i} variant="default" className="cursor-pointer bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold" onClick={() => removeTag(tag)}>
+                              4K <X className="w-3 h-3 ml-1" />
+                            </Badge>
+                          );
+                        }
+                        if (['vr', 'virtual reality'].includes(tag.toLowerCase())) {
+                          return (
+                            <Badge key={i} variant="default" className="cursor-pointer bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold" onClick={() => removeTag(tag)}>
+                              🥽 VR <X className="w-3 h-3 ml-1" />
+                            </Badge>
+                          );
+                        }
+                        // Regular tags
+                        return (
+                          <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => removeTag(tag)}>
+                            {tag} <X className="w-3 h-3 ml-1" />
+                          </Badge>
+                        );
+                      })}
                     </div>
                   </div>
 
