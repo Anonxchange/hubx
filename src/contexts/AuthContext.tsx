@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isEmailConfirmed, setIsEmailConfirmed] = useState(false);
 
-  // Restore user info from localStorage immediately
+  // Restore user info from localStorage immediately to prevent UI flash
   useEffect(() => {
     const cachedUser = localStorage.getItem('auth_user');
     const cachedUserType = localStorage.getItem('auth_user_type') as UserType | null;
@@ -60,12 +60,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(parsedUser);
         setUserType(cachedUserType);
         setIsEmailConfirmed(Boolean(parsedUser.email_confirmed_at));
-        setLoading(false); // Set loading to false when restoring from cache
+        // Keep loading true until session is verified by getSession
       } catch (err) {
         console.error('Error parsing cached user:', err);
         localStorage.removeItem('auth_user');
         localStorage.removeItem('auth_user_type');
+        setLoading(false); // Set loading to false if cache is invalid
       }
+    } else {
+      // No cached data, we'll wait for getSession to complete
+      setLoading(true);
     }
   }, []);
 
@@ -81,12 +85,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Fetch user profile to get user_type, then set in state and localStorage
   const fetchUserAndSetType = async (currentUser: User) => {
-    // Check if we already have this user's data to prevent infinite loops
-    if (user?.id === currentUser.id && userType) {
-      console.log('User already set, skipping fetch');
-      return;
-    }
-
     console.log('fetchUserAndSetType called for user:', currentUser.id);
 
     try {
@@ -127,8 +125,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // On component mount, get session and subscribe to auth state changes
   useEffect(() => {
+    let isInitialLoad = true;
+    
     const getSession = async () => {
-      setLoading(true);
       try {
         const {
           data: { session },
@@ -143,8 +142,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           localStorage.removeItem('auth_user');
           localStorage.removeItem('auth_user_type');
         } else if (session?.user) {
+          // If we have cached data and it matches the session user, don't refetch
+          const cachedUser = localStorage.getItem('auth_user');
+          const cachedUserType = localStorage.getItem('auth_user_type');
+          
+          if (cachedUser && cachedUserType && isInitialLoad) {
+            try {
+              const parsedUser = JSON.parse(cachedUser) as User;
+              if (parsedUser.id === session.user.id) {
+                // User data is already set from cache, just verify it's still valid
+                console.log('Using cached user data for session verification');
+                // Ensure email confirmation status is up to date
+                setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
+                setLoading(false);
+                return;
+              }
+            } catch (err) {
+              console.error('Error parsing cached user during session check:', err);
+              // Clear invalid cache
+              localStorage.removeItem('auth_user');
+              localStorage.removeItem('auth_user_type');
+            }
+          }
+          
           await fetchUserAndSetType(session.user as User);
         } else {
+          // No session, clear everything
           setUser(null);
           setUserType(null);
           setIsEmailConfirmed(false);
@@ -160,6 +183,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         localStorage.removeItem('auth_user_type');
       } finally {
         setLoading(false);
+        isInitialLoad = false;
       }
     };
 
@@ -169,12 +193,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.id);
+      setLoading(true);
       
       if (session?.user) {
-        // Only fetch user type if we don't already have it or if it's a different user
-        if (!user || user.id !== session.user.id || !userType) {
-          await fetchUserAndSetType(session.user as User);
-        }
+        // Always fetch user type on auth state changes (login, token refresh, etc.)
+        await fetchUserAndSetType(session.user as User);
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setUserType(null);
@@ -186,7 +209,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, []); // Remove dependencies to prevent infinite loops
 
   // Signup function
   const signUp = async (
