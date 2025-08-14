@@ -39,11 +39,11 @@ const Index = () => {
     }
   }, [searchParams]);
   
-  // Use featured videos for recommended category with smart shuffle
+  // Use homepage sectioning for All/default, otherwise use category-specific logic
   const { data, isLoading, error } = useOptimizedVideos(
     currentPage,
     60,
-    selectedCategory === 'All' ? undefined : selectedCategory === 'recommended' ? 'featured' : selectedCategory,
+    selectedCategory === 'All' ? undefined : selectedCategory.toLowerCase(),
     searchQuery
   );
 
@@ -180,6 +180,8 @@ const Index = () => {
             </Button>
           </div>
         )}
+
+        
 
         {/* Videos */}
         {isLoading ? (
