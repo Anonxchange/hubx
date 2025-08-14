@@ -13,21 +13,27 @@ export interface UserStats {
 // Get user statistics from the database
 export const getUserStats = async (userId: string): Promise<UserStats> => {
   try {
-    // Get user's watch history count
-    const { data: watchHistory, error: watchError } = await supabase
-      .from('video_views')
-      .select('id')
-      .eq('user_id', userId);
-
-    if (watchError && watchError.code !== 'PGRST116') {
-      console.error('Error fetching watch history:', watchError);
+    // Get user's watch history count (table doesn't exist yet, so return 0)
+    let watchHistory = null;
+    let watchError = null;
+    
+    try {
+      const { data, error } = await supabase
+        .from('video_views')
+        .select('id')
+        .eq('user_id', userId);
+      watchHistory = data;
+      watchError = error;
+    } catch (error) {
+      // Table doesn't exist, ignore error
+      console.log('video_views table not available yet');
     }
 
     // Get user's uploaded videos count (for creators)
     const { data: uploadedVideos, error: uploadsError } = await supabase
       .from('videos')
       .select('id, views')
-      .eq('created_by', userId);
+      .eq('owner_id', userId);
 
     if (uploadsError && uploadsError.code !== 'PGRST116') {
       console.error('Error fetching uploaded videos:', uploadsError);
