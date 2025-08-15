@@ -867,9 +867,9 @@ const ProfilePage = () => {
       </div>
     </div>
 
-    <Footer />
-  </div>
-);
+      <Footer />
+    </div>
+  );
 };
 
 export default ProfilePage;
