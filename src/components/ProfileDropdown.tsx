@@ -65,8 +65,10 @@ const ProfileDropdown = () => {
     return firstName && lastName ? `${firstName} ${lastName}` : user.email || 'User';
   };
 
-  // Check if the current user is a creator
-  const isCreator = user?.user_metadata?.user_type === 'creator';
+  // Check if the current user is a creator and get the specific type
+  const isCreator = userType === 'individual_creator' || userType === 'studio_creator';
+  const isIndividualCreator = userType === 'individual_creator';
+  const isStudioCreator = userType === 'studio_creator';
 
   return (
     <DropdownMenu>
@@ -158,10 +160,12 @@ const ProfileDropdown = () => {
             {isCreator && (
               <div
                 className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-                onClick={() => navigate('/creator-dashboard')}
+                onClick={() => navigate(isStudioCreator ? '/studio-dashboard' : '/creator-dashboard')}
               >
                 <Crown className="h-6 w-6 text-blue-400" />
-                <span className="text-xs text-blue-400">Creator Dashboard</span>
+                <span className="text-xs text-blue-400">
+                  {isStudioCreator ? 'Studio Dashboard' : 'Creator Dashboard'}
+                </span>
               </div>
             )}
 
@@ -182,10 +186,10 @@ const ProfileDropdown = () => {
           <div className="py-2">
             <DropdownMenuItem
               className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-              onClick={() => navigate(user?.user_metadata?.user_type === 'studio_creator' ? '/studio-dashboard' : '/creator-dashboard')}
+              onClick={() => navigate(isStudioCreator ? '/studio-dashboard' : '/creator-dashboard')}
             >
               <Crown className="mr-3 h-5 w-5 text-blue-400" />
-              <span>Dashboard</span>
+              <span>{isStudioCreator ? 'Studio Dashboard' : 'Creator Dashboard'}</span>
             </DropdownMenuItem>
 
             <DropdownMenuItem
@@ -222,7 +226,7 @@ const ProfileDropdown = () => {
               </div>
             </DropdownMenuItem>
 
-            {user?.user_metadata?.user_type === 'studio_creator' && (
+            {isStudioCreator && (
               <DropdownMenuItem
                 className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
                 onClick={() => navigate('/performers')}
