@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      posts: {
+        Row: {
+          id: string
+          creator_id: string
+          content: string
+          media_url: string | null
+          media_type: string | null
+          privacy: string
+          created_at: string
+          updated_at: string
+          likes_count: number
+          comments_count: number
+        }
+        Insert: {
+          id?: string
+          creator_id: string
+          content: string
+          media_url?: string | null
+          media_type?: string | null
+          privacy?: string
+          created_at?: string
+          updated_at?: string
+          likes_count?: number
+          comments_count?: number
+        }
+        Update: {
+          id?: string
+          creator_id?: string
+          content?: string
+          media_url?: string | null
+          media_type?: string | null
+          privacy?: string
+          created_at?: string
+          updated_at?: string
+          likes_count?: number
+          comments_count?: number
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           comment_text: string
@@ -225,7 +264,7 @@ export type Database = {
           two_factor_secret: string | null
           updated_at: string | null
           username: string | null
-          user_type: Database["public"]["Enums"]["user_type"]
+          user_type: string
           website: string | null
         }
         Insert: {
@@ -249,7 +288,7 @@ export type Database = {
           two_factor_secret?: string | null
           updated_at?: string | null
           username?: string | null
-          user_type: Database["public"]["Enums"]["user_type"]
+          user_type: string
           website?: string | null
         }
         Update: {
@@ -369,7 +408,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      user_type: "user" | "individual_creator" | "studio_creator"
     }
     CompositeTypes: {
       [_ in never]: never
