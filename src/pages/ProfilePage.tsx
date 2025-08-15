@@ -60,6 +60,15 @@ const ProfilePage = () => {
   const [watchHistory, setWatchHistory] = useState<any[]>([]);
   const [uploadedVideos, setUploadedVideos] = useState<any[]>([]);
   const [statsLoading, setStatsLoading] = useState(true);
+  const [isTipModalOpen, setIsTipModalOpen] = useState(false);
+  const [tipDetails, setTipDetails] = useState({
+    paypal: '',
+    venmo: '',
+    cashapp: '',
+    bitcoin: '',
+    ethereum: '',
+    description: 'Support my content creation journey! 💖'
+  });
 
   // Fetch user statistics
   useEffect(() => {
@@ -95,10 +104,18 @@ const ProfilePage = () => {
 
       setStatsLoading(true);
       try {
+        // Fetch profile data including tip details
+        const profilePromise = supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle(); // Use maybeSingle to handle case where profile doesn't exist
+
         const promises = [
           getUserStats(userId),
           getUserFavorites(userId),
-          getUserWatchHistory(userId)
+          getUserWatchHistory(userId),
+          profilePromise
         ];
 
         // If user is a creator, also fetch their uploaded videos
@@ -113,11 +130,36 @@ const ProfilePage = () => {
         }
 
         const results = await Promise.all(promises);
-        const [userStats, userFavorites, userWatchHistory, uploadsResponse] = results;
+        const [userStats, userFavorites, userWatchHistory, profileResponse, uploadsResponse] = results;
 
         setStats(userStats);
         setFavorites(userFavorites);
         setWatchHistory(userWatchHistory);
+
+        // Load profile data including tip details
+        if (profileResponse && !profileResponse.error && profileResponse.data) {
+          const profile = profileResponse.data;
+
+          // Set profile fields
+          setDisplayName(profile.full_name || '');
+          setBio(profile.bio || 'Welcome to my profile! 🌟');
+          setLocation(profile.location || '');
+          setWebsite(profile.website || '');
+          setProfilePhoto(profile.profile_picture_url || '');
+          setCoverPhoto(profile.cover_photo_url || '');
+
+          // Set tip details
+          setTipDetails({
+            paypal: profile.tip_paypal || '',
+            venmo: profile.tip_venmo || '',
+            cashapp: profile.tip_cashapp || '',
+            bitcoin: profile.tip_bitcoin || '',
+            ethereum: profile.tip_ethereum || '',
+            description: profile.tip_description || 'Support my content creation journey! 💖'
+          });
+        } else if (profileResponse && profileResponse.error) {
+          console.log('Profile not found, will create on first save');
+        }
 
         if (uploadsResponse && !uploadsResponse.error) {
           setUploadedVideos(uploadsResponse.data || []);
@@ -358,13 +400,123 @@ const ProfilePage = () => {
           {/* Action Buttons - Twitter style positioning */}
           <div className="flex space-x-2 mt-auto">
             {/* Tip Button - Always visible */}
-            <Button
-              variant="outline"
-              className="rounded-full border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
-            >
-              <DollarSign className="w-4 h-4 mr-2" />
-              Tip
-            </Button>
+            <Dialog open={isTipModalOpen} onOpenChange={setIsTipModalOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="rounded-full border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
+                >
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Tip
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md bg-gray-900 border-gray-700">
+                <DialogHeader>
+                  <DialogTitle className="text-white flex items-center space-x-2">
+                    <DollarSign className="w-5 h-5 text-orange-500" />
+                    <span>Tip {displayedName}</span>
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <p className="text-gray-300 text-sm">{tipDetails.description}</p>
+
+                  {/* Payment Methods */}
+                  <div className="space-y-3">
+                    {tipDetails.paypal && (
+                      <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                            <DollarSign className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-white font-medium">PayPal</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white"
+                          onClick={() => window.open(`https://paypal.me/${tipDetails.paypal}`, '_blank')}
+                        >
+                          Send Tip
+                        </Button>
+                      </div>
+                    )}
+
+                    {tipDetails.venmo && (
+                      <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center">
+                            <DollarSign className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-white font-medium">Venmo</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-blue-500 hover:bg-blue-600 text-white"
+                          onClick={() => window.open(`https://venmo.com/${tipDetails.venmo}`, '_blank')}
+                        >
+                          Send Tip
+                        </Button>
+                      </div>
+                    )}
+
+                    {tipDetails.cashapp && (
+                      <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                          <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
+                            <DollarSign className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-white font-medium">Cash App</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => window.open(`https://cash.app/$${tipDetails.cashapp}`, '_blank')}
+                        >
+                          Send Tip
+                        </Button>
+                      </div>
+                    )}
+
+                    {tipDetails.bitcoin && (
+                      <div className="p-3 bg-gray-800 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                            <DollarSign className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-white font-medium">Bitcoin</span>
+                        </div>
+                        <div className="bg-gray-700 p-2 rounded text-xs text-gray-300 break-all">
+                          {tipDetails.bitcoin}
+                        </div>
+                      </div>
+                    )}
+
+                    {tipDetails.ethereum && (
+                      <div className="p-3 bg-gray-800 rounded-lg">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <div className="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center">
+                            <DollarSign className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-white font-medium">Ethereum</span>
+                        </div>
+                        <div className="bg-gray-700 p-2 rounded text-xs text-gray-300 break-all">
+                          {tipDetails.ethereum}
+                        </div>
+                      </div>
+                    )}
+
+                    {!tipDetails.paypal && !tipDetails.venmo && !tipDetails.cashapp && !tipDetails.bitcoin && !tipDetails.ethereum && (
+                      <div className="text-center py-8">
+                        <DollarSign className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                        <p className="text-gray-400">No tip methods available</p>
+                        {isOwnProfile && (
+                          <p className="text-sm text-gray-500 mt-2">Set up your tip details in edit profile</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
 
             {isOwnProfile && (
               <Dialog open={isEditing} onOpenChange={setIsEditing}>
@@ -422,7 +574,130 @@ const ProfilePage = () => {
                         className="bg-gray-800 border-gray-600 text-white"
                       />
                     </div>
-                    <Button onClick={() => setIsEditing(false)} className="w-full bg-orange-500 hover:bg-orange-600">
+
+                    {/* Tip Details Section */}
+                    <div className="border-t border-gray-700 pt-4">
+                      <h4 className="text-white font-medium mb-3 flex items-center space-x-2">
+                        <DollarSign className="w-4 h-4 text-orange-500" />
+                        <span>Tip Details</span>
+                      </h4>
+
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="tipDescription" className="text-gray-200">Tip Message</Label>
+                          <Textarea
+                            id="tipDescription"
+                            value={tipDetails.description}
+                            onChange={(e) => setTipDetails(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Support my content creation journey! 💖"
+                            rows={2}
+                            className="bg-gray-800 border-gray-600 text-white"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label htmlFor="paypal" className="text-gray-200">PayPal Username</Label>
+                            <Input
+                              id="paypal"
+                              value={tipDetails.paypal}
+                              onChange={(e) => setTipDetails(prev => ({ ...prev, paypal: e.target.value }))}
+                              placeholder="username"
+                              className="bg-gray-800 border-gray-600 text-white"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="venmo" className="text-gray-200">Venmo Username</Label>
+                            <Input
+                              id="venmo"
+                              value={tipDetails.venmo}
+                              onChange={(e) => setTipDetails(prev => ({ ...prev, venmo: e.target.value }))}
+                              placeholder="username"
+                              className="bg-gray-800 border-gray-600 text-white"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="cashapp" className="text-gray-200">Cash App Username</Label>
+                          <Input
+                            id="cashapp"
+                            value={tipDetails.cashapp}
+                            onChange={(e) => setTipDetails(prev => ({ ...prev, cashapp: e.target.value }))}
+                            placeholder="username (without $)"
+                            className="bg-gray-800 border-gray-600 text-white"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="bitcoin" className="text-gray-200">Bitcoin Address</Label>
+                          <Input
+                            id="bitcoin"
+                            value={tipDetails.bitcoin}
+                            onChange={(e) => setTipDetails(prev => ({ ...prev, bitcoin: e.target.value }))}
+                            placeholder="Your Bitcoin wallet address"
+                            className="bg-gray-800 border-gray-600 text-white"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="ethereum" className="text-gray-200">Ethereum Address</Label>
+                          <Input
+                            id="ethereum"
+                            value={tipDetails.ethereum}
+                            onChange={(e) => setTipDetails(prev => ({ ...prev, ethereum: e.target.value }))}
+                            placeholder="Your Ethereum wallet address"
+                            className="bg-gray-800 border-gray-600 text-white"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button 
+                      onClick={async () => {
+                        if (!user?.id) return;
+
+                        try {
+                          const profileData = {
+                            id: user.id,
+                            full_name: displayName,
+                            bio: bio,
+                            location: location,
+                            website: website,
+                            profile_picture_url: profilePhoto,
+                            cover_photo_url: coverPhoto,
+                            tip_paypal: tipDetails.paypal,
+                            tip_venmo: tipDetails.venmo,
+                            tip_cashapp: tipDetails.cashapp,
+                            tip_bitcoin: tipDetails.bitcoin,
+                            tip_ethereum: tipDetails.ethereum,
+                            tip_description: tipDetails.description,
+                            updated_at: new Date().toISOString()
+                          };
+
+                          const { error } = await supabase
+                            .from('profiles')
+                            .upsert(profileData, { 
+                              onConflict: 'id'
+                            });
+
+                          if (error) {
+                            console.error('Error saving profile:', error);
+                            alert('Error saving profile. Please try again.');
+                          } else {
+                            console.log('Profile saved successfully');
+                            alert('Profile saved successfully!');
+                          }
+                        } catch (error) {
+                          console.error('Error saving profile:', error);
+                          alert('Error saving profile. Please try again.');
+                        }
+
+                        setIsEditing(false);
+                      }} 
+                      className="w-full bg-orange-500 hover:bg-orange-600"
+                    >
                       Save Changes
                     </Button>
                   </div>
