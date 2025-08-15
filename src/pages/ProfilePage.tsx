@@ -74,7 +74,7 @@ const ProfilePage = () => {
             .select('id')
             .eq('username', username) // Assuming 'username' is a unique field
             .single();
-          
+
           if (error || !data) {
             console.error('Error fetching user ID for public profile:', error);
             // Handle error, maybe navigate to a not found page
@@ -194,75 +194,72 @@ const ProfilePage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        {/* Cover Photo Section - Mobile-style overlay design */}
-        <div className="relative w-full">
-          {/* Cover Photo */}
+      <div className="max-w-5xl mx-auto">
+        {/* Cover Photo - Twitter style */}
+        <div className="relative">
           <div 
-            className="h-48 md:h-64 w-full bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
+            className="w-full h-48 sm:h-60 bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
             style={{
               backgroundImage: coverPhoto ? `url(${coverPhoto})` : undefined,
               backgroundSize: 'cover',
               backgroundPosition: 'center'
             }}
           >
-            {/* Dark overlay for better text readability */}
-            <div className="absolute inset-0 bg-black/40" />
-
             {/* Change Cover Button */}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="absolute top-4 right-4 bg-black/60 hover:bg-black/80 text-white border-0 backdrop-blur-sm"
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  Change Cover
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-gray-900 border-gray-700">
-                <DialogHeader>
-                  <DialogTitle className="text-white">Update Cover Photo</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="coverPhoto" className="text-gray-200">Upload Cover Photo</Label>
-                    <Input
-                      id="coverPhoto"
-                      type="file"
-                      accept="image/*"
-                      onChange={handleCoverPhotoChange}
-                      className="bg-gray-800 border-gray-600 text-white"
-                    />
+            {isOwnProfile && (
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="absolute top-4 right-4 bg-black/80 hover:bg-black/90 text-white border-0 backdrop-blur-sm rounded-full"
+                  >
+                    <Camera className="w-4 h-4 mr-2" />
+                    Edit cover photo
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-gray-900 border-gray-700">
+                  <DialogHeader>
+                    <DialogTitle className="text-white">Update Cover Photo</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="coverPhoto" className="text-gray-200">Upload Cover Photo</Label>
+                      <Input
+                        id="coverPhoto"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleCoverPhotoChange}
+                        className="bg-gray-800 border-gray-600 text-white"
+                      />
+                    </div>
+                    <p className="text-sm text-gray-400">
+                      Recommended size: 1500x500px (3:1 ratio). Max file size: 5MB
+                    </p>
                   </div>
-                  <p className="text-sm text-gray-400">
-                    Recommended size: 1200x320px. Max file size: 5MB
-                  </p>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
 
-          {/* Profile Info Overlay - Positioned over cover photo */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-6">
-            <div className="flex flex-col md:flex-row items-start md:items-end space-y-4 md:space-y-0 md:space-x-6">
-              {/* Profile Picture */}
-              <div className="relative">
-                <Avatar className="h-24 w-24 md:h-32 md:w-32 border-4 border-white/20 shadow-2xl">
-                  <AvatarImage src={profilePhoto || user.user_metadata?.avatar_url} />
-                  <AvatarFallback className="text-xl md:text-2xl font-bold bg-gradient-to-br from-orange-500 to-red-600 text-white">
-                    {currentUsername.charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+          {/* Profile Picture - Positioned over cover */}
+          <div className="absolute -bottom-16 left-4 sm:left-6">
+            <div className="relative">
+              <Avatar className="h-24 w-24 sm:h-32 sm:w-32 md:h-36 md:w-36 border-4 border-background shadow-xl">
+                <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} className="object-cover" />
+                <AvatarFallback className="text-2xl md:text-3xl font-bold bg-gradient-to-br from-orange-500 to-red-600 text-white">
+                  {currentUsername.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
 
+              {isOwnProfile && (
                 <Dialog>
                   <DialogTrigger asChild>
                     <Button
                       size="sm"
-                      className="absolute -bottom-1 -right-1 rounded-full h-8 w-8 p-0 shadow-lg bg-orange-500 hover:bg-orange-600"
+                      className="absolute -bottom-2 -right-2 rounded-full h-10 w-10 p-0 shadow-lg bg-orange-500 hover:bg-orange-600 border-2 border-background"
                     >
-                      <Camera className="w-3 h-3" />
+                      <Camera className="w-4 h-4" />
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="bg-gray-900 border-gray-700">
@@ -281,52 +278,92 @@ const ProfilePage = () => {
                         />
                       </div>
                       <p className="text-sm text-gray-400">
-                        Recommended size: 400x400px. Max file size: 2MB
+                        Recommended size: 400x400px (1:1 ratio). Max file size: 2MB
                       </p>
                     </div>
                   </DialogContent>
                 </Dialog>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Profile Info Section */}
+        <div className="px-4 sm:px-6 pt-20 pb-6 border-b border-gray-800 bg-background">
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-1">
+                <h1 className="text-xl sm:text-2xl font-bold text-white">
+                  {displayedName}
+                </h1>
+                {(userType === 'individual_creator' || userType === 'studio_creator') && (
+                  <VerificationBadge
+                    userType={userType}
+                    showText={false}
+                  />
+                )}
+              </div>
+              <p className="text-gray-400">@{currentUsername}</p>
+              <Badge className={`${userTypeInfo.bgColor} ${userTypeInfo.color} border-0 w-fit mt-2`}>
+                <TypeIcon className="w-3 h-3 mr-1" />
+                {userTypeInfo.label}
+              </Badge>
+
+              {/* Bio */}
+              {bio && (
+                <p className="text-white max-w-2xl mt-3">{bio}</p>
+              )}
+
+              {/* Meta info */}
+              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mt-4">
+                {location && (
+                  <div className="flex items-center space-x-1">
+                    <MapPin className="w-4 h-4" />
+                    <span>{location}</span>
+                  </div>
+                )}
+                {website && (
+                  <div className="flex items-center space-x-1">
+                    <LinkIcon className="w-4 h-4" />
+                    <a href={website} className="hover:text-orange-400" target="_blank" rel="noopener noreferrer">
+                      {website.replace(/^https?:\/\//, '')}
+                    </a>
+                  </div>
+                )}
+                <div className="flex items-center space-x-1">
+                  <Calendar className="w-4 h-4" />
+                  <span>Joined {joinDate}</span>
+                </div>
               </div>
 
-              {/* User Info */}
-              <div className="flex-1 space-y-2">
-                <div className="flex items-center space-x-3">
-                  <h1 className="text-2xl md:text-3xl font-bold text-white">
-                    {displayedName}
-                  </h1>
-                  <div className="flex items-center space-x-2">
-                    {(userType === 'individual_creator' || userType === 'studio_creator') && (
-                      <VerificationBadge
-                        userType={userType}
-                        showText={false}
-                      />
-                    )}
-                    <Badge className={`${userTypeInfo.bgColor} ${userTypeInfo.color} border-0 bg-white/10 backdrop-blur-sm`}>
-                      <TypeIcon className="w-3 h-3 mr-1" />
-                      {userTypeInfo.label}
-                    </Badge>
-                  </div>
+              {/* Stats - Twitter style */}
+              <div className="flex items-center space-x-6 mt-4">
+                <div className="text-sm">
+                  <span className="font-bold text-white">{stats.videosWatched}</span>
+                  <span className="text-gray-400 ml-1">Videos Watched</span>
                 </div>
-
-                {/* Stats inline */}
-                <div className="flex items-center space-x-6 text-white/90">
-                  <div className="text-center">
-                    <div className="text-lg font-bold">{stats.videosWatched}</div>
-                    <div className="text-xs text-white/70">Videos Watched</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-lg font-bold">{stats.subscribers}</div>
-                    <div className="text-xs text-white/70">Subscribers</div>
-                  </div>
+                <div className="text-sm">
+                  <span className="font-bold text-white">{stats.subscribers}</span>
+                  <span className="text-gray-400 ml-1">Subscribers</span>
                 </div>
+                {(userType === 'individual_creator' || userType === 'studio_creator') && (
+                  <div className="text-sm">
+                    <span className="font-bold text-white">{stats.uploadedVideos}</span>
+                    <span className="text-gray-400 ml-1">Videos</span>
+                  </div>
+                )}
               </div>
+            </div>
 
-              {/* Action Buttons */}
-              <div className="flex space-x-2">
+            {/* Action Buttons - Twitter style positioning */}
+            {isOwnProfile && (
+              <div className="flex space-x-2 mt-auto"> {/* Adjust margin-top for alignment */}
                 <Dialog open={isEditing} onOpenChange={setIsEditing}>
                   <DialogTrigger asChild>
-                    <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm">
-                      <Edit3 className="w-4 h-4 mr-2" />
+                    <Button
+                      variant="outline"
+                      className="rounded-full border-gray-600 text-white hover:bg-gray-800"
+                    >
                       Edit profile
                     </Button>
                   </DialogTrigger>
@@ -382,17 +419,13 @@ const ProfilePage = () => {
                     </div>
                   </DialogContent>
                 </Dialog>
-
-                <Button variant="outline" className="bg-white/10 border-white/20 text-white hover:bg-white/20 backdrop-blur-sm">
-                  <Settings className="w-4 h-4" />
-                </Button>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
         {/* About Section */}
-        <div className="mt-6">
+        <div className="mt-6 px-4 sm:px-6">
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center space-x-2 mb-3">
@@ -431,7 +464,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Stats Section - Detailed Cards */}
-        <div className="mt-6">
+        <div className="mt-6 px-4 sm:px-6">
           {statsLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[...Array(userType === 'user' ? 4 : 6)].map((_, i) => (
@@ -534,7 +567,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Content Tabs */}
-        <div className="mt-8">
+        <div className="mt-8 px-4 sm:px-6">
           <Tabs defaultValue="favorites" className="w-full">
             <TabsList className={`grid w-full ${userType === 'user' ? 'grid-cols-4' : 'grid-cols-4'} bg-gray-800 border-gray-700`}>
               <TabsTrigger value="favorites" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Videos</TabsTrigger>
