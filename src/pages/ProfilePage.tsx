@@ -864,6 +864,7 @@ const ProfilePage = () => {
           )}
         </Tabs>
       </div>
+      </div>
 
       <Footer />
     </div>
