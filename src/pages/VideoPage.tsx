@@ -173,6 +173,8 @@ const VideoPage = () => {
               poster={video.thumbnail_url}
               onError={handleVideoError}
               onCanPlay={handleVideoCanPlay}
+              videoId={video.id}
+              videoTitle={video.title}
             />
           </div>
           {videoError && (
