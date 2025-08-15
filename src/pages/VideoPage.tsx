@@ -55,8 +55,8 @@ const VideoPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto px-4 py-6">
-          <div className="animate-pulse space-y-6">
+        <main className="container mx-auto px-4 py-4">
+          <div className="animate-pulse space-y-4">
             <div className="h-4 bg-muted rounded w-24"></div>
             <div className="aspect-video bg-muted rounded-lg"></div>
             <div className="h-8 bg-muted rounded w-3/4"></div>
@@ -71,8 +71,8 @@ const VideoPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <main className="container mx-auto px-4 py-6">
-          <div className="text-center py-12">
+        <main className="container mx-auto px-4 py-4">
+          <div className="text-center py-8">
             <h1 className="text-2xl font-bold mb-2">Video Not Found</h1>
             <p className="text-muted-foreground mb-4">
               {error?.message || "The video you're looking for doesn't exist or could not be loaded."}
@@ -128,12 +128,12 @@ const VideoPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Ad closer to video */}
+      {/* Ad right above player */}
       <div className="mb-2">
         <AdComponent zoneId="5660534" />
       </div>
 
-      {/* Full Width Video Player */}
+      {/* Full-width video player */}
       <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
         <div className="relative w-full">
           <div className="w-full aspect-video bg-black">
@@ -154,8 +154,8 @@ const VideoPage = () => {
         </div>
       </div>
 
-      {/* Video Info - reduced top margin */}
-      <main className="container mx-auto px-4 py-6 mt-4 space-y-6">
+      {/* Video Info - super tight margin */}
+      <main className="container mx-auto px-4 py-4 space-y-4">
         <VideoInfo
           title={video.title}
           views={video.views}
@@ -172,13 +172,17 @@ const VideoPage = () => {
 
         <VideoDescription description={video.description} />
 
-        {/* Second ad */}
-        <div className="my-4">
+        {/* Second ad - closer to content */}
+        <div className="my-3">
           <AdComponent zoneId="5660534" />
         </div>
 
         {/* Related videos */}
-        <RelatedVideos videos={relatedVideos} currentVideo={video} videoId={video.id} />
+        <RelatedVideos
+          videos={relatedVideos}
+          currentVideo={video}
+          videoId={video.id}
+        />
       </main>
 
       {/* Playlist Modal */}
