@@ -291,6 +291,9 @@ const ProfilePage = () => {
 
       {/* Profile Info Section */}
       <div className="px-4 sm:px-6 pt-16 pb-6 border-b border-gray-800 bg-background">
+
+      {/* Profile Info Section */}
+      <div className="px-4 sm:px-6 pt-16 pb-6 border-b border-gray-800 bg-background">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">
@@ -865,10 +868,10 @@ const ProfilePage = () => {
           )}
         </Tabs>
       </div>
-    </div>
+
       <Footer />
     </div>
   );
-}
+};
 
 export default ProfilePage;
