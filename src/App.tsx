@@ -31,6 +31,7 @@ import ChannelPage from '@/pages/ChannelPage';
 import PlaylistsPage from './pages/PlaylistsPage';
 import ReportVideoPage from './pages/ReportVideoPage';
 import FavoritesPage from '@/pages/FavoritesPage';
+import FeedPage from './pages/FeedPage';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
@@ -72,6 +73,7 @@ const App = () => (
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/playlists" element={<PlaylistsPage />} />
                 <Route path="/favorites" element={<FavoritesPage />} />
+                <Route path="/feed" element={<FeedPage />} />
 
                 {/* Protected Creator Dashboard */}
                 <Route
