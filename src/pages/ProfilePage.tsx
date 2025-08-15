@@ -236,6 +236,19 @@ const ProfilePage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
+      {/* Ad Section */}
+      <div className="w-full bg-gray-900 py-4 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-lg p-4 text-center text-white">
+            <div className="flex items-center justify-center space-x-2">
+              <span className="text-sm font-semibold">AD ID: 5660534</span>
+              <span className="px-2 py-1 bg-white/20 rounded text-xs">Premium Content</span>
+            </div>
+            <p className="mt-2 text-sm opacity-90">Your advertisement content goes here - Premium placement</p>
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-5xl mx-auto">
         {/* Cover Photo with Profile Picture Container */}
         <div className="relative">
@@ -712,147 +725,7 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      {/* About Section */}
-      <div className="mt-6 px-4 sm:px-6">
-        <Card className="bg-gray-900 border-gray-800">
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-2 mb-3">
-              <h3 className="text-lg font-semibold text-white">About {displayedName}</h3>
-              {(userType === 'individual_creator' || userType === 'studio_creator') && (
-                <VerificationBadge
-                  userType={userType}
-                  showText={false}
-                />
-              )}
-            </div>
-            <p className="text-gray-300 mb-4">{bio}</p>
-
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
-              <div className="flex items-center space-x-1">
-                <Calendar className="w-4 h-4" />
-                <span>Joined {joinDate}</span>
-              </div>
-              {location && (
-                <div className="flex items-center space-x-1">
-                  <MapPin className="w-4 h-4" />
-                  <span>{location}</span>
-                </div>
-              )}
-              {website && (
-                <div className="flex items-center space-x-1">
-                  <LinkIcon className="w-4 h-4" />
-                  <a href={website} className="hover:text-orange-400" target="_blank" rel="noopener noreferrer">
-                    Website
-                  </a>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Stats Section - Detailed Cards */}
-      <div className="mt-6 px-4 sm:px-6">
-        {statsLoading ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[...Array(userType === 'user' ? 4 : 6)].map((_, i) => (
-              <Card key={i} className="p-4 bg-gray-900 border-gray-800">
-                <div className="animate-pulse">
-                  <div className="h-6 bg-gray-700 rounded mb-2"></div>
-                  <div className="h-4 bg-gray-700 rounded"></div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        ) : userType === 'user' ? (
-          /* Regular User Stats */
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Eye className="w-4 h-4 text-blue-400" />
-                <span className="font-bold text-lg text-white">{stats.videosWatched}</span>
-              </div>
-              <p className="text-sm text-gray-400">Videos Watched</p>
-            </Card>
-
-            <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Heart className="w-4 h-4 text-red-400" />
-                <span className="font-bold text-lg text-white">{stats.favoritesCount}</span>
-              </div>
-              <p className="text-sm text-gray-400">Favorites</p>
-            </Card>
-
-            <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Play className="w-4 h-4 text-purple-400" />
-                <span className="font-bold text-lg text-white">{Math.floor(stats.watchTimeMinutes / 60)}h {stats.watchTimeMinutes % 60}m</span>
-              </div>
-              <p className="text-sm text-gray-400">Watch Time</p>
-            </Card>
-
-            <Card className="p-4 text-center bg-gradient-to-br from-orange-900/50 to-purple-900/50 border-orange-600 hover:from-orange-800/50 hover:to-purple-800/50 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Video className="w-4 h-4 text-orange-400" />
-                <span className="font-bold text-lg text-white">{stats.uploadedVideos}</span>
-              </div>
-              <p className="text-sm text-gray-400">Uploads</p>
-              <p className="text-xs text-orange-400 mt-1">Become a creator!</p>
-            </Card>
-          </div>
-        ) : (
-          /* Creator Stats */
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Video className="w-4 h-4 text-orange-400" />
-                <span className="font-bold text-lg text-white">{stats.uploadedVideos}</span>
-              </div>
-              <p className="text-sm text-gray-400">Videos</p>
-            </Card>
-
-            <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Users className="w-4 h-4 text-green-400" />
-                <span className="font-bold text-lg text-white">{stats.subscribers}</span>
-              </div>
-              <p className="text-sm text-gray-400">Subscribers</p>
-            </Card>
-
-            <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Play className="w-4 h-4 text-purple-400" />
-                <span className="font-bold text-lg text-white">{stats.totalViews.toLocaleString()}</span>
-              </div>
-              <p className="text-sm text-gray-400">Total Views</p>
-            </Card>
-
-            <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Heart className="w-4 h-4 text-red-400" />
-                <span className="font-bold text-lg text-white">{stats.favoritesCount}</span>
-              </div>
-              <p className="text-sm text-gray-400">Likes</p>
-            </Card>
-
-            <Card className="p-4 text-center bg-gradient-to-br from-green-900/50 to-emerald-900/50 border-green-600 hover:from-green-800/50 hover:to-emerald-800/50 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <DollarSign className="w-4 h-4 text-green-400" />
-                <span className="font-bold text-lg text-white">${stats.earnings}</span>
-              </div>
-              <p className="text-sm text-gray-400">Earnings</p>
-            </Card>
-
-            <Card className="p-4 text-center bg-gray-900 border-gray-800 hover:bg-gray-800 transition-colors">
-              <div className="flex items-center justify-center space-x-2 mb-2">
-                <Eye className="w-4 h-4 text-blue-400" />
-                <span className="font-bold text-lg text-white">{stats.videosWatched}</span>
-              </div>
-              <p className="text-sm text-gray-400">Watched</p>
-            </Card>
-          </div>
-        )}
-      </div>
+      
 
       {/* Content Tabs */}
       <div className="mt-8 px-4 sm:px-6">
@@ -869,13 +742,95 @@ const ProfilePage = () => {
           </TabsList>
 
           <TabsContent value="favorites" className="mt-6">
-            <Card className="bg-gray-900 border-gray-800">
-              <CardContent className="p-6">
+            <div className="px-4 sm:px-6">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-white mb-4">Favs Videos ({favorites.length})</h2>
                 {favorites.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-3">
-                    {favorites.slice(0, 12).map((video) => (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
+                      {favorites.slice(0, 5).map((video) => (
+                        <div
+                          key={video.id}
+                          className="group cursor-pointer"
+                          onClick={() => navigate(`/video/${video.id}`)}
+                        >
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                            {video.thumbnail_url && (
+                              <img
+                                src={video.thumbnail_url}
+                                alt={video.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                loading="lazy"
+                              />
+                            )}
+                            <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                              WATCHED
+                            </div>
+                            <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                              {video.duration}
+                            </div>
+                          </div>
+                          <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                          <div className="flex items-center space-x-3 text-xs text-gray-400">
+                            <span className="flex items-center space-x-1">
+                              <Eye className="w-3 h-3" />
+                              <span>{video.views?.toLocaleString() || 0}</span>
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    {favorites.length > 5 && (
+                      <div className="text-center">
+                        <Button
+                          variant="outline"
+                          className="rounded-full border-gray-600 text-white hover:bg-gray-800 px-8"
+                          onClick={() => {
+                            // You can implement a modal or expand functionality here
+                            console.log('View more favorites');
+                          }}
+                        >
+                          View All
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2 text-white">Favs Videos (1)</h3>
+                    <p className="text-gray-400">
+                      Videos you like will appear here. Start exploring to build your collection!
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="watchlist" className="mt-6">
+            <Card>
+              <CardContent className="p-6">
+                <div className="text-center py-12">
+                  <Eye className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Watch later list is empty</h3>
+                  <p className="text-muted-foreground">
+                    Save videos to watch later and never miss your favorite content!
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="history" className="mt-6">
+            <div className="px-4 sm:px-6">
+              <div className="mb-6">
+                <h2 className="text-xl font-bold text-white mb-4">Watched ({watchHistory.length})</h2>
+                {watchHistory.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {watchHistory.slice(0, 20).map((video) => (
                       <div
-                        key={video.id}
+                        key={`${video.id}-${video.watched_at}`}
                         className="group cursor-pointer"
                         onClick={() => navigate(`/video/${video.id}`)}
                       >
@@ -899,8 +854,8 @@ const ProfilePage = () => {
                             <span>{video.views?.toLocaleString() || 0}</span>
                           </span>
                           <span className="flex items-center space-x-1">
-                            <Heart className="w-3 h-3" />
-                            <span>{video.likes?.toLocaleString() || 0}</span>
+                            <Calendar className="w-3 h-3" />
+                            <span>{new Date(video.watched_at).toLocaleDateString()}</span>
                           </span>
                         </div>
                       </div>
@@ -908,82 +863,15 @@ const ProfilePage = () => {
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2 text-white">Favs Videos (1)</h3>
+                    <Play className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2 text-white">No viewing history</h3>
                     <p className="text-gray-400">
-                      Videos you like will appear here. Start exploring to build your collection!
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="watchlist" className="mt-6">
-            <Card>
-              <CardContent className="p-6">
-                <div className="text-center py-12">
-                  <Eye className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Watch later list is empty</h3>
-                  <p className="text-muted-foreground">
-                    Save videos to watch later and never miss your favorite content!
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-6">
-            <Card>
-              <CardContent className="p-6">
-                {watchHistory.length > 0 ? (
-                  <div className="space-y-4">
-                    {watchHistory.slice(0, 20).map((video) => (
-                      <div key={`${video.id}-${video.watched_at}`} className="flex items-center space-x-4 group cursor-pointer hover:bg-muted/50 p-3 rounded-lg">
-                        <div className="relative w-32 aspect-video rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                          {video.thumbnail_url && (
-                            <img
-                              src={video.thumbnail_url}
-                              alt={video.title}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                            />
-                          )}
-                          <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
-                            {video.duration}
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium line-clamp-2 mb-1">{video.title}</h4>
-                          <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                            <span className="flex items-center space-x-1">
-                              <Eye className="w-3 h-3" />
-                              <span>{video.views?.toLocaleString() || 0}</span>
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              <Heart className="w-3 h-3" />
-                              <span>{video.likes?.toLocaleString() || 0}</span>
-                            </span>
-                            <span className="flex items-center space-x-1">
-                              <Calendar className="w-3 h-3" />
-                              <span>Watched {new Date(video.watched_at).toLocaleDateString()}</span>
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Play className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No viewing history</h3>
-                    <p className="text-muted-foreground">
                       Your recently watched videos will appear here.
                     </p>
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
 
           {userType !== 'user' && (
