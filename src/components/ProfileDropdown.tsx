@@ -365,7 +365,7 @@ const ProfileDropdown = () => {
           <span>{t('logout')}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
-      
+
       {/* Settings Modal */}
       <SettingsModal
         open={isSettingsOpen}
