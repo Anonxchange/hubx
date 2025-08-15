@@ -31,11 +31,11 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  // Bunny Stream configuration
-  const BUNNY_STREAM_LIBRARY_ID = import.meta.env.VITE_BUNNY_STREAM_LIBRARY_ID || '';
-  const BUNNY_STREAM_ACCESS_KEY = import.meta.env.VITE_BUNNY_STREAM_ACCESS_KEY || '';
+  // Bunny Stream configuration - hardcoded since env variables aren't loading properly
+  const BUNNY_STREAM_LIBRARY_ID = '476242';
+  const BUNNY_STREAM_ACCESS_KEY = 'f6fc4579-a3e4-484d-8387361ef995-6653-4a7b';
   const BUNNY_STREAM_API_URL = 'https://video.bunnycdn.com/library';
-  const BUNNY_STREAM_CDN_URL = `https://iframe.mediadelivery.net/embed/${BUNNY_STREAM_LIBRARY_ID}`;
+  const BUNNY_STREAM_CDN_URL = 'https://vz-a3bd9097-45c.b-cdn.net';
 
   const categories = [
     'Amateur',
@@ -81,45 +81,65 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
     thumbnailUrl: string;
     previewUrl: string;
   }> => {
-    // Step 1: Create video object in Bunny Stream
-    const createResponse = await fetch(`${BUNNY_STREAM_API_URL}/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
-      method: 'POST',
-      headers: {
-        'AccessKey': BUNNY_STREAM_ACCESS_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        title: title,
-      }),
-    });
+    console.log('Using Library ID:', BUNNY_STREAM_LIBRARY_ID);
+    console.log('Using Access Key:', BUNNY_STREAM_ACCESS_KEY ? 'Present' : 'Missing');
 
-    if (!createResponse.ok) {
-      throw new Error(`Failed to create video in Bunny Stream: ${createResponse.statusText}`);
+    try {
+      // Step 1: Create video object in Bunny Stream
+      const createResponse = await fetch(`${BUNNY_STREAM_API_URL}/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
+        method: 'POST',
+        headers: {
+          'AccessKey': BUNNY_STREAM_ACCESS_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: title,
+        }),
+      });
+
+      if (!createResponse.ok) {
+        const errorText = await createResponse.text();
+        throw new Error(`Failed to create video: ${createResponse.status} - ${errorText}`);
+      }
+
+      const videoData = await createResponse.json();
+      const videoId = videoData.guid;
+
+      // Step 2: Upload video file with progress tracking
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const progress = Math.round((e.loaded / e.total) * 80); // Reserve 20% for final processing
+            setUploadProgress(progress);
+          }
+        });
+
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            setUploadProgress(100);
+            resolve({
+              videoId,
+              hlsUrl: `${BUNNY_STREAM_CDN_URL}/${videoId}/playlist.m3u8`,
+              thumbnailUrl: `${BUNNY_STREAM_CDN_URL}/${videoId}/thumbnail.jpg`,
+              previewUrl: `${BUNNY_STREAM_CDN_URL}/${videoId}/preview.webp`,
+            });
+          } else {
+            reject(new Error(`Upload failed with status: ${xhr.status} - ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Upload failed due to network error'));
+        
+        xhr.open('PUT', `${BUNNY_STREAM_API_URL}/${BUNNY_STREAM_LIBRARY_ID}/videos/${videoId}`);
+        xhr.setRequestHeader('AccessKey', BUNNY_STREAM_ACCESS_KEY);
+        xhr.send(file);
+      });
+    } catch (error) {
+      console.error('Bunny Stream upload error:', error);
+      throw error;
     }
-
-    const videoData = await createResponse.json();
-    const videoId = videoData.guid;
-
-    // Step 2: Upload video file
-    const uploadResponse = await fetch(`${BUNNY_STREAM_API_URL}/${BUNNY_STREAM_LIBRARY_ID}/videos/${videoId}`, {
-      method: 'PUT',
-      headers: {
-        'AccessKey': BUNNY_STREAM_ACCESS_KEY,
-      },
-      body: file,
-    });
-
-    if (!uploadResponse.ok) {
-      throw new Error(`Failed to upload video to Bunny Stream: ${uploadResponse.statusText}`);
-    }
-
-    // Return URLs for HLS, thumbnail, and preview
-    return {
-      videoId,
-      hlsUrl: `https://iframe.mediadelivery.net/play/${videoId}`,
-      thumbnailUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/thumbnail.jpg`,
-      previewUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/preview.webp`,
-    };
   };
 
   const isValidVideoUrl = (url: string): boolean => {
@@ -261,8 +281,8 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
         try {
           const thumbnailBlob = await generateThumbnailFromUrl(finalVideoUrl);
           const thumbnailFilename = `thumbnails/${timestamp}_thumbnail.jpg`;
-          // Upload thumbnail to regular CDN storage for URL-based videos
-          const response = await fetch(`https://storage.bunnycdn.com/${BUNNY_STREAM_LIBRARY_ID}/${thumbnailFilename}`, {
+          // Upload thumbnail to CDN storage for URL-based videos
+          const response = await fetch(`https://storage.bunnycdn.com/hubx-storage/${thumbnailFilename}`, {
             method: 'PUT',
             headers: {
               'AccessKey': BUNNY_STREAM_ACCESS_KEY,
@@ -271,7 +291,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
             body: thumbnailBlob,
           });
           if (response.ok) {
-            thumbnailUrl = `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${thumbnailFilename}`;
+            thumbnailUrl = `${BUNNY_STREAM_CDN_URL}/${thumbnailFilename}`;
           }
         } catch (error) {
           console.warn('Failed to generate thumbnail for URL upload:', error);
