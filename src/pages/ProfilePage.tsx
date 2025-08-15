@@ -195,10 +195,10 @@ const ProfilePage = () => {
       <Header />
 
       <div className="max-w-5xl mx-auto">
-        {/* Cover Photo - Twitter style */}
+        {/* Cover Photo with Profile Picture Container */}
         <div className="relative">
           <div
-            className="w-full h-32 sm:h-40 bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
+            className="w-full h-48 sm:h-56 md:h-64 bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
             style={{
               backgroundImage: coverPhoto ? `url(${coverPhoto})` : undefined,
               backgroundSize: 'cover',
@@ -239,57 +239,56 @@ const ProfilePage = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-              )}
-          </div>
-        </div>
-
-        {/* Profile Picture - Positioned over cover */}
-        <div className="absolute -bottom-12 left-4 sm:left-6">
-          <div className="relative">
-            <Avatar className="h-24 w-24 sm:h-32 sm:w-32 md:h-36 md:w-36 border-4 border-background shadow-xl">
-              <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} className="object-cover" />
-              <AvatarFallback className="text-2xl md:text-3xl font-bold bg-gradient-to-br from-orange-500 to-red-600 text-white">
-                {currentUsername.charAt(0).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-
-            {isOwnProfile && (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    size="sm"
-                    className="absolute -bottom-2 -right-2 rounded-full h-10 w-10 p-0 shadow-lg bg-orange-500 hover:bg-orange-600 border-2 border-background"
-                  >
-                    <Camera className="w-4 h-4" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="bg-gray-900 border-gray-700">
-                  <DialogHeader>
-                    <DialogTitle className="text-white">Update Profile Picture</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="profilePhoto" className="text-gray-200">Upload Profile Picture</Label>
-                      <Input
-                        id="profilePhoto"
-                        type="file"
-                        accept="image/*"
-                        onChange={handleProfilePhotoChange}
-                        className="bg-gray-800 border-gray-600 text-white"
-                      />
-                    </div>
-                    <p className="text-sm text-gray-400">
-                      Recommended size: 400x400px (1:1 ratio). Max file size: 2MB
-                    </p>
-                  </div>
-                </DialogContent>
-              </Dialog>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* Profile Info Section */}
+          {/* Profile Picture - Positioned to overlap cover photo */}
+          <div className="absolute -bottom-16 right-6 sm:right-8 md:right-12">
+            <div className="relative">
+              <Avatar className="h-28 w-28 sm:h-32 sm:w-32 md:h-40 md:w-40 border-4 border-background shadow-2xl ring-2 ring-primary/20">
+                <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} className="object-cover" />
+                <AvatarFallback className="text-2xl md:text-4xl font-bold bg-gradient-to-br from-orange-500 to-red-600 text-white">
+                  {currentUsername.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+
+              {isOwnProfile && (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      className="absolute -bottom-2 -right-2 rounded-full h-12 w-12 p-0 shadow-lg bg-orange-500 hover:bg-orange-600 border-2 border-background"
+                    >
+                      <Camera className="w-5 h-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-gray-900 border-gray-700">
+                    <DialogHeader>
+                      <DialogTitle className="text-white">Update Profile Picture</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="profilePhoto" className="text-gray-200">Upload Profile Picture</Label>
+                        <Input
+                          id="profilePhoto"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleProfilePhotoChange}
+                          className="bg-gray-800 border-gray-600 text-white"
+                        />
+                      </div>
+                      <p className="text-sm text-gray-400">
+                        Recommended size: 400x400px (1:1 ratio). Max file size: 2MB
+                      </p>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Profile Info Section */}
       <div className="px-4 sm:px-6 pt-16 pb-6 border-b border-gray-800 bg-background">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1">
