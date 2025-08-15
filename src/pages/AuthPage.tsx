@@ -20,7 +20,6 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [confirmationSuccess, setConfirmationSuccess] = useState(false);
-  const [resetPasswordSent, setResetPasswordSent] = useState(false);
 
   const { signIn, signUp, signOut } = useAuth();
   const navigate = useNavigate();
@@ -37,29 +36,13 @@ const AuthPage = () => {
       // Remove the ?confirmed=true param so message shows only once
       navigate('/auth', { replace: true });
     }
-
-    // Handle password reset flow
-    if (searchParams.get('reset') === 'true') {
-      setIsLogin(true);
-      setError(null);
-      
-      // Clear the reset param
-      const newParams = new URLSearchParams(searchParams);
-      newParams.delete('reset');
-      navigate('/auth?' + newParams.toString(), { replace: true });
-    }
   }, [searchParams, signOut, navigate]);
 
   const handleGoogleAuth = async () => {
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { 
-        redirectTo: window.location.origin,
-        queryParams: {
-          user_type: userType
-        }
-      },
+      options: { redirectTo: window.location.origin },
     });
     if (error) setError(error.message);
   };
@@ -68,41 +51,9 @@ const AuthPage = () => {
     setError(null);
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'twitter',
-      options: { 
-        redirectTo: window.location.origin,
-        queryParams: {
-          user_type: userType
-        }
-      },
+      options: { redirectTo: window.location.origin },
     });
     if (error) setError(error.message);
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError('Please enter your email address');
-      return;
-    }
-
-    setError(null);
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
-      });
-
-      if (error) {
-        setError(error.message);
-      } else {
-        setResetPasswordSent(true);
-      }
-    } catch (err: any) {
-      console.error('Reset password error:', err);
-      setError('Failed to send reset email. Please try again.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -301,14 +252,6 @@ const AuthPage = () => {
                 </div>
               )}
 
-              {resetPasswordSent && (
-                <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
-                  <p className="text-sm text-blue-600 dark:text-blue-400">
-                    Password reset email sent! Check your inbox and follow the instructions to reset your password.
-                  </p>
-                </div>
-              )}
-
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
@@ -364,14 +307,8 @@ const AuthPage = () => {
 
                 {isLogin && (
                   <div className="text-center">
-                    <Button 
-                      variant="link" 
-                      className="text-sm text-muted-foreground"
-                      onClick={handleForgotPassword}
-                      disabled={loading || !email}
-                      type="button"
-                    >
-                      {loading ? 'Sending...' : 'Forgot your password?'}
+                    <Button variant="link" className="text-sm text-muted-foreground">
+                      Forgot your password?
                     </Button>
                   </div>
                 )}
