@@ -2,6 +2,21 @@ import React, { useState, useEffect } from 'react';
 import { Navigate, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserStats, getUserFavorites, getUserWatchHistory, UserStats } from '@/services/userStatsService';
+import { 
+  createPost, 
+  getCreatorPosts, 
+  getFeedPosts, 
+  subscribeToCreator, 
+  unsubscribeFromCreator, 
+  isSubscribedToCreator,
+  getSubscriberCount,
+  likePost,
+  unlikePost,
+  addPostComment,
+  getPostComments,
+  deletePost,
+  Post
+} from '@/services/socialFeedService';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,7 +41,14 @@ import {
   Upload,
   Star,
   DollarSign,
-  Play
+  Play,
+  Send,
+  MessageCircle,
+  ThumbsUp,
+  Image as ImageIcon,
+  X,
+  UserPlus,
+  UserMinus
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -71,6 +93,18 @@ const ProfilePage = () => {
     description: 'Support my content creation journey! 💖'
   });
   const [showMoreFavorites, setShowMoreFavorites] = useState(false);
+  
+  // Social Feed State
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [feedPosts, setFeedPosts] = useState<Post[]>([]);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [subscriberCount, setSubscriberCount] = useState(0);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [newPostMedia, setNewPostMedia] = useState<File | null>(null);
+  const [newPostMediaPreview, setNewPostMediaPreview] = useState<string>('');
+  const [isPostingLoading, setIsPostingLoading] = useState(false);
+  const [postsLoading, setPostsLoading] = useState(true);
+  const [feedLoading, setFeedLoading] = useState(true);
 
   // Fetch user statistics
   useEffect(() => {
@@ -175,8 +209,41 @@ const ProfilePage = () => {
       }
     };
 
+    const fetchSocialData = async () => {
+      if (!user?.id) return;
+
+      // Fetch creator posts if viewing own profile or another creator's profile
+      const profileUserId = isOwnProfile ? user.id : username; // Note: You'd need to resolve username to user ID
+      
+      if (profileUserId) {
+        setPostsLoading(true);
+        const creatorPosts = await getCreatorPosts(profileUserId);
+        setPosts(creatorPosts);
+        setPostsLoading(false);
+
+        // Get subscriber count
+        const subCount = await getSubscriberCount(profileUserId);
+        setSubscriberCount(subCount);
+
+        // Check if subscribed (only if viewing another user's profile)
+        if (!isOwnProfile && profileUserId !== user.id) {
+          const subscribed = await isSubscribedToCreator(profileUserId);
+          setIsSubscribed(subscribed);
+        }
+      }
+
+      // Fetch feed posts for own profile
+      if (isOwnProfile) {
+        setFeedLoading(true);
+        const feed = await getFeedPosts(50);
+        setFeedPosts(feed);
+        setFeedLoading(false);
+      }
+    };
+
     fetchUserData();
-  }, [user?.id, userType, username]); // Added dependencies
+    fetchSocialData();
+  }, [user?.id, userType, username, isOwnProfile]); // Added dependencies
 
   if (loading) {
     return (
@@ -233,6 +300,191 @@ const ProfilePage = () => {
   // Get user's display name or fallback to email prefix
   const currentUsername = user?.email?.split('@')[0] || 'User';
   const displayedName = displayName || currentUsername;
+
+  // Social Feed Functions
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim() && !newPostMedia) return;
+    
+    setIsPostingLoading(true);
+    try {
+      let mediaUrl = '';
+      let mediaType = '';
+
+      // Upload media if present
+      if (newPostMedia) {
+        const fileName = `${Date.now()}-${newPostMedia.name}`;
+        const { data, error } = await supabase.storage
+          .from('post_media')
+          .upload(fileName, newPostMedia);
+
+        if (!error) {
+          const { data: urlData } = supabase.storage
+            .from('post_media')
+            .getPublicUrl(fileName);
+          
+          mediaUrl = urlData.publicUrl;
+          mediaType = newPostMedia.type.startsWith('image/') ? 'image' : 
+                     newPostMedia.type.startsWith('video/') ? 'video' : '';
+        }
+      }
+
+      const newPost = await createPost({
+        content: newPostContent,
+        media_url: mediaUrl,
+        media_type: mediaType
+      });
+
+      if (newPost) {
+        setPosts([newPost, ...posts]);
+        setNewPostContent('');
+        setNewPostMedia(null);
+        setNewPostMediaPreview('');
+      }
+    } catch (error) {
+      console.error('Error creating post:', error);
+    } finally {
+      setIsPostingLoading(false);
+    }
+  };
+
+  const handleMediaUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setNewPostMedia(file);
+      const reader = new FileReader();
+      reader.onload = (e) => setNewPostMediaPreview(e.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleLikePost = async (postId: string, isLiked: boolean) => {
+    const success = isLiked ? await unlikePost(postId) : await likePost(postId);
+    if (success) {
+      setPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, isLiked: !isLiked, likes_count: post.likes_count + (isLiked ? -1 : 1) }
+          : post
+      ));
+      setFeedPosts(prev => prev.map(post => 
+        post.id === postId 
+          ? { ...post, isLiked: !isLiked, likes_count: post.likes_count + (isLiked ? -1 : 1) }
+          : post
+      ));
+    }
+  };
+
+  const handleSubscribe = async () => {
+    if (!username || isOwnProfile) return;
+    
+    const success = isSubscribed 
+      ? await unsubscribeFromCreator(username) 
+      : await subscribeToCreator(username);
+    
+    if (success) {
+      setIsSubscribed(!isSubscribed);
+      setSubscriberCount(prev => prev + (isSubscribed ? -1 : 1));
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (window.confirm('Are you sure you want to delete this post?')) {
+      const success = await deletePost(postId);
+      if (success) {
+        setPosts(prev => prev.filter(post => post.id !== postId));
+      }
+    }
+  };
+
+  const formatPostDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+    return date.toLocaleDateString();
+  };
+
+  const PostCard: React.FC<{ post: Post; showDelete?: boolean }> = ({ post, showDelete = false }) => (
+    <Card className="bg-gray-900 border-gray-800 mb-4">
+      <CardContent className="p-4">
+        <div className="flex items-start space-x-3">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={post.creator?.profile_picture_url} />
+            <AvatarFallback className="bg-orange-500 text-white">
+              {post.creator?.username?.charAt(0).toUpperCase() || 'U'}
+            </AvatarFallback>
+          </Avatar>
+          
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center space-x-2 mb-2">
+              <span className="font-semibold text-white">{post.creator?.full_name || post.creator?.username}</span>
+              {(post.creator?.user_type === 'individual_creator' || post.creator?.user_type === 'studio_creator') && (
+                <VerificationBadge userType={post.creator.user_type} showText={false} />
+              )}
+              <span className="text-gray-400 text-sm">@{post.creator?.username}</span>
+              <span className="text-gray-400 text-sm">·</span>
+              <span className="text-gray-400 text-sm">{formatPostDate(post.created_at)}</span>
+              {showDelete && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                  onClick={() => handleDeletePost(post.id)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+            
+            <p className="text-white mb-3">{post.content}</p>
+            
+            {post.media_url && (
+              <div className="mb-3 rounded-lg overflow-hidden">
+                {post.media_type === 'image' ? (
+                  <img 
+                    src={post.media_url} 
+                    alt="Post media" 
+                    className="w-full max-h-96 object-cover"
+                  />
+                ) : post.media_type === 'video' ? (
+                  <video 
+                    src={post.media_url} 
+                    controls 
+                    className="w-full max-h-96"
+                  />
+                ) : null}
+              </div>
+            )}
+            
+            <div className="flex items-center space-x-6 text-gray-400">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`flex items-center space-x-1 hover:text-red-400 ${post.isLiked ? 'text-red-400' : ''}`}
+                onClick={() => handleLikePost(post.id, post.isLiked || false)}
+              >
+                <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
+                <span>{post.likes_count}</span>
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex items-center space-x-1 hover:text-blue-400"
+              >
+                <MessageCircle className="w-4 h-4" />
+                <span>{post.comments_count}</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -394,13 +646,13 @@ const ProfilePage = () => {
                 <span className="text-gray-400 ml-1">Videos Watched</span>
               </div>
               <div className="text-sm">
-                <span className="font-bold text-white">{stats.subscribers}</span>
+                <span className="font-bold text-white">{subscriberCount}</span>
                 <span className="text-gray-400 ml-1">Subscribers</span>
               </div>
               {(userType === 'individual_creator' || userType === 'studio_creator') && (
                 <div className="text-sm">
-                  <span className="font-bold text-white">{stats.uploadedVideos}</span>
-                  <span className="text-gray-400 ml-1">Videos</span>
+                  <span className="font-bold text-white">{posts.length}</span>
+                  <span className="text-gray-400 ml-1">Posts</span>
                 </div>
               )}
             </div>
@@ -408,6 +660,29 @@ const ProfilePage = () => {
 
           {/* Action Buttons - Twitter style positioning */}
           <div className="flex space-x-2 mt-auto">
+            {/* Subscribe Button - Show only for other creators */}
+            {!isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator') && (
+              <Button
+                variant={isSubscribed ? "outline" : "default"}
+                className={isSubscribed 
+                  ? "rounded-full border-red-500 text-red-500 hover:bg-red-500 hover:text-white" 
+                  : "rounded-full bg-orange-500 hover:bg-orange-600 text-white"
+                }
+                onClick={handleSubscribe}
+              >
+                {isSubscribed ? (
+                  <>
+                    <UserMinus className="w-4 h-4 mr-2" />
+                    Unsubscribe
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Subscribe
+                  </>
+                )}
+              </Button>
+            )}
             {/* Tip Button - Always visible */}
             <Dialog open={isTipModalOpen} onOpenChange={setIsTipModalOpen}>
               <DialogTrigger asChild>
@@ -725,17 +1000,186 @@ const ProfilePage = () => {
 
       {/* Content Tabs */}
       <div className="mt-8 px-4 sm:px-6">
-        <Tabs defaultValue="favorites" className="w-full">
+        <Tabs defaultValue="stream" className="w-full">
           <TabsList className={`grid w-full ${userType === 'user' ? 'grid-cols-4' : 'grid-cols-4'} bg-gray-800 border-gray-700`}>
+            <TabsTrigger value="stream" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Stream</TabsTrigger>
             <TabsTrigger value="favorites" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Videos</TabsTrigger>
             <TabsTrigger value="watchlist" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Photos</TabsTrigger>
-            <TabsTrigger value="history" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Stream</TabsTrigger>
             {userType === 'user' ? (
               <TabsTrigger value="upgrade" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">More</TabsTrigger>
             ) : (
               <TabsTrigger value="uploads" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">More</TabsTrigger>
             )}
           </TabsList>
+
+          <TabsContent value="stream" className="mt-6">
+            <div className="space-y-6">
+              {/* Create Post Section - Only for creators on their own profile */}
+              {isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator') && (
+                <Card className="bg-gray-900 border-gray-800">
+                  <CardContent className="p-4">
+                    <div className="flex items-start space-x-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} />
+                        <AvatarFallback className="bg-orange-500 text-white">
+                          {currentUsername.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      
+                      <div className="flex-1">
+                        <Textarea
+                          placeholder="What's happening?"
+                          value={newPostContent}
+                          onChange={(e) => setNewPostContent(e.target.value)}
+                          className="bg-transparent border-0 resize-none text-lg placeholder-gray-400 focus:ring-0 focus:border-0"
+                          rows={3}
+                        />
+                        
+                        {newPostMediaPreview && (
+                          <div className="mt-3 relative inline-block">
+                            {newPostMedia?.type.startsWith('image/') ? (
+                              <img 
+                                src={newPostMediaPreview} 
+                                alt="Preview" 
+                                className="max-h-64 rounded-lg"
+                              />
+                            ) : (
+                              <video 
+                                src={newPostMediaPreview} 
+                                controls 
+                                className="max-h-64 rounded-lg"
+                              />
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="absolute top-2 right-2 bg-black/70 hover:bg-black/90 text-white rounded-full"
+                              onClick={() => {
+                                setNewPostMedia(null);
+                                setNewPostMediaPreview('');
+                              }}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                        
+                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
+                          <div className="flex items-center space-x-3">
+                            <Label htmlFor="media-upload" className="cursor-pointer">
+                              <ImageIcon className="w-5 h-5 text-orange-500 hover:text-orange-400" />
+                              <Input
+                                id="media-upload"
+                                type="file"
+                                accept="image/*,video/*"
+                                className="hidden"
+                                onChange={handleMediaUpload}
+                              />
+                            </Label>
+                          </div>
+                          
+                          <Button
+                            onClick={handleCreatePost}
+                            disabled={(!newPostContent.trim() && !newPostMedia) || isPostingLoading}
+                            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-6"
+                          >
+                            {isPostingLoading ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                            ) : (
+                              <>
+                                <Send className="w-4 h-4 mr-2" />
+                                Post
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Feed Section */}
+              {isOwnProfile ? (
+                // Own profile - show subscribed creators' posts
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-4">Your Feed</h2>
+                  {feedLoading ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                      <p className="text-gray-400 mt-4">Loading feed...</p>
+                    </div>
+                  ) : feedPosts.length > 0 ? (
+                    <div className="space-y-4">
+                      {feedPosts.map(post => (
+                        <PostCard key={post.id} post={post} showDelete={false} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2 text-white">Your feed is empty</h3>
+                      <p className="text-gray-400">
+                        Subscribe to creators to see their posts in your feed!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                // Other creator's profile - show their posts
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-4">{displayedName}'s Posts</h2>
+                  {postsLoading ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                      <p className="text-gray-400 mt-4">Loading posts...</p>
+                    </div>
+                  ) : posts.length > 0 ? (
+                    <div className="space-y-4">
+                      {posts.map(post => (
+                        <PostCard key={post.id} post={post} showDelete={false} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <MessageCircle className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2 text-white">No posts yet</h3>
+                      <p className="text-gray-400">
+                        {displayedName} hasn't shared anything yet.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Own Posts Section - Only for creators on their own profile */}
+              {isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator') && (
+                <div className="border-t border-gray-800 pt-6">
+                  <h2 className="text-xl font-bold text-white mb-4">Your Posts ({posts.length})</h2>
+                  {postsLoading ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                      <p className="text-gray-400 mt-4">Loading your posts...</p>
+                    </div>
+                  ) : posts.length > 0 ? (
+                    <div className="space-y-4">
+                      {posts.map(post => (
+                        <PostCard key={post.id} post={post} showDelete={true} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <MessageCircle className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2 text-white">No posts yet</h3>
+                      <p className="text-gray-400">
+                        Share your first post with your subscribers!
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </TabsContent>
 
           <TabsContent value="favorites" className="mt-6">
             <div className="w-full">
