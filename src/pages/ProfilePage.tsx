@@ -198,7 +198,7 @@ const ProfilePage = () => {
         {/* Cover Photo - Twitter style */}
         <div className="relative">
           <div 
-            className="w-full h-48 sm:h-60 bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
+            className="w-full h-32 sm:h-40 bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
             style={{
               backgroundImage: coverPhoto ? `url(${coverPhoto})` : undefined,
               backgroundSize: 'cover',
@@ -239,11 +239,12 @@ const ProfilePage = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Profile Picture - Positioned over cover */}
-          <div className="absolute -bottom-16 left-4 sm:left-6">
+          <div className="absolute -bottom-12 left-4 sm:left-6">
             <div className="relative">
               <Avatar className="h-24 w-24 sm:h-32 sm:w-32 md:h-36 md:w-36 border-4 border-background shadow-xl">
                 <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} className="object-cover" />
@@ -289,7 +290,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Profile Info Section */}
-        <div className="px-4 sm:px-6 pt-20 pb-6 border-b border-gray-800 bg-background">
+        <div className="px-4 sm:px-6 pt-16 pb-6 border-b border-gray-800 bg-background">
           <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
             <div className="flex-1">
               <div className="flex items-center space-x-2 mb-1">
@@ -356,8 +357,17 @@ const ProfilePage = () => {
             </div>
 
             {/* Action Buttons - Twitter style positioning */}
-            {isOwnProfile && (
-              <div className="flex space-x-2 mt-auto"> {/* Adjust margin-top for alignment */}
+            <div className="flex space-x-2 mt-auto">
+              {/* Tip Button - Always visible */}
+              <Button
+                variant="outline"
+                className="rounded-full border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
+              >
+                <DollarSign className="w-4 h-4 mr-2" />
+                Tip
+              </Button>
+              
+              {isOwnProfile && (
                 <Dialog open={isEditing} onOpenChange={setIsEditing}>
                   <DialogTrigger asChild>
                     <Button
