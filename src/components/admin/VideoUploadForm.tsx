@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { X, Upload, Video, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { uploadVideo } from '@/services/videosService'; // Assuming this service exists
 
 interface VideoUploadFormProps {
   onVideoAdded: () => void;
@@ -108,7 +109,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
       // Step 2: Upload video file with progress tracking
       return new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        
+
         xhr.upload.addEventListener('progress', (e) => {
           if (e.lengthComputable) {
             const progress = Math.round((e.loaded / e.total) * 80); // Reserve 20% for final processing
@@ -131,7 +132,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
         };
 
         xhr.onerror = () => reject(new Error('Upload failed due to network error'));
-        
+
         xhr.open('PUT', `${BUNNY_STREAM_API_URL}/${BUNNY_STREAM_LIBRARY_ID}/videos/${videoId}`);
         xhr.setRequestHeader('AccessKey', BUNNY_STREAM_ACCESS_KEY);
         xhr.send(file);
@@ -272,11 +273,34 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
         thumbnailUrl = streamData.thumbnailUrl;
         previewUrl = streamData.previewUrl;
         setUploadProgress(60);
+
+        // Save video metadata using the same service as UploadPage
+        const allTags = [category, ...customTags];
+        const videoData = {
+          owner_id: user?.id,
+          title: title.trim(),
+          description: description.trim() || undefined,
+          video_url: finalVideoUrl,
+          thumbnail_url: thumbnailUrl,
+          preview_url: previewUrl,
+          duration: '00:00', // This would be calculated from the actual video
+          tags: allTags,
+          is_premium: isPremium,
+          is_moment: false
+        };
+
+        setUploadProgress(80);
+
+        const savedVideo = await uploadVideo(videoData);
+
+        if (!savedVideo) {
+          throw new Error('Failed to save video metadata');
+        }
       } else if (uploadMethod === 'url') {
         // For URL uploads, use the provided URL directly (not Stream processing)
         setUploadProgress(20);
         finalVideoUrl = videoUrl.trim();
-        
+
         // Generate thumbnail for URL uploads
         try {
           const thumbnailBlob = await generateThumbnailFromUrl(finalVideoUrl);
@@ -297,42 +321,29 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
           console.warn('Failed to generate thumbnail for URL upload:', error);
         }
         setUploadProgress(60);
-      }
 
-      setUploadProgress(60);
+        // Save video metadata using the same service as UploadPage
+        const allTags = [category, ...customTags];
+        const videoData = {
+          owner_id: user?.id,
+          title: title.trim(),
+          description: description.trim() || undefined,
+          video_url: finalVideoUrl,
+          thumbnail_url: thumbnailUrl,
+          preview_url: previewUrl,
+          duration: '00:00', // This would be calculated from the actual video
+          tags: allTags,
+          is_premium: isPremium,
+          is_moment: false
+        };
 
-      // Save video metadata to Supabase
-      const videoData = {
-        title: title.trim(),
-        description: description.trim(),
-        category,
-        tags: customTags,
-        video_url: finalVideoUrl,
-        thumbnail_url: thumbnailUrl,
-        preview_url: previewUrl,
-        uploader_id: user?.id,
-        uploader_username: user?.user_metadata?.first_name || user?.email?.split('@')[0] || 'Anonymous',
-        uploader_type: user?.user_metadata?.user_type || 'user',
-        uploader_avatar: user?.user_metadata?.avatar_url || '',
-        is_premium: isPremium,
-        duration: '00:00', // This would be calculated from the actual video
-        views: 0,
-        likes: 0,
-        created_at: new Date().toISOString(),
-      };
+        setUploadProgress(80);
 
-      setUploadProgress(80);
+        const savedVideo = await uploadVideo(videoData);
 
-      const response = await fetch('/api/videos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(videoData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save video metadata');
+        if (!savedVideo) {
+          throw new Error('Failed to save video metadata');
+        }
       }
 
       setUploadProgress(100);
