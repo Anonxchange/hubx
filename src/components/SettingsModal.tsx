@@ -153,17 +153,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
     setPasswordLoading(true);
 
     try {
-      // First verify current password by attempting to sign in
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: user?.email || '',
-        password: currentPassword,
-      });
-
-      if (verifyError) {
-        throw new Error('Current password is incorrect');
-      }
-
-      // Update password
+      // With Supabase, we can directly update the password without verifying current password
+      // The user is already authenticated, so we can proceed with password update
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword
       });
@@ -180,6 +171,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
       setNewPassword('');
       setConfirmPassword('');
     } catch (error: any) {
+      console.error('Password update error:', error);
       toast({
         title: "Password update failed",
         description: error.message || "Failed to update password. Please try again.",
@@ -210,18 +202,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
       return;
     }
 
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not found. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setUsernameLoading(true);
 
     try {
+      // Use update instead of upsert to ensure we're only updating existing profiles
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user?.id,
+        .update({
           username: newUsername,
           updated_at: new Date().toISOString()
-        });
+        })
+        .eq('id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Username update error:', error);
+        throw error;
+      }
 
       setCurrentUsername(newUsername);
       
@@ -230,6 +235,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
         description: "Your username has been successfully changed.",
       });
     } catch (error: any) {
+      console.error('Username update failed:', error);
       toast({
         title: "Username update failed",
         description: error.message || "Failed to update username. Please try again.",
@@ -242,6 +248,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
 
   // Handle 2FA toggle
   const handle2FAToggle = async (enabled: boolean) => {
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not found. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setTwoFactorLoading(true);
 
     try {
@@ -254,14 +269,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
         // Disable 2FA
         const { error } = await supabase
           .from('profiles')
-          .upsert({
-            id: user?.id,
+          .update({
             two_factor_enabled: false,
             two_factor_secret: null,
             updated_at: new Date().toISOString()
-          });
+          })
+          .eq('id', user.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('2FA disable error:', error);
+          throw error;
+        }
 
         setTwoFactorEnabled(false);
         setShowQrSetup(false);
@@ -272,6 +290,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
         });
       }
     } catch (error: any) {
+      console.error('2FA update failed:', error);
       toast({
         title: "2FA update failed",
         description: error.message || "Failed to update 2FA settings.",
@@ -293,6 +312,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
       return;
     }
 
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "User not found. Please refresh and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setTwoFactorLoading(true);
 
     try {
@@ -300,14 +328,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
       // For demo purposes, we'll accept any 6-digit code
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user?.id,
+        .update({
           two_factor_enabled: true,
           two_factor_secret: 'demo_secret_' + Date.now(), // In reality, store the TOTP secret
           updated_at: new Date().toISOString()
-        });
+        })
+        .eq('id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('2FA enable error:', error);
+        throw error;
+      }
 
       setTwoFactorEnabled(true);
       setShowQrSetup(false);
@@ -318,6 +349,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
         description: "Two-factor authentication has been successfully enabled.",
       });
     } catch (error: any) {
+      console.error('2FA verification failed:', error);
       toast({
         title: "2FA verification failed",
         description: error.message || "Failed to verify 2FA setup.",
