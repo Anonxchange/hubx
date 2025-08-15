@@ -1,41 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/Header';
-import CommentSection from '@/components/CommentSection';
 import AdComponent from '@/components/AdComponent';
 import VideoPlayer from '@/components/VideoPlayer';
 import VideoInfo from '@/components/VideoInfo';
-import VideoReactions from '@/components/VideoReactions';
-import VideoTags from '@/components/VideoTags';
 import VideoDescription from '@/components/VideoDescription';
 import RelatedVideos from '@/components/RelatedVideos';
-import Recommended from '@/components/Recommended';
-import { Card } from '@/components/ui/card';
 import { getVideoById, incrementViews } from '@/services/videosService';
 import { useRelatedVideos } from '@/hooks/useVideos';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
-
-// Import Playlist and Share related components and hooks
 import PlaylistModal from '@/components/PlaylistModal';
 import ShareModal from '@/components/ShareModal';
 import { useAddToPlaylist } from '@/hooks/usePlaylists';
-import { trackVideoView } from '@/services/userStatsService'; // Added trackVideoView
+import { trackVideoView } from '@/services/userStatsService';
 
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+  const user = { id: 'user123' }; // Replace with real auth hook
 
-  // Mock user object for demonstration purposes. Replace with actual user authentication hook.
-  const user = { id: 'user123' }; // Example user object
-
-  // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY EARLY RETURNS
   const [videoError, setVideoError] = useState(false);
-
-  // Playlist and Share state
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
@@ -46,31 +32,25 @@ const VideoPage = () => {
     retry: false,
   });
 
-  // These hooks must be called unconditionally, even if video is undefined
   const { data: relatedVideos = [] } = useRelatedVideos(
     video?.id || '',
     video?.tags || [],
     15
   );
 
-  // Playlist hook
-  const { mutate: addVideoToPlaylist, isPending: playlistLoading, isError: playlistError } = useAddToPlaylist();
+  const { mutate: addVideoToPlaylist } = useAddToPlaylist();
+  const { data: reactionData, mutate: reactToVideo, isPending: reactionMutationPending } =
+    useVideoReaction(video?.id || '');
 
-  // Video reaction hook
-  const { data: reactionData, mutate: reactToVideo, isPending: reactionMutationPending } = useVideoReaction(video?.id || '');
-
-  // useEffect hooks
   useEffect(() => {
     if (video?.id) {
       incrementViews(video.id).catch(() => {});
-      // Track video view if user is logged in and video is loaded
       if (user?.id) {
         trackVideoView(video.id, user.id);
       }
     }
   }, [video?.id, user?.id]);
 
-  // NOW we can have early returns after all hooks have been called
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
@@ -94,32 +74,18 @@ const VideoPage = () => {
         <main className="container mx-auto px-4 py-6">
           <div className="text-center py-12">
             <h1 className="text-2xl font-bold mb-2">Video Not Found</h1>
-            <p className="text-muted-foreground mb-4">{error?.message || 'The video you\'re looking for doesn\'t exist or could not be loaded.'}</p>
-            <Link to="/" className="text-primary hover:underline">Go back to homepage</Link>
+            <p className="text-muted-foreground mb-4">
+              {error?.message || "The video you're looking for doesn't exist or could not be loaded."}
+            </p>
+            <Link to="/" className="text-primary hover:underline">
+              Go back to homepage
+            </Link>
           </div>
         </main>
       </div>
     );
   }
 
-  const handleShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: video?.title,
-          text: 'Check out this video on HubX',
-          url: window.location.href,
-        });
-      } catch (err) {
-        console.log('Error sharing:', err);
-      }
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success('Link copied to clipboard!');
-    }
-  };
-
-  // Handle adding video to playlist
   const handleAddToPlaylist = (playlistId: string) => {
     if (video?.id) {
       addVideoToPlaylist({ playlistId, videoId: video.id });
@@ -127,14 +93,15 @@ const VideoPage = () => {
     }
   };
 
-  // Handle sharing video via modal
   const handleShareVideo = () => {
     if (navigator.share) {
-      navigator.share({
-        title: video?.title,
-        text: 'Check out this video on HubX',
-        url: window.location.href,
-      }).catch(console.error);
+      navigator
+        .share({
+          title: video?.title,
+          text: 'Check out this video on HubX',
+          url: window.location.href,
+        })
+        .catch(console.error);
     } else {
       navigator.clipboard.writeText(window.location.href);
       toast.success('Link copied to clipboard!');
@@ -161,10 +128,12 @@ const VideoPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Ad Code in Header - Same as homepage */}
-      <AdComponent zoneId="5660534" />
+      {/* Ad closer to video */}
+      <div className="mb-2">
+        <AdComponent zoneId="5660534" />
+      </div>
 
-      {/* Full Width Video Player - Completely unconstrained like adult sites */}
+      {/* Full Width Video Player */}
       <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
         <div className="relative w-full">
           <div className="w-full aspect-video bg-black">
@@ -185,35 +154,31 @@ const VideoPage = () => {
         </div>
       </div>
 
-      {/* Video Info and Content with container - Added top margin for proper spacing */}
-      <main className="container mx-auto px-4 py-6 mt-8 space-y-8">
-        {/* Video Info */}
-        <div className="space-y-4">
-          <VideoInfo
-            title={video.title}
-            views={video.views}
-            duration={video.duration}
-            createdAt={video.created_at}
-            onShare={() => setIsShareModalOpen(true)} // Open share modal
-            video={video}
-            reactionData={reactionData}
-            onReaction={handleReaction}
-            reactToVideo={reactToVideo}
-            isReactionLoading={reactionMutationPending}
-            reactionMutationPending={reactionMutationPending}
-          />
+      {/* Video Info - reduced top margin */}
+      <main className="container mx-auto px-4 py-6 mt-4 space-y-6">
+        <VideoInfo
+          title={video.title}
+          views={video.views}
+          duration={video.duration}
+          createdAt={video.created_at}
+          onShare={() => setIsShareModalOpen(true)}
+          video={video}
+          reactionData={reactionData}
+          onReaction={handleReaction}
+          reactToVideo={reactToVideo}
+          isReactionLoading={reactionMutationPending}
+          reactionMutationPending={reactionMutationPending}
+        />
 
-          {/* Description */}
-          <VideoDescription description={video.description} />
+        <VideoDescription description={video.description} />
+
+        {/* Second ad */}
+        <div className="my-4">
+          <AdComponent zoneId="5660534" />
         </div>
 
-        {/* Ad Code */}
-        <AdComponent zoneId="5660534" />
-
-        {/* Related Videos Section */}
-        <div className="mt-8">
-          <RelatedVideos videos={relatedVideos} currentVideo={video} videoId={video.id} />
-        </div>
+        {/* Related videos */}
+        <RelatedVideos videos={relatedVideos} currentVideo={video} videoId={video.id} />
       </main>
 
       {/* Playlist Modal */}
