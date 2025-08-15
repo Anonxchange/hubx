@@ -164,8 +164,8 @@ const VideoPage = () => {
       {/* Ad Code in Header - Same as homepage */}
       <AdComponent zoneId="5660534" />
 
-      {/* Full Width Video Player - No container constraints */}
-      <div className="w-full">
+      {/* Full Width Video Player - Completely unconstrained like adult sites */}
+      <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
         <div className="relative w-full">
           <div className="w-full aspect-video bg-black">
             <VideoPlayer
@@ -183,8 +183,8 @@ const VideoPage = () => {
         </div>
       </div>
 
-      {/* Video Info and Content with container */}
-      <main className="container mx-auto px-4 py-6 space-y-8">
+      {/* Video Info and Content with container - Added top margin for proper spacing */}
+      <main className="container mx-auto px-4 py-6 mt-8 space-y-8">
         {/* Video Info */}
         <div className="space-y-4">
           <VideoInfo
