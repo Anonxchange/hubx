@@ -144,48 +144,59 @@ const UploadPage = () => {
     const BUNNY_STREAM_ACCESS_KEY = import.meta.env.VITE_BUNNY_STREAM_ACCESS_KEY || '';
 
     if (!BUNNY_STREAM_LIBRARY_ID || !BUNNY_STREAM_ACCESS_KEY) {
-      throw new Error('Bunny Stream credentials are missing. Check VITE_BUNNY_STREAM_LIBRARY_ID and VITE_BUNNY_STREAM_ACCESS_KEY in your .env file.');
+      throw new Error('Bunny Stream credentials are missing. Check your .env file.');
     }
-    
+
+    // Fetch library info for dynamic CDN
+    const libraryResp = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}`, {
+      headers: { 'AccessKey': BUNNY_STREAM_ACCESS_KEY },
+    });
+
+    if (!libraryResp.ok) {
+      throw new Error(`Failed to fetch library info: ${libraryResp.statusText}`);
+    }
+
+    const libraryData = await libraryResp.json();
+    const cdnUrl = libraryData.cdnUrl;
+
     // Create video in Bunny Stream
-    const createResponse = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
+    const createResp = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
       method: 'POST',
       headers: {
         'AccessKey': BUNNY_STREAM_ACCESS_KEY,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        title: title || file.name,
-      }),
+      body: JSON.stringify({ title: title || file.name }),
     });
 
-    if (!createResponse.ok) {
-      throw new Error(`Failed to create video: ${createResponse.statusText}`);
+    if (!createResp.ok) {
+      throw new Error(`Failed to create video: ${createResp.statusText}`);
     }
 
-    const videoData = await createResponse.json();
+    const videoData = await createResp.json();
     const videoId = videoData.guid;
 
-    // Upload file with progress tracking
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
+
       xhr.upload.addEventListener('progress', e => {
-        if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 80)); // track up to 80% for upload
+        if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 80));
       });
+
       xhr.onload = () => {
         if (xhr.status === 200) {
           setUploadProgress(100);
           resolve({
             videoId,
-            // Use direct HLS playlist (.m3u8) instead of iframe
-            hlsUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/playlist.m3u8`,
-            thumbnailUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/thumbnail.jpg`,
-            previewUrl: `https://vz-${BUNNY_STREAM_LIBRARY_ID}.b-cdn.net/${videoId}/preview.webp`,
+            hlsUrl: `${cdnUrl}/${videoId}/playlist.m3u8`,
+            thumbnailUrl: `${cdnUrl}/${videoId}/thumbnail.jpg`,
+            previewUrl: `${cdnUrl}/${videoId}/preview.webp`,
           });
         } else {
           reject(new Error(`Upload failed with status: ${xhr.status}`));
         }
       };
+
       xhr.onerror = () => reject(new Error('Upload failed'));
       xhr.open('PUT', `https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos/${videoId}`);
       xhr.setRequestHeader('AccessKey', BUNNY_STREAM_ACCESS_KEY);
@@ -208,7 +219,7 @@ const UploadPage = () => {
       const videoData = {
         title: title.trim(),
         description: description.trim() || undefined,
-        video_url: streamData.hlsUrl,        // direct .m3u8 URL
+        video_url: streamData.hlsUrl,
         thumbnail_url: streamData.thumbnailUrl,
         preview_url: streamData.previewUrl,
         duration: '00:00',
@@ -221,7 +232,7 @@ const UploadPage = () => {
       setUploadProgress(100);
       toast({ title: "Upload successful!", description: "Your video is now live on your dashboard." });
 
-      // Reset form after success
+      // Reset form
       setSelectedFile(null);
       setPreviewUrl('');
       setTitle('');
@@ -232,13 +243,9 @@ const UploadPage = () => {
       setIsPremium(false);
       setUploadProgress(0);
 
-      // Redirect to appropriate dashboard after successful upload
       setTimeout(() => {
-        if (userType === 'studio_creator') {
-          navigate('/studio-dashboard');
-        } else {
-          navigate('/creator-dashboard');
-        }
+        if (userType === 'studio_creator') navigate('/studio-dashboard');
+        else navigate('/creator-dashboard');
       }, 1500);
 
     } catch (err) {
@@ -368,21 +375,6 @@ const UploadPage = () => {
                         {categories.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                       </SelectContent>
                     </Select>
-                    {/* Show preview of special category badges */}
-                    {selectedCategory && (
-                      <div className="mt-2">
-                        {selectedCategory.toLowerCase() === '4k' && (
-                          <Badge variant="default" className="bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold">
-                            4K Quality Selected
-                          </Badge>
-                        )}
-                        {selectedCategory.toLowerCase() === 'virtual reality' && (
-                          <Badge variant="default" className="bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold">
-                            🥽 VR Experience Selected
-                          </Badge>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   <div>
@@ -413,29 +405,11 @@ const UploadPage = () => {
                       <Button type="button" onClick={addCustomTag} size="sm">Add</Button>
                     </div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {customTags.map((tag, i) => {
-                        // Special styling for 4K and VR tags
-                        if (tag.toLowerCase() === '4k') {
-                          return (
-                            <Badge key={i} variant="default" className="cursor-pointer bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold" onClick={() => removeTag(tag)}>
-                              4K <X className="w-3 h-3 ml-1" />
-                            </Badge>
-                          );
-                        }
-                        if (['vr', 'virtual reality'].includes(tag.toLowerCase())) {
-                          return (
-                            <Badge key={i} variant="default" className="cursor-pointer bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold" onClick={() => removeTag(tag)}>
-                              🥽 VR <X className="w-3 h-3 ml-1" />
-                            </Badge>
-                          );
-                        }
-                        // Regular tags
-                        return (
-                          <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => removeTag(tag)}>
-                            {tag} <X className="w-3 h-3 ml-1" />
-                          </Badge>
-                        );
-                      })}
+                      {customTags.map((tag, i) => (
+                        <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => removeTag(tag)}>
+                          {tag} <X className="w-3 h-3 ml-1" />
+                        </Badge>
+                      ))}
                     </div>
                   </div>
 
