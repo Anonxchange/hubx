@@ -238,16 +238,16 @@ const ProfilePage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Ad Section - Zone ID 5660534 */}
-      <div className="w-full bg-gray-900 py-6 px-4 border-b border-gray-800">
+      {/* Ad Section - Zone ID 5660534 - Positioned closer to header */}
+      <div className="w-full bg-gray-900 py-2 px-4 border-b border-gray-800">
         <div className="max-w-7xl mx-auto">
           <AdComponent zoneId="5660534" className="w-full" />
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto">
-        {/* Cover Photo with Profile Picture Container */}
-        <div className="relative">
+        {/* Cover Photo with Profile Picture Container - Positioned closer to ads */}
+        <div className="relative -mt-2">
           <div
             className="w-full h-32 sm:h-36 md:h-40 bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
             style={{
