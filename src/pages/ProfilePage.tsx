@@ -239,7 +239,7 @@ const ProfilePage = () => {
       <Header />
 
       {/* Ad Section - Zone ID 5660534 */}
-      <div className="w-full bg-black py-6 px-4 border-b border-gray-800">
+      <div className="w-full bg-gray-900 py-6 px-4 border-b border-gray-800">
         <div className="max-w-7xl mx-auto">
           <AdComponent zoneId="5660534" className="w-full" />
         </div>
@@ -738,87 +738,31 @@ const ProfilePage = () => {
           </TabsList>
 
           <TabsContent value="favorites" className="mt-6">
-            {/* Remove container padding to make it wider */}
             <div className="w-full">
-              {/* Favorite Videos Section */}
-              <div className="mb-8">
-                <div className="px-4 sm:px-6 mb-4">
-                  <h2 className="text-xl font-bold text-white">Favs Videos ({favorites.length})</h2>
-                </div>
-                
-                {favorites.length > 0 ? (
-                  <>
-                    {/* Show first 5 favorites */}
-                    <div className="w-full overflow-hidden">
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 px-4">
-                        {(showMoreFavorites ? favorites : favorites.slice(0, 5)).map((video) => (
-                          <div
-                            key={video.id}
-                            className="group cursor-pointer"
-                            onClick={() => navigate(`/video/${video.id}`)}
-                          >
-                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
-                              {video.thumbnail_url && (
-                                <img
-                                  src={video.thumbnail_url}
-                                  alt={video.title}
-                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                  loading="lazy"
-                                />
-                              )}
-                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                                {video.duration}
-                              </div>
-                            </div>
-                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
-                            <div className="flex items-center space-x-3 text-xs text-gray-400">
-                              <span className="flex items-center space-x-1">
-                                <Eye className="w-3 h-3" />
-                                <span>{video.views?.toLocaleString() || 0}</span>
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    
-                    {/* Show More Button */}
-                    {favorites.length > 5 && (
-                      <div className="text-center mt-6 px-4">
-                        <Button
-                          variant="outline"
-                          className="rounded-full border-gray-600 text-white hover:bg-gray-800 px-8"
-                          onClick={() => setShowMoreFavorites(!showMoreFavorites)}
-                        >
-                          {showMoreFavorites ? 'Show Less' : `Show More (${favorites.length - 5} more)`}
-                        </Button>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-center py-12 px-4">
-                    <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2 text-white">No favorites yet</h3>
-                    <p className="text-gray-400">
-                      Videos you like will appear here. Start exploring to build your collection!
-                    </p>
+              {/* For Creators: Show Uploaded Content First */}
+              {(userType === 'individual_creator' || userType === 'studio_creator') && (
+                <div className="mb-8">
+                  <div className="mb-4">
+                    <h2 className="text-xl font-bold text-white">My Uploads ({uploadedVideos.length})</h2>
                   </div>
-                )}
-              </div>
-
-              {/* Watched Videos Section - Below Favorites */}
-              <div className="border-t border-gray-800 pt-8">
-                <div className="px-4 sm:px-6 mb-4">
-                  <h2 className="text-xl font-bold text-white">Watched ({watchHistory.length})</h2>
-                </div>
-                
-                {watchHistory.length > 0 ? (
-                  <div className="w-full overflow-hidden">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 px-4">
-                      {watchHistory.slice(0, 24).map((video) => (
+                  
+                  {uploadedVideos.length > 0 ? (
+                    <div 
+                      className="w-full max-w-none" 
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                        gap: '16px',
+                        width: '100vw',
+                        maxWidth: '100vw',
+                        margin: '0 -16px',
+                        padding: '0 16px'
+                      }}
+                    >
+                      {uploadedVideos.map((video) => (
                         <div
-                          key={`${video.id}-${video.watched_at}`}
-                          className="group cursor-pointer"
+                          key={video.id}
+                          className="group cursor-pointer w-full"
                           onClick={() => navigate(`/video/${video.id}`)}
                         >
                           <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
@@ -830,9 +774,71 @@ const ProfilePage = () => {
                                 loading="lazy"
                               />
                             )}
-                            <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                              WATCHED
+                            <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
+                              MY VIDEO
                             </div>
+                            <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                              {video.duration || '00:00'}
+                            </div>
+                          </div>
+                          <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                          <div className="flex items-center space-x-3 text-xs text-gray-400">
+                            <span className="flex items-center space-x-1">
+                              <Eye className="w-3 h-3" />
+                              <span>{video.views?.toLocaleString() || 0}</span>
+                            </span>
+                            <span className="flex items-center space-x-1">
+                              <Heart className="w-3 h-3" />
+                              <span>{video.likes?.toLocaleString() || 0}</span>
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Video className="w-8 h-8 mx-auto text-gray-600 mb-2" />
+                      <p className="text-gray-400 text-sm">No uploads yet</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Favorite Videos Section */}
+              <div className="mb-8 {(userType === 'individual_creator' || userType === 'studio_creator') ? 'border-t border-gray-800 pt-8' : ''}">
+                <div className="mb-4">
+                  <h2 className="text-xl font-bold text-white">Favs Videos ({favorites.length})</h2>
+                </div>
+                
+                {favorites.length > 0 ? (
+                  <>
+                    <div 
+                      className="w-full max-w-none" 
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                        gap: '16px',
+                        width: '100vw',
+                        maxWidth: '100vw',
+                        margin: '0 -16px',
+                        padding: '0 16px'
+                      }}
+                    >
+                      {(showMoreFavorites ? favorites : favorites.slice(0, 15)).map((video) => (
+                        <div
+                          key={video.id}
+                          className="group cursor-pointer w-full"
+                          onClick={() => navigate(`/video/${video.id}`)}
+                        >
+                          <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                            {video.thumbnail_url && (
+                              <img
+                                src={video.thumbnail_url}
+                                alt={video.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                loading="lazy"
+                              />
+                            )}
                             <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                               {video.duration}
                             </div>
@@ -847,9 +853,84 @@ const ProfilePage = () => {
                         </div>
                       ))}
                     </div>
+                    
+                    {/* Show More Button */}
+                    {favorites.length > 15 && (
+                      <div className="text-center mt-6">
+                        <Button
+                          variant="outline"
+                          className="rounded-full border-gray-600 text-white hover:bg-gray-800 px-8"
+                          onClick={() => setShowMoreFavorites(!showMoreFavorites)}
+                        >
+                          {showMoreFavorites ? 'Show Less' : `Show More (${favorites.length - 15} more)`}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2 text-white">No favorites yet</h3>
+                    <p className="text-gray-400">
+                      Videos you like will appear here. Start exploring to build your collection!
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Watched Videos Section */}
+              <div className="border-t border-gray-800 pt-8">
+                <div className="mb-4">
+                  <h2 className="text-xl font-bold text-white">Watched ({watchHistory.length})</h2>
+                </div>
+                
+                {watchHistory.length > 0 ? (
+                  <div 
+                    className="w-full max-w-none" 
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                      gap: '16px',
+                      width: '100vw',
+                      maxWidth: '100vw',
+                      margin: '0 -16px',
+                      padding: '0 16px'
+                    }}
+                  >
+                    {watchHistory.slice(0, 30).map((video) => (
+                      <div
+                        key={`${video.id}-${video.watched_at || video.created_at}`}
+                        className="group cursor-pointer w-full"
+                        onClick={() => navigate(`/video/${video.id}`)}
+                      >
+                        <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                          {video.thumbnail_url && (
+                            <img
+                              src={video.thumbnail_url}
+                              alt={video.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              loading="lazy"
+                            />
+                          )}
+                          <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded">
+                            WATCHED
+                          </div>
+                          <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                            {video.duration}
+                          </div>
+                        </div>
+                        <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                        <div className="flex items-center space-x-3 text-xs text-gray-400">
+                          <span className="flex items-center space-x-1">
+                            <Eye className="w-3 h-3" />
+                            <span>{video.views?.toLocaleString() || 0}</span>
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12 px-4">
+                  <div className="text-center py-12">
                     <Play className="w-12 h-12 mx-auto text-gray-600 mb-4" />
                     <h3 className="text-lg font-semibold mb-2 text-white">No viewing history</h3>
                     <p className="text-gray-400">
