@@ -858,12 +858,12 @@ const ProfilePage = () => {
                       Ready to start your creator journey? Choose the plan that fits your needs.
                     </p>
                   </div>
-                </div>
                 </CardContent>
               </Card>
             </TabsContent>
           )}
         </Tabs>
+      </div>
       </div>
 
       <Footer />
