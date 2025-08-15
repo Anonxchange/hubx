@@ -105,6 +105,7 @@ const ProfilePage = () => {
   const [isPostingLoading, setIsPostingLoading] = useState(false);
   const [postsLoading, setPostsLoading] = useState(true);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
 
   // Fetch user statistics
   useEffect(() => {
@@ -312,20 +313,23 @@ const ProfilePage = () => {
 
       // Upload media if present
       if (newPostMedia) {
-        const fileName = `${Date.now()}-${newPostMedia.name}`;
+        const fileName = `${user.id}/${Date.now()}-${newPostMedia.name}`;
         const { data, error } = await supabase.storage
           .from('post_media')
           .upload(fileName, newPostMedia);
 
-        if (!error) {
-          const { data: urlData } = supabase.storage
-            .from('post_media')
-            .getPublicUrl(fileName);
-          
-          mediaUrl = urlData.publicUrl;
-          mediaType = newPostMedia.type.startsWith('image/') ? 'image' : 
-                     newPostMedia.type.startsWith('video/') ? 'video' : '';
+        if (error) {
+          console.error('Error uploading media:', error);
+          throw new Error('Failed to upload media');
         }
+
+        const { data: urlData } = supabase.storage
+          .from('post_media')
+          .getPublicUrl(fileName);
+        
+        mediaUrl = urlData.publicUrl;
+        mediaType = newPostMedia.type.startsWith('image/') ? 'image' : 
+                   newPostMedia.type.startsWith('video/') ? 'video' : '';
       }
 
       const newPost = await createPost({
@@ -339,6 +343,7 @@ const ProfilePage = () => {
         setNewPostContent('');
         setNewPostMedia(null);
         setNewPostMediaPreview('');
+        setIsCreatePostModalOpen(false);
       }
     } catch (error) {
       console.error('Error creating post:', error);
@@ -1012,91 +1017,115 @@ const ProfilePage = () => {
             )}
           </TabsList>
 
-          <TabsContent value="stream" className="mt-6">
+          <TabsContent value="stream" className="mt-6 relative">
             <div className="space-y-6">
-              {/* Create Post Section - Only for creators on their own profile */}
+              {/* Floating Plus Button - Only for creators on their own profile */}
               {isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator') && (
-                <Card className="bg-gray-900 border-gray-800">
-                  <CardContent className="p-4">
-                    <div className="flex items-start space-x-3">
-                      <Avatar className="h-10 w-10">
-                        <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} />
-                        <AvatarFallback className="bg-orange-500 text-white">
-                          {currentUsername.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      
-                      <div className="flex-1">
-                        <Textarea
-                          placeholder="What's happening?"
-                          value={newPostContent}
-                          onChange={(e) => setNewPostContent(e.target.value)}
-                          className="bg-transparent border-0 resize-none text-lg placeholder-gray-400 focus:ring-0 focus:border-0"
-                          rows={3}
-                        />
+                <Dialog open={isCreatePostModalOpen} onOpenChange={setIsCreatePostModalOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      className="fixed bottom-20 right-6 h-14 w-14 rounded-full bg-purple-500 hover:bg-purple-600 shadow-lg border-0 z-50"
+                      size="sm"
+                    >
+                      <Send className="h-6 w-6 text-white" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="bg-gray-900 border-gray-700 max-w-lg">
+                    <DialogHeader className="border-b border-gray-700 pb-4">
+                      <div className="flex items-center justify-between">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="text-gray-400 hover:text-white"
+                          onClick={() => setIsCreatePostModalOpen(false)}
+                        >
+                          Cancel
+                        </Button>
+                        <DialogTitle className="text-white text-lg font-normal">
+                          What's happening?
+                        </DialogTitle>
+                        <Button
+                          onClick={handleCreatePost}
+                          disabled={(!newPostContent.trim() && !newPostMedia) || isPostingLoading}
+                          className="bg-purple-500 hover:bg-purple-600 text-white rounded-full px-6 py-1 text-sm"
+                        >
+                          {isPostingLoading ? (
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                          ) : (
+                            'Post'
+                          )}
+                        </Button>
+                      </div>
+                    </DialogHeader>
+                    
+                    <div className="pt-4">
+                      <div className="flex items-start space-x-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} />
+                          <AvatarFallback className="bg-orange-500 text-white">
+                            {currentUsername.charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
                         
-                        {newPostMediaPreview && (
-                          <div className="mt-3 relative inline-block">
-                            {newPostMedia?.type.startsWith('image/') ? (
-                              <img 
-                                src={newPostMediaPreview} 
-                                alt="Preview" 
-                                className="max-h-64 rounded-lg"
-                              />
-                            ) : (
-                              <video 
-                                src={newPostMediaPreview} 
-                                controls 
-                                className="max-h-64 rounded-lg"
-                              />
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="absolute top-2 right-2 bg-black/70 hover:bg-black/90 text-white rounded-full"
-                              onClick={() => {
-                                setNewPostMedia(null);
-                                setNewPostMediaPreview('');
-                              }}
-                            >
-                              <X className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        )}
-                        
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-700">
-                          <div className="flex items-center space-x-3">
-                            <Label htmlFor="media-upload" className="cursor-pointer">
-                              <ImageIcon className="w-5 h-5 text-orange-500 hover:text-orange-400" />
-                              <Input
-                                id="media-upload"
-                                type="file"
-                                accept="image/*,video/*"
-                                className="hidden"
-                                onChange={handleMediaUpload}
-                              />
-                            </Label>
-                          </div>
+                        <div className="flex-1">
+                          <Textarea
+                            placeholder="What's happening?"
+                            value={newPostContent}
+                            onChange={(e) => setNewPostContent(e.target.value)}
+                            className="bg-transparent border-0 resize-none text-lg placeholder-gray-500 focus:ring-0 focus:border-0 min-h-[120px] text-white"
+                            rows={4}
+                          />
                           
-                          <Button
-                            onClick={handleCreatePost}
-                            disabled={(!newPostContent.trim() && !newPostMedia) || isPostingLoading}
-                            className="bg-orange-500 hover:bg-orange-600 text-white rounded-full px-6"
-                          >
-                            {isPostingLoading ? (
-                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
-                            ) : (
-                              <>
-                                <Send className="w-4 h-4 mr-2" />
-                                Post
-                              </>
-                            )}
-                          </Button>
+                          {newPostMediaPreview && (
+                            <div className="mt-3 relative inline-block">
+                              {newPostMedia?.type.startsWith('image/') ? (
+                                <img 
+                                  src={newPostMediaPreview} 
+                                  alt="Preview" 
+                                  className="max-h-40 rounded-lg"
+                                />
+                              ) : (
+                                <video 
+                                  src={newPostMediaPreview} 
+                                  className="max-h-40 rounded-lg" 
+                                  controls
+                                />
+                              )}
+                              <Button
+                                onClick={() => {
+                                  setNewPostMedia(null);
+                                  setNewPostMediaPreview('');
+                                }}
+                                className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 hover:bg-red-600 h-6 w-6"
+                              >
+                                <X className="h-3 w-3 text-white" />
+                              </Button>
+                            </div>
+                          )}
+                          
+                          <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                            <div className="flex items-center space-x-4">
+                              <Label htmlFor="modal-media-upload" className="cursor-pointer">
+                                <ImageIcon className="w-5 h-5 text-purple-500 hover:text-purple-400" />
+                                <Input
+                                  id="modal-media-upload"
+                                  type="file"
+                                  accept="image/*,video/*"
+                                  className="hidden"
+                                  onChange={handleMediaUpload}
+                                />
+                              </Label>
+                            </div>
+                            
+                            <div className="text-sm text-gray-500">
+                              Everyone can reply
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </DialogContent>
+                </Dialog>
               )}
 
               {/* Feed Section */}
