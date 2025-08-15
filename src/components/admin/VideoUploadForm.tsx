@@ -289,12 +289,18 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
           is_moment: false
         };
 
-        setUploadProgress(80);
+        console.log('Attempting to save video with data:', videoData);
 
-        const savedVideo = await uploadVideo(videoData);
+        try {
+          const savedVideo = await uploadVideo(videoData);
+          console.log('Video saved successfully:', savedVideo);
 
-        if (!savedVideo) {
-          throw new Error('Failed to save video metadata');
+          if (!savedVideo) {
+            throw new Error('Failed to save video metadata - no response from server');
+          }
+        } catch (serviceError) {
+          console.error('Video service error:', serviceError);
+          throw new Error(`Failed to save video: ${serviceError instanceof Error ? serviceError.message : String(serviceError)}`);
         }
       } else if (uploadMethod === 'url') {
         // For URL uploads, use the provided URL directly (not Stream processing)
@@ -337,12 +343,18 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
           is_moment: false
         };
 
-        setUploadProgress(80);
+        console.log('Attempting to save video with data:', videoData);
 
-        const savedVideo = await uploadVideo(videoData);
+        try {
+          const savedVideo = await uploadVideo(videoData);
+          console.log('Video saved successfully:', savedVideo);
 
-        if (!savedVideo) {
-          throw new Error('Failed to save video metadata');
+          if (!savedVideo) {
+            throw new Error('Failed to save video metadata - no response from server');
+          }
+        } catch (serviceError) {
+          console.error('Video service error:', serviceError);
+          throw new Error(`Failed to save video: ${serviceError instanceof Error ? serviceError.message : String(serviceError)}`);
         }
       }
 
