@@ -53,7 +53,7 @@ import {
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import VerificationBadge from '@/components/VerificationBadge';
-import VideoUploadForm from '@/components/admin/VideoUploadForm';
+import UploadPage from '@/pages/UploadPage';
 import AdComponent from '@/components/AdComponent';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -1494,17 +1494,9 @@ const ProfilePage = () => {
             <TabsContent value="uploads" className="mt-6">
               <div className="space-y-6">
                 {/* Upload Form Section */}
-                <Card className="bg-gray-900 border-gray-800">
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2 text-white">
-                      <Upload className="w-5 h-5 text-orange-500" />
-                      <span>Upload New Content</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <VideoUploadForm onVideoAdded={() => window.location.reload()} />
-                  </CardContent>
-                </Card>
+                <div className="bg-gray-900 border border-gray-800 rounded-lg">
+                  <UploadPage />
+                </div>
 
                 {/* My Uploads Section */}
                 <Card className="bg-gray-900 border-gray-800">
