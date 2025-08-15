@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 export interface Post {
@@ -111,7 +110,7 @@ export const getCreatorPosts = async (creatorId: string): Promise<Post[]> => {
         .in('post_id', postIds);
 
       const likedPostIds = new Set(likes?.map(like => like.post_id) || []);
-      
+
       return data.map(post => ({
         ...post,
         isLiked: likedPostIds.has(post.id)
@@ -170,7 +169,7 @@ export const getFeedPosts = async (limit: number = 20): Promise<Post[]> => {
         .in('post_id', postIds);
 
       const likedPostIds = new Set(likes?.map(like => like.post_id) || []);
-      
+
       return data.map(post => ({
         ...post,
         isLiked: likedPostIds.has(post.id)
