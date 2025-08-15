@@ -46,6 +46,81 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          backup_codes: string[] | null
+          bio: string | null
+          cover_photo_url: string | null
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          location: string | null
+          profile_picture_url: string | null
+          tip_bitcoin: string | null
+          tip_cashapp: string | null
+          tip_description: string | null
+          tip_ethereum: string | null
+          tip_paypal: string | null
+          tip_venmo: string | null
+          two_factor_enabled: boolean | null
+          two_factor_secret: string | null
+          updated_at: string | null
+          username: string | null
+          user_type: Database["public"]["Enums"]["user_type"]
+          website: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          backup_codes?: string[] | null
+          bio?: string | null
+          cover_photo_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id: string
+          location?: string | null
+          profile_picture_url?: string | null
+          tip_bitcoin?: string | null
+          tip_cashapp?: string | null
+          tip_description?: string | null
+          tip_ethereum?: string | null
+          tip_paypal?: string | null
+          tip_venmo?: string | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
+          updated_at?: string | null
+          username?: string | null
+          user_type: Database["public"]["Enums"]["user_type"]
+          website?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          backup_codes?: string[] | null
+          bio?: string | null
+          cover_photo_url?: string | null
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          location?: string | null
+          profile_picture_url?: string | null
+          tip_bitcoin?: string | null
+          tip_cashapp?: string | null
+          tip_description?: string | null
+          tip_ethereum?: string | null
+          tip_paypal?: string | null
+          tip_venmo?: string | null
+          two_factor_enabled?: boolean | null
+          two_factor_secret?: string | null
+          updated_at?: string | null
+          username?: string | null
+          user_type?: Database["public"]["Enums"]["user_type"]
+          website?: string | null
+        }
+        Relationships: []
+      }
       video_reactions: {
         Row: {
           created_at: string
