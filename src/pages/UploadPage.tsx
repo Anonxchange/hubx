@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Upload, X, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,21 +14,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { uploadVideo } from '@/services/videosService';
 
 const categories = [
-  '18-25', '60FPS', 'Amateur', 'Anal', 'Arab', 'Asian', 'Babe', 'Babysitter (18+)',
-  'BBW', 'Behind The Scenes', 'Big Ass', 'Big Dick', 'Big Tits', 'Blonde', 'Blowjob',
-  'Bondage', 'Brazilian', 'British', 'Brunette', 'Cartoon', 'Casting', 'College (18+)',
-  'Compilation', 'Cosplay', 'Creampie', 'Cumshot', 'Czech', 'Double Penetration',
-  'Ebony', 'Euro', 'Exclusive', 'Feet', 'Female Orgasm', 'Fetish', 'Fingering',
-  'Fisting', 'French', 'Funny', 'Gaming', 'Gangbang', 'German', 'Handjob', 'Hardcore',
-  'HD Porn', 'Hentai', 'Indian', 'Interactive', 'Interracial', 'Italian', 'Japanese',
-  'Korean', 'Latina', 'Lesbian', 'Massage', 'Masturbation', 'Mature', 'MILF', 'Music',
-  'Muscular Men', 'Old/Young (18+)', 'Orgy', 'Parody', 'Party', 'Pissing', 'Podcast',
-  'Popular With Women', 'Pornstar', 'POV', 'Public', 'Pussy Licking', 'Reality',
-  'Red Head', 'Role Play', 'Romantic', 'Rough Sex', 'Russian', 'School (18+)', 'SFW',
-  'Small Tits', 'Smoking', 'Solo Female', 'Solo Male', 'Squirt', 'Step Fantasy',
-  'Strap On', 'Striptease', 'Tattooed Women', 'Threesome', 'Toys', 'Transgender',
-  'Verified Amateurs', 'Verified Couples', 'Verified Models', 'Vintage',
-  'Virtual Reality', 'Webcam'
+  '18-25', '60FPS', 'Amateur', 'Anal', 'Arab', 'Asian', 'Babe', 'Babysitter (18+)', 
+  'BBW', 'Behind The Scenes', 'Big Ass', 'Big Dick', 'Big Tits', 'Blonde', 'Blowjob', 
+  'Bondage', 'Brazilian', 'British', 'Brunette', 'Cartoon', 'Casting', 'College (18+)', 
+  'Compilation', 'Cosplay', 'Creampie', 'Cumshot', 'Czech', 'Double Penetration', 
+  'Ebony', 'Euro', 'Exclusive', 'Feet', 'Female Orgasm', 'Fetish', 'Fingering', 
+  'Fisting', 'French', 'Funny', 'Gaming', 'Gangbang', 'German', 'Handjob', 'Hardcore', 
+  'HD Porn', 'Hentai', 'Indian', 'Interactive', 'Interracial', 'Italian', 'Japanese', 
+  'Korean', 'Latina', 'Lesbian', 'Massage', 'Masturbation', 'Mature', 'MILF', 'Music', 
+  'Muscular Men', 'Old/Young (18+)', 'Orgy', 'Parody', 'Party', 'Pissing', 'Podcast', 
+  'Popular With Women', 'Pornstar', 'POV', 'Public', 'Pussy Licking', 'Reality', 
+  'Red Head', 'Role Play', 'Romantic', 'Rough Sex', 'Russian', 'School (18+)', 'SFW', 
+  'Small Tits', 'Smoking', 'Solo Female', 'Solo Male', 'Squirt', 'Step Fantasy', 
+  'Strap On', 'Striptease', 'Tattooed Women', 'Threesome', 'Toys', 'Transgender', 
+  'Verified Amateurs', 'Verified Couples', 'Verified Models', 'Vintage', 'Virtual Reality', 
+  'Webcam'
 ];
 
 const UploadPage = () => {
@@ -44,6 +44,7 @@ const UploadPage = () => {
   const [isMuted, setIsMuted] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+  const [duration, setDuration] = useState('00:00');
 
   // Form state
   const [title, setTitle] = useState('');
@@ -52,7 +53,6 @@ const UploadPage = () => {
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [isPremium, setIsPremium] = useState(false);
-  const [videoDuration, setVideoDuration] = useState('00:00');
 
   // User role check
   const isCreator = userType === 'individual_creator' || userType === 'studio_creator';
@@ -80,37 +80,36 @@ const UploadPage = () => {
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) handleSelectedFile(file);
+    if (!file) return;
+
+    if (!file.type.startsWith('video/')) {
+      toast({ title: "Invalid file type", description: "Please select a video file.", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 500 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Max 500MB allowed.", variant: "destructive" });
+      return;
+    }
+
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+
+    // Extract duration
+    const tempVideo = document.createElement('video');
+    tempVideo.src = URL.createObjectURL(file);
+    tempVideo.onloadedmetadata = () => {
+      const mins = Math.floor(tempVideo.duration / 60);
+      const secs = Math.floor(tempVideo.duration % 60);
+      setDuration(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+    };
   };
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
     const file = event.dataTransfer.files[0];
     if (!file) return;
-    handleSelectedFile(file);
-  };
-
-  const handleSelectedFile = (file: File) => {
-    if (!file.type.startsWith('video/')) {
-      toast({ title: "Invalid file type", description: "Please select a video file.", variant: "destructive" });
-      return;
-    }
-    if (file.size > 500 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Max 500MB allowed.", variant: "destructive" });
-      return;
-    }
-    setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
-
-    // Get actual video duration
-    const tempVideo = document.createElement('video');
-    tempVideo.src = URL.createObjectURL(file);
-    tempVideo.addEventListener('loadedmetadata', () => {
-      const duration = tempVideo.duration;
-      const minutes = Math.floor(duration / 60);
-      const seconds = Math.floor(duration % 60);
-      setVideoDuration(`${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}`);
-    });
+    handleFileSelect({ target: { files: [file] } } as any);
   };
 
   const togglePlay = () => {
@@ -138,30 +137,16 @@ const UploadPage = () => {
 
   const removeTag = (tag: string) => setCustomTags(customTags.filter(t => t !== tag));
 
-  const uploadToBunnyStream = async (file: File): Promise<{
-    videoId: string;
-    hlsUrl: string;
-    thumbnailUrl: string;
-    previewUrl: string;
-  }> => {
+  const uploadToBunnyStream = async (file: File) => {
     const BUNNY_STREAM_LIBRARY_ID = import.meta.env.VITE_BUNNY_STREAM_LIBRARY_ID || '';
     const BUNNY_STREAM_ACCESS_KEY = import.meta.env.VITE_BUNNY_STREAM_ACCESS_KEY || '';
+    const cdnUrl = import.meta.env.VITE_BUNNY_CDN_URL || '';
 
-    if (!BUNNY_STREAM_LIBRARY_ID || !BUNNY_STREAM_ACCESS_KEY) {
-      throw new Error('Bunny Stream credentials are missing. Check your .env file.');
+    if (!BUNNY_STREAM_LIBRARY_ID || !BUNNY_STREAM_ACCESS_KEY || !cdnUrl) {
+      throw new Error('Bunny Stream credentials or CDN URL are missing. Check your .env file.');
     }
 
-    const libraryResp = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}`, {
-      headers: { 'AccessKey': BUNNY_STREAM_ACCESS_KEY },
-    });
-
-    if (!libraryResp.ok) {
-      throw new Error(`Failed to fetch library info: ${libraryResp.statusText}`);
-    }
-
-    const libraryData = await libraryResp.json();
-    const cdnUrl = libraryData.cdnUrl;
-
+    // Create video in Bunny Stream
     const createResp = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
       method: 'POST',
       headers: {
@@ -171,16 +156,13 @@ const UploadPage = () => {
       body: JSON.stringify({ title: title || file.name }),
     });
 
-    if (!createResp.ok) {
-      throw new Error(`Failed to create video: ${createResp.statusText}`);
-    }
+    if (!createResp.ok) throw new Error(`Failed to create video: ${createResp.statusText}`);
 
     const videoData = await createResp.json();
     const videoId = videoData.guid;
 
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
-
       xhr.upload.addEventListener('progress', e => {
         if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 80));
       });
@@ -194,9 +176,7 @@ const UploadPage = () => {
             thumbnailUrl: `${cdnUrl}/${videoId}/thumbnail.jpg`,
             previewUrl: `${cdnUrl}/${videoId}/preview.webp`,
           });
-        } else {
-          reject(new Error(`Upload failed with status: ${xhr.status}`));
-        }
+        } else reject(new Error(`Upload failed with status: ${xhr.status}`));
       };
 
       xhr.onerror = () => reject(new Error('Upload failed'));
@@ -212,11 +192,13 @@ const UploadPage = () => {
       toast({ title: "Missing required fields", description: "Fill all required fields.", variant: "destructive" });
       return;
     }
+
     setIsUploading(true);
     try {
       setUploadProgress(20);
       const streamData = await uploadToBunnyStream(selectedFile);
       setUploadProgress(80);
+
       const allTags = [selectedCategory, ...customTags];
       const videoData = {
         title: title.trim(),
@@ -224,11 +206,12 @@ const UploadPage = () => {
         video_url: streamData.hlsUrl,
         thumbnail_url: streamData.thumbnailUrl,
         preview_url: streamData.previewUrl,
-        duration: videoDuration,
+        duration, // actual duration from file
         tags: allTags,
         is_premium: isPremium,
         is_moment: false
       };
+
       const savedVideo = await uploadVideo(videoData);
       if (!savedVideo) throw new Error('Failed to save video metadata');
       setUploadProgress(100);
@@ -244,7 +227,7 @@ const UploadPage = () => {
       setTagInput('');
       setIsPremium(false);
       setUploadProgress(0);
-      setVideoDuration('00:00');
+      setDuration('00:00');
 
       setTimeout(() => {
         if (userType === 'studio_creator') navigate('/studio-dashboard');
@@ -315,11 +298,11 @@ const UploadPage = () => {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">
-                          {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB) • Duration: {videoDuration}
+                          {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB) - {duration}
                         </span>
                         <Button
                           type="button"
-                          onClick={() => { setSelectedFile(null); setPreviewUrl(''); setVideoDuration('00:00'); }}
+                          onClick={() => { setSelectedFile(null); setPreviewUrl(''); setDuration('00:00'); }}
                           size="sm"
                           variant="outline"
                         >
