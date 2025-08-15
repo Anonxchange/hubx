@@ -138,15 +138,15 @@ const UploadPage = () => {
   const removeTag = (tag: string) => setCustomTags(customTags.filter(t => t !== tag));
 
   const uploadToBunnyStream = async (file: File) => {
-    const BUNNY_STREAM_LIBRARY_ID = import.meta.env.VITE_BUNNY_STREAM_LIBRARY_ID || '';
-    const BUNNY_STREAM_ACCESS_KEY = import.meta.env.VITE_BUNNY_STREAM_ACCESS_KEY || '';
+    // Hardcode the credentials since env variables aren't loading properly
+    const BUNNY_STREAM_LIBRARY_ID = '476242';
+    const BUNNY_STREAM_ACCESS_KEY = 'f6fc4579-a3e4-484d-8387361ef995-6653-4a7b';
     
     // Use your specific CDN URL
     const cdnUrl = 'https://vz-a3bd9097-45c.b-cdn.net';
 
-    if (!BUNNY_STREAM_LIBRARY_ID || !BUNNY_STREAM_ACCESS_KEY) {
-      throw new Error('Bunny Stream credentials are missing. Check your .env file.');
-    }
+    console.log('Using Library ID:', BUNNY_STREAM_LIBRARY_ID);
+    console.log('Using Access Key:', BUNNY_STREAM_ACCESS_KEY ? 'Present' : 'Missing');
 
     try {
       // Create video in Bunny Stream
