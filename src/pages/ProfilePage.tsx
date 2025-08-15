@@ -198,7 +198,7 @@ const ProfilePage = () => {
         {/* Cover Photo with Profile Picture Container */}
         <div className="relative">
           <div
-            className="w-full h-48 sm:h-56 md:h-64 bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
+            className="w-full h-32 sm:h-36 md:h-40 bg-gradient-to-br from-gray-800 via-gray-700 to-black relative overflow-hidden"
             style={{
               backgroundImage: coverPhoto ? `url(${coverPhoto})` : undefined,
               backgroundSize: 'cover',
@@ -243,7 +243,7 @@ const ProfilePage = () => {
           </div>
 
           {/* Profile Picture - Positioned to overlap cover photo */}
-          <div className="absolute -bottom-16 right-6 sm:right-8 md:right-12">
+          <div className="absolute -bottom-14 right-6 sm:right-8 md:right-12">
             <div className="relative">
               <Avatar className="h-28 w-28 sm:h-32 sm:w-32 md:h-40 md:w-40 border-4 border-background shadow-2xl ring-2 ring-primary/20">
                 <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} className="object-cover" />
@@ -289,7 +289,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Profile Info Section */}
-      <div className="px-4 sm:px-6 pt-16 pb-6 border-b border-gray-800 bg-background">
+      <div className="px-4 sm:px-6 pt-14 pb-6 border-b border-gray-800 bg-background">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex-1">
             <div className="flex items-center space-x-2 mb-1">
@@ -858,12 +858,12 @@ const ProfilePage = () => {
                       Ready to start your creator journey? Choose the plan that fits your needs.
                     </p>
                   </div>
+                </div>
                 </CardContent>
               </Card>
             </TabsContent>
           )}
         </Tabs>
-      </div>
       </div>
 
       <Footer />
