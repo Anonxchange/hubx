@@ -164,49 +164,49 @@ const VideoPage = () => {
       {/* Ad Code in Header - Same as homepage */}
       <AdComponent zoneId="5660534" />
 
-      <main className="container mx-auto px-4 py-6 space-y-8">
-        {/* Full Width Video Player */}
-        <div className="w-full space-y-6">
-          {/* Video Player */}
-          <div className="relative">
-            <div className="w-full aspect-video bg-black">
-              <VideoPlayer
-                src={video.video_url}
-                poster={video.thumbnail_url}
-                onError={handleVideoError}
-                onCanPlay={handleVideoCanPlay}
-              />
-            </div>
-            {videoError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg">
-                Failed to load video.
-              </div>
-            )}
-          </div>
-
-          {/* Video Info */}
-          <div className="space-y-4">
-            <VideoInfo
-              title={video.title}
-              views={video.views}
-              duration={video.duration}
-              createdAt={video.created_at}
-              onShare={() => setIsShareModalOpen(true)} // Open share modal
-              video={video}
-              reactionData={reactionData}
-              onReaction={handleReaction}
-              reactToVideo={reactToVideo}
-              isReactionLoading={reactionMutationPending}
-              reactionMutationPending={reactionMutationPending}
+      {/* Full Width Video Player - No container constraints */}
+      <div className="w-full">
+        <div className="relative w-full">
+          <div className="w-full aspect-video bg-black">
+            <VideoPlayer
+              src={video.video_url}
+              poster={video.thumbnail_url}
+              onError={handleVideoError}
+              onCanPlay={handleVideoCanPlay}
             />
-
-            {/* Description */}
-            <VideoDescription description={video.description} />
           </div>
-
-          {/* Ad Code */}
-          <AdComponent zoneId="5660534" />
+          {videoError && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg">
+              Failed to load video.
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Video Info and Content with container */}
+      <main className="container mx-auto px-4 py-6 space-y-8">
+        {/* Video Info */}
+        <div className="space-y-4">
+          <VideoInfo
+            title={video.title}
+            views={video.views}
+            duration={video.duration}
+            createdAt={video.created_at}
+            onShare={() => setIsShareModalOpen(true)} // Open share modal
+            video={video}
+            reactionData={reactionData}
+            onReaction={handleReaction}
+            reactToVideo={reactToVideo}
+            isReactionLoading={reactionMutationPending}
+            reactionMutationPending={reactionMutationPending}
+          />
+
+          {/* Description */}
+          <VideoDescription description={video.description} />
+        </div>
+
+        {/* Ad Code */}
+        <AdComponent zoneId="5660534" />
 
         {/* Related Videos Section */}
         <div className="mt-8">
