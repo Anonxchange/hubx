@@ -16,7 +16,7 @@ export const getUserStats = async (userId: string): Promise<UserStats> => {
     // Get user's watch history count (table doesn't exist yet, so return 0)
     let watchHistory = null;
     let watchError = null;
-    
+
     try {
       const { data, error } = await supabase
         .from('video_views')
@@ -147,10 +147,34 @@ export const getUserFavorites = async (userId: string) => {
 // Get user's watch history
 export const getUserWatchHistory = async (userId: string) => {
   try {
-    // Since video_views table doesn't exist, return empty array for now
-    // This should be implemented when the proper schema is available
-    console.log('Watch history feature not yet implemented');
-    return [];
+    const { data: watchHistory, error } = await supabase
+      .from('video_views')
+      .select(`
+        video_id,
+        watched_at,
+        videos (
+          id,
+          title,
+          thumbnail_url,
+          duration,
+          views,
+          likes,
+          created_at
+        )
+      `)
+      .eq('user_id', userId)
+      .order('watched_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error fetching watch history:', error);
+      return [];
+    }
+
+    return watchHistory?.map(view => ({
+      ...view.videos,
+      watched_at: view.watched_at
+    })).filter(video => video && video.id) || [];
   } catch (error) {
     console.error('Error fetching watch history:', error);
     return [];
