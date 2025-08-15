@@ -262,14 +262,6 @@ const ProfileDropdown = () => {
               <span>HubX Contests</span>
             </DropdownMenuItem>
 
-            <DropdownMenuItem
-              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-              onClick={() => navigate('/support')}
-            >
-              <HelpCircle className="mr-3 h-5 w-5 text-blue-400" />
-              <span>Support</span>
-            </DropdownMenuItem>
-
             <DropdownMenuSeparator className="bg-gray-700" />
           </div>
         )}
@@ -284,15 +276,17 @@ const ProfileDropdown = () => {
             <span>Feed</span>
           </DropdownMenuItem>
 
-          <DropdownMenuItem
-            className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-            onClick={() => navigate('/become-model')}
-          >
-            <div className="flex items-center">
-              <Clock className="mr-3 h-5 w-5 text-blue-400 stroke-[3]" />
-              <span>Become a Creator</span>
-            </div>
-          </DropdownMenuItem>
+          {!isCreator && (
+            <DropdownMenuItem
+              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
+              onClick={() => navigate('/become-model')}
+            >
+              <div className="flex items-center">
+                <Clock className="mr-3 h-5 w-5 text-blue-400 stroke-[3]" />
+                <span>Become a Creator</span>
+              </div>
+            </DropdownMenuItem>
+          )}
 
           <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3">
             <div className="flex items-center justify-between w-full">
