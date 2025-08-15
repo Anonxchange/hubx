@@ -116,7 +116,7 @@ const ProfilePage = () => {
         // If viewing a public profile, we need to fetch user ID based on username
         try {
           const { data, error } = await supabase
-            .from('users') // Assuming you have a 'users' table to map usernames to IDs
+            .from('profiles') // Use profiles table to map usernames to IDs
             .select('id')
             .eq('username', username) // Assuming 'username' is a unique field
             .single();
@@ -169,12 +169,18 @@ const ProfilePage = () => {
         const results = await Promise.all(promises);
         const [userStats, userFavorites, userWatchHistory, profileResponse, uploadsResponse] = results;
 
-        setStats(userStats);
-        setFavorites(userFavorites);
-        setWatchHistory(userWatchHistory);
+        if (typeof userStats === 'object' && 'videosWatched' in userStats) {
+          setStats(userStats);
+        }
+        if (Array.isArray(userFavorites)) {
+          setFavorites(userFavorites);
+        }
+        if (Array.isArray(userWatchHistory)) {
+          setWatchHistory(userWatchHistory);
+        }
 
         // Load profile data including tip details
-        if (profileResponse && !profileResponse.error && profileResponse.data) {
+        if (profileResponse && typeof profileResponse === 'object' && 'error' in profileResponse && !profileResponse.error && profileResponse.data) {
           const profile = profileResponse.data;
 
           // Set profile fields
@@ -194,14 +200,16 @@ const ProfilePage = () => {
             ethereum: profile.tip_ethereum || '',
             description: profile.tip_description || 'Support my content creation journey! 💖'
           });
-        } else if (profileResponse && profileResponse.error) {
+        } else if (profileResponse && typeof profileResponse === 'object' && 'error' in profileResponse && profileResponse.error) {
           console.log('Profile not found, will create on first save');
         }
 
-        if (uploadsResponse && !uploadsResponse.error) {
-          setUploadedVideos(uploadsResponse.data || []);
-        } else if (uploadsResponse && uploadsResponse.error) {
-          console.error('Error fetching uploaded videos:', uploadsResponse.error);
+        if (uploadsResponse && typeof uploadsResponse === 'object' && 'error' in uploadsResponse) {
+          if (!uploadsResponse.error) {
+            setUploadedVideos(uploadsResponse.data || []);
+          } else {
+            console.error('Error fetching uploaded videos:', uploadsResponse.error);
+          }
         }
       } catch (error) {
         console.error('Error fetching user data:', error);
@@ -312,7 +320,7 @@ const ProfilePage = () => {
       let mediaType = '';
 
       // Upload media if present
-      if (newPostMedia) {
+      if (newPostMedia && user?.id) {
         const fileName = `${user.id}/${Date.now()}-${newPostMedia.name}`;
         const { data, error } = await supabase.storage
           .from('post_media')
@@ -958,7 +966,7 @@ const ProfilePage = () => {
                             bio: bio,
                             location: location,
                             website: website,
-                            profile_picture_url: profilePhoto,
+                            avatar_url: profilePhoto,
                             cover_photo_url: coverPhoto,
                             tip_paypal: tipDetails.paypal,
                             tip_venmo: tipDetails.venmo,
@@ -966,6 +974,7 @@ const ProfilePage = () => {
                             tip_bitcoin: tipDetails.bitcoin,
                             tip_ethereum: tipDetails.ethereum,
                             tip_description: tipDetails.description,
+                            user_type: userType || 'user',
                             updated_at: new Date().toISOString()
                           };
 
