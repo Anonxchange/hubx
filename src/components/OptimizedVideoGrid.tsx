@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
 import AdComponent from '@/components/AdComponent';
 import { useAuth } from '@/contexts/AuthContext';
+import VerificationBadge from './VerificationBadge';
 
 interface LightVideo {
   id: string;
@@ -18,6 +19,8 @@ interface LightVideo {
   tags: string[];
   created_at: string;
   is_premium?: boolean;
+  uploader_username?: string;
+  uploader_type?: 'user' | 'creator' | 'studio' | 'individual_creator' | 'studio_creator';
 }
 
 interface OptimizedVideoGridProps {
@@ -88,6 +91,23 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                   {video.description}
                 </p>
               )}
+
+              {/* Creator name with verification badge - Pornhub style */}
+              {video.uploader_username && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">
+                    {video.uploader_username}
+                  </span>
+                  {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+                    <VerificationBadge
+                      userType={video.uploader_type}
+                      showText={false}
+                      size="small"
+                    />
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                 <span className="flex items-center">
                   <Eye className="w-4 h-4 mr-1" />
@@ -173,6 +193,22 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">
             {video.title}
           </h3>
+
+          {/* Creator name with verification badge - Pornhub style */}
+          {video.uploader_username && (
+            <div className="flex items-center space-x-2">
+              <span className="text-xs text-muted-foreground">
+                {video.uploader_username}
+              </span>
+              {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+                <VerificationBadge
+                  userType={video.uploader_type}
+                  showText={false}
+                  size="small"
+                />
+              )}
+            </div>
+          )}
 
           <div className="flex items-center space-x-4 text-xs text-muted-foreground">
             <span className="flex items-center">
