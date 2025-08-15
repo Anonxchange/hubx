@@ -140,50 +140,62 @@ const UploadPage = () => {
   const uploadToBunnyStream = async (file: File) => {
     const BUNNY_STREAM_LIBRARY_ID = import.meta.env.VITE_BUNNY_STREAM_LIBRARY_ID || '';
     const BUNNY_STREAM_ACCESS_KEY = import.meta.env.VITE_BUNNY_STREAM_ACCESS_KEY || '';
-    const cdnUrl = import.meta.env.VITE_BUNNY_CDN_URL || '';
+    
+    // Use your specific CDN URL
+    const cdnUrl = 'https://vz-a3bd9097-45c.b-cdn.net';
 
-    if (!BUNNY_STREAM_LIBRARY_ID || !BUNNY_STREAM_ACCESS_KEY || !cdnUrl) {
-      throw new Error('Bunny Stream credentials or CDN URL are missing. Check your .env file.');
+    if (!BUNNY_STREAM_LIBRARY_ID || !BUNNY_STREAM_ACCESS_KEY) {
+      throw new Error('Bunny Stream credentials are missing. Check your .env file.');
     }
 
-    // Create video in Bunny Stream
-    const createResp = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
-      method: 'POST',
-      headers: {
-        'AccessKey': BUNNY_STREAM_ACCESS_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ title: title || file.name }),
-    });
-
-    if (!createResp.ok) throw new Error(`Failed to create video: ${createResp.statusText}`);
-
-    const videoData = await createResp.json();
-    const videoId = videoData.guid;
-
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.upload.addEventListener('progress', e => {
-        if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 80));
+    try {
+      // Create video in Bunny Stream
+      const createResp = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
+        method: 'POST',
+        headers: {
+          'AccessKey': BUNNY_STREAM_ACCESS_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title: title || file.name }),
       });
 
-      xhr.onload = () => {
-        if (xhr.status === 200) {
-          setUploadProgress(100);
-          resolve({
-            videoId,
-            hlsUrl: `${cdnUrl}/${videoId}/playlist.m3u8`,
-            thumbnailUrl: `${cdnUrl}/${videoId}/thumbnail.jpg`,
-            previewUrl: `${cdnUrl}/${videoId}/preview.webp`,
-          });
-        } else reject(new Error(`Upload failed with status: ${xhr.status}`));
-      };
+      if (!createResp.ok) {
+        const errorText = await createResp.text();
+        throw new Error(`Failed to create video: ${createResp.status} - ${errorText}`);
+      }
 
-      xhr.onerror = () => reject(new Error('Upload failed'));
-      xhr.open('PUT', `https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos/${videoId}`);
-      xhr.setRequestHeader('AccessKey', BUNNY_STREAM_ACCESS_KEY);
-      xhr.send(file);
-    });
+      const videoData = await createResp.json();
+      const videoId = videoData.guid;
+
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.upload.addEventListener('progress', e => {
+          if (e.lengthComputable) setUploadProgress(Math.round((e.loaded / e.total) * 80));
+        });
+
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            setUploadProgress(100);
+            resolve({
+              videoId,
+              hlsUrl: `${cdnUrl}/${videoId}/playlist.m3u8`,
+              thumbnailUrl: `${cdnUrl}/${videoId}/thumbnail.jpg`,
+              previewUrl: `${cdnUrl}/${videoId}/preview.webp`,
+            });
+          } else {
+            reject(new Error(`Upload failed with status: ${xhr.status} - ${xhr.responseText}`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Upload failed due to network error'));
+        xhr.open('PUT', `https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos/${videoId}`);
+        xhr.setRequestHeader('AccessKey', BUNNY_STREAM_ACCESS_KEY);
+        xhr.send(file);
+      });
+    } catch (error) {
+      console.error('Bunny Stream upload error:', error);
+      throw error;
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -201,6 +213,7 @@ const UploadPage = () => {
 
       const allTags = [selectedCategory, ...customTags];
       const videoData = {
+        owner_id: user.id,
         title: title.trim(),
         description: description.trim() || undefined,
         video_url: streamData.hlsUrl,
