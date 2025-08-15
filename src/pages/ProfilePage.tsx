@@ -866,10 +866,9 @@ const ProfilePage = () => {
         </Tabs>
       </div>
     </div>
-
       <Footer />
     </div>
   );
-};
+}
 
 export default ProfilePage;
