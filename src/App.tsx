@@ -31,7 +31,7 @@ import ChannelPage from '@/pages/ChannelPage';
 import PlaylistsPage from './pages/PlaylistsPage';
 import ReportVideoPage from './pages/ReportVideoPage';
 import FavoritesPage from '@/pages/FavoritesPage';
-import FeedPage from './pages/FeedPage';
+import FeedPage from '@/pages/FeedPage';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
