@@ -123,6 +123,56 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Helper to handle OAuth signup with user type from URL params
+  const handleOAuthSignup = async (currentUser: User) => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const userTypeFromUrl = urlParams.get('user_type') as UserType;
+    
+    if (userTypeFromUrl) {
+      try {
+        // Check if profile exists
+        const { data: existingProfile } = await supabase
+          .from('profiles')
+          .select('id, user_type')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (!existingProfile) {
+          // Create new profile with the selected user type
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+              id: currentUser.id,
+              email: currentUser.email,
+              user_type: userTypeFromUrl,
+              full_name: currentUser.user_metadata?.full_name || 
+                        `${currentUser.user_metadata?.first_name || ''} ${currentUser.user_metadata?.last_name || ''}`.trim()
+            });
+
+          if (profileError) {
+            console.error('Error creating OAuth profile:', profileError);
+          } else {
+            console.log('Created OAuth profile with user type:', userTypeFromUrl);
+          }
+        }
+
+        // Store user type and clear URL params
+        localStorage.setItem(`user_type_${currentUser.id}`, userTypeFromUrl);
+        setUserAndCache(currentUser, userTypeFromUrl);
+        
+        // Clear the user_type param from URL
+        urlParams.delete('user_type');
+        const newUrl = `${window.location.pathname}${urlParams.toString() ? '?' + urlParams.toString() : ''}`;
+        window.history.replaceState({}, '', newUrl);
+        
+        return true;
+      } catch (error) {
+        console.error('OAuth signup error:', error);
+      }
+    }
+    return false;
+  };
+
   // On component mount, get session and subscribe to auth state changes
   useEffect(() => {
     let isInitialLoad = true;
@@ -142,30 +192,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           localStorage.removeItem('auth_user');
           localStorage.removeItem('auth_user_type');
         } else if (session?.user) {
-          // If we have cached data and it matches the session user, don't refetch
-          const cachedUser = localStorage.getItem('auth_user');
-          const cachedUserType = localStorage.getItem('auth_user_type');
+          // Check if this is an OAuth signup with user type in URL
+          const handledOAuth = await handleOAuthSignup(session.user as User);
           
-          if (cachedUser && cachedUserType && isInitialLoad) {
-            try {
-              const parsedUser = JSON.parse(cachedUser) as User;
-              if (parsedUser.id === session.user.id) {
-                // User data is already set from cache, just verify it's still valid
-                console.log('Using cached user data for session verification');
-                // Ensure email confirmation status is up to date
-                setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
-                setLoading(false);
-                return;
+          if (!handledOAuth) {
+            // If we have cached data and it matches the session user, don't refetch
+            const cachedUser = localStorage.getItem('auth_user');
+            const cachedUserType = localStorage.getItem('auth_user_type');
+            
+            if (cachedUser && cachedUserType && isInitialLoad) {
+              try {
+                const parsedUser = JSON.parse(cachedUser) as User;
+                if (parsedUser.id === session.user.id) {
+                  // User data is already set from cache, just verify it's still valid
+                  console.log('Using cached user data for session verification');
+                  // Ensure email confirmation status is up to date
+                  setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
+                  setLoading(false);
+                  return;
+                }
+              } catch (err) {
+                console.error('Error parsing cached user during session check:', err);
+                // Clear invalid cache
+                localStorage.removeItem('auth_user');
+                localStorage.removeItem('auth_user_type');
               }
-            } catch (err) {
-              console.error('Error parsing cached user during session check:', err);
-              // Clear invalid cache
-              localStorage.removeItem('auth_user');
-              localStorage.removeItem('auth_user_type');
             }
+            
+            await fetchUserAndSetType(session.user as User);
           }
-          
-          await fetchUserAndSetType(session.user as User);
         } else {
           // No session, clear everything
           setUser(null);
@@ -196,8 +251,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
       
       if (session?.user) {
-        // Always fetch user type on auth state changes (login, token refresh, etc.)
-        await fetchUserAndSetType(session.user as User);
+        // Check for OAuth signup or normal auth state change
+        const handledOAuth = await handleOAuthSignup(session.user as User);
+        
+        if (!handledOAuth) {
+          // Always fetch user type on auth state changes (login, token refresh, etc.)
+          await fetchUserAndSetType(session.user as User);
+        }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setUserType(null);
