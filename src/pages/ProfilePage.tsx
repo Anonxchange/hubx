@@ -429,8 +429,8 @@ const ProfilePage = () => {
                     </div>
                   </DialogContent>
                 </Dialog>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
