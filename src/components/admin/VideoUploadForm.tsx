@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { X, Upload, Video, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { uploadVideo } from '@/services/videosService'; // Assuming this service exists
+import * as videosService from '@/services/videosService'; // Assuming this service exists
 
 interface VideoUploadFormProps {
   onVideoAdded: () => void;
@@ -293,12 +293,14 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
 
         try {
           console.log('Calling uploadVideo service with data:', videoData);
+          console.log('videosService:', videosService);
+          console.log('uploadVideo function:', videosService.uploadVideo);
 
-          if (typeof uploadVideo !== 'function') {
+          if (typeof videosService.uploadVideo !== 'function') {
             throw new Error('uploadVideo service is not available or not imported correctly');
           }
 
-          const savedVideo = await uploadVideo(videoData);
+          const savedVideo = await videosService.uploadVideo(videoData);
           console.log('Video saved successfully:', savedVideo);
 
           if (!savedVideo) {
@@ -364,12 +366,14 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
 
         try {
           console.log('Calling uploadVideo service with data:', videoData);
+          console.log('videosService:', videosService);
+          console.log('uploadVideo function:', videosService.uploadVideo);
 
-          if (typeof uploadVideo !== 'function') {
+          if (typeof videosService.uploadVideo !== 'function') {
             throw new Error('uploadVideo service is not available or not imported correctly');
           }
 
-          const savedVideo = await uploadVideo(videoData);
+          const savedVideo = await videosService.uploadVideo(videoData);
           console.log('Video saved successfully:', savedVideo);
 
           if (!savedVideo) {
