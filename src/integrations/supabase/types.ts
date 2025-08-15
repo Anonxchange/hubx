@@ -46,6 +46,163 @@ export type Database = {
           },
         ]
       }
+      posts: {
+        Row: {
+          id: string
+          creator_id: string
+          content: string
+          media_url: string | null
+          media_type: string | null
+          privacy: string
+          created_at: string
+          updated_at: string
+          likes_count: number
+          comments_count: number
+        }
+        Insert: {
+          id?: string
+          creator_id: string
+          content: string
+          media_url?: string | null
+          media_type?: string | null
+          privacy?: string
+          created_at?: string
+          updated_at?: string
+          likes_count?: number
+          comments_count?: number
+        }
+        Update: {
+          id?: string
+          creator_id?: string
+          content?: string
+          media_url?: string | null
+          media_type?: string | null
+          created_at?: string
+          updated_at?: string
+          likes_count?: number
+          comments_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "posts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          subscriber_id: string
+          creator_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          subscriber_id: string
+          creator_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          subscriber_id?: string
+          creator_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_subscriber_id_fkey"
+            columns: ["subscriber_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_likes: {
+        Row: {
+          id: string
+          post_id: string
+          user_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          user_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          user_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_likes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_comments: {
+        Row: {
+          id: string
+          post_id: string
+          user_id: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          post_id: string
+          user_id: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          post_id?: string
+          user_id?: string
+          content?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
