@@ -292,6 +292,12 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
         console.log('Attempting to save video with data:', videoData);
 
         try {
+          console.log('Calling uploadVideo service with data:', videoData);
+
+          if (typeof uploadVideo !== 'function') {
+            throw new Error('uploadVideo service is not available or not imported correctly');
+          }
+
           const savedVideo = await uploadVideo(videoData);
           console.log('Video saved successfully:', savedVideo);
 
@@ -299,8 +305,19 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
             throw new Error('Failed to save video metadata - no response from server');
           }
         } catch (serviceError) {
-          console.error('Video service error:', serviceError);
-          throw new Error(`Failed to save video: ${serviceError instanceof Error ? serviceError.message : String(serviceError)}`);
+          console.error('Video service error details:', serviceError);
+          console.error('Error stack:', serviceError instanceof Error ? serviceError.stack : 'No stack trace');
+
+          let errorMessage = 'Failed to save video';
+          if (serviceError instanceof Error) {
+            errorMessage += `: ${serviceError.message}`;
+          } else if (typeof serviceError === 'string') {
+            errorMessage += `: ${serviceError}`;
+          } else {
+            errorMessage += `: ${JSON.stringify(serviceError)}`;
+          }
+
+          throw new Error(errorMessage);
         }
       } else if (uploadMethod === 'url') {
         // For URL uploads, use the provided URL directly (not Stream processing)
@@ -346,6 +363,12 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
         console.log('Attempting to save video with data:', videoData);
 
         try {
+          console.log('Calling uploadVideo service with data:', videoData);
+
+          if (typeof uploadVideo !== 'function') {
+            throw new Error('uploadVideo service is not available or not imported correctly');
+          }
+
           const savedVideo = await uploadVideo(videoData);
           console.log('Video saved successfully:', savedVideo);
 
@@ -353,8 +376,19 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
             throw new Error('Failed to save video metadata - no response from server');
           }
         } catch (serviceError) {
-          console.error('Video service error:', serviceError);
-          throw new Error(`Failed to save video: ${serviceError instanceof Error ? serviceError.message : String(serviceError)}`);
+          console.error('Video service error details:', serviceError);
+          console.error('Error stack:', serviceError instanceof Error ? serviceError.stack : 'No stack trace');
+
+          let errorMessage = 'Failed to save video';
+          if (serviceError instanceof Error) {
+            errorMessage += `: ${serviceError.message}`;
+          } else if (typeof serviceError === 'string') {
+            errorMessage += `: ${serviceError}`;
+          } else {
+            errorMessage += `: ${JSON.stringify(serviceError)}`;
+          }
+
+          throw new Error(errorMessage);
         }
       }
 
