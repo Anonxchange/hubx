@@ -13,12 +13,14 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
+import SettingsModal from '@/components/SettingsModal';
 
 const ProfileDropdown = () => {
   const { user, userType, signOut, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const { language, setLanguage, t } = useLanguage();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Show loading state instead of null to maintain layout
   if (loading) {
@@ -151,7 +153,7 @@ const ProfileDropdown = () => {
             {/* Third Row */}
             <div
               className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-              onClick={() => navigate('/settings')}
+              onClick={() => setIsSettingsOpen(true)}
             >
               <Settings className="h-6 w-6 text-gray-300" />
               <span className="text-xs text-gray-300">{t('settings')}</span>
@@ -363,6 +365,12 @@ const ProfileDropdown = () => {
           <span>{t('logout')}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
+      
+      {/* Settings Modal */}
+      <SettingsModal
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+      />
     </DropdownMenu>
   );
 };
