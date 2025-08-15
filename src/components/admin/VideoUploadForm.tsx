@@ -11,6 +11,7 @@ import { X, Upload, Video, Star } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import * as videosService from '@/services/videosService'; // Assuming this service exists
+import { uploadVideo } from '@/services/videosService'; // Direct import for uploadVideo
 
 interface VideoUploadFormProps {
   onVideoAdded: () => void;
@@ -293,14 +294,13 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
 
         try {
           console.log('Calling uploadVideo service with data:', videoData);
-          console.log('videosService:', videosService);
-          console.log('uploadVideo function:', videosService.uploadVideo);
+          console.log('uploadVideo function:', uploadVideo);
 
-          if (typeof videosService.uploadVideo !== 'function') {
+          if (typeof uploadVideo !== 'function') {
             throw new Error('uploadVideo service is not available or not imported correctly');
           }
 
-          const savedVideo = await videosService.uploadVideo(videoData);
+          const savedVideo = await uploadVideo(videoData);
           console.log('Video saved successfully:', savedVideo);
 
           if (!savedVideo) {
@@ -366,14 +366,13 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
 
         try {
           console.log('Calling uploadVideo service with data:', videoData);
-          console.log('videosService:', videosService);
-          console.log('uploadVideo function:', videosService.uploadVideo);
+          console.log('uploadVideo function:', uploadVideo);
 
-          if (typeof videosService.uploadVideo !== 'function') {
+          if (typeof uploadVideo !== 'function') {
             throw new Error('uploadVideo service is not available or not imported correctly');
           }
 
-          const savedVideo = await videosService.uploadVideo(videoData);
+          const savedVideo = await uploadVideo(videoData);
           console.log('Video saved successfully:', savedVideo);
 
           if (!savedVideo) {
