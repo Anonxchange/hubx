@@ -23,10 +23,14 @@ import { Badge } from '@/components/ui/badge';
 import PlaylistModal from '@/components/PlaylistModal';
 import ShareModal from '@/components/ShareModal';
 import { useAddToPlaylist } from '@/hooks/usePlaylists';
+import { trackVideoView } from '@/services/userStatsService'; // Added trackVideoView
 
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
+
+  // Mock user object for demonstration purposes. Replace with actual user authentication hook.
+  const user = { id: 'user123' }; // Example user object
 
   // ALL HOOKS MUST BE CALLED FIRST - BEFORE ANY EARLY RETURNS
   const [videoError, setVideoError] = useState(false);
@@ -59,8 +63,12 @@ const VideoPage = () => {
   useEffect(() => {
     if (video?.id) {
       incrementViews(video.id).catch(() => {});
+      // Track video view if user is logged in and video is loaded
+      if (user?.id) {
+        trackVideoView(video.id, user.id);
+      }
     }
-  }, [video?.id]);
+  }, [video?.id, user?.id]);
 
   // NOW we can have early returns after all hooks have been called
   if (isLoading) {
@@ -162,8 +170,8 @@ const VideoPage = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Video Player */}
             <div className="relative">
-              {/* Mobile: Full width with responsive height */}
-              <div className="block md:hidden -mx-4 relative bg-black" style={{ aspectRatio: '16/10' }}>
+              {/* Full width video player */}
+              <div className="w-full aspect-video bg-black">
                 <VideoPlayer
                   src={video.video_url}
                   poster={video.thumbnail_url}
@@ -171,18 +179,6 @@ const VideoPage = () => {
                   onCanPlay={handleVideoCanPlay}
                 />
               </div>
-
-              {/* Desktop: Responsive height with flexible sizing */}
-              <Card className="hidden md:block overflow-hidden">
-                <div className="relative bg-black" style={{ aspectRatio: '16/10', minHeight: '400px', maxHeight: '75vh' }}>
-                  <VideoPlayer
-                    src={video.video_url}
-                    poster={video.thumbnail_url}
-                    onError={handleVideoError}
-                    onCanPlay={handleVideoCanPlay}
-                  />
-                </div>
-              </Card>
               {videoError && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg">
                   Failed to load video.
