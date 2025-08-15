@@ -528,11 +528,11 @@ const ProfilePage = () => {
                     Edit profile
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md bg-gray-900 border-gray-700">
+                <DialogContent className="max-w-md max-h-[90vh] bg-gray-900 border-gray-700 overflow-hidden flex flex-col">
                   <DialogHeader>
                     <DialogTitle className="text-white">Edit Profile</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4">
+                  <div className="space-y-4 overflow-y-auto flex-1 px-1">
                     <div className="space-y-2">
                       <Label htmlFor="displayName" className="text-gray-200">Display Name</Label>
                       <Input
