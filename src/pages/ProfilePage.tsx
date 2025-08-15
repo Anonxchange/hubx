@@ -32,6 +32,7 @@ import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import VerificationBadge from '@/components/VerificationBadge';
 import VideoUploadForm from '@/components/admin/VideoUploadForm';
+import AdComponent from '@/components/AdComponent';
 import { supabase } from '@/integrations/supabase/client';
 
 const ProfilePage = () => {
@@ -69,6 +70,7 @@ const ProfilePage = () => {
     ethereum: '',
     description: 'Support my content creation journey! 💖'
   });
+  const [showMoreFavorites, setShowMoreFavorites] = useState(false);
 
   // Fetch user statistics
   useEffect(() => {
@@ -236,16 +238,10 @@ const ProfilePage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Ad Section */}
-      <div className="w-full bg-gray-900 py-4 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-gradient-to-r from-orange-500 to-red-600 rounded-lg p-4 text-center text-white">
-            <div className="flex items-center justify-center space-x-2">
-              <span className="text-sm font-semibold">AD ID: 5660534</span>
-              <span className="px-2 py-1 bg-white/20 rounded text-xs">Premium Content</span>
-            </div>
-            <p className="mt-2 text-sm opacity-90">Your advertisement content goes here - Premium placement</p>
-          </div>
+      {/* Ad Section - Zone ID 5660534 */}
+      <div className="w-full bg-black py-6 px-4 border-b border-gray-800">
+        <div className="max-w-7xl mx-auto">
+          <AdComponent zoneId="5660534" className="w-full" />
         </div>
       </div>
 
@@ -742,15 +738,86 @@ const ProfilePage = () => {
           </TabsList>
 
           <TabsContent value="favorites" className="mt-6">
-            <div className="px-4 sm:px-6">
-              <div className="mb-6">
-                <h2 className="text-xl font-bold text-white mb-4">Favs Videos ({favorites.length})</h2>
+            {/* Remove container padding to make it wider */}
+            <div className="w-full">
+              {/* Favorite Videos Section */}
+              <div className="mb-8">
+                <div className="px-4 sm:px-6 mb-4">
+                  <h2 className="text-xl font-bold text-white">Favs Videos ({favorites.length})</h2>
+                </div>
+                
                 {favorites.length > 0 ? (
                   <>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
-                      {favorites.slice(0, 5).map((video) => (
+                    {/* Show first 5 favorites */}
+                    <div className="w-full overflow-hidden">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 px-4">
+                        {(showMoreFavorites ? favorites : favorites.slice(0, 5)).map((video) => (
+                          <div
+                            key={video.id}
+                            className="group cursor-pointer"
+                            onClick={() => navigate(`/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    {/* Show More Button */}
+                    {favorites.length > 5 && (
+                      <div className="text-center mt-6 px-4">
+                        <Button
+                          variant="outline"
+                          className="rounded-full border-gray-600 text-white hover:bg-gray-800 px-8"
+                          onClick={() => setShowMoreFavorites(!showMoreFavorites)}
+                        >
+                          {showMoreFavorites ? 'Show Less' : `Show More (${favorites.length - 5} more)`}
+                        </Button>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="text-center py-12 px-4">
+                    <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2 text-white">No favorites yet</h3>
+                    <p className="text-gray-400">
+                      Videos you like will appear here. Start exploring to build your collection!
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Watched Videos Section - Below Favorites */}
+              <div className="border-t border-gray-800 pt-8">
+                <div className="px-4 sm:px-6 mb-4">
+                  <h2 className="text-xl font-bold text-white">Watched ({watchHistory.length})</h2>
+                </div>
+                
+                {watchHistory.length > 0 ? (
+                  <div className="w-full overflow-hidden">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 px-4">
+                      {watchHistory.slice(0, 24).map((video) => (
                         <div
-                          key={video.id}
+                          key={`${video.id}-${video.watched_at}`}
                           className="group cursor-pointer"
                           onClick={() => navigate(`/video/${video.id}`)}
                         >
@@ -780,27 +847,13 @@ const ProfilePage = () => {
                         </div>
                       ))}
                     </div>
-                    {favorites.length > 5 && (
-                      <div className="text-center">
-                        <Button
-                          variant="outline"
-                          className="rounded-full border-gray-600 text-white hover:bg-gray-800 px-8"
-                          onClick={() => {
-                            // You can implement a modal or expand functionality here
-                            console.log('View more favorites');
-                          }}
-                        >
-                          View All
-                        </Button>
-                      </div>
-                    )}
-                  </>
+                  </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                    <h3 className="text-lg font-semibold mb-2 text-white">Favs Videos (1)</h3>
+                  <div className="text-center py-12 px-4">
+                    <Play className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                    <h3 className="text-lg font-semibold mb-2 text-white">No viewing history</h3>
                     <p className="text-gray-400">
-                      Videos you like will appear here. Start exploring to build your collection!
+                      Your recently watched videos will appear here.
                     </p>
                   </div>
                 )}
