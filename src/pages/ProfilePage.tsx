@@ -63,6 +63,7 @@ const ProfilePage = () => {
   const navigate = useNavigate();
   const [currentUserUsername, setCurrentUserUsername] = useState<string | null>(null);
   const [profileLoadComplete, setProfileLoadComplete] = useState(false);
+  const [profileUserType, setProfileUserType] = useState<string>('user'); // For viewing other users' profiles
   
   // Determine if this is own profile after we know the current user's username
   const isOwnProfile = !username || (currentUserUsername && username === currentUserUsername);
@@ -151,13 +152,14 @@ const ProfilePage = () => {
           // Query with only the basic columns that definitely exist
           const { data, error } = await supabase
             .from('profiles')
-            .select('id, username, full_name, user_type, avatar_url')
+            .select('id, username, full_name, user_type, avatar_url, bio, location, website')
             .eq('username', username)
             .single();
 
           if (error || !data) {
-            console.error('Profile not found:', error);
+            console.error('Profile not found for username:', username, error);
             // Handle case where profile is not found, perhaps show a 404 or default state
+            setStatsLoading(false);
             return;
           }
 
@@ -165,19 +167,20 @@ const ProfilePage = () => {
           targetProfileData = data; // Store the fetched data
 
           // Set public profile data for display with available columns
-          setDisplayName(data.full_name || data.username || '');
-          setBio('Welcome to my profile! 🌟'); // Default values for missing columns
-          setLocation(''); 
-          setWebsite('');
+          setDisplayName(data.full_name || data.username || username);
+          setBio(data.bio || 'Welcome to my profile! 🌟');
+          setLocation(data.location || ''); 
+          setWebsite(data.website || '');
           setProfilePhoto(data.avatar_url || '');
           setCoverPhoto('');
 
           // Set profile user type for proper display
           if (data.user_type) {
-            setProfileUserType(data.user_type as UserType);
+            setProfileUserType(data.user_type);
           }
         } catch (error) {
           console.error('Error fetching public profile:', error);
+          setStatsLoading(false);
           return;
         }
       }
@@ -276,12 +279,17 @@ const ProfilePage = () => {
         try {
           const { data } = await supabase
             .from('profiles')
-            .select('id')
+            .select('id, username, full_name, avatar_url, bio, user_type')
             .eq('username', username)
             .single();
 
           if (data) {
             targetUserId = data.id;
+            // Set profile data for the viewed user
+            setDisplayName(data.full_name || data.username || username);
+            setProfilePhoto(data.avatar_url || '');
+            setBio(data.bio || 'Welcome to my profile! 🌟');
+            setProfileUserType(data.user_type || 'user');
           } else {
             console.log('Profile not found for username:', username);
             // If username doesn't exist, we cannot fetch social data for them
@@ -356,7 +364,7 @@ const ProfilePage = () => {
     }
   };
 
-  const [profileUserType, setProfileUserType] = useState<UserType | null>(userType);
+  
 
   const getUserTypeInfo = () => {
     // Use profileUserType for display, which can be set from fetched profile data
@@ -651,7 +659,7 @@ const ProfilePage = () => {
           <div className="absolute -bottom-14 right-6 sm:right-8 md:right-12">
             <div className="relative">
               <Avatar className="h-28 w-28 sm:h-32 sm:w-32 md:h-40 md:w-40 border-4 border-background shadow-2xl ring-2 ring-primary/20">
-                <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} className="object-cover" />
+                <AvatarImage src={profilePhoto} className="object-cover" />
                 <AvatarFallback className="text-2xl md:text-4xl font-bold bg-gradient-to-br from-orange-500 to-red-600 text-white">
                   {currentUsername.charAt(0).toUpperCase()}
                 </AvatarFallback>
@@ -1157,7 +1165,7 @@ const ProfilePage = () => {
                       <div className="pt-4">
                         <div className="flex items-start space-x-3">
                           <Avatar className="h-12 w-12">
-                            <AvatarImage src={profilePhoto || user?.user_metadata?.avatar_url} />
+                            <AvatarImage src={profilePhoto} />
                             <AvatarFallback className="bg-orange-500 text-white">
                               {currentUsername.charAt(0).toUpperCase()}
                             </AvatarFallback>
@@ -1308,11 +1316,13 @@ const ProfilePage = () => {
 
             <TabsContent value="favorites" className="mt-6">
               <div className="w-full">
-                {/* For Creators: Show Uploaded Content First */}
-                {(userType === 'individual_creator' || userType === 'studio_creator') && (
+                {/* Uploaded Videos Section - Show for creators */}
+                {((isOwnProfile ? userType : profileUserType) === 'individual_creator' || (isOwnProfile ? userType : profileUserType) === 'studio_creator') && (
                   <div className="mb-8">
                     <div className="mb-4">
-                      <h2 className="text-xl font-bold text-white">My Uploads ({uploadedVideos.length})</h2>
+                      <h2 className="text-xl font-bold text-white">
+                        {isOwnProfile ? 'My Uploads' : `${displayedName}'s Uploads`} ({uploadedVideos.length})
+                      </h2>
                     </div>
 
                     {uploadedVideos.length > 0 ? (
@@ -1343,9 +1353,11 @@ const ProfilePage = () => {
                                   loading="lazy"
                                 />
                               )}
-                              <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
-                                MY VIDEO
-                              </div>
+                              {isOwnProfile && (
+                                <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
+                                  MY VIDEO
+                                </div>
+                              )}
                               <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                                 {video.duration || '00:00'}
                               </div>
@@ -1367,20 +1379,98 @@ const ProfilePage = () => {
                     ) : (
                       <div className="text-center py-8">
                         <Video className="w-8 h-8 mx-auto text-gray-600 mb-2" />
-                        <p className="text-gray-400 text-sm">No uploads yet</p>
+                        <p className="text-gray-400 text-sm">
+                          {isOwnProfile ? 'No uploads yet' : 'No uploads yet'}
+                        </p>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Favorite Videos Section */}
-                <div className="mb-8 {(userType === 'individual_creator' || userType === 'studio_creator') ? 'border-t border-gray-800 pt-8' : ''}">
-                  <div className="mb-4">
-                    <h2 className="text-xl font-bold text-white">Favs Videos ({favorites.length})</h2>
-                  </div>
+                {/* Favorite Videos Section - Only show for own profile (like YouTube) */}
+                {isOwnProfile && (
+                  <div className={`mb-8 ${((userType === 'individual_creator' || userType === 'studio_creator') ? 'border-t border-gray-800 pt-8' : '')}`}>
+                    <div className="mb-4">
+                      <h2 className="text-xl font-bold text-white">Liked Videos ({favorites.length})</h2>
+                    </div>
 
-                  {favorites.length > 0 ? (
-                    <>
+                    {favorites.length > 0 ? (
+                      <>
+                        <div
+                          className="w-full max-w-none"
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                            gap: '16px',
+                            width: '100vw',
+                            maxWidth: '100vw',
+                            margin: '0 -16px',
+                            padding: '0 16px'
+                          }}
+                        >
+                          {(showMoreFavorites ? favorites : favorites.slice(0, 15)).map((video) => (
+                            <div
+                              key={video.id}
+                              className="group cursor-pointer w-full"
+                              onClick={() => navigate(`/video/${video.id}`)}
+                            >
+                              <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                                {video.thumbnail_url && (
+                                  <img
+                                    src={video.thumbnail_url}
+                                    alt={video.title}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                    loading="lazy"
+                                  />
+                                )}
+                                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                  {video.duration}
+                                </div>
+                              </div>
+                              <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                              <div className="flex items-center space-x-3 text-xs text-gray-400">
+                                <span className="flex items-center space-x-1">
+                                  <Eye className="w-3 h-3" />
+                                  <span>{video.views?.toLocaleString() || 0}</span>
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Show More Button */}
+                        {favorites.length > 15 && (
+                          <div className="text-center mt-6">
+                            <Button
+                              variant="outline"
+                              className="rounded-full border-gray-600 text-white hover:bg-gray-800 px-8"
+                              onClick={() => setShowMoreFavorites(!showMoreFavorites)}
+                            >
+                              {showMoreFavorites ? 'Show Less' : `Show More (${favorites.length - 15} more)`}
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                        <h3 className="text-lg font-semibold mb-2 text-white">No liked videos yet</h3>
+                        <p className="text-gray-400">
+                          Videos you like will appear here. Start exploring to build your collection!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Watch History Section - Only show for own profile (like YouTube) */}
+                {isOwnProfile && (
+                  <div className={`${((userType === 'individual_creator' || userType === 'studio_creator') || favorites.length > 0) ? 'border-t border-gray-800 pt-8' : ''}`}>
+                    <div className="mb-4">
+                      <h2 className="text-xl font-bold text-white">Watch History ({watchHistory.length})</h2>
+                    </div>
+
+                    {watchHistory.length > 0 ? (
                       <div
                         className="w-full max-w-none"
                         style={{
@@ -1393,9 +1483,9 @@ const ProfilePage = () => {
                           padding: '0 16px'
                         }}
                       >
-                        {(showMoreFavorites ? favorites : favorites.slice(0, 15)).map((video) => (
+                        {watchHistory.slice(0, 30).map((video) => (
                           <div
-                            key={video.id}
+                            key={`${video.id}-${video.watched_at || video.created_at}`}
                             className="group cursor-pointer w-full"
                             onClick={() => navigate(`/video/${video.id}`)}
                           >
@@ -1408,6 +1498,9 @@ const ProfilePage = () => {
                                   loading="lazy"
                                 />
                               )}
+                              <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded">
+                                WATCHED
+                              </div>
                               <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                                 {video.duration}
                               </div>
@@ -1422,92 +1515,30 @@ const ProfilePage = () => {
                           </div>
                         ))}
                       </div>
-
-                      {/* Show More Button */}
-                      {favorites.length > 15 && (
-                        <div className="text-center mt-6">
-                          <Button
-                            variant="outline"
-                            className="rounded-full border-gray-600 text-white hover:bg-gray-800 px-8"
-                            onClick={() => setShowMoreFavorites(!showMoreFavorites)}
-                          >
-                            {showMoreFavorites ? 'Show Less' : `Show More (${favorites.length - 15} more)`}
-                          </Button>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="text-center py-12">
-                      <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                      <h3 className="text-lg font-semibold mb-2 text-white">No favorites yet</h3>
-                      <p className="text-gray-400">
-                        Videos you like will appear here. Start exploring to build your collection!
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Watched Videos Section */}
-                <div className="border-t border-gray-800 pt-8">
-                  <div className="mb-4">
-                    <h2 className="text-xl font-bold text-white">Watched ({watchHistory.length})</h2>
+                    ) : (
+                      <div className="text-center py-12">
+                        <Play className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                        <h3 className="text-lg font-semibold mb-2 text-white">No viewing history</h3>
+                        <p className="text-gray-400">
+                          Your recently watched videos will appear here.
+                        </p>
+                      </div>
+                    )}
                   </div>
+                )}
 
-                  {watchHistory.length > 0 ? (
-                    <div
-                      className="w-full max-w-none"
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                        gap: '16px',
-                        width: '100vw',
-                        maxWidth: '100vw',
-                        margin: '0 -16px',
-                        padding: '0 16px'
-                      }}
-                    >
-                      {watchHistory.slice(0, 30).map((video) => (
-                        <div
-                          key={`${video.id}-${video.watched_at || video.created_at}`}
-                          className="group cursor-pointer w-full"
-                          onClick={() => navigate(`/video/${video.id}`)}
-                        >
-                          <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
-                            {video.thumbnail_url && (
-                              <img
-                                src={video.thumbnail_url}
-                                alt={video.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                loading="lazy"
-                              />
-                            )}
-                            <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded">
-                              WATCHED
-                            </div>
-                            <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                              {video.duration}
-                            </div>
-                          </div>
-                          <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
-                          <div className="flex items-center space-x-3 text-xs text-gray-400">
-                            <span className="flex items-center space-x-1">
-                              <Eye className="w-3 h-3" />
-                              <span>{video.views?.toLocaleString() || 0}</span>
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
+                {/* Message for visitors viewing someone else's profile */}
+                {!isOwnProfile && (
+                  <div className={`${((profileUserType === 'individual_creator' || profileUserType === 'studio_creator') ? 'border-t border-gray-800 pt-8' : '')}`}>
                     <div className="text-center py-12">
-                      <Play className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                      <h3 className="text-lg font-semibold mb-2 text-white">No viewing history</h3>
+                      <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2 text-white">That's all for now</h3>
                       <p className="text-gray-400">
-                        Your recently watched videos will appear here.
+                        {displayedName}'s uploaded content is shown above.
                       </p>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
