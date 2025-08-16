@@ -22,7 +22,16 @@ export interface Video {
     id: string;
     username: string;
     avatar_url?: string;
+    full_name?: string; // Added for uploader_name
+    user_type?: string; // Added for uploader_type
   }; // uploader profile info
+  uploader_id?: string; // Added computed field
+  uploader_username?: string; // Added computed field
+  uploader_name?: string; // Added computed field
+  uploader_avatar?: string; // Added computed field
+  uploader_type?: string; // Added computed field
+  uploader_subscribers?: number; // Added computed field
+  video_count?: number; // Added computed field
 }
 
 export interface VideoUpload {
@@ -69,7 +78,7 @@ export const getVideos = async (
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `,
       { count: 'exact' }
     );
@@ -121,8 +130,20 @@ export const getVideos = async (
     throw error;
   }
 
+  // Process videos to add computed uploader fields
+  const processedVideos = (data || []).map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
   return {
-    videos: data || [],
+    videos: processedVideos,
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit),
   };
@@ -162,7 +183,7 @@ const getLoggedInRecommendations = async (userId: string, page: number, limit: n
   // Extract user preferences from history
   const userTags = new Set<string>();
   const watchedVideoIds = new Set<string>();
-  
+
   watchHistory?.forEach(view => {
     watchedVideoIds.add(view.video_id);
     if (view.videos?.tags) {
@@ -182,7 +203,7 @@ const getLoggedInRecommendations = async (userId: string, page: number, limit: n
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `,
       { count: 'exact' }
     )
@@ -197,29 +218,29 @@ const getLoggedInRecommendations = async (userId: string, page: number, limit: n
   // Score videos based on user preferences
   const scoredVideos = (allVideos || []).map(video => {
     let score = 0;
-    
+
     // Skip already watched videos (lower priority)
     if (watchedVideoIds.has(video.id)) {
       score -= 0.5;
     }
-    
+
     // Tag similarity scoring
     const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
     const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
     const tagScore = tagMatches / Math.max(videoTagsLower.length, 1);
     score += tagScore * 0.4;
-    
+
     // Popularity factors
     const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.2;
     const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.15;
     score += viewScore + likeScore;
-    
+
     // Recency bonus
     const age = Date.now() - new Date(video.created_at).getTime();
     const dayMs = 24 * 60 * 60 * 1000;
     const recencyBonus = Math.max(0, 1 - (age / (7 * dayMs))) * 0.15;
     score += recencyBonus;
-    
+
     // Random discovery factor (10-20%)
     const randomFactor = Math.random() * 0.1;
     score += randomFactor;
@@ -235,8 +256,20 @@ const getLoggedInRecommendations = async (userId: string, page: number, limit: n
   const to = from + limit - 1;
   const paginatedVideos = sortedVideos.slice(from, to + 1);
 
+  // Process videos to add computed uploader fields
+  const processedVideos = paginatedVideos.map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
   return {
-    videos: paginatedVideos,
+    videos: processedVideos,
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit),
   };
@@ -245,7 +278,7 @@ const getLoggedInRecommendations = async (userId: string, page: number, limit: n
 // Get recommendations for guest users
 const getGuestRecommendations = async (page: number, limit: number) => {
   const sessionId = getSessionId();
-  
+
   // Get session-based activity
   const { data: sessionViews } = await supabase
     .from('video_reactions')
@@ -269,7 +302,7 @@ const getGuestRecommendations = async (page: number, limit: number) => {
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `,
       { count: 'exact' }
     )
@@ -284,7 +317,7 @@ const getGuestRecommendations = async (page: number, limit: number) => {
   // Score videos for guests
   const scoredVideos = (allVideos || []).map(video => {
     let score = 0;
-    
+
     // Session activity similarity
     if (sessionTags.size > 0) {
       const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
@@ -292,7 +325,7 @@ const getGuestRecommendations = async (page: number, limit: number) => {
       const tagScore = tagMatches / Math.max(videoTagsLower.length, 1);
       score += tagScore * 0.3;
     }
-    
+
     // Location-based popularity
     const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
     const hasLocationTag = videoTagsLower.includes(userCountry) || 
@@ -300,18 +333,18 @@ const getGuestRecommendations = async (page: number, limit: number) => {
     if (hasLocationTag) {
       score += 0.25;
     }
-    
+
     // General trending factors
     const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.3;
     const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.2;
     score += viewScore + likeScore;
-    
+
     // Recency bonus
     const age = Date.now() - new Date(video.created_at).getTime();
     const dayMs = 24 * 60 * 60 * 1000;
     const recencyBonus = Math.max(0, 1 - (age / (14 * dayMs))) * 0.1;
     score += recencyBonus;
-    
+
     // Random discovery factor (20% for guests)
     const randomFactor = Math.random() * 0.2;
     score += randomFactor;
@@ -327,8 +360,20 @@ const getGuestRecommendations = async (page: number, limit: number) => {
   const to = from + limit - 1;
   const paginatedVideos = sortedVideos.slice(from, to + 1);
 
+  // Process videos to add computed uploader fields
+  const processedVideos = paginatedVideos.map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
   return {
-    videos: paginatedVideos,
+    videos: processedVideos,
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit),
   };
@@ -356,16 +401,16 @@ const getUserLocationData = async () => {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 2000); // Reduced to 2 seconds
-    
+
     const response = await fetch('https://ipapi.co/json/', {
       signal: controller.signal,
       headers: {
         'Accept': 'application/json',
       }
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     if (response.ok) {
       const data = await response.json();
       if (data && data.country && !data.error && data.country !== 'undefined') {
@@ -382,7 +427,7 @@ const getUserLocationData = async () => {
   } catch (error) {
     // Completely silent - no console logs
   }
-  
+
   // Return default location
   return { country: 'Nigeria', country_name: 'Nigeria' };
 };
@@ -412,7 +457,7 @@ export const getCategoryVideos = async (
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `,
       { count: 'exact' }
     )
@@ -453,8 +498,20 @@ export const getCategoryVideos = async (
   const to = from + limit - 1;
   const paginatedVideos = sectionedVideos.slice(from, to + 1);
 
+  // Process videos to add computed uploader fields
+  const processedVideos = paginatedVideos.map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
   return {
-    videos: paginatedVideos,
+    videos: processedVideos,
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit),
   };
@@ -471,13 +528,13 @@ const applyCategorySectioning = async (
   // Get user watch history and session data
   let watchedVideoIds = new Set<string>();
   let userTags = new Set<string>();
-  
+
   if (userId) {
     const { data: watchHistory } = await supabase
       .from('video_views')
       .select('video_id, videos(tags)')
       .eq('user_id', userId);
-    
+
     watchHistory?.forEach(view => {
       watchedVideoIds.add(view.video_id);
       if (view.videos?.tags) {
@@ -491,7 +548,7 @@ const applyCategorySectioning = async (
       .from('video_reactions')
       .select('video_id, videos(tags)')
       .eq('user_session', sessionId);
-    
+
     sessionViews?.forEach(view => {
       watchedVideoIds.add(view.video_id);
       if (view.videos?.tags) {
@@ -507,47 +564,47 @@ const applyCategorySectioning = async (
   // Section 1: Recommended (40%)
   const recommendedVideos = categoryVideos.map(video => {
     let score = 0;
-    
+
     if (userId) {
       // Logged-in user recommendations based on history intersection
       const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
       const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
       const tagScore = tagMatches / Math.max(videoTagsLower.length, 1);
       score += tagScore * 0.6;
-      
+
       // Deprioritize watched videos
       if (watchedVideoIds.has(video.id)) {
         score *= 0.3;
       }
-      
+
       // Popularity factors
       score += Math.log(Math.max(video.views, 1) + 1) * 0.2;
       score += Math.log(Math.max(video.likes, 1) + 1) * 0.15;
     } else {
       // Guest recommendations: session clicks, location popularity, trending
       const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
-      
+
       // Session activity similarity
       if (userTags.size > 0) {
         const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
         score += (tagMatches / Math.max(videoTagsLower.length, 1)) * 0.3;
       }
-      
+
       // Location popularity
       const hasLocationTag = videoTagsLower.includes(userCountry) || 
                             videoTagsLower.some(tag => tag.includes(userCountry));
       if (hasLocationTag) {
         score += 0.25;
       }
-      
+
       // Trending factors
       score += Math.log(Math.max(video.views, 1) + 1) * 0.25;
       score += Math.log(Math.max(video.likes, 1) + 1) * 0.15;
     }
-    
+
     // Small randomization
     score += Math.random() * 0.05;
-    
+
     return { ...video, recommendedScore: score };
   }).sort((a, b) => (b as any).recommendedScore - (a as any).recommendedScore);
 
@@ -556,39 +613,39 @@ const applyCategorySectioning = async (
     // Calculate trending score based on views, likes, comments
     const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.5;
     const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.3;
-    
+
     // Engagement ratio
     const engagementRatio = video.views > 0 ? 
       Math.min((video.likes / video.views) * 0.15, 0.15) : 
       (video.likes > 0 ? 0.1 : 0);
-    
+
     // Recency bonus
     const age = Date.now() - new Date(video.created_at).getTime();
     const dayMs = 24 * 60 * 60 * 1000;
     const recencyBonus = Math.max(0, 1 - (age / (7 * dayMs))) * 0.05;
-    
+
     const hottestScore = viewScore + likeScore + engagementRatio + recencyBonus;
-    
+
     return { ...video, hottestScore };
   }).sort((a, b) => (b as any).hottestScore - (a as any).hottestScore);
 
   // Section 3: Random/Discovery (25%)
   const discoveryVideos = categoryVideos.map(video => {
     let score = 0;
-    
+
     // Favor less-seen videos
     const viewPenalty = Math.log(Math.max(video.views, 1) + 1) * -0.3;
     score += viewPenalty;
-    
+
     // Favor fresh uploads
     const age = Date.now() - new Date(video.created_at).getTime();
     const dayMs = 24 * 60 * 60 * 1000;
     const freshnessBonus = Math.max(0, 1 - (age / (30 * dayMs))) * 0.4;
     score += freshnessBonus;
-    
+
     // Large randomization factor for discovery
     score += Math.random() * 0.6;
-    
+
     return { ...video, discoveryScore: score };
   }).sort((a, b) => (b as any).discoveryScore - (a as any).discoveryScore);
 
@@ -611,14 +668,26 @@ const applyCategorySectioning = async (
   // Interleave the sections for better distribution
   const result: Video[] = [];
   const maxLength = Math.max(finalRecommended.length, finalHottest.length, finalDiscovery.length);
-  
+
   for (let i = 0; i < maxLength; i++) {
     if (i < finalRecommended.length) result.push(finalRecommended[i]);
     if (i < finalHottest.length) result.push(finalHottest[i]);
     if (i < finalDiscovery.length) result.push(finalDiscovery[i]);
   }
 
-  return result;
+  // Process videos to add computed uploader fields
+  const processedResult = result.map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
+  return processedResult;
 };
 
 // Helper function to shuffle array
@@ -638,7 +707,7 @@ const getPremiumVideos = async (page: number, limit: number, searchQuery?: strin
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `,
       { count: 'exact' }
     )
@@ -661,8 +730,20 @@ const getPremiumVideos = async (page: number, limit: number, searchQuery?: strin
     throw error;
   }
 
+  // Process videos to add computed uploader fields
+  const processedVideos = (data || []).map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
   return {
-    videos: data || [],
+    videos: processedVideos,
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit),
   };
@@ -688,14 +769,26 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
       .select(
         `
         id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-        profiles:owner_id (id, username, avatar_url)
+        profiles:owner_id (id, username, avatar_url, full_name, user_type)
         `
       )
       .neq('id', videoId)
       .order('created_at', { ascending: false })
       .limit(limit);
-    
-    return fallbackData || [];
+
+    // Process videos to add computed uploader fields
+    const processedVideos = (fallbackData || []).map(video => ({
+      ...video,
+      uploader_id: video.profiles?.id || video.owner_id,
+      uploader_username: video.profiles?.username,
+      uploader_name: video.profiles?.full_name,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_type: video.profiles?.user_type,
+      uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+      video_count: 0, // TODO: Calculate from videos count
+    }));
+
+    return processedVideos;
   }
 
   // Try to get videos with overlapping tags
@@ -704,7 +797,7 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `
     )
     .neq('id', videoId)
@@ -720,18 +813,30 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
       .select(
         `
         id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-        profiles:owner_id (id, username, avatar_url)
+        profiles:owner_id (id, username, avatar_url, full_name, user_type)
         `
       )
       .neq('id', videoId)
       .order('views', { ascending: false })
       .limit(limit);
-    
-    return fallbackData || [];
+
+    // Process videos to add computed uploader fields
+    const processedVideos = (fallbackData || []).map(video => ({
+      ...video,
+      uploader_id: video.profiles?.id || video.owner_id,
+      uploader_username: video.profiles?.username,
+      uploader_name: video.profiles?.full_name,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_type: video.profiles?.user_type,
+      uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+      video_count: 0, // TODO: Calculate from videos count
+    }));
+
+    return processedVideos;
   }
 
   const relatedVideos = data || [];
-  
+
   if (relatedVideos.length === 0) {
     // If no related videos found, get popular videos as fallback
     const { data: fallbackData } = await supabase
@@ -739,40 +844,66 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
       .select(
         `
         id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-        profiles:owner_id (id, username, avatar_url)
+        profiles:owner_id (id, username, avatar_url, full_name, user_type)
         `
       )
       .neq('id', videoId)
       .order('views', { ascending: false })
       .limit(limit);
-    
-    return fallbackData || [];
+
+    // Process videos to add computed uploader fields
+    const processedVideos = (fallbackData || []).map(video => ({
+      ...video,
+      uploader_id: video.profiles?.id || video.owner_id,
+      uploader_username: video.profiles?.username,
+      uploader_name: video.profiles?.full_name,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_type: video.profiles?.user_type,
+      uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+      video_count: 0, // TODO: Calculate from videos count
+    }));
+
+    return processedVideos;
   }
 
   // Score and sort related videos by relevance
   const scoredVideos = relatedVideos.map(video => {
     const videoTags = (video.tags || []).map((tag: string) => tag.toLowerCase());
     const inputTags = tags.map(tag => tag.toLowerCase());
-    
+
     // Calculate tag similarity score
     const commonTags = videoTags.filter(tag => inputTags.includes(tag)).length;
     const tagSimilarity = commonTags / Math.max(inputTags.length, videoTags.length);
-    
+
     // Combine with popularity metrics
     const viewScore = Math.log(Math.max(video.views || 0, 1) + 1) * 0.3;
     const likeScore = Math.log(Math.max(video.likes || 0, 1) + 1) * 0.2;
     const engagementRatio = (video.views || 0) > 0 ? 
       ((video.likes || 0) / (video.views || 1)) * 0.1 : 0;
-    
+
     const finalScore = (tagSimilarity * 0.4) + viewScore + likeScore + engagementRatio;
-    
+
     return { ...video, relevanceScore: finalScore };
   });
 
   // Sort by relevance score and return top results
-  return scoredVideos
+  const sortedAndScoredVideos = scoredVideos
     .sort((a, b) => (b as any).relevanceScore - (a as any).relevanceScore)
     .slice(0, limit);
+
+  // Process videos to add computed uploader fields
+  const processedVideos = sortedAndScoredVideos.map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
+  return processedVideos;
 };
 
 // Get a single video by ID, with uploader info
@@ -782,7 +913,7 @@ export const getVideoById = async (videoId: string) => {
     .select(
       `
       *,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `
     )
     .eq('id', videoId)
@@ -793,7 +924,19 @@ export const getVideoById = async (videoId: string) => {
     throw error;
   }
 
-  return data;
+  // Process video to add computed uploader fields
+  const processedVideo = data ? {
+    ...data,
+    uploader_id: data.profiles?.id || data.owner_id,
+    uploader_username: data.profiles?.username,
+    uploader_name: data.profiles?.full_name,
+    uploader_avatar: data.profiles?.avatar_url,
+    uploader_type: data.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  } : null;
+
+  return processedVideo;
 };
 
 // Upload a new video
@@ -969,7 +1112,10 @@ export const getUserReaction = async (videoId: string) => {
 export const searchVideos = async (searchTerm: string) => {
   const { data, error } = await supabase
     .from('videos')
-    .select('*')
+    .select(`
+      *,
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
+      `)
     .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`)
     .order('views', { ascending: false })
     .limit(50);
@@ -979,7 +1125,19 @@ export const searchVideos = async (searchTerm: string) => {
     throw error;
   }
 
-  return data || [];
+  // Process videos to add computed uploader fields
+  const processedVideos = (data || []).map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
+  return processedVideos;
 };
 
 // Get user's country (used in Header)
@@ -1002,13 +1160,13 @@ export const getHottestByCountry = async (
 ) => {
   // Get user's watched videos to deprioritize them
   let watchedVideoIds = new Set<string>();
-  
+
   if (userId) {
     const { data: watchHistory } = await supabase
       .from('video_views')
       .select('video_id')
       .eq('user_id', userId);
-    
+
     watchHistory?.forEach(view => watchedVideoIds.add(view.video_id));
   } else {
     // For guests, check session-based reactions
@@ -1017,7 +1175,7 @@ export const getHottestByCountry = async (
       .from('video_reactions')
       .select('video_id')
       .eq('user_session', sessionId);
-    
+
     sessionViews?.forEach(view => watchedVideoIds.add(view.video_id));
   }
 
@@ -1027,7 +1185,7 @@ export const getHottestByCountry = async (
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `,
       { count: 'exact' }
     )
@@ -1049,7 +1207,7 @@ export const getHottestByCountry = async (
       ...(country.toLowerCase() === 'nigeria' ? ['ng', 'naija'] : []),
       ...(country.toLowerCase() === 'south africa' ? ['za', 'sa'] : []),
     ].filter(Boolean);
-    
+
     // Try each variant separately to be more flexible
     for (const variant of locationVariants) {
       const variantQuery = supabase
@@ -1057,7 +1215,7 @@ export const getHottestByCountry = async (
         .select(
           `
           id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-          profiles:owner_id (id, username, avatar_url)
+          profiles:owner_id (id, username, avatar_url, full_name, user_type)
           `
         )
         .eq('is_premium', false)
@@ -1082,7 +1240,7 @@ export const getHottestByCountry = async (
 
   // If we found location-specific videos, use them; otherwise get all videos
   let allVideos: any[], error: any, count: number;
-  
+
   if (locationSpecificVideos.length > 0) {
     allVideos = locationSpecificVideos;
     count = locationSpecificVideos.length;
@@ -1094,13 +1252,13 @@ export const getHottestByCountry = async (
       .select(
         `
         id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-        profiles:owner_id (id, username, avatar_url)
+        profiles:owner_id (id, username, avatar_url, full_name, user_type)
         `,
         { count: 'exact' }
       )
       .eq('is_premium', false)
       .eq('is_moment', false);
-    
+
     allVideos = result.data;
     error = result.error;
     count = result.count;
@@ -1113,14 +1271,26 @@ export const getHottestByCountry = async (
       .from('videos')
       .select(`
         id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-        profiles:owner_id (id, username, avatar_url)
+        profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `)
       .eq('is_premium', false)
       .order('views', { ascending: false })
       .limit(limit);
-    
+
+    // Process videos to add computed uploader fields
+    const processedVideos = (simpleVideos || []).map(video => ({
+      ...video,
+      uploader_id: video.profiles?.id || video.owner_id,
+      uploader_username: video.profiles?.username,
+      uploader_name: video.profiles?.full_name,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_type: video.profiles?.user_type,
+      uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+      video_count: 0, // TODO: Calculate from videos count
+    }));
+
     return {
-      videos: simpleVideos || [],
+      videos: processedVideos,
       totalCount: simpleVideos?.length || 0,
       totalPages: 1,
     };
@@ -1133,13 +1303,25 @@ export const getHottestByCountry = async (
       .from('videos')
       .select(`
         id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-        profiles:owner_id (id, username, avatar_url)
+        profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `)
       .order('views', { ascending: false })
       .limit(limit);
-    
+
+    // Process videos to add computed uploader fields
+    const processedVideos = (anyVideos || []).map(video => ({
+      ...video,
+      uploader_id: video.profiles?.id || video.owner_id,
+      uploader_username: video.profiles?.username,
+      uploader_name: video.profiles?.full_name,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_type: video.profiles?.user_type,
+      uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+      video_count: 0, // TODO: Calculate from videos count
+    }));
+
     return {
-      videos: anyVideos || [],
+      videos: processedVideos,
       totalCount: anyVideos?.length || 0,
       totalPages: 1,
     };
@@ -1148,24 +1330,24 @@ export const getHottestByCountry = async (
   // Apply hottest algorithm with location-based ranking
   const hottestVideos = allVideos.map(video => {
     let score = 0;
-    
+
     // Primary ranking factors - popularity based
     const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.5; // 50% weight on views
     const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.3; // 30% weight on likes
-    
+
     // Engagement ratio (likes vs views)
     const engagementRatio = video.views > 0 ? 
       Math.min((video.likes / video.views) * 0.15, 0.15) : 
       (video.likes > 0 ? 0.1 : 0);
-    
+
     // Combine base scores
     score = viewScore + likeScore + engagementRatio;
-    
+
     // Deprioritize already watched content (but don't exclude completely)
     if (watchedVideoIds.has(video.id)) {
       score *= 0.7; // Reduce score by 30% for watched videos
     }
-    
+
     // Minor personalization boost for recent content
     const age = Date.now() - new Date(video.created_at).getTime();
     const dayMs = 24 * 60 * 60 * 1000;
@@ -1187,8 +1369,20 @@ export const getHottestByCountry = async (
   const to = from + limit - 1;
   const paginatedVideos = sortedVideos.slice(from, to + 1);
 
+  // Process videos to add computed uploader fields
+  const processedVideos = paginatedVideos.map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
   return {
-    videos: paginatedVideos,
+    videos: processedVideos,
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit),
   };
@@ -1209,7 +1403,7 @@ export const getTrendingVideos = async (
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `,
       { count: 'exact' }
     )
@@ -1224,7 +1418,7 @@ export const getTrendingVideos = async (
       location.toLowerCase().replace(/\s+/g, ''),
       location.split(' ')[0]?.toLowerCase()
     ].filter(Boolean);
-    
+
     // Use OR condition to match any of the location variants
     const locationFilter = locationVariants.map(variant => `tags.cs.{${variant}}`).join(',');
     query = query.or(locationFilter);
@@ -1240,14 +1434,14 @@ export const getTrendingVideos = async (
 
   if (error || !data || data.length === 0) {
     console.log('No recent trending videos found, using fallback approach');
-    
+
     // Fallback to all videos with trending algorithm
     const fallbackQuery = supabase
       .from('videos')
       .select(
         `
         id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-        profiles:owner_id (id, username, avatar_url)
+        profiles:owner_id (id, username, avatar_url, full_name, user_type)
         `,
         { count: 'exact' }
       )
@@ -1261,7 +1455,7 @@ export const getTrendingVideos = async (
         location.toLowerCase().replace(/\s+/g, ''),
         location.split(' ')[0]?.toLowerCase()
       ].filter(Boolean);
-      
+
       const locationFilter = locationVariants.map(variant => `tags.cs.{${variant}}`).join(',');
       fallbackQuery.or(locationFilter);
     }
@@ -1282,8 +1476,20 @@ export const getTrendingVideos = async (
     // Apply trending algorithm to fallback results
     const trendingVideos = applyTrendingAlgorithm(fallbackResult.data || []);
 
+    // Process videos to add computed uploader fields
+    const processedVideos = trendingVideos.map(video => ({
+      ...video,
+      uploader_id: video.profiles?.id || video.owner_id,
+      uploader_username: video.profiles?.username,
+      uploader_name: video.profiles?.full_name,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_type: video.profiles?.user_type,
+      uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+      video_count: 0, // TODO: Calculate from videos count
+    }));
+
     return {
-      videos: trendingVideos,
+      videos: processedVideos,
       totalCount: fallbackResult.count || 0,
       totalPages: Math.ceil((fallbackResult.count || 0) / limit),
     };
@@ -1292,8 +1498,20 @@ export const getTrendingVideos = async (
   // Apply trending algorithm to the results
   const trendingVideos = applyTrendingAlgorithm(data || []);
 
+  // Process videos to add computed uploader fields
+  const processedVideos = trendingVideos.map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
   return {
-    videos: trendingVideos,
+    videos: processedVideos,
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit),
   };
@@ -1310,27 +1528,27 @@ const applyTrendingAlgorithm = (videos: Video[]): Video[] => {
     .map(video => {
       const age = now - new Date(video.created_at).getTime();
       const ageInDays = age / dayMs;
-      
+
       // Recency boost - newer content gets higher priority (adjusted for 7 days)
       const recencyBoost = Math.max(0, 1 - (ageInDays / 7)) * 0.25;
-      
+
       // Activity score based on views and likes (enhanced scoring)
       const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.4;
       const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.25;
-      
-      // Engagement ratio (likes vs views) with better handling of zero values
+
+      // Engagement ratio (likes vs views)
       const engagementRatio = video.views > 0 ? 
         Math.min((video.likes / video.views) * 0.15, 0.15) : 
         (video.likes > 0 ? 0.1 : 0);
-      
+
       // Velocity bonus for videos with good likes-to-age ratio
       const velocityBonus = ageInDays > 0 ? 
         Math.min((video.likes / ageInDays) * 0.05, 0.1) : 
         (video.likes > 0 ? 0.1 : 0);
-      
+
       // Small randomization factor to prevent staleness
       const randomFactor = Math.random() * 0.05;
-      
+
       // Calculate trending score
       const trendingScore = viewScore + likeScore + recencyBoost + engagementRatio + velocityBonus + randomFactor;
 
@@ -1354,7 +1572,7 @@ export const getHomepageVideos = async (
     .select(
       `
       id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
-      profiles:owner_id (id, username, avatar_url)
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `,
       { count: 'exact' }
     )
@@ -1382,8 +1600,20 @@ export const getHomepageVideos = async (
   const to = from + limit - 1;
   const paginatedVideos = sectionedVideos.slice(from, to + 1);
 
+  // Process videos to add computed uploader fields
+  const processedVideos = paginatedVideos.map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
   return {
-    videos: paginatedVideos,
+    videos: processedVideos,
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit),
   };
@@ -1399,20 +1629,20 @@ const applyHomepageSectioning = async (
   // Get user data for personalization
   let watchedVideoIds = new Set<string>();
   let userTags = new Set<string>();
-  
+
   if (userId) {
     const { data: watchHistory } = await supabase
       .from('video_views')
       .select('video_id, videos(tags)')
       .eq('user_id', userId)
       .limit(50);
-    
+
     const { data: userReactions } = await supabase
       .from('video_reactions')
       .select('video_id, videos(tags)')
       .eq('user_session', userId)
       .eq('reaction_type', 'like');
-    
+
     watchHistory?.forEach(view => {
       watchedVideoIds.add(view.video_id);
       if (view.videos?.tags) {
@@ -1432,7 +1662,7 @@ const applyHomepageSectioning = async (
       .from('video_reactions')
       .select('video_id, videos(tags)')
       .eq('user_session', sessionId);
-    
+
     sessionViews?.forEach(view => {
       watchedVideoIds.add(view.video_id);
       if (view.videos?.tags) {
@@ -1448,18 +1678,18 @@ const applyHomepageSectioning = async (
   // Section 1: Recommended (40%)
   const recommendedVideos = allVideos.map(video => {
     let score = 0;
-    
+
     if (userId) {
       // Logged-in: watch history, likes, tags, collaborative filtering
       const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
       const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
       const tagScore = tagMatches / Math.max(videoTagsLower.length, 1);
       score += tagScore * 0.5;
-      
+
       // Collaborative filtering (simplified)
       score += Math.log(Math.max(video.views, 1) + 1) * 0.25;
       score += Math.log(Math.max(video.likes, 1) + 1) * 0.15;
-      
+
       // Deprioritize watched videos slightly
       if (watchedVideoIds.has(video.id)) {
         score *= 0.7;
@@ -1467,25 +1697,25 @@ const applyHomepageSectioning = async (
     } else {
       // Guest: session behavior, location-based popularity, general trending
       const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
-      
+
       // Session behavior similarity
       if (userTags.size > 0) {
         const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
         score += (tagMatches / Math.max(videoTagsLower.length, 1)) * 0.3;
       }
-      
+
       // Location-based popularity
       const hasLocationTag = videoTagsLower.includes(userCountry) || 
                             videoTagsLower.some(tag => tag.includes(userCountry));
       if (hasLocationTag) {
         score += 0.3;
       }
-      
+
       // General trending patterns
       score += Math.log(Math.max(video.views, 1) + 1) * 0.25;
       score += Math.log(Math.max(video.likes, 1) + 1) * 0.15;
     }
-    
+
     return { ...video, recommendedScore: score };
   }).sort((a, b) => (b as any).recommendedScore - (a as any).recommendedScore);
 
@@ -1493,20 +1723,20 @@ const applyHomepageSectioning = async (
   const hottestVideos = allVideos.map(video => {
     const age = Date.now() - new Date(video.created_at).getTime();
     const hourMs = 60 * 60 * 1000;
-    
+
     // Strong recency boost for 24-48h window
     const recencyBoost = age <= (48 * hourMs) ? 
       Math.max(0, 1 - (age / (48 * hourMs))) * 0.4 : 0;
-    
+
     // Activity metrics
     const viewScore = Math.log(Math.max(video.views, 1) + 1) * 0.4;
     const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.25;
-    
+
     // Engagement ratio
     const engagementRatio = video.views > 0 ? 
       Math.min((video.likes / video.views) * 0.15, 0.15) : 
       (video.likes > 0 ? 0.1 : 0);
-    
+
     // Location-based trending for guests
     let locationBonus = 0;
     if (!userId) {
@@ -1517,34 +1747,34 @@ const applyHomepageSectioning = async (
         locationBonus = 0.2;
       }
     }
-    
+
     const hottestScore = viewScore + likeScore + engagementRatio + recencyBoost + locationBonus;
-    
+
     return { ...video, hottestScore };
   }).sort((a, b) => (b as any).hottestScore - (a as any).hottestScore);
 
   // Section 3: Random/Discovery (30%) - fresh, less-seen, older videos
   const discoveryVideos = allVideos.map(video => {
     let score = 0;
-    
+
     // Favor fresh uploads
     const age = Date.now() - new Date(video.created_at).getTime();
     const dayMs = 24 * 60 * 60 * 1000;
     const freshnessBonus = Math.max(0, 1 - (age / (30 * dayMs))) * 0.3;
     score += freshnessBonus;
-    
+
     // Favor less-seen videos (inverse popularity)
     const viewPenalty = Math.log(Math.max(video.views, 1) + 1) * -0.2;
     score += viewPenalty;
-    
+
     // Slight preference for moderately popular videos
     const moderatePopularityBonus = video.views > 10 && video.views < 1000 ? 0.2 : 0;
     score += moderatePopularityBonus;
-    
+
     // Strong randomization for discovery
     const randomFactor = Math.random() * 0.5;
     score += randomFactor;
-    
+
     return { ...video, discoveryScore: score };
   }).sort((a, b) => (b as any).discoveryScore - (a as any).discoveryScore);
 
@@ -1567,14 +1797,26 @@ const applyHomepageSectioning = async (
   // Interleave the sections for better distribution
   const result: Video[] = [];
   const maxLength = Math.max(finalRecommended.length, finalHottest.length, finalDiscovery.length);
-  
+
   for (let i = 0; i < maxLength; i++) {
     if (i < finalRecommended.length) result.push(finalRecommended[i]);
     if (i < finalHottest.length) result.push(finalHottest[i]);
     if (i < finalDiscovery.length) result.push(finalDiscovery[i]);
   }
 
-  return result;
+  // Process videos to add computed uploader fields
+  const processedResult = result.map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username,
+    uploader_name: video.profiles?.full_name,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type,
+    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+    video_count: 0, // TODO: Calculate from videos count
+  }));
+
+  return processedResult;
 };
 
 // Apply human behavior-like shuffling to video recommendations
