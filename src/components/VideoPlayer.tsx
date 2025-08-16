@@ -162,9 +162,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         adVideoRef.current.style.zIndex = '20';
         adVideoRef.current.style.backgroundColor = '#000';
 
-        // Configure ad video playback - let ad handle its own controls
-        adVideoRef.current.controls = true;
-        adVideoRef.current.setAttribute('controlsList', 'nodownload');
+        // Configure ad video playback - no native controls
+        adVideoRef.current.controls = false;
         adVideoRef.current.setAttribute('preload', 'auto');
 
         // Set proper volume and ensure it plays
@@ -382,15 +381,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
 
 
-      {/* Ad Video Element - Let ad handle its own controls */}
+      {/* Ad Video Element - No native controls, let VAST ad handle interactions */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
         style={{ display: 'none', backgroundColor: '#000' }}
-        controls={true}
         autoPlay
         playsInline
-        controlsList="nodownload"
         onContextMenu={(e) => e.preventDefault()}
         onError={handleAdError}
         onEnded={handleAdEnded}
