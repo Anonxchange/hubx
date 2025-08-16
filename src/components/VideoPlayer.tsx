@@ -163,10 +163,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
 
     try {
-      // Use ExoClick's VAST endpoint for real ad revenue
-      const vastUrl = `https://syndication.exoclick.com/ads/?idzone=5660526&type=vast&size=640x480&timestamp=${Date.now()}`;
+      // Use your real VAST endpoint
+      const vastUrl = `https://s.magsrv.com/v1/vast.php?idzone=5660526&timestamp=${Date.now()}`;
 
-      // Fetch actual VAST XML from ExoClick
+      // Fetch actual VAST XML from your endpoint
       const response = await fetch(vastUrl);
       const vastXml = await response.text();
 
@@ -191,48 +191,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           }
         }));
 
-        console.log('ExoClick VAST ad loaded:', mediaFileUrl);
+        console.log('VAST ad loaded from real endpoint:', mediaFileUrl);
         return adData;
       } else {
         throw new Error('No media file found in VAST response');
       }
 
     } catch (error) {
-      console.log('ExoClick VAST ad fetch failed, trying direct ad URL');
-
-      // Fallback to working video ad if VAST fails
-      const fallbackAdData = {
-        adVideoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        duration: 10000, // 10 seconds for testing
-        skipTime: 3000 // 3 second skip
-      };
-
-      setVastCache(prev => ({
-        ...prev,
-        [cacheKey]: {
-          data: fallbackAdData,
-          timestamp: Date.now()
-        }
-      }));
-
-      console.log('Using reliable fallback ad for testing');
-      return fallbackAdData;
+      console.log('VAST ad fetch failed:', error);
+      
+      // Return null instead of fallback to ensure real ads only
+      return null;
     }
   };
 
-  // Function to play ExoClick video ad without skip capability
+  // Function to play video ad from real VAST endpoint
   const playVastAd = async () => {
     if (adShown || showingAd) {
       console.log('Ad already shown or currently showing for this video');
       return;
     }
 
-    console.log('Attempting to play ExoClick video ad...');
+    console.log('Attempting to play video ad from real VAST endpoint...');
     setShowingAd(true);
     const vastData = await fetchVastAd();
 
     if (vastData?.adVideoUrl) {
-      console.log('Playing ExoClick video ad:', vastData.adVideoUrl);
+      console.log('Playing video ad:', vastData.adVideoUrl);
 
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
@@ -258,10 +243,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           console.log('🎬 Playing video ad:', vastData.adVideoUrl);
           await adVideoRef.current.play();
           console.log('✅ Video ad started playing successfully');
-
-          // Let ExoClick handle timing and skip controls naturally
-          // Remove custom countdown - ExoClick handles this
-          console.log('ExoClick ad playing - revenue tracking active');
 
           // Track impression for revenue
           if (window.AdProvider && Array.isArray(window.AdProvider)) {
@@ -289,7 +270,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
       }
     } else {
-      console.log('No ExoClick ad available, skipping to main video');
+      console.log('No ad available from VAST endpoint, proceeding to main video');
       handleAdError();
     }
   };
