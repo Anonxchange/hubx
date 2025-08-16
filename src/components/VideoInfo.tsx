@@ -3,6 +3,7 @@ import { Clock, VideoIcon, Share, Eye, Calendar } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import VideoReactions from './VideoReactions';
 import VideoTags from './VideoTags';
 import VerificationBadge from './VerificationBadge';
@@ -17,15 +18,26 @@ interface VideoInfoProps {
   onShare: () => void;
   video: { // Assuming video object contains uploader details
     id: string;
+    owner_id: string;
+    tags: string[];
+    likes?: number;
+    dislikes?: number;
+    profiles?: {
+      id: string;
+      username: string;
+      avatar_url?: string;
+      full_name?: string;
+      user_type: string;
+    };
+    // Computed fields for backward compatibility
     uploader_avatar?: string;
     uploader_username?: string;
     uploader_type?: 'user' | 'studio_creator' | 'individual_creator';
     uploader_id?: string;
     uploader_subscribers?: number;
     uploader_total_views?: number;
-    tags: string[];
-    likes?: number;
-    dislikes?: number;
+    uploader_name?: string;
+    video_count?: number;
   };
   // Reaction props
   reactionData?: { userReaction: 'like' | 'dislike' | null | undefined; likes: number; dislikes: number };
@@ -104,53 +116,58 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
       <VideoTags tags={video?.tags || []} />
 
-      {/* Creator Profile Section - Only show for individual_creator and studio_creator */}
-      {(video?.uploader_type === 'individual_creator' || video?.uploader_type === 'studio_creator') && (
-        <div className="flex items-center space-x-3 py-4 border-y border-border">
-          {/* Clickable Avatar - Navigate to profile */}
-          <div className="cursor-pointer" onClick={handleProfileClick}>
-            <Avatar className="h-12 w-12 hover:ring-2 hover:ring-blue-500 transition-all">
-              <AvatarImage src={video?.uploader_avatar || ''} alt={video?.uploader_username || 'Creator'} />
-              <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
-                {(video?.uploader_username || 'A')[0].toUpperCase()}
+      {/* Creator Profile Section - Exact Pornhub Layout */}
+      {((video.profiles?.user_type === 'individual_creator' || video.profiles?.user_type === 'studio_creator') || 
+        (video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator')) && (
+        <div className="bg-transparent mb-6">
+          {/* Creator Info Row */}
+          <div className="flex items-center gap-3 mb-4">
+            <Avatar 
+              className="h-12 w-12 cursor-pointer"
+              onClick={() => navigate(`/profile/${video.profiles?.username || video.uploader_username}`)}
+            >
+              <AvatarImage src={video.profiles?.avatar_url || video.uploader_avatar} />
+              <AvatarFallback className="bg-gray-600 text-white text-sm">
+                {(video.profiles?.full_name || video.profiles?.username || video.uploader_name || video.uploader_username)?.[0]?.toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
-          </div>
 
-          <div className="flex-1">
-            {/* Clickable Username with Verification Badge */}
-            <div
-              className="flex items-center space-x-2 cursor-pointer hover:text-blue-500 transition-colors"
-              onClick={handleProfileClick}
-            >
-              <h3 className="font-semibold text-lg">{video?.uploader_username || 'Anonymous'}</h3>
-              <VerificationBadge
-                userType={video.uploader_type}
-                showText={false}
-              />
-            </div>
-
-            {/* Creator Stats */}
-            <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
-              <span>{formatViews(video?.uploader_total_views || 0)} total views</span>
-              <span>{formatViews(video?.uploader_subscribers || 0)} subscribers</span>
-              {video?.uploader_type === 'studio_creator' && (
-                <span className="text-purple-400">Studio</span>
-              )}
-              {video?.uploader_type === 'individual_creator' && (
-                <span className="text-orange-400">Creator</span>
-              )}
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 
+                  className="font-semibold text-white text-base cursor-pointer hover:text-orange-400 transition-colors"
+                  onClick={() => navigate(`/profile/${video.profiles?.username || video.uploader_username}`)}
+                >
+                  {video.profiles?.full_name || video.profiles?.username || video.uploader_name || video.uploader_username}
+                </h3>
+                <VerificationBadge userType={video.profiles?.user_type || video.uploader_type} />
+              </div>
+              
+              <p className="text-sm text-gray-400">
+                {video.video_count || 0} Videos | {formatViews(video.uploader_subscribers || 0)} Subscribers
+              </p>
             </div>
           </div>
 
-          {/* Subscribe Button */}
+          {/* Subscribe Button - Full Width */}
           <Button
-            variant="default"
-            size="sm"
-            className="bg-orange-500 hover:bg-orange-600 text-white px-6"
+            variant="outline"
+            className="w-full bg-transparent border border-gray-600 text-white hover:bg-gray-800 hover:border-gray-500 py-3 font-medium text-sm mb-2"
+            onClick={() => navigate(`/profile/${video.profiles?.username || video.uploader_username}`)}
           >
             Subscribe
           </Button>
+
+          {/* View More Button */}
+          <div className="text-center">
+            <Button
+              variant="ghost"
+              className="text-gray-400 hover:text-white text-sm font-medium p-2"
+              onClick={() => navigate(`/profile/${video.profiles?.username || video.uploader_username}`)}
+            >
+              VIEW MORE
+            </Button>
+          </div>
         </div>
       )}
     </div>
