@@ -14,13 +14,27 @@ export interface LightVideo {
   is_premium?: boolean;
   uploader_username?: string;
   uploader_type?: string;
+  uploader_id?: string;
+  uploader_avatar?: string;
+  uploader_subscribers?: number;
+  uploader_verified?: boolean;
 }
 
 // Get videos with minimal data for better performance
 export const getOptimizedVideos = async (page = 1, limit = 60, category?: string, searchQuery?: string) => {
   let query = supabase
     .from('videos')
-    .select('id, title, description, thumbnail_url, duration, views, likes, tags, created_at, is_premium, profiles!inner(username, user_type)', { count: 'exact' });
+    .select(`
+      *,
+      profiles!videos_owner_id_fkey (
+        id,
+        username,
+        user_type,
+        avatar_url,
+        subscriber_count,
+        verified
+      )
+    `, { count: 'exact' });
 
   // Apply category-based sorting and filtering
   if (category && category !== 'all') {
@@ -63,10 +77,201 @@ export const getOptimizedVideos = async (page = 1, limit = 60, category?: string
     videos: data?.map(video => ({
       ...video,
       tags: Array.isArray(video.tags) ? video.tags : [],
-      uploader_username: video.profiles?.username,
-      uploader_type: video.profiles?.user_type
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_type: video.profiles?.user_type || 'user',
+      uploader_id: video.profiles?.id,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_subscribers: video.profiles?.subscriber_count || 0,
+      uploader_verified: video.profiles?.verified || false
     })) || [],
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit)
+  };
+};
+
+// --- Fetching specific video data ---
+
+// Function to get a single video by its ID, including owner details
+export const getVideoById = async (id: string) => {
+  const { data: video, error } = await supabase
+    .from('videos')
+    .select(`
+      *,
+      profiles!fk_videos_owner_id (
+        id,
+        full_name,
+        username,
+        user_type,
+        avatar_url
+      )
+    `)
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error(`Error fetching video with id ${id}:`, error);
+    throw error;
+  }
+
+  return {
+    ...video,
+    tags: Array.isArray(video.tags) ? video.tags : [],
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_type: video.profiles?.user_type || 'user',
+    uploader_id: video.profiles?.id,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_subscribers: video.profiles?.subscriber_count || 0,
+    uploader_verified: video.profiles?.verified || false
+  };
+};
+
+// Function to get videos for a specific category
+export const getCategoryVideos = async (category: string, page = 1, limit = 10) => {
+  const offset = (page - 1) * limit;
+  const { data: videos, error } = await supabase
+    .from('videos')
+    .select(`
+      id,
+      title,
+      thumbnail_url,
+      duration,
+      view_count,
+      created_at,
+      category,
+      tags,
+      owner_id,
+      profiles!fk_videos_owner_id (
+        id,
+        full_name,
+        username,
+        user_type,
+        avatar_url
+      )
+    `)
+    .eq('category', category)
+    .eq('approved', true)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error(`Error fetching videos for category ${category}:`, error);
+    throw error;
+  }
+
+  return {
+    videos: videos?.map(video => ({
+      ...video,
+      tags: Array.isArray(video.tags) ? video.tags : [],
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_type: video.profiles?.user_type || 'user',
+      uploader_id: video.profiles?.id,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_subscribers: video.profiles?.subscriber_count || 0,
+      uploader_verified: video.profiles?.verified || false
+    })) || [],
+    totalCount: videos?.length || 0, // Placeholder, ideally get count from query
+  };
+};
+
+// Function to get trending videos (based on views in the last 7 days)
+export const getTrendingVideos = async (page = 1, limit = 10) => {
+  const offset = (page - 1) * limit;
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data: videos, error } = await supabase
+    .from('videos')
+    .select(`
+      id,
+      title,
+      thumbnail_url,
+      duration,
+      view_count,
+      created_at,
+      category,
+      tags,
+      owner_id,
+      profiles!fk_videos_owner_id (
+        id,
+        full_name,
+        username,
+        user_type,
+        avatar_url
+      )
+    `)
+    .eq('approved', true)
+    .gte('created_at', sevenDaysAgo)
+    .order('view_count', { ascending: false })
+    .limit(limit)
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error('Error fetching trending videos:', error);
+    throw error;
+  }
+
+  return {
+    videos: videos?.map(video => ({
+      ...video,
+      tags: Array.isArray(video.tags) ? video.tags : [],
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_type: video.profiles?.user_type || 'user',
+      uploader_id: video.profiles?.id,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_subscribers: video.profiles?.subscriber_count || 0,
+      uploader_verified: video.profiles?.verified || false
+    })) || [],
+    totalCount: videos?.length || 0, // Placeholder
+  };
+};
+
+// Function to search videos
+export const searchVideos = async (searchTerm: string, page = 1, limit = 10) => {
+  const offset = (page - 1) * limit;
+
+  const { data: videos, error } = await supabase
+    .from('videos')
+    .select(`
+      id,
+      title,
+      thumbnail_url,
+      duration,
+      view_count,
+      created_at,
+      category,
+      tags,
+      description,
+      owner_id,
+      profiles!fk_videos_owner_id (
+        id,
+        full_name,
+        username,
+        user_type,
+        avatar_url
+      )
+    `)
+    .eq('approved', true)
+    .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`)
+    .order('view_count', { ascending: false })
+    .limit(limit)
+    .range(offset, offset + limit - 1);
+
+  if (error) {
+    console.error(`Error searching videos for term "${searchTerm}":`, error);
+    throw error;
+  }
+
+  return {
+    videos: videos?.map(video => ({
+      ...video,
+      tags: Array.isArray(video.tags) ? video.tags : [],
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_type: video.profiles?.user_type || 'user',
+      uploader_id: video.profiles?.id,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_subscribers: video.profiles?.subscriber_count || 0,
+      uploader_verified: video.profiles?.verified || false
+    })) || [],
+    totalCount: videos?.length || 0, // Placeholder
   };
 };
