@@ -301,19 +301,6 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               {video.preview_url ? 'Preview' : `Preview ${Math.floor(currentPreviewTime)}s`}
             </div>
           )}
-          {/* Updated thumbnail to show username and verification badge */}
-          <div className="absolute bottom-2 left-2 flex items-center space-x-1">
-            <span className="text-white text-xs font-medium bg-black/70 px-2 py-1 rounded">
-              {video.uploader_username || 'Anonymous'}
-            </span>
-            {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
-              <VerificationBadge
-                userType={video.uploader_type}
-                className="h-5"
-                showText={false}
-              />
-            )}
-          </div>
         </div>
 
         <CardContent className="p-4 space-y-3">
@@ -322,16 +309,17 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             {video.title}
           </h3>
 
-          {/* Creator name with verification badge */}
+          {/* Creator name with verification badge - Pornhub style */}
           {video.uploader_username && (
-            <div className="flex items-center space-x-2 mb-2">
-              <span className="text-sm font-medium text-white">
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-muted-foreground">
                 {video.uploader_username}
               </span>
               {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
                 <VerificationBadge
                   userType={video.uploader_type}
                   showText={false}
+                  size="small"
                 />
               )}
             </div>
@@ -355,7 +343,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           </div>
 
           <div className="flex flex-wrap gap-1">
-            {/* Special badges for VR and 4K - VR takes priority */}
+            {/* Special badges for VR and 4K */}
             {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
               <Badge variant="default" className="text-xs bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold">
                 🥽 VR
