@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -29,6 +28,9 @@ import {
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
+import VerificationBadge from '@/components/VerificationBadge';
+import { formatDistanceToNow } from 'date-fns';
+import { Link } from 'react-router-dom';
 
 const FeedPage: React.FC = () => {
   const { user, userProfile } = useAuth();
@@ -62,7 +64,7 @@ const FeedPage: React.FC = () => {
 
   const handleCreatePost = async () => {
     if (!newPostContent.trim() && !newPostMedia) return;
-    
+
     setIsPostingLoading(true);
     try {
       let mediaUrl = '';
@@ -79,7 +81,7 @@ const FeedPage: React.FC = () => {
         const { data: urlData } = supabase.storage
           .from('post_media')
           .getPublicUrl(fileName);
-        
+
         mediaUrl = urlData.publicUrl;
         mediaType = newPostMedia.type.startsWith('video/') ? 'video' : 'image';
       }
@@ -105,17 +107,21 @@ const FeedPage: React.FC = () => {
   };
 
   const handleLikePost = async (postId: string, isLiked: boolean) => {
-    const success = isLiked ? await unlikePost(postId) : await likePost(postId);
-    if (success) {
-      setFeedPosts(feedPosts.map(post => 
-        post.id === postId 
-          ? { 
-              ...post, 
-              isLiked: !isLiked,
-              likes_count: isLiked ? post.likes_count - 1 : post.likes_count + 1
-            }
-          : post
-      ));
+    try {
+      const success = isLiked ? await unlikePost(postId) : await likePost(postId);
+      if (success) {
+        setFeedPosts(feedPosts.map(post => 
+          post.id === postId 
+            ? { 
+                ...post, 
+                isLiked: !isLiked,
+                likes_count: isLiked ? post.likes_count - 1 : post.likes_count + 1
+              }
+            : post
+        ));
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
     }
   };
 
@@ -126,7 +132,7 @@ const FeedPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-900 text-white">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         <h1 className="text-3xl font-bold mb-8 text-center">Your Feed</h1>
 
@@ -143,7 +149,7 @@ const FeedPage: React.FC = () => {
                 onChange={(e) => setNewPostContent(e.target.value)}
                 className="min-h-[100px] bg-gray-700 border-gray-600"
               />
-              
+
               <div className="flex gap-4 items-center">
                 <input
                   type="file"
@@ -217,67 +223,80 @@ const FeedPage: React.FC = () => {
               <Card key={post.id} className="bg-gray-800 border-gray-700">
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3 mb-4">
-                    <Avatar>
-                      <AvatarImage src={post.creator?.profile_picture_url} />
-                      <AvatarFallback>
-                        {post.creator?.username?.[0]?.toUpperCase() || 'U'}
-                      </AvatarFallback>
-                    </Avatar>
+                    <Link to={`/profile/${post.creator?.username}`}>
+                      <Avatar className="h-12 w-12 hover:ring-2 hover:ring-blue-500 transition-all">
+                        <AvatarImage 
+                          src={post.creator?.profile_picture_url || ''} 
+                          alt={post.creator?.username || 'Creator'} 
+                        />
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                          {(post.creator?.username || 'A')[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Link>
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">
-                          {post.creator?.full_name || post.creator?.username}
-                        </h3>
-                        <span className="text-sm text-gray-500">
-                          @{post.creator?.username}
-                        </span>
-                        <span className="text-xs text-gray-500">
-                          {new Date(post.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <p className="text-gray-400 text-sm">
-                        {post.creator?.user_type?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      <Link to={`/profile/${post.creator?.username}`}>
+                        <div className="flex items-center gap-2 hover:text-blue-500 transition-colors">
+                          <h3 className="font-semibold">
+                            {post.creator?.full_name || post.creator?.username || 'Anonymous'}
+                          </h3>
+                          {/* Show verification badge for creators */}
+                          {(post.creator?.user_type === 'individual_creator' || post.creator?.user_type === 'studio_creator') && (
+                            <VerificationBadge
+                              userType={post.creator.user_type as 'individual_creator' | 'studio_creator'}
+                              showText={false}
+                            />
+                          )}
+                        </div>
+                      </Link>
+                      <p className="text-sm text-muted-foreground">
+                        @{post.creator?.username} • {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                       </p>
                     </div>
                   </div>
 
                   <div className="mb-4">
                     <p className="mb-3">{post.content}</p>
-                    
+
                     {post.media_url && (
                       <div className="rounded-lg overflow-hidden">
-                        {post.media_type === 'video' ? (
-                          <video
+                        {post.media_type?.startsWith('image') ? (
+                          <img 
+                            src={post.media_url} 
+                            alt="Post media"
+                            className="w-full h-auto"
+                          />
+                        ) : post.media_type?.startsWith('video') ? (
+                          <video 
                             src={post.media_url}
                             controls
-                            className="w-full max-h-96 object-cover"
+                            className="w-full h-auto"
                           />
-                        ) : (
-                          <img
-                            src={post.media_url}
-                            alt="Post media"
-                            className="w-full max-h-96 object-cover"
-                          />
-                        )}
+                        ) : null}
                       </div>
                     )}
                   </div>
 
                   <div className="flex items-center gap-4 text-sm text-gray-400">
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => handleLikePost(post.id, post.isLiked || false)}
-                      className={`flex items-center gap-2 hover:text-red-400 transition-colors ${
-                        post.isLiked ? 'text-red-400' : ''
-                      }`}
+                      className={`${post.isLiked ? 'text-red-400' : 'text-gray-400'} hover:text-red-400`}
                     >
-                      <Heart className={`h-4 w-4 ${post.isLiked ? 'fill-current' : ''}`} />
-                      {post.likes_count}
-                    </button>
-                    
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="h-4 w-4" />
-                      {post.comments_count}
-                    </div>
+                      <Heart className={`h-4 w-4 mr-2 ${post.isLiked ? 'fill-current' : ''}`} />
+                      {post.likes_count || 0}
+                    </Button>
+
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-blue-500">
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      {post.comments_count || 0}
+                    </Button>
+
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-green-500">
+                      <Send className="h-4 w-4 mr-2" />
+                      Share
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
