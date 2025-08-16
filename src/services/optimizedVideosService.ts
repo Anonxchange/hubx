@@ -12,13 +12,15 @@ export interface LightVideo {
   tags: string[];
   created_at: string;
   is_premium?: boolean;
+  uploader_username?: string;
+  uploader_type?: string;
 }
 
 // Get videos with minimal data for better performance
 export const getOptimizedVideos = async (page = 1, limit = 60, category?: string, searchQuery?: string) => {
   let query = supabase
     .from('videos')
-    .select('id, title, description, thumbnail_url, duration, views, likes, tags, created_at, is_premium', { count: 'exact' });
+    .select('id, title, description, thumbnail_url, duration, views, likes, tags, created_at, is_premium, profiles!inner(username, user_type)', { count: 'exact' });
 
   // Apply category-based sorting and filtering
   if (category && category !== 'all') {
@@ -58,7 +60,12 @@ export const getOptimizedVideos = async (page = 1, limit = 60, category?: string
   }
 
   return {
-    videos: data || [],
+    videos: data?.map(video => ({
+      ...video,
+      tags: Array.isArray(video.tags) ? video.tags : [],
+      uploader_username: video.profiles?.username,
+      uploader_type: video.profiles?.user_type
+    })) || [],
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit)
   };
