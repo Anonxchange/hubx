@@ -209,17 +209,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Function to play VAST ad with proper skip functionality
   const playVastAd = async () => {
-    if (adShown) {
-      console.log('Ad already shown for this video');
+    if (adShown || showingAd) {
+      console.log('Ad already shown or currently showing for this video');
       return;
     }
 
     console.log('Attempting to play VAST ad...');
+    setShowingAd(true); // Set this immediately to prevent double calls
     const vastData = await fetchVastAd();
 
     if (vastData?.adVideoUrl) {
       console.log('Playing VAST video ad:', vastData.adVideoUrl);
-      setShowingAd(true);
 
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
@@ -305,13 +305,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       // Track with Exoclick when video starts playing
       trackVideoViewExoclick();
 
-      // Show ad on every video play (like major video platforms)
-      if (!adShown) {
+      // Show ad only once per video and only on first play attempt
+      if (!adShown && !showingAd) {
         console.log('Showing ad before video');
         video.pause();
         await playVastAd();
       } else {
-        console.log('Ad already shown for this video');
+        console.log('Ad already shown or currently showing for this video');
       }
     };
 
