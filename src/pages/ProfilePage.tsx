@@ -24,6 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
   Camera,
@@ -1726,11 +1727,11 @@ const ProfilePage = () => {
                           Ready to start your creator journey? Choose the plan that fits your needs.
                         </p>
                       </div>
-                    </Card>
-                  </TabsContent>
-                )}
-              </Tabs>
-            </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              )}
+            </Tabs>
           </div>
         </div>
       </div>
