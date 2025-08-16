@@ -53,8 +53,65 @@ const FeedPage: React.FC = () => {
   const loadFeedPosts = async () => {
     setFeedLoading(true);
     try {
-      const posts = await getFeedPosts(50);
-      setFeedPosts(posts);
+      // Get both subscribed creators' posts and all public posts
+      const subscribedPosts = await getFeedPosts(25);
+      
+      // Also get all public posts from all users
+      const { data: allPublicPosts, error } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          creator:profiles!posts_creator_id_fkey(
+            id,
+            username,
+            full_name,
+            avatar_url,
+            user_type
+          ),
+          post_likes!left(user_id),
+          post_comments!left(id)
+        `)
+        .eq('privacy', 'public')
+        .order('created_at', { ascending: false })
+        .limit(25);
+
+      let allPosts = subscribedPosts;
+      
+      if (!error && allPublicPosts) {
+        // Check if current user liked each post
+        const postIds = allPublicPosts.map(post => post.id);
+        const { data: likes } = await supabase
+          .from('post_likes')
+          .select('post_id')
+          .eq('user_id', user?.id || '')
+          .in('post_id', postIds);
+
+        const likedPostIds = new Set(likes?.map(like => like.post_id) || []);
+
+        const formattedPosts = allPublicPosts.map(post => ({
+          ...post,
+          isLiked: likedPostIds.has(post.id),
+          likes_count: post.post_likes?.length || 0,
+          comments_count: post.post_comments?.length || 0,
+          creator: {
+            ...post.creator,
+            profile_picture_url: post.creator?.avatar_url
+          }
+        }));
+
+        // Combine and deduplicate posts
+        const combinedPosts = [...subscribedPosts, ...formattedPosts];
+        const uniquePosts = combinedPosts.filter((post, index, self) => 
+          index === self.findIndex(p => p.id === post.id)
+        );
+        
+        // Sort by creation date
+        allPosts = uniquePosts.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }
+      
+      setFeedPosts(allPosts);
     } catch (error) {
       console.error('Error loading feed:', error);
     } finally {
