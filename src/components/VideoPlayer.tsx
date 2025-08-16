@@ -200,11 +200,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     } catch (error) {
       console.log('ExoClick VAST ad fetch failed, trying direct ad URL');
       
-      // Fallback to direct ExoClick ad URL if VAST fails
+      // Fallback to working video ad if VAST fails
       const fallbackAdData = {
-        adVideoUrl: 'https://a.magsrv.com/ad-provider.js', // ExoClick's ad provider
-        duration: 30000,
-        skipTime: null
+        adVideoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+        duration: 10000, // 10 seconds for testing
+        skipTime: 3000 // 3 second skip
       };
       
       setVastCache(prev => ({
@@ -215,8 +215,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
       }));
       
-      console.log('Using ExoClick fallback ad system');
-      return null;
+      console.log('Using reliable fallback ad for testing');
+      return fallbackAdData;
     }
   };
 
