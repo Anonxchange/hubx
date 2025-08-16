@@ -76,108 +76,36 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Function to create and display VAST ad with native interactivity
+  // Function to create and display VAST ad using direct video element
   const displayVastAd = async () => {
-    const cacheKey = 'vast_ad_data';
-    const cacheExpiry = 5 * 60 * 1000; // 5 minutes caching
-
-    // Check cache first
-    const cached = vastCache[cacheKey];
-    if (cached && (Date.now() - cached.timestamp) < cacheExpiry) {
-      return cached.data;
-    }
-
     try {
-      // Use your real VAST endpoint
+      // Use your real VAST video endpoint - get the actual MP4 URL
       const vastUrl = `https://s.magsrv.com/v1/vast.php?idzone=5660526&timestamp=${Date.now()}`;
-
-      // Create iframe for VAST ad to maintain native functionality
-      const adContainer = document.createElement('div');
-      adContainer.style.position = 'absolute';
-      adContainer.style.top = '0';
-      adContainer.style.left = '0';
-      adContainer.style.width = '100%';
-      adContainer.style.height = '100%';
-      adContainer.style.zIndex = '25';
-      adContainer.style.backgroundColor = '#000';
-
-      // Create iframe for proper VAST rendering
-      const adFrame = document.createElement('iframe');
-      adFrame.style.width = '100%';
-      adFrame.style.height = '100%';
-      adFrame.style.border = 'none';
-      adFrame.style.backgroundColor = '#000';
       
-      // Load VAST ad in iframe for native behavior
-      adFrame.src = `data:text/html,<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { margin: 0; padding: 0; background: #000; }
-    video { width: 100%; height: 100vh; object-fit: contain; }
-  </style>
-</head>
-<body>
-  <video id="vastVideo" autoplay controls muted="false" style="width:100%;height:100%;">
-    <source src="${vastUrl}" type="video/mp4">
-  </video>
-  <script>
-    const video = document.getElementById('vastVideo');
-    
-    // Handle ad completion
-    video.addEventListener('ended', () => {
-      parent.postMessage({type: 'adEnded'}, '*');
-    });
-    
-    // Handle ad error
-    video.addEventListener('error', () => {
-      parent.postMessage({type: 'adError'}, '*');
-    });
-    
-    // Track ad start
-    video.addEventListener('loadeddata', () => {
-      parent.postMessage({type: 'adStarted'}, '*');
-    });
-
-    // Unmute the video for proper ad playback
-    video.muted = false;
-    video.volume = 1.0;
-  </script>
-</body>
-</html>`;
-
-      adContainer.appendChild(adFrame);
+      console.log('Loading VAST ad from:', vastUrl);
       
-      // Listen for messages from iframe
-      const messageHandler = (event) => {
-        if (event.data?.type === 'adEnded') {
-          handleAdEnded();
-          window.removeEventListener('message', messageHandler);
-        } else if (event.data?.type === 'adError') {
-          handleAdError();
-          window.removeEventListener('message', messageHandler);
+      // Simply set the ad video source to the VAST URL
+      if (adVideoRef.current) {
+        adVideoRef.current.src = vastUrl;
+        adVideoRef.current.style.display = 'block';
+        adVideoRef.current.muted = false; // Ensure ad plays with sound
+        
+        // Try to play the ad
+        try {
+          await adVideoRef.current.play();
+          console.log('VAST ad started playing');
+          return true;
+        } catch (playError) {
+          console.log('Ad autoplay failed, user interaction required:', playError);
+          return false;
         }
-      };
+      }
       
-      window.addEventListener('message', messageHandler);
-
-      // Cache the result
-      setVastCache(prev => ({
-        ...prev,
-        [cacheKey]: {
-          data: { adContainer, adFrame },
-          timestamp: Date.now()
-        }
-      }));
-
-      console.log('VAST ad iframe created for native display');
-      return { adContainer, adFrame };
+      return false;
 
     } catch (error) {
-      console.log('VAST ad creation failed:', error);
-      return null;
+      console.log('VAST ad loading failed:', error);
+      return false;
     }
   };
 
@@ -187,23 +115,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     console.log('Ad playing...');
   };
 
-  // Function to play VAST ad with native interactions
+  // Function to play VAST ad with native video element
   const playVastAd = async () => {
     if (adShown || showingAd) {
       console.log('Ad already shown or currently showing for this video');
       return;
     }
 
-    console.log('Attempting to display VAST ad with native interactions...');
+    console.log('Attempting to display VAST ad...');
     setShowingAd(true);
     
-    const vastData = await displayVastAd();
+    const adLoaded = await displayVastAd();
 
-    if (vastData?.adContainer && containerRef.current) {
-      console.log('Displaying VAST ad with native controls');
-
-      // Add the ad container to the video player
-      containerRef.current.appendChild(vastData.adContainer);
+    if (adLoaded) {
+      console.log('VAST ad loaded successfully');
 
       // Track impression for revenue
       if (window.AdProvider && Array.isArray(window.AdProvider)) {
@@ -225,7 +150,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         });
       }
 
-      console.log('✅ VAST ad displayed with native functionality');
+      console.log('✅ VAST ad displayed');
 
     } else {
       console.log('No ad available from VAST endpoint, proceeding to main video');
@@ -348,17 +273,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleAdEnded = () => {
     console.log('Ad ended, starting main video');
     
-    // Clean up iframe-based ad
-    if (containerRef.current) {
-      const adContainer = containerRef.current.querySelector('div[style*="z-index: 25"]');
-      if (adContainer) {
-        adContainer.remove();
-      }
-    }
-    
-    // Fallback cleanup for video element ads
+    // Hide the ad video element
     if (adVideoRef.current) {
       adVideoRef.current.style.display = 'none';
+      adVideoRef.current.src = '';
     }
     
     setShowingAd(false);
@@ -373,17 +291,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const handleAdError = () => {
     console.log('Ad error, skipping to main video');
     
-    // Clean up iframe-based ad
-    if (containerRef.current) {
-      const adContainer = containerRef.current.querySelector('div[style*="z-index: 25"]');
-      if (adContainer) {
-        adContainer.remove();
-      }
-    }
-    
-    // Fallback cleanup for video element ads
+    // Hide the ad video element
     if (adVideoRef.current) {
       adVideoRef.current.style.display = 'none';
+      adVideoRef.current.src = '';
     }
     
     setShowingAd(false);
@@ -427,13 +338,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
 
 
-      {/* Ad Video Element - No native controls, let VAST ad handle interactions */}
+      {/* Ad Video Element - With native controls for proper VAST ad experience */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
         style={{ display: 'none', backgroundColor: '#000' }}
         autoPlay
         playsInline
+        controls
         onContextMenu={(e) => e.preventDefault()}
         onError={handleAdError}
         onEnded={handleAdEnded}
