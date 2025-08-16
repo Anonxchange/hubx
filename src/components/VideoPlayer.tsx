@@ -165,23 +165,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     try {
       // Use ExoClick's VAST endpoint for real ad revenue
       const vastUrl = `https://syndication.exoclick.com/ads/?idzone=5660526&type=vast&size=640x480&timestamp=${Date.now()}`;
-      
+
       // Fetch actual VAST XML from ExoClick
       const response = await fetch(vastUrl);
       const vastXml = await response.text();
-      
+
       // Parse VAST XML to get video URL
       const parser = new DOMParser();
       const vastDoc = parser.parseFromString(vastXml, 'text/xml');
       const mediaFileUrl = vastDoc.querySelector('MediaFile')?.textContent?.trim();
-      
+
       if (mediaFileUrl) {
         const adData = {
           adVideoUrl: mediaFileUrl,
           duration: 30000, // Let ExoClick control duration
           skipTime: null // Let ExoClick handle skip timing
         };
-        
+
         // Cache the result
         setVastCache(prev => ({
           ...prev,
@@ -190,7 +190,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             timestamp: Date.now()
           }
         }));
-        
+
         console.log('ExoClick VAST ad loaded:', mediaFileUrl);
         return adData;
       } else {
@@ -199,14 +199,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     } catch (error) {
       console.log('ExoClick VAST ad fetch failed, trying direct ad URL');
-      
+
       // Fallback to working video ad if VAST fails
       const fallbackAdData = {
         adVideoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
         duration: 10000, // 10 seconds for testing
         skipTime: 3000 // 3 second skip
       };
-      
+
       setVastCache(prev => ({
         ...prev,
         [cacheKey]: {
@@ -214,7 +214,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           timestamp: Date.now()
         }
       }));
-      
+
       console.log('Using reliable fallback ad for testing');
       return fallbackAdData;
     }
@@ -244,7 +244,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         adVideoRef.current.style.height = '100%';
         adVideoRef.current.style.zIndex = '30';
         adVideoRef.current.style.backgroundColor = '#000';
-        
+
         // Configure ad video playback
         adVideoRef.current.controls = false;
         adVideoRef.current.setAttribute('controlsList', 'nodownload noremoteplayback nofullscreen');
@@ -258,11 +258,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           console.log('🎬 Playing video ad:', vastData.adVideoUrl);
           await adVideoRef.current.play();
           console.log('✅ Video ad started playing successfully');
-          
+
           // Let ExoClick handle timing and skip controls naturally
           // Remove custom countdown - ExoClick handles this
           console.log('ExoClick ad playing - revenue tracking active');
-          
+
           // Track impression for revenue
           if (window.AdProvider && Array.isArray(window.AdProvider)) {
             window.AdProvider.push({
@@ -272,7 +272,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               }
             });
           }
-          
+
           // Track ad impression
           if (window.AdProvider && Array.isArray(window.AdProvider)) {
             window.AdProvider.push({
@@ -282,7 +282,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               }
             });
           }
-          
+
         } catch (playError) {
           console.error('Error playing ad video:', playError);
           handleAdError();
@@ -411,7 +411,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       videoRef.current.play();
     }
   };
-  
+
   const handleSkipAd = () => {
     if (canSkipAd) {
       console.log('Ad skipped by user');
@@ -479,7 +479,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
 
 
-      
+
 
       {/* Ad Video Element with Skip Button */}
       <video
@@ -496,7 +496,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         disablePictureInPicture
         muted={false}
       />
-      
+
       {/* Let ExoClick handle ad controls and skip naturally */}
       {showingAd && (
         <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm z-30">
