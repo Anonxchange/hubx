@@ -31,8 +31,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [showingAd, setShowingAd] = useState(false);
   const [adShown, setAdShown] = useState(false);
-  const [adCountdown, setAdCountdown] = useState(0);
-  const [canSkipAd, setCanSkipAd] = useState(false);
+  // Skip state handled by VAST ad itself
 
   const [viewTracked, setViewTracked] = useState(false);
   const [vastCache, setVastCache] = useState<{[key: string]: any}>({});
@@ -131,23 +130,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Handle ad time updates for skip functionality
+  // Let VAST ad handle its own timing and skip functionality
   const handleAdTimeUpdate = () => {
-    if (adVideoRef.current && showingAd) {
-      const currentTime = Math.floor(adVideoRef.current.currentTime);
-      const duration = Math.floor(adVideoRef.current.duration || 0);
-      
-      if (duration > 0) {
-        const remainingTime = Math.max(0, duration - currentTime);
-        setAdCountdown(remainingTime);
-        
-        // Allow skip after 5 seconds or halfway through ad
-        const skipTime = Math.min(5, Math.floor(duration / 2));
-        if (currentTime >= skipTime) {
-          setCanSkipAd(true);
-        }
-      }
-    }
+    // Minimal tracking - let ad network handle skip timing
+    console.log('Ad playing...');
   };
 
   // Function to play video ad from real VAST endpoint
@@ -159,8 +145,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     console.log('Attempting to play video ad from real VAST endpoint...');
     setShowingAd(true);
-    setCanSkipAd(false);
-    setAdCountdown(0);
     
     const vastData = await fetchVastAd();
 
@@ -343,20 +327,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
     setShowingAd(false);
     setAdShown(true);
-    setAdCountdown(0);
-    setCanSkipAd(false);
 
     if (videoRef.current) {
       videoRef.current.play();
     }
   };
 
-  const handleSkipAd = () => {
-    if (canSkipAd) {
-      console.log('Ad skipped by user');
-      handleAdEnded();
-    }
-  };
+  // Skip functionality handled by VAST ad itself
 
   // Handles errors during ad playback
   const handleAdError = () => {
@@ -366,8 +343,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
     setShowingAd(false);
     setAdShown(true);
-    setAdCountdown(0);
-    setCanSkipAd(false);
 
     if (videoRef.current) {
       videoRef.current.play();
@@ -424,17 +399,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onTimeUpdate={handleAdTimeUpdate}
       />
 
-      {/* Minimal ad overlay - only skip button when available */}
-      {showingAd && canSkipAd && (
-        <div className="absolute top-4 right-4 z-30">
-          <button
-            onClick={handleSkipAd}
-            className="bg-black/80 hover:bg-black/90 text-white px-4 py-2 rounded text-sm transition-colors"
-          >
-            Skip Ad
-          </button>
-        </div>
-      )}
+      {/* No custom ad overlay - let VAST ad handle all native controls */}
 
       {/* Main Video Element */}
       <video
