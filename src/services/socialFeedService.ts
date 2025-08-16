@@ -1,4 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
+import { uploadPostMedia } from './bunnyStorageService';
+
 
 export interface Post {
   id: string;
@@ -26,6 +28,7 @@ export interface CreatePostData {
   media_url?: string;
   media_type?: string;
   privacy?: string;
+  media_file?: File; // Added for file uploads
 }
 
 export interface PostComment {
@@ -45,19 +48,45 @@ export interface PostComment {
 export const createPost = async (postData: CreatePostData): Promise<Post | null> => {
   try {
     const { data: user } = await supabase.auth.getUser();
-    if (!user.user) throw new Error('Not authenticated');
+    if (!user.user) return null;
 
-    // Check if posts table exists first
+    let mediaUrl = postData.media_url || '';
+    let mediaType = postData.media_type || '';
+
+    // Upload media to Bunny CDN if file is provided
+    if (postData.media_file) {
+      const uploadResult = await uploadPostMedia(postData.media_file, user.user.id);
+
+      if (!uploadResult.success || !uploadResult.url) {
+        throw new Error('Failed to upload media to storage');
+      }
+
+      mediaUrl = uploadResult.url;
+      mediaType = postData.media_file.type.startsWith('image/') ? 'image' :
+                 postData.media_file.type.startsWith('video/') ? 'video' : '';
+    }
+
     const { data, error } = await supabase
       .from('posts')
-      .insert({
+      .insert([{
         creator_id: user.user.id,
         content: postData.content,
-        media_url: postData.media_url,
-        media_type: postData.media_type,
+        media_url: mediaUrl,
+        media_type: mediaType,
         privacy: postData.privacy || 'public'
-      })
-      .select()
+      }])
+      .select(`
+        *,
+        creator:profiles!posts_creator_id_fkey(
+          id,
+          username,
+          full_name,
+          avatar_url,
+          user_type
+        ),
+        post_likes!left(user_id),
+        post_comments!left(id)
+      `)
       .single();
 
     if (error) {
@@ -68,18 +97,34 @@ export const createPost = async (postData: CreatePostData): Promise<Post | null>
           id: crypto.randomUUID(),
           creator_id: user.user.id,
           content: postData.content,
-          media_url: postData.media_url,
-          media_type: postData.media_type,
+          media_url: mediaUrl,
+          media_type: mediaType,
           privacy: postData.privacy || 'public',
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           likes_count: 0,
-          comments_count: 0
+          comments_count: 0,
+          creator: { // Mock creator data
+            id: user.user.id,
+            username: 'mockuser',
+            full_name: 'Mock User',
+            profile_picture_url: 'mock_avatar_url',
+            user_type: 'user'
+          }
         } as Post;
       }
       throw error;
     }
-    return data;
+    return {
+      ...data,
+      isLiked: false,
+      likes_count: 0,
+      comments_count: 0,
+      creator: {
+        ...data.creator,
+        profile_picture_url: data.creator?.avatar_url
+      }
+    };
   } catch (error) {
     console.error('Error creating post:', error);
     // Return null for graceful degradation
@@ -108,9 +153,11 @@ export const getCreatorPosts = async (creatorId: string): Promise<Post[]> => {
             id,
             username,
             full_name,
-            profile_picture_url,
+            avatar_url,
             user_type
-          )
+          ),
+          post_likes(user_id),
+          post_comments(id)
         `)
         .eq('creator_id', creatorId)
         .or(`privacy.eq.public${currentUserId === creatorId ? ',creator_id.eq.' + currentUserId : ''}`)
@@ -128,16 +175,16 @@ export const getCreatorPosts = async (creatorId: string): Promise<Post[]> => {
         .order('created_at', { ascending: false });
       data = fallbackResult.data;
       error = fallbackResult.error;
-      
+
       // Add creator info manually if we have posts
       if (data && data.length > 0) {
         try {
           const { data: profileData } = await supabase
             .from('profiles')
-            .select('id, username, full_name, profile_picture_url, user_type')
+            .select('id, username, full_name, avatar_url, user_type')
             .eq('id', creatorId)
             .single();
-          
+
           if (profileData) {
             data = data.map(post => ({
               ...post,
@@ -165,7 +212,13 @@ export const getCreatorPosts = async (creatorId: string): Promise<Post[]> => {
 
       return data.map(post => ({
         ...post,
-        isLiked: likedPostIds.has(post.id)
+        isLiked: likedPostIds.has(post.id),
+        likes_count: post.post_likes?.length || 0,
+        comments_count: post.post_comments?.length || 0,
+        creator: {
+          ...post.creator,
+          profile_picture_url: post.creator?.avatar_url
+        }
       }));
     }
 
@@ -203,9 +256,11 @@ export const getFeedPosts = async (limit: number = 20): Promise<Post[]> => {
             id,
             username,
             full_name,
-            profile_picture_url,
+            avatar_url,
             user_type
-          )
+          ),
+          post_likes!left(user_id),
+          post_comments!left(id)
         `)
         .in('creator_id', creatorIds)
         .eq('privacy', 'public')
@@ -225,15 +280,15 @@ export const getFeedPosts = async (limit: number = 20): Promise<Post[]> => {
         .limit(limit);
       data = fallbackResult.data;
       error = fallbackResult.error;
-      
+
       // Add creator info manually if we have posts
       if (data && data.length > 0) {
         try {
           const { data: profilesData } = await supabase
             .from('profiles')
-            .select('id, username, full_name, profile_picture_url, user_type')
+            .select('id, username, full_name, avatar_url, user_type')
             .in('id', creatorIds);
-          
+
           if (profilesData && profilesData.length > 0) {
             const profilesMap = new Map(profilesData.map(profile => [profile.id, profile]));
             data = data.map(post => ({
@@ -262,7 +317,13 @@ export const getFeedPosts = async (limit: number = 20): Promise<Post[]> => {
 
       return data.map(post => ({
         ...post,
-        isLiked: likedPostIds.has(post.id)
+        isLiked: post.post_likes.some((like: any) => like.user_id === user.user.id),
+        likes_count: post.post_likes?.length || 0,
+        comments_count: post.post_comments?.length || 0,
+        creator: {
+          ...post.creator,
+          profile_picture_url: post.creator?.avatar_url
+        }
       }));
     }
 
