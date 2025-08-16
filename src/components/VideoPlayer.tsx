@@ -54,15 +54,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setHasStartedPlaying(true);
       video.src = src;
       video.load();
-    }
-
-    if (video.paused) {
-      video.play().then(() => {
-        setIsPlaying(true);
-      }).catch(console.error);
+      
+      // Wait for the video to be ready before playing
+      video.addEventListener('loadeddata', () => {
+        video.play().then(() => {
+          setIsPlaying(true);
+        }).catch((error) => {
+          console.error('Error playing video:', error);
+          setVideoError(true);
+        });
+      }, { once: true });
     } else {
-      video.pause();
-      setIsPlaying(false);
+      if (video.paused) {
+        video.play().then(() => {
+          setIsPlaying(true);
+        }).catch((error) => {
+          console.error('Error playing video:', error);
+          setVideoError(true);
+        });
+      } else {
+        video.pause();
+        setIsPlaying(false);
+      }
     }
   };
 
@@ -150,10 +163,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     try {
       // Add timeout to prevent hanging
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 2000); // Reduced to 2 seconds
 
       const response = await fetch('https://s.magsrv.com/v1/vast.php?idzone=5660526', {
-        mode: 'cors',
+        mode: 'no-cors', // Use no-cors to avoid CORS issues
         headers: {
           'Accept': 'application/xml, text/xml'
         },
@@ -162,47 +175,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       clearTimeout(timeoutId);
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch VAST');
-      }
+      // With no-cors, we can't check response.ok or get text
+      // So we'll skip VAST ads for now to avoid blocking video playback
+      console.log('VAST request sent, but skipping due to CORS restrictions');
+      return null;
 
-      const vastXml = await response.text();
-
-      // Parse VAST XML to extract media file
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(vastXml, 'text/xml');
-
-      // Look for MediaFile elements
-      const mediaFiles = xmlDoc.getElementsByTagName('MediaFile');
-      let adVideoUrl = null;
-
-      for (let i = 0; i < mediaFiles.length; i++) {
-        const mediaFile = mediaFiles[i];
-        const type = mediaFile.getAttribute('type');
-        if (type && (type.includes('mp4') || type.includes('video'))) {
-          adVideoUrl = mediaFile.textContent?.trim();
-          break;
-        }
-      }
-
-      // Also check for ClickThrough URL
-      const clickThrough = xmlDoc.getElementsByTagName('ClickThrough')[0];
-      const clickThroughUrl = clickThrough ? clickThrough.textContent?.trim() : null;
-
-      const result = { adVideoUrl, clickThroughUrl };
-
-      // Cache the result
-      setVastCache(prev => ({
-        ...prev,
-        [cacheKey]: {
-          data: result,
-          timestamp: Date.now()
-        }
-      }));
-
-      return result;
     } catch (error) {
-      console.error('Error fetching VAST (using fallback):', error);
+      console.log('VAST ad fetch failed, skipping to main video');
       return null;
     }
   };
@@ -224,15 +203,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
         adVideoRef.current.style.display = 'block';
-        adVideoRef.current.controls = true; // Enable controls for VAST skip functionality
+        adVideoRef.current.controls = true; // Always enable controls for skip functionality
         adVideoRef.current.controlsList = 'nodownload noremoteplayback';
         
-        // Remove click-through redirects but keep VAST controls
-        adVideoRef.current.onclick = null;
-        adVideoRef.current.style.cursor = 'default';
+        // Enable standard video controls including skip
+        adVideoRef.current.style.cursor = 'pointer';
 
         try {
           await adVideoRef.current.play();
+          console.log('VAST ad playing with skip controls enabled');
         } catch (playError) {
           console.error('Error playing ad video:', playError);
           setShowingAd(false);
@@ -295,11 +274,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handlePlay = async () => {
       console.log('Video play triggered - Ad shown:', adShown);
 
-      // Track video view when it starts playing
+      // Track video view when it starts playing (only for authenticated users)
       if (!viewTracked && user?.id && videoId) {
-        console.log(`Tracking video view for videoId: ${videoId}, userId: ${user.id}`);
-        await trackVideoView(videoId, user.id);
-        setViewTracked(true);
+        try {
+          console.log(`Tracking video view for videoId: ${videoId}, userId: ${user.id}`);
+          await trackVideoView(videoId, user.id);
+          setViewTracked(true);
+        } catch (error) {
+          console.error('Error tracking video view:', error);
+          // Don't block video playback if tracking fails
+        }
       }
 
       // Track with Exoclick when video starts playing
@@ -326,8 +310,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       adVideo.addEventListener('error', handleAdError);
     }
 
-    // Don't load video until user interaction - save bandwidth and loading time
-    video.preload = 'none';
+    // Set preload to metadata for better user experience
+    video.preload = 'metadata';
 
     return () => {
       video.removeEventListener('loadstart', handleLoadStart);
@@ -423,19 +407,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       
 
-      {/* Ad Indicator - Let VAST handle skip functionality */}
+      {/* Ad Indicator with Skip Button */}
       {showingAd && (
-        <div className="absolute top-4 left-4 z-40 bg-black/80 text-white px-3 py-1 rounded text-sm">
-          Advertisement
+        <div className="absolute top-4 left-4 z-40 flex gap-2">
+          <div className="bg-black/80 text-white px-3 py-1 rounded text-sm">
+            Advertisement
+          </div>
+          <button
+            onClick={() => {
+              console.log('Skip ad clicked');
+              handleAdEnded();
+            }}
+            className="bg-white/80 hover:bg-white text-black px-3 py-1 rounded text-sm font-medium transition-colors"
+          >
+            Skip Ad
+          </button>
         </div>
       )}
 
-      {/* Ad Video Element - No controls to prevent redirects */}
+      {/* Ad Video Element - Enable controls for VAST skip functionality */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
         style={{ display: 'none', backgroundColor: '#000' }}
-        controls={false}
+        controls={true}
         autoPlay
         playsInline
         controlsList="nodownload noremoteplayback"
