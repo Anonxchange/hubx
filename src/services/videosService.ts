@@ -134,10 +134,10 @@ export const getVideos = async (
   const processedVideos = (data || []).map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -260,10 +260,10 @@ const getLoggedInRecommendations = async (userId: string, page: number, limit: n
   const processedVideos = paginatedVideos.map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -282,7 +282,7 @@ const getGuestRecommendations = async (page: number, limit: number) => {
   // Get session-based activity
   const { data: sessionViews } = await supabase
     .from('video_reactions')
-    .select('video_id, videos(tags, views, likes)')
+    .select('video_id, videos(tags, likes, views)')
     .eq('user_session', sessionId);
 
   const { data: userCountryData } = await getUserLocationData();
@@ -364,10 +364,10 @@ const getGuestRecommendations = async (page: number, limit: number) => {
   const processedVideos = paginatedVideos.map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -502,10 +502,10 @@ export const getCategoryVideos = async (
   const processedVideos = paginatedVideos.map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -679,10 +679,10 @@ const applyCategorySectioning = async (
   const processedResult = result.map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -734,10 +734,10 @@ const getPremiumVideos = async (page: number, limit: number, searchQuery?: strin
   const processedVideos = (data || []).map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -780,10 +780,10 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
     const processedVideos = (fallbackData || []).map(video => ({
       ...video,
       uploader_id: video.profiles?.id || video.owner_id,
-      uploader_username: video.profiles?.username,
-      uploader_name: video.profiles?.full_name,
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_type: video.profiles?.user_type,
+      uploader_type: video.profiles?.user_type || 'user',
       uploader_subscribers: 0, // TODO: Calculate from subscriptions table
       video_count: 0, // TODO: Calculate from videos count
     }));
@@ -824,10 +824,10 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
     const processedVideos = (fallbackData || []).map(video => ({
       ...video,
       uploader_id: video.profiles?.id || video.owner_id,
-      uploader_username: video.profiles?.username,
-      uploader_name: video.profiles?.full_name,
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_type: video.profiles?.user_type,
+      uploader_type: video.profiles?.user_type || 'user',
       uploader_subscribers: 0, // TODO: Calculate from subscriptions table
       video_count: 0, // TODO: Calculate from videos count
     }));
@@ -855,10 +855,10 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
     const processedVideos = (fallbackData || []).map(video => ({
       ...video,
       uploader_id: video.profiles?.id || video.owner_id,
-      uploader_username: video.profiles?.username,
-      uploader_name: video.profiles?.full_name,
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_type: video.profiles?.user_type,
+      uploader_type: video.profiles?.user_type || 'user',
       uploader_subscribers: 0, // TODO: Calculate from subscriptions table
       video_count: 0, // TODO: Calculate from videos count
     }));
@@ -895,10 +895,10 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
   const processedVideos = sortedAndScoredVideos.map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -928,10 +928,10 @@ export const getVideoById = async (videoId: string) => {
   const processedVideo = data ? {
     ...data,
     uploader_id: data.profiles?.id || data.owner_id,
-    uploader_username: data.profiles?.username,
-    uploader_name: data.profiles?.full_name,
+    uploader_username: data.profiles?.username || 'Unknown',
+    uploader_name: data.profiles?.full_name || data.profiles?.username || 'Unknown User',
     uploader_avatar: data.profiles?.avatar_url,
-    uploader_type: data.profiles?.user_type,
+    uploader_type: data.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   } : null;
@@ -1129,10 +1129,10 @@ export const searchVideos = async (searchTerm: string) => {
   const processedVideos = (data || []).map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -1281,10 +1281,10 @@ export const getHottestByCountry = async (
     const processedVideos = (simpleVideos || []).map(video => ({
       ...video,
       uploader_id: video.profiles?.id || video.owner_id,
-      uploader_username: video.profiles?.username,
-      uploader_name: video.profiles?.full_name,
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_type: video.profiles?.user_type,
+      uploader_type: video.profiles?.user_type || 'user',
       uploader_subscribers: 0, // TODO: Calculate from subscriptions table
       video_count: 0, // TODO: Calculate from videos count
     }));
@@ -1312,10 +1312,10 @@ export const getHottestByCountry = async (
     const processedVideos = (anyVideos || []).map(video => ({
       ...video,
       uploader_id: video.profiles?.id || video.owner_id,
-      uploader_username: video.profiles?.username,
-      uploader_name: video.profiles?.full_name,
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_type: video.profiles?.user_type,
+      uploader_type: video.profiles?.user_type || 'user',
       uploader_subscribers: 0, // TODO: Calculate from subscriptions table
       video_count: 0, // TODO: Calculate from videos count
     }));
@@ -1373,10 +1373,10 @@ export const getHottestByCountry = async (
   const processedVideos = paginatedVideos.map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -1480,10 +1480,10 @@ export const getTrendingVideos = async (
     const processedVideos = trendingVideos.map(video => ({
       ...video,
       uploader_id: video.profiles?.id || video.owner_id,
-      uploader_username: video.profiles?.username,
-      uploader_name: video.profiles?.full_name,
+      uploader_username: video.profiles?.username || 'Unknown',
+      uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_type: video.profiles?.user_type,
+      uploader_type: video.profiles?.user_type || 'user',
       uploader_subscribers: 0, // TODO: Calculate from subscriptions table
       video_count: 0, // TODO: Calculate from videos count
     }));
@@ -1502,10 +1502,10 @@ export const getTrendingVideos = async (
   const processedVideos = trendingVideos.map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -1604,10 +1604,10 @@ export const getHomepageVideos = async (
   const processedVideos = paginatedVideos.map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
@@ -1808,10 +1808,10 @@ const applyHomepageSectioning = async (
   const processedResult = result.map(video => ({
     ...video,
     uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username,
-    uploader_name: video.profiles?.full_name,
+    uploader_username: video.profiles?.username || 'Unknown',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Unknown User',
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type,
+    uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
   }));
