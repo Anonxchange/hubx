@@ -252,6 +252,7 @@ export const isSubscribedToCreator = async (creatorId: string): Promise<boolean>
 
     return !error && !!data;
   } catch (error) {
+    console.error('Error checking subscription status:', error);
     return false;
   }
 };
