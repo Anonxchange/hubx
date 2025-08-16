@@ -32,7 +32,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   videoId,
   videoTitle
 }) => {
-  const videoRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<any>(null);
   const [videoError, setVideoError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,27 +92,35 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     // Initialize ads
     player.ready(() => {
-      // Initialize contrib-ads
-      player.ads({
-        debug: false,
-        timeout: 5000,
-        prerollTimeout: 8000
-      });
-
-      // Initialize IMA plugin for VAST ads
-      player.ima({
-        adTagUrl: `https://s.magsrv.com/v1/vast.php?idzone=5660526&timestamp=${Date.now()}`,
-        adsManagerLoadedCallback: () => {
-          console.log('IMA ads manager loaded');
-        },
-        adErrorCallback: (error: any) => {
-          console.log('Ad error, proceeding to content:', error);
-          player.trigger('nopreroll');
-        },
-        adsRenderingSettings: {
-          restoreCustomPlaybackStateOnAdBreakComplete: true
+      try {
+        // Initialize contrib-ads
+        if ((player as any).ads) {
+          (player as any).ads({
+            debug: false,
+            timeout: 5000,
+            prerollTimeout: 8000
+          });
         }
-      });
+
+        // Initialize IMA plugin for VAST ads
+        if ((player as any).ima) {
+          (player as any).ima({
+            adTagUrl: `https://s.magsrv.com/v1/vast.php?idzone=5660526&timestamp=${Date.now()}`,
+            adsManagerLoadedCallback: () => {
+              console.log('IMA ads manager loaded');
+            },
+            adErrorCallback: (error: any) => {
+              console.log('Ad error, proceeding to content:', error);
+              player.trigger('nopreroll');
+            },
+            adsRenderingSettings: {
+              restoreCustomPlaybackStateOnAdBreakComplete: true
+            }
+          });
+        }
+      } catch (error) {
+        console.log('Ad plugins not available, playing without ads:', error);
+      }
 
       // Player event listeners
       player.on('loadstart', () => {
@@ -230,6 +238,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           className="video-js vjs-default-skin w-full h-full"
           data-setup="{}"
           style={{ width: '100%', height: '100%' }}
+          crossOrigin="anonymous"
         />
       </div>
     </div>
