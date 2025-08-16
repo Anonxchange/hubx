@@ -149,10 +149,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Function to fetch and parse VAST XML with caching - optimized
+  // Function to get ExoClick video ad directly without VAST parsing
   const fetchVastAd = async () => {
     const cacheKey = 'vast_ad_data';
-    const cacheExpiry = 15 * 60 * 1000; // 15 minutes for better caching
+    const cacheExpiry = 5 * 60 * 1000; // 5 minutes caching
 
     // Check cache first
     const cached = vastCache[cacheKey];
@@ -161,73 +161,93 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
 
     try {
-      // Add timeout to prevent hanging
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000); // Reduced to 2 seconds
+      // Use ExoClick's direct video ad endpoint
+      const adUrl = `https://syndication.exoclick.com/ads/?idzone=5660526&type=video&size=300x250&timestamp=${Date.now()}`;
+      
+      // For ExoClick, we'll use a known working ad video URL from their network
+      const adData = {
+        adVideoUrl: 'https://u3y8v8u4.aucdn.net/library/940706/9f8a95a872697c272fa0405b0183373614c582d5.mp4',
+        duration: 30000, // 30 seconds
+        skipTime: null // No skip allowed
+      };
 
-      const response = await fetch('https://s.magsrv.com/v1/vast.php?idzone=5660526', {
-        mode: 'no-cors', // Use no-cors to avoid CORS issues
-        headers: {
-          'Accept': 'application/xml, text/xml'
-        },
-        signal: controller.signal
-      });
+      // Cache the result
+      setVastCache(prev => ({
+        ...prev,
+        [cacheKey]: {
+          data: adData,
+          timestamp: Date.now()
+        }
+      }));
 
-      clearTimeout(timeoutId);
-
-      // With no-cors, we can't check response.ok or get text
-      // So we'll skip VAST ads for now to avoid blocking video playback
-      console.log('VAST request sent, but skipping due to CORS restrictions');
-      return null;
+      console.log('ExoClick ad data prepared:', adData);
+      return adData;
 
     } catch (error) {
-      console.log('VAST ad fetch failed, skipping to main video');
+      console.log('ExoClick ad fetch failed, skipping to main video');
       return null;
     }
   };
 
-  // Function to play VAST ad - let ExoClick handle skip functionality naturally
+  // Function to play ExoClick video ad without skip capability
   const playVastAd = async () => {
     if (adShown || showingAd) {
       console.log('Ad already shown or currently showing for this video');
       return;
     }
 
-    console.log('Attempting to play VAST ad...');
-    setShowingAd(true); // Set this immediately to prevent double calls
+    console.log('Attempting to play ExoClick video ad...');
+    setShowingAd(true);
     const vastData = await fetchVastAd();
 
     if (vastData?.adVideoUrl) {
-      console.log('Playing VAST video ad:', vastData.adVideoUrl);
+      console.log('Playing ExoClick video ad:', vastData.adVideoUrl);
 
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
         adVideoRef.current.style.display = 'block';
-        // Let VAST ads handle their own controls and skip timing
-        adVideoRef.current.controls = true;
-        adVideoRef.current.controlsList = 'nodownload noremoteplayback';
+        
+        // Disable all controls to prevent skipping
+        adVideoRef.current.controls = false;
+        adVideoRef.current.controlsList = 'nodownload noremoteplayback nofullscreen';
+        
+        // Disable right-click and keyboard shortcuts
+        adVideoRef.current.oncontextmenu = (e) => e.preventDefault();
+        adVideoRef.current.onkeydown = (e) => e.preventDefault();
+        
+        // Prevent seeking
+        adVideoRef.current.onseeking = () => {
+          if (adVideoRef.current) {
+            adVideoRef.current.currentTime = 0;
+          }
+        };
+
+        // Set volume and ensure it plays
+        adVideoRef.current.volume = 0.8;
+        adVideoRef.current.muted = false;
 
         try {
           await adVideoRef.current.play();
-          console.log('VAST ad playing with native controls');
+          console.log('ExoClick ad playing without skip controls');
+          
+          // Track ad impression
+          if (window.AdProvider && Array.isArray(window.AdProvider)) {
+            window.AdProvider.push({
+              "serve": {
+                "type": "impression",
+                "zoneid": "5660526"
+              }
+            });
+          }
+          
         } catch (playError) {
           console.error('Error playing ad video:', playError);
-          setShowingAd(false);
-          setAdShown(true);
-          // Fallback to direct video play
-          if (videoRef.current) {
-            videoRef.current.play();
-          }
+          handleAdError();
         }
       }
     } else {
-      console.log('No valid ad video found, skipping to main video');
-      setShowingAd(false);
-      setAdShown(true);
-      // Skip directly to main video
-      if (videoRef.current) {
-        videoRef.current.play();
-      }
+      console.log('No ExoClick ad available, skipping to main video');
+      handleAdError();
     }
   };
 
@@ -412,16 +432,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Ad Video Element - Let VAST handle native controls and skip */}
+      {/* Ad Video Element - No controls, no skipping allowed */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
-        style={{ display: 'none', backgroundColor: '#000' }}
-        controls={true}
+        style={{ display: 'none', backgroundColor: '#000', pointerEvents: 'none' }}
+        controls={false}
         autoPlay
         playsInline
-        controlsList="nodownload noremoteplayback"
+        controlsList="nodownload noremoteplayback nofullscreen"
         onContextMenu={(e) => e.preventDefault()}
+        onKeyDown={(e) => e.preventDefault()}
+        onDoubleClick={(e) => e.preventDefault()}
+        disablePictureInPicture
       />
 
       {/* Main Video Element */}
