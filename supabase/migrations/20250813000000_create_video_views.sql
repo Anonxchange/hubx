@@ -1,31 +1,24 @@
 
--- Create video_views table for tracking watch history
-CREATE TABLE IF NOT EXISTS public.video_views (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  video_id UUID REFERENCES public.videos(id) ON DELETE CASCADE,
-  watched_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  watch_duration INTEGER DEFAULT 0, -- in seconds
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  
-  -- Prevent duplicate entries for same user/video combination
-  UNIQUE(user_id, video_id)
+-- Create video_views table with proper columns
+CREATE TABLE IF NOT EXISTS video_views (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  video_id UUID NOT NULL REFERENCES videos(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  ip_address INET,
+  user_agent TEXT,
+  viewed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  watch_duration INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_video_views_user_id ON public.video_views(user_id);
-CREATE INDEX IF NOT EXISTS idx_video_views_video_id ON public.video_views(video_id);
-CREATE INDEX IF NOT EXISTS idx_video_views_watched_at ON public.video_views(watched_at);
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS idx_video_views_video_id ON video_views(video_id);
+CREATE INDEX IF NOT EXISTS idx_video_views_user_id ON video_views(user_id);
+CREATE INDEX IF NOT EXISTS idx_video_views_viewed_at ON video_views(viewed_at);
 
 -- Enable RLS
-ALTER TABLE public.video_views ENABLE ROW LEVEL SECURITY;
+ALTER TABLE video_views ENABLE ROW LEVEL SECURITY;
 
--- Create RLS policies
-CREATE POLICY "Users can view their own watch history" ON public.video_views
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert their own watch history" ON public.video_views
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update their own watch history" ON public.video_views
-  FOR UPDATE USING (auth.uid() = user_id);
+-- RLS Policies
+CREATE POLICY "Video views are viewable by everyone" ON video_views FOR SELECT USING (true);
+CREATE POLICY "Anyone can track video views" ON video_views FOR INSERT WITH CHECK (true);
