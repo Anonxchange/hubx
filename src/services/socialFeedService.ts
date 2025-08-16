@@ -66,7 +66,8 @@ export const createPost = async (postData: CreatePostData): Promise<Post | null>
                  postData.media_file.type.startsWith('video/') ? 'video' : '';
     }
 
-    const { data, error } = await supabase
+    // Insert the post directly
+    const { data: insertedPost, error: postError } = await supabase
       .from('posts')
       .insert([{
         creator_id: user.user.id,
@@ -75,48 +76,24 @@ export const createPost = async (postData: CreatePostData): Promise<Post | null>
         media_type: mediaType,
         privacy: postData.privacy || 'public'
       }])
-      .select(`
-        *,
-        creator:profiles!posts_creator_id_fkey(
-          id,
-          username,
-          full_name,
-          avatar_url,
-          user_type
-        ),
-        post_likes!left(user_id),
-        post_comments!left(id)
-      `)
+      .select('*')
       .single();
 
-    if (error) {
-      if (error.code === 'PGRST200' || error.message.includes('Could not find a relationship')) {
-        // Posts table doesn't exist yet, return a mock response for development
-        console.warn('Posts table not available, using mock data for development');
-        return {
-          id: crypto.randomUUID(),
-          creator_id: user.user.id,
-          content: postData.content,
-          media_url: mediaUrl,
-          media_type: mediaType,
-          privacy: postData.privacy || 'public',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          likes_count: 0,
-          comments_count: 0,
-          creator: { // Mock creator data
-            id: user.user.id,
-            username: 'mockuser',
-            full_name: 'Mock User',
-            profile_picture_url: 'mock_avatar_url',
-            user_type: 'user'
-          }
-        } as Post;
-      }
-      throw error;
+    if (postError) {
+      console.error('Error creating post:', postError);
+      throw postError;
     }
+
+    // Fetch the creator profile separately
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url, user_type')
+      .eq('id', user.user.id)
+      .single();
+
     return {
-      ...data,
+      ...insertedPost,
+      creator: profileData,
       isLiked: false,
       likes_count: 0,
       comments_count: 0,
