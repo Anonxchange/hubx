@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdComponent from '@/components/AdComponent';
+import MessageButton from '@/components/MessageButton';
 
 interface Channel {
   id: string;
@@ -326,10 +327,13 @@ const ChannelPage = () => {
                   </Button>
                   
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" className="flex-1 border-border hover:border-orange-500/50">
-                      <MessageCircle className="w-4 h-4 mr-1" />
-                      Message
-                    </Button>
+                    <MessageButton
+                      creatorId={channel.id}
+                      creatorName={channel.name}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 border-border hover:border-orange-500/50"
+                    />
                     <Button variant="outline" size="sm" className="flex-1 border-border hover:border-orange-500/50">
                       <Share2 className="w-4 h-4 mr-1" />
                       Share
