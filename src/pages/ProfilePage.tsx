@@ -56,6 +56,7 @@ import VerificationBadge from '@/components/VerificationBadge';
 import UploadPage from '@/pages/UploadPage';
 import AdComponent from '@/components/AdComponent';
 import { supabase } from '@/integrations/supabase/client';
+import { uploadProfilePicture, uploadCoverPhoto, extractPathFromUrl, deleteFromBunnyStorage } from '@/services/bunnyStorageService';
 
 const ProfilePage = () => {
   const { user, userType, loading } = useAuth();
@@ -346,21 +347,101 @@ const ProfilePage = () => {
   // Redirect to auth only if trying to access own profile (no username param) without being logged in
   if (!username && !user) return <Navigate to="/auth" replace />;
 
-  const handleCoverPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCoverPhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => setCoverPhoto(e.target?.result as string);
-      reader.readAsDataURL(file);
+    if (file && user?.id) {
+      try {
+        // Delete old cover photo if exists
+        if (coverPhoto) {
+          const oldPath = extractPathFromUrl(coverPhoto);
+          if (oldPath) {
+            await deleteFromBunnyStorage(oldPath);
+          }
+        }
+
+        // Upload new cover photo
+        const uploadResult = await uploadCoverPhoto(file, user.id);
+        if (uploadResult.success && uploadResult.url) {
+          setCoverPhoto(uploadResult.url);
+          
+          // Save to database immediately
+          const { error } = await supabase
+            .from('profiles')
+            .upsert({
+              id: user.id,
+              username: currentUserUsername || user.email?.split('@')[0] || 'user',
+              full_name: displayName || user.email?.split('@')[0] || 'User',
+              cover_photo_url: uploadResult.url,
+              user_type: userType || 'user',
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'id'
+            });
+
+          if (error) {
+            console.error('Error saving cover photo to database:', error);
+            alert('Cover photo uploaded but failed to save. Please try again.');
+          } else {
+            console.log('Cover photo saved successfully');
+            alert('Cover photo updated successfully!');
+          }
+        } else {
+          console.error('Failed to upload cover photo:', uploadResult.error);
+          alert('Failed to upload cover photo. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error uploading cover photo:', error);
+        alert('Error uploading cover photo. Please try again.');
+      }
     }
   };
 
-  const handleProfilePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfilePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => setProfilePhoto(e.target?.result as string);
-      reader.readAsDataURL(file);
+    if (file && user?.id) {
+      try {
+        // Delete old profile photo if exists
+        if (profilePhoto) {
+          const oldPath = extractPathFromUrl(profilePhoto);
+          if (oldPath) {
+            await deleteFromBunnyStorage(oldPath);
+          }
+        }
+
+        // Upload new profile photo
+        const uploadResult = await uploadProfilePicture(file, user.id);
+        if (uploadResult.success && uploadResult.url) {
+          setProfilePhoto(uploadResult.url);
+          
+          // Save to database immediately
+          const { error } = await supabase
+            .from('profiles')
+            .upsert({
+              id: user.id,
+              username: currentUserUsername || user.email?.split('@')[0] || 'user',
+              full_name: displayName || user.email?.split('@')[0] || 'User',
+              avatar_url: uploadResult.url,
+              user_type: userType || 'user',
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: 'id'
+            });
+
+          if (error) {
+            console.error('Error saving profile photo to database:', error);
+            alert('Profile photo uploaded but failed to save. Please try again.');
+          } else {
+            console.log('Profile photo saved successfully');
+            alert('Profile photo updated successfully!');
+          }
+        } else {
+          console.error('Failed to upload profile photo:', uploadResult.error);
+          alert('Failed to upload profile photo. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error uploading profile photo:', error);
+        alert('Error uploading profile photo. Please try again.');
+      }
     }
   };
 
@@ -396,23 +477,16 @@ const ProfilePage = () => {
       let mediaUrl = '';
       let mediaType = '';
 
-      // Upload media if present
+      // Upload media if present using Bunny CDN
       if (newPostMedia && user?.id) {
-        const fileName = `${user.id}/${Date.now()}-${newPostMedia.name}`;
-        const { data, error } = await supabase.storage
-          .from('post_media')
-          .upload(fileName, newPostMedia);
-
-        if (error) {
-          console.error('Error uploading media:', error);
+        const uploadResult = await uploadPostMedia(newPostMedia, user.id);
+        
+        if (!uploadResult.success || !uploadResult.url) {
+          console.error('Error uploading media:', uploadResult.error);
           throw new Error('Failed to upload media');
         }
 
-        const { data: urlData } = supabase.storage
-          .from('post_media')
-          .getPublicUrl(fileName);
-
-        mediaUrl = urlData.publicUrl;
+        mediaUrl = uploadResult.url;
         mediaType = newPostMedia.type.startsWith('image/') ? 'image' :
                    newPostMedia.type.startsWith('video/') ? 'video' : '';
       }
@@ -519,8 +593,8 @@ const ProfilePage = () => {
   };
 
   const PostCard: React.FC<{ post: Post; showDelete?: boolean }> = ({ post, showDelete = false }) => (
-    <Card className="bg-gray-900 border-gray-800 mb-4">
-      <CardContent className="p-4">
+    <Card className="bg-gray-900 border-gray-800 mb-4 w-full max-w-full">
+      <CardContent className="p-4 max-w-full overflow-hidden">
         <div className="flex items-start space-x-3">
           <Avatar className="h-10 w-10">
             <AvatarImage src={post.creator?.profile_picture_url} />
@@ -550,21 +624,21 @@ const ProfilePage = () => {
               )}
             </div>
 
-            <p className="text-white mb-3">{post.content}</p>
+            <p className="text-white mb-3 break-words">{post.content}</p>
 
             {post.media_url && (
-              <div className="mb-3 rounded-lg overflow-hidden">
+              <div className="mb-3 rounded-lg overflow-hidden max-w-full">
                 {post.media_type === 'image' ? (
                   <img
                     src={post.media_url}
                     alt="Post media"
-                    className="w-full max-h-96 object-cover"
+                    className="w-full max-h-96 object-cover rounded-lg"
                   />
                 ) : post.media_type === 'video' ? (
                   <video
                     src={post.media_url}
                     controls
-                    className="w-full max-h-96"
+                    className="w-full max-h-96 rounded-lg"
                   />
                 ) : null}
               </div>
@@ -607,7 +681,8 @@ const ProfilePage = () => {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
+        <div className="relative">
         {/* Cover Photo with Profile Picture Container - Positioned closer to ads */}
         <div className="relative -mt-2">
           <div
@@ -1063,8 +1138,8 @@ const ProfilePage = () => {
                               bio: bio,
                               location: location,
                               website: website,
-                              avatar_url: profilePhoto,
-                              cover_photo_url: coverPhoto,
+                              avatar_url: profilePhoto, // Now contains Bunny CDN URL
+                              cover_photo_url: coverPhoto, // Now contains Bunny CDN URL
                               tip_paypal: tipDetails.paypal,
                               tip_venmo: tipDetails.venmo,
                               tip_cashapp: tipDetails.cashapp,
@@ -1108,7 +1183,7 @@ const ProfilePage = () => {
         </div>
 
         {/* Content Tabs */}
-        <div className="mt-8 px-4 sm:px-6">
+        <div className="mt-8">
           <Tabs defaultValue="stream" className="w-full">
             <TabsList className={`grid w-full ${userType === 'user' ? 'grid-cols-4' : 'grid-cols-4'} bg-gray-800 border-gray-700`}>
               <TabsTrigger value="stream" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Stream</TabsTrigger>
@@ -1122,7 +1197,7 @@ const ProfilePage = () => {
             </TabsList>
 
             <TabsContent value="stream" className="mt-6 relative">
-              <div className="space-y-6">
+              <div className="space-y-6 max-w-full overflow-x-hidden">
                 {/* Floating Plus Button - Only for creators on their own profile */}
                 {isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator') && (
                   <Dialog open={isCreatePostModalOpen} onOpenChange={setIsCreatePostModalOpen}>
@@ -1243,9 +1318,11 @@ const ProfilePage = () => {
                         <p className="text-gray-400 mt-4">Loading feed...</p>
                       </div>
                     ) : feedPosts.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="space-y-4 max-w-full">
                         {feedPosts.map(post => (
-                          <PostCard key={post.id} post={post} showDelete={false} />
+                          <div key={post.id} className="max-w-full overflow-hidden">
+                            <PostCard post={post} showDelete={false} />
+                          </div>
                         ))}
                       </div>
                     ) : (
@@ -1268,9 +1345,11 @@ const ProfilePage = () => {
                         <p className="text-gray-400 mt-4">Loading posts...</p>
                       </div>
                     ) : posts.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="space-y-4 max-w-full">
                         {posts.map(post => (
-                          <PostCard key={post.id} post={post} showDelete={false} />
+                          <div key={post.id} className="max-w-full overflow-hidden">
+                            <PostCard post={post} showDelete={false} />
+                          </div>
                         ))}
                       </div>
                     ) : (
@@ -1295,9 +1374,11 @@ const ProfilePage = () => {
                         <p className="text-gray-400 mt-4">Loading your posts...</p>
                       </div>
                     ) : posts.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="space-y-4 max-w-full">
                         {posts.map(post => (
-                          <PostCard key={post.id} post={post} showDelete={true} />
+                          <div key={post.id} className="max-w-full overflow-hidden">
+                            <PostCard post={post} showDelete={true} />
+                          </div>
                         ))}
                       </div>
                     ) : (
@@ -1756,6 +1837,7 @@ const ProfilePage = () => {
               </TabsContent>
             )}
           </Tabs>
+        </div>
         </div>
       </div>
 
