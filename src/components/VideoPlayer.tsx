@@ -207,20 +207,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         adVideoRef.current.src = vastData.adVideoUrl;
         adVideoRef.current.style.display = 'block';
         
-        // Disable all controls to prevent skipping
+        // Configure ad video playback
         adVideoRef.current.controls = false;
         adVideoRef.current.controlsList = 'nodownload noremoteplayback nofullscreen';
-        
-        // Disable right-click and keyboard shortcuts
-        adVideoRef.current.oncontextmenu = (e) => e.preventDefault();
-        adVideoRef.current.onkeydown = (e) => e.preventDefault();
-        
-        // Prevent seeking
-        adVideoRef.current.onseeking = () => {
-          if (adVideoRef.current) {
-            adVideoRef.current.currentTime = 0;
-          }
-        };
 
         // Set volume and ensure it plays
         adVideoRef.current.volume = 0.8;
@@ -425,26 +414,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
 
 
-      {/* Ad Indicator - Simple indicator only */}
-      {showingAd && (
-        <div className="absolute top-4 left-4 z-40 bg-black/80 text-white px-3 py-1 rounded text-sm">
-          Advertisement
-        </div>
-      )}
+      
 
       {/* Ad Video Element - No controls, no skipping allowed */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
-        style={{ display: 'none', backgroundColor: '#000', pointerEvents: 'none' }}
+        style={{ display: 'none', backgroundColor: '#000' }}
         controls={false}
         autoPlay
         playsInline
-        controlsList="nodownload noremoteplayback nofullscreen"
+        controlsList="nodownload noremoteplaybook nofullscreen"
         onContextMenu={(e) => e.preventDefault()}
-        onKeyDown={(e) => e.preventDefault()}
-        onDoubleClick={(e) => e.preventDefault()}
+        onError={handleAdError}
+        onEnded={handleAdEnded}
         disablePictureInPicture
+        muted={false}
       />
 
       {/* Main Video Element */}
