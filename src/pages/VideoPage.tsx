@@ -133,10 +133,10 @@ const VideoPage = () => {
         <AdComponent zoneId="5660534" />
       </div>
 
-      {/* Full-width video player */}
+      {/* Full-width video player - YouTube size */}
       <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
         <div className="relative w-full">
-          <div className="w-full aspect-video bg-black">
+          <div className="w-full bg-black" style={{ height: 'min(calc(100vw * 9/16), 720px)' }}>
             <VideoPlayer
               src={video.video_url}
               poster={video.thumbnail_url}
