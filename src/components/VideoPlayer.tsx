@@ -1,17 +1,12 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { VideoIcon, Settings, Download } from 'lucide-react';
+import { VideoIcon, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import { useAuth } from '@/contexts/AuthContext';
 import { trackVideoView } from '@/services/userStatsService';
 
 
-interface VideoQuality {
-  label: string;
-  height: number;
-  bandwidth: number;
-  url: string;
-}
+
 
 interface VideoPlayerProps {
   src: string;
@@ -42,11 +37,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [vastCache, setVastCache] = useState<{[key: string]: any}>({});
   const { user } = useAuth(); // Get user from AuthContext
 
-  // ABR and Quality Selection State
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
-  const [selectedQuality, setSelectedQuality] = useState<VideoQuality | null>(null);
-  const [availableQualities, setAvailableQualities] = useState<VideoQuality[]>([]);
-  const [isAutoQuality, setIsAutoQuality] = useState(true);
   const [connectionSpeed, setConnectionSpeed] = useState<number>(0);
   const [bufferHealth, setBufferHealth] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -54,35 +44,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   const { getVideoPreloadStrategy } = useBandwidthOptimization();
 
-  // Initialize video qualities lazily - only when needed
-  const initializeQualities = () => {
-    if (availableQualities.length > 0) return;
-
-    const qualities: VideoQuality[] = [
-      {
-        label: "720p",
-        height: 720,
-        bandwidth: 2500000,
-        url: src
-      },
-      {
-        label: "480p",
-        height: 480,
-        bandwidth: 1000000,
-        url: src.replace('.mp4', '_480p.mp4')
-      },
-      {
-        label: "360p",
-        height: 360,
-        bandwidth: 500000,
-        url: src.replace('.mp4', '_360p.mp4')
-      }
-    ];
-
-    setAvailableQualities(qualities);
-    setSelectedQuality(qualities[0]); // Default to 720p
-    setIsAutoQuality(false);
-  };
+  
 
   // Lightweight connection estimation - no network requests
   const estimateConnectionSpeed = () => {
@@ -98,35 +60,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Auto quality selection based on connection speed and buffer health
-  const selectOptimalQuality = () => {
-    if (!isAutoQuality || availableQualities.length === 0) return;
-
-    let optimalQuality = availableQualities[availableQualities.length - 1]; // Start with lowest quality
-
-    // Select based on connection speed
-    if (connectionSpeed > 4000000) { // > 4 Mbps
-      optimalQuality = availableQualities.find(q => q.height === 1080) || optimalQuality;
-    } else if (connectionSpeed > 2000000) { // > 2 Mbps
-      optimalQuality = availableQualities.find(q => q.height === 720) || optimalQuality;
-    } else if (connectionSpeed > 800000) { // > 800 Kbps
-      optimalQuality = availableQualities.find(q => q.height === 480) || optimalQuality;
-    }
-
-    // Adjust based on buffer health
-    if (bufferHealth < 5 && selectedQuality && selectedQuality.height > 480) {
-      // Step down quality if buffer is low
-      const currentIndex = availableQualities.findIndex(q => q.height === selectedQuality.height);
-      if (currentIndex < availableQualities.length - 1) {
-        optimalQuality = availableQualities[currentIndex + 1];
-      }
-    }
-
-    if (optimalQuality && optimalQuality !== selectedQuality) {
-      console.log(`Auto-switching to ${optimalQuality.label}`);
-      setSelectedQuality(optimalQuality);
-    }
-  };
+  
 
   // Monitor buffer health (simplified - no UI display)
   const monitorBufferHealth = () => {
@@ -148,28 +82,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Handle quality change
-  const handleQualityChange = (quality: VideoQuality) => {
-    if (!videoRef.current) return;
-
-    const video = videoRef.current;
-    const currentTime = video.currentTime;
-    const wasPlaying = !video.paused;
-
-    setSelectedQuality(quality);
-    setIsAutoQuality(quality.label === "Auto");
-    setShowQualityMenu(false);
-
-    // Don't load new source until user starts playing (bandwidth saving)
-    if (hasStartedPlaying) {
-      video.src = quality.url;
-      video.currentTime = currentTime;
-
-      if (wasPlaying) {
-        video.play().catch(console.error);
-      }
-    }
-  };
+  
 
   // Handle play button click with lazy loading
   const handlePlayClick = () => {
@@ -178,10 +91,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const video = videoRef.current;
 
     if (!hasStartedPlaying) {
-      // Initialize qualities and connection estimate
-      initializeQualities();
       estimateConnectionSpeed();
-
       setHasStartedPlaying(true);
       video.src = src; // Use original source
       video.load();
@@ -209,7 +119,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (!timeUpdateThrottle) {
         timeUpdateThrottle = setTimeout(() => {
           monitorBufferHealth();
-          selectOptimalQuality();
           timeUpdateThrottle = null as any;
         }, 2000); // Check every 2 seconds instead of constantly
       }
@@ -246,7 +155,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       clearInterval(bufferInterval);
       if (timeUpdateThrottle) clearTimeout(timeUpdateThrottle);
     };
-  }, [hasStartedPlaying, selectedQuality, isAutoQuality]);
+  }, [hasStartedPlaying]);
 
   // Disable right-click to prevent download
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -568,7 +477,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               </svg>
             </div>
             <p className="text-lg font-medium">Click to Play</p>
-            <p className="text-sm text-white/80 mt-1">{selectedQuality?.label} Quality</p>
           </div>
         </div>
       )}
@@ -578,44 +486,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-30">
           <div className="text-center space-y-2">
             <div className="w-8 h-8 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm">Loading {selectedQuality?.label}...</p>
+            <p className="text-sm">Loading...</p>
           </div>
         </div>
       )}
 
-      {/* Quality Selector */}
-      {hasStartedPlaying && (
-        <div className="absolute top-4 right-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="relative">
-            <Button
-              onClick={() => setShowQualityMenu(!showQualityMenu)}
-              size="sm"
-              variant="secondary"
-              className="bg-black/80 text-white hover:bg-black/90 border-white/20"
-            >
-              <Settings className="w-4 h-4 mr-1" />
-              {selectedQuality?.label || "720p"}
-            </Button>
-
-            {showQualityMenu && (
-              <div className="absolute top-full right-0 mt-2 bg-black/90 rounded-md shadow-lg border border-white/20 min-w-32">
-                {availableQualities.map((quality) => (
-                  <button
-                    key={quality.label}
-                    onClick={() => handleQualityChange(quality)}
-                    className={`w-full px-3 py-2 text-left text-sm hover:bg-white/20 transition-colors first:rounded-t-md last:rounded-b-md ${
-                      selectedQuality?.label === quality.label ? 'bg-white/20 text-white' : 'text-white/80'
-                    }`}
-                  >
-                    {quality.label}
-                    {quality.label === "Auto" && isAutoQuality && " (Auto)"}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      
 
       {/* Connection Speed Indicator */}
       {hasStartedPlaying && connectionSpeed > 0 && !showingAd && (
@@ -657,8 +533,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onContextMenu={handleContextMenu}
         onPause={() => setIsPlaying(false)}
       >
-        {hasStartedPlaying && selectedQuality && (
-          <source src={selectedQuality.url} type="video/mp4" />
+        {hasStartedPlaying && (
+          <source src={src} type="video/mp4" />
         )}
         Your browser does not support the video tag.
       </video>
