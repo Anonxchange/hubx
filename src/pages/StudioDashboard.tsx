@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,7 +21,8 @@ import {
   Calendar,
   FileText,
   UserPlus,
-  ThumbsUp
+  ThumbsUp,
+  Tv
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -57,7 +57,7 @@ const StudioDashboard = () => {
   useEffect(() => {
     const fetchStudioContent = async () => {
       if (!user?.id) return;
-      
+
       setContentLoading(true);
       try {
         // Fetch uploaded videos
@@ -73,10 +73,10 @@ const StudioDashboard = () => {
         }
 
         setUploadedVideos(videos || []);
-        
+
         // Update stats
         const totalViews = videos?.reduce((sum, video) => sum + (video.views || 0), 0) || 0;
-        
+
         setStats(prev => ({
           ...prev,
           totalVideos: videos?.length || 0,
@@ -92,10 +92,28 @@ const StudioDashboard = () => {
     fetchStudioContent();
   }, [user?.id]);
 
+  // Function to handle image upload (example, needs actual implementation)
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
+    }
+    const file = event.target.files[0];
+    // Implement your image upload logic here, e.g., to Supabase storage
+    console.log('Uploading image:', file);
+    // Example: upload to Supabase storage
+    const { data, error } = await supabase.storage.from('thumbnails').upload(`public/${user?.id}/${file.name}`, file);
+    if (error) {
+      console.error('Error uploading image:', error);
+    } else {
+      console.log('Image uploaded successfully:', data);
+      // Update video data with new thumbnail URL if needed
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
-      
+
       <div className="container mx-auto px-4 py-8">
         {/* Header Section */}
         <div className="flex items-center justify-between mb-8">
@@ -106,10 +124,10 @@ const StudioDashboard = () => {
               <p className="text-gray-400">Manage your studio content and team</p>
             </div>
           </div>
-          <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20">
-            <Crown className="w-3 h-3 mr-1" />
-            Pro Studio
-          </Badge>
+          <Badge variant="secondary" className="bg-purple-500 text-white">
+              <Tv className="w-3 h-3 mr-1" />
+              Studio Creator
+            </Badge>
         </div>
 
         {/* Quick Stats */}
@@ -257,14 +275,20 @@ const StudioDashboard = () => {
                   <div className="space-y-4">
                     {uploadedVideos.map((video) => (
                       <div key={video.id} className="flex items-center space-x-4 p-4 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors">
+                        {/* The 'w-32 aspect-video' style handles the width and aspect ratio for the thumbnail */}
                         <div className="relative w-32 aspect-video rounded-lg overflow-hidden bg-gray-800 flex-shrink-0">
-                          {video.thumbnail_url && (
+                          {video.thumbnail_url ? (
                             <img
                               src={video.thumbnail_url}
                               alt={video.title}
                               className="w-full h-full object-cover"
                               loading="lazy"
                             />
+                          ) : (
+                            // Placeholder if thumbnail is not available
+                            <div className="w-full h-full bg-gray-700 flex items-center justify-center">
+                              <FileText className="w-8 h-8 text-gray-500" />
+                            </div>
                           )}
                           <div className="absolute bottom-1 right-1 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
                             {video.duration || '00:00'}
@@ -306,6 +330,27 @@ const StudioDashboard = () => {
                             <Play className="w-4 h-4 mr-1" />
                             View
                           </Button>
+                          {/* Example of a button to trigger image upload for a video */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-gray-700 text-white hover:bg-gray-800"
+                            onClick={() => {
+                              // Trigger a hidden file input for image upload
+                              document.getElementById(`thumbnail-upload-${video.id}`)?.click();
+                            }}
+                          >
+                            <Upload className="w-4 h-4 mr-1" />
+                            Update Thumbnail
+                          </Button>
+                          {/* Hidden file input for thumbnail upload */}
+                          <input
+                            type="file"
+                            id={`thumbnail-upload-${video.id}`}
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleImageUpload} // This will need to be adapted to update a specific video
+                          />
                         </div>
                       </div>
                     ))}
