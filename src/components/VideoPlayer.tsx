@@ -37,8 +37,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [showingAd, setShowingAd] = useState(false);
   const [adShown, setAdShown] = useState(false);
-  const [showSkipButton, setShowSkipButton] = useState(false);
-  const [adCountdown, setAdCountdown] = useState(5);
+  
   const [viewTracked, setViewTracked] = useState(false); // State to track if view has been logged
   const [vastCache, setVastCache] = useState<{[key: string]: any}>({});
   const { user } = useAuth(); // Get user from AuthContext
@@ -129,7 +128,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Monitor buffer health
+  // Monitor buffer health (simplified - no UI display)
   const monitorBufferHealth = () => {
     if (!videoRef.current) return;
 
@@ -371,28 +370,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (vastData?.adVideoUrl) {
       console.log('Playing VAST video ad:', vastData.adVideoUrl);
       setShowingAd(true);
-      setShowSkipButton(false);
-      setAdCountdown(5);
-
-      // Start skip button countdown
-      const skipTimer = setTimeout(() => {
-        setShowSkipButton(true);
-      }, 5000);
-
-      // Update countdown every second
-      const countdownInterval = setInterval(() => {
-        setAdCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownInterval);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
 
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
         adVideoRef.current.style.display = 'block';
+        adVideoRef.current.controls = true; // Let VAST ad have its own controls
 
         // Add click handler if click-through URL exists
         if (vastData.clickThroughUrl) {
@@ -406,99 +388,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           await adVideoRef.current.play();
         } catch (playError) {
           console.error('Error playing ad video:', playError);
-          clearTimeout(skipTimer);
-          clearInterval(countdownInterval);
           setShowingAd(false);
           setAdShown(true);
-          setShowSkipButton(false);
-          // Fallback to placeholder ad
-          showPlaceholderAd();
+          // Fallback to direct video play
+          if (videoRef.current) {
+            videoRef.current.play();
+          }
         }
       }
-
-      // Cleanup function
-      const cleanup = () => {
-        clearTimeout(skipTimer);
-        clearInterval(countdownInterval);
-      };
-
-      // Store cleanup function for later use
-      (window as any).adCleanup = cleanup;
-
     } else {
-      console.log('No valid ad video found, showing placeholder ad');
-      // Show placeholder ad overlay
-      showPlaceholderAd();
+      console.log('No valid ad video found, skipping to main video');
+      setShowingAd(false);
+      setAdShown(true);
+      // Skip directly to main video
+      if (videoRef.current) {
+        videoRef.current.play();
+      }
     }
   };
 
-  // Function to show placeholder ad when VAST fails
-  const showPlaceholderAd = () => {
-    setShowingAd(true);
-    setShowSkipButton(false);
-    setAdCountdown(5);
-
-    const adOverlay = document.createElement('div');
-    adOverlay.style.cssText = `
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(45deg, #8b5cf6, #a855f7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 18px;
-      font-weight: bold;
-      z-index: 1000;
-      cursor: pointer;
-    `;
-
-    let countdown = 5;
-    const updateOverlay = () => {
-      adOverlay.innerHTML = `
-        <div style="text-align: center;">
-          <div style="margin-bottom: 15px;">Advertisement</div>
-          <div style="font-size: 14px; opacity: 0.8;">${countdown > 0 ? `Video starts in ${countdown} seconds` : 'You can skip this ad'}</div>
-          <div style="margin-top: 15px; font-size: 12px; opacity: 0.6;">Click to visit advertiser</div>
-        </div>
-      `;
-    };
-
-    updateOverlay();
-
-    adOverlay.onclick = () => {
-      window.open('https://s.magsrv.com/v1/vast.php?idzone=5660526', '_blank');
-    };
-
-    console.log('Showing placeholder ad');
-
-    if (containerRef.current) {
-      containerRef.current.appendChild(adOverlay);
-    }
-
-    const countdownInterval = setInterval(() => {
-      countdown--;
-      setAdCountdown(countdown);
-      updateOverlay();
-
-      if (countdown <= 0) {
-        setShowSkipButton(true);
-      }
-
-      if (countdown <= -5) { // Auto-skip after 5 seconds of skip availability
-        clearInterval(countdownInterval);
-        if (containerRef.current && adOverlay.parentNode) {
-          containerRef.current.removeChild(adOverlay);
-        }
-        setShowingAd(false);
-        setAdShown(true);
-        setShowSkipButton(false);
-      }
-    }, 1000);
-  };
+  
 
   // Reset ad state when video source changes - FRESH START EVERY VIDEO
   useEffect(() => {
@@ -593,37 +502,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onError?.();
   };
 
-  const skipAd = () => {
-    console.log('Skipping ad');
-
-    // Cleanup timers
-    if ((window as any).adCleanup) {
-      (window as any).adCleanup();
-    }
-
-    // Hide ad video if playing
-    if (adVideoRef.current) {
-      adVideoRef.current.pause();
-      adVideoRef.current.style.display = 'none';
-    }
-
-    // Remove any placeholder overlays
-    const overlays = containerRef.current?.querySelectorAll('div[style*="position: absolute"]');
-    overlays?.forEach(overlay => {
-      if (overlay.parentNode === containerRef.current) {
-        containerRef.current?.removeChild(overlay);
-      }
-    });
-
-    setShowingAd(false);
-    setAdShown(true);
-    setShowSkipButton(false);
-
-    // Start main video
-    if (videoRef.current) {
-      videoRef.current.play();
-    }
-  };
+  
 
   // Handles the end of the ad video
   const handleAdEnded = () => {
@@ -633,12 +512,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
     setShowingAd(false);
     setAdShown(true);
-    setShowSkipButton(false);
-
-    // Cleanup timers
-    if ((window as any).adCleanup) {
-      (window as any).adCleanup();
-    }
 
     if (videoRef.current) {
       videoRef.current.play();
@@ -647,11 +520,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Handles errors during ad playback
   const handleAdError = () => {
-    console.log('Ad error, showing placeholder ad');
+    console.log('Ad error, skipping to main video');
     if (adVideoRef.current) {
       adVideoRef.current.style.display = 'none';
     }
-    showPlaceholderAd();
+    setShowingAd(false);
+    setAdShown(true);
+    
+    if (videoRef.current) {
+      videoRef.current.play();
+    }
   };
 
 
@@ -740,32 +618,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       )}
 
       {/* Connection Speed Indicator */}
-      {hasStartedPlaying && connectionSpeed > 0 && (
+      {hasStartedPlaying && connectionSpeed > 0 && !showingAd && (
         <div className="absolute top-4 left-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="bg-black/80 text-white px-2 py-1 rounded text-xs">
             {(connectionSpeed / 1000000).toFixed(1)} Mbps
-            {bufferHealth > 0 && ` • ${bufferHealth.toFixed(1)}s buffer`}
           </div>
         </div>
       )}
 
-      {/* Skip Ad Button */}
-      {showingAd && showSkipButton && (
-        <div className="absolute top-4 right-4 z-40">
-          <Button
-            onClick={skipAd}
-            size="sm"
-            className="bg-black/80 text-white hover:bg-black/90 border-white/20"
-          >
-            Skip Ad
-          </Button>
-        </div>
-      )}
-
-      {/* Ad Countdown */}
-      {showingAd && !showSkipButton && adCountdown > 0 && (
-        <div className="absolute top-4 right-4 z-40 bg-black/80 text-white px-3 py-1 rounded text-sm">
-          Skip in {adCountdown}s
+      {/* Ad Indicator */}
+      {showingAd && (
+        <div className="absolute top-4 left-4 z-40 bg-black/80 text-white px-3 py-1 rounded text-sm">
+          Advertisement
         </div>
       )}
 
@@ -774,7 +638,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
         style={{ display: 'none', backgroundColor: '#000' }}
-        controls={false}
+        controls={true}
         autoPlay
         playsInline
       />
