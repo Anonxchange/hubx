@@ -150,12 +150,27 @@ const ProfilePage = () => {
       // If viewing someone else's profile by username (or guest viewing any profile)
       if (username && (currentUserUsername !== username || !currentUserUsername)) {
         try {
-          // Query with only the basic columns that definitely exist
+          // Query with basic columns that should exist
           const { data, error } = await supabase
             .from('profiles')
-            .select('id, username, full_name, user_type, avatar_url, bio, location, website')
+            .select('id, username, full_name, user_type, avatar_url')
             .eq('username', username)
             .single();
+
+          // Try to get additional columns if they exist
+          let additionalData = {};
+          try {
+            const { data: fullData } = await supabase
+              .from('profiles')
+              .select('bio, location, website, cover_photo_url, tip_paypal, tip_venmo, tip_cashapp, tip_bitcoin, tip_ethereum, tip_description')
+              .eq('username', username)
+              .single();
+            if (fullData) {
+              additionalData = fullData;
+            }
+          } catch (e) {
+            console.log('Additional profile columns not available yet');
+          }
 
           if (error || !data) {
             console.error('Profile not found for username:', username, error);
@@ -169,11 +184,23 @@ const ProfilePage = () => {
 
           // Set public profile data for display with available columns
           setDisplayName(data.full_name || data.username || username);
-          setBio(data.bio || 'Welcome to my profile! 🌟');
-          setLocation(data.location || ''); 
-          setWebsite(data.website || '');
+          setBio(additionalData.bio || 'Welcome to my profile! 🌟');
+          setLocation(additionalData.location || ''); 
+          setWebsite(additionalData.website || '');
           setProfilePhoto(data.avatar_url || '');
-          setCoverPhoto('');
+          setCoverPhoto(additionalData.cover_photo_url || '');
+
+          // Set tip details if available
+          if (additionalData) {
+            setTipDetails({
+              paypal: additionalData.tip_paypal || '',
+              venmo: additionalData.tip_venmo || '',
+              cashapp: additionalData.tip_cashapp || '',
+              bitcoin: additionalData.tip_bitcoin || '',
+              ethereum: additionalData.tip_ethereum || '',
+              description: additionalData.tip_description || 'Support my content creation journey! 💖'
+            });
+          }
 
           // Set profile user type for proper display
           if (data.user_type) {
@@ -1132,31 +1159,61 @@ const ProfilePage = () => {
                           if (!user?.id) return;
 
                           try {
-                            const profileData = {
+                            // First, try to get current profile to see what columns exist
+                            const { data: currentProfile } = await supabase
+                              .from('profiles')
+                              .select('*')
+                              .eq('id', user.id)
+                              .single();
+
+                            // Build profile data with only basic columns that should exist
+                            const basicProfileData = {
                               id: user.id,
+                              username: currentUsername || user.email?.split('@')[0] || 'user',
                               full_name: displayName,
+                              avatar_url: profilePhoto,
+                              user_type: userType || 'user',
+                              updated_at: new Date().toISOString()
+                            };
+
+                            // Try to add optional columns if they exist in the schema
+                            const optionalColumns = {
                               bio: bio,
                               location: location,
                               website: website,
-                              avatar_url: profilePhoto, // Now contains Bunny CDN URL
-                              cover_photo_url: coverPhoto, // Now contains Bunny CDN URL
+                              cover_photo_url: coverPhoto,
                               tip_paypal: tipDetails.paypal,
                               tip_venmo: tipDetails.venmo,
                               tip_cashapp: tipDetails.cashapp,
                               tip_bitcoin: tipDetails.bitcoin,
                               tip_ethereum: tipDetails.ethereum,
-                              tip_description: tipDetails.description,
-                              user_type: userType || 'user',
-                              updated_at: new Date().toISOString()
+                              tip_description: tipDetails.description
                             };
 
-                            const { error } = await supabase
+                            // Try to save with all columns first
+                            let { error } = await supabase
                               .from('profiles')
-                              .upsert(profileData, {
+                              .upsert({ ...basicProfileData, ...optionalColumns }, {
                                 onConflict: 'id'
                               });
 
-                            if (error) {
+                            // If that fails due to missing columns, try with just basic data
+                            if (error && error.message.includes('column')) {
+                              console.log('Some columns not available, saving basic profile data only');
+                              const { error: basicError } = await supabase
+                                .from('profiles')
+                                .upsert(basicProfileData, {
+                                  onConflict: 'id'
+                                });
+                              
+                              if (basicError) {
+                                console.error('Error saving basic profile:', basicError);
+                                alert('Error saving profile. Please try again.');
+                              } else {
+                                console.log('Basic profile saved successfully');
+                                alert('Profile saved successfully! (Some features may require database updates)');
+                              }
+                            } else if (error) {
                               console.error('Error saving profile:', error);
                               alert('Error saving profile. Please try again.');
                             } else {
