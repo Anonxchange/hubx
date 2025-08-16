@@ -61,7 +61,11 @@ const ProfilePage = () => {
   const { user, userType, loading } = useAuth();
   const { username } = useParams();
   const navigate = useNavigate();
-  const isOwnProfile = !username || username === user?.email?.split('@')[0];
+  const [currentUserUsername, setCurrentUserUsername] = useState<string | null>(null);
+  const [profileLoadComplete, setProfileLoadComplete] = useState(false);
+  
+  // Determine if this is own profile after we know the current user's username
+  const isOwnProfile = !username || (currentUserUsername && username === currentUserUsername);
   const [isEditing, setIsEditing] = useState(false);
   const [coverPhoto, setCoverPhoto] = useState<string>('');
   const [profilePhoto, setProfilePhoto] = useState<string>('');
@@ -107,18 +111,47 @@ const ProfilePage = () => {
   const [feedLoading, setFeedLoading] = useState(true);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
 
-  // Fetch user statistics
+  // First useEffect to get current user's username
   useEffect(() => {
+    const fetchCurrentUserUsername = async () => {
+      if (user?.id) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .single();
+          
+          setCurrentUserUsername(profile?.username || null);
+          setProfileLoadComplete(true);
+        } catch (error) {
+          console.error('Error fetching current user username:', error);
+          setCurrentUserUsername(null);
+          setProfileLoadComplete(true);
+        }
+      } else {
+        setProfileLoadComplete(true);
+      }
+    };
+
+    fetchCurrentUserUsername();
+  }, [user?.id]);
+
+  // Second useEffect to fetch profile data after we know usernames
+  useEffect(() => {
+    if (!profileLoadComplete) return;
+
     const fetchUserData = async () => {
       let targetUserId = user?.id;
-      let targetProfileData: any = null; // To store fetched public profile data
+      let targetProfileData: any = null;
 
-      // If viewing someone else's profile by username, get their user ID and profile data
-      if (username && !isOwnProfile) {
+      // If viewing someone else's profile by username (or guest viewing any profile)
+      if (username && (currentUserUsername !== username || !currentUserUsername)) {
         try {
+          // Query with only the basic columns that definitely exist
           const { data, error } = await supabase
             .from('profiles')
-            .select('id, username, full_name, bio, location, website, profile_picture_url, cover_photo_url, user_type')
+            .select('id, username, full_name, user_type, avatar_url')
             .eq('username', username)
             .single();
 
@@ -131,17 +164,17 @@ const ProfilePage = () => {
           targetUserId = data.id;
           targetProfileData = data; // Store the fetched data
 
-          // Set public profile data for display
+          // Set public profile data for display with available columns
           setDisplayName(data.full_name || data.username || '');
-          setBio(data.bio || 'Welcome to my profile! 🌟');
-          setLocation(data.location || '');
-          setWebsite(data.website || '');
-          setProfilePhoto(data.profile_picture_url || '');
-          setCoverPhoto(data.cover_photo_url || '');
+          setBio('Welcome to my profile! 🌟'); // Default values for missing columns
+          setLocation(''); 
+          setWebsite('');
+          setProfilePhoto(data.avatar_url || '');
+          setCoverPhoto('');
 
           // Set profile user type for proper display
           if (data.user_type) {
-            setProfileUserType(data.user_type);
+            setProfileUserType(data.user_type as UserType);
           }
         } catch (error) {
           console.error('Error fetching public profile:', error);
@@ -154,11 +187,12 @@ const ProfilePage = () => {
       if (targetUserId) {
         setStatsLoading(true);
         try {
+          // Query profile with only basic columns that exist
           const profilePromise = supabase
             .from('profiles')
-            .select('*')
+            .select('id, username, full_name, user_type, avatar_url')
             .eq('id', targetUserId)
-            .maybeSingle(); // Use maybeSingle to handle case where profile doesn't exist
+            .maybeSingle();
 
           const promises = [
             getUserStats(targetUserId),
@@ -180,7 +214,8 @@ const ProfilePage = () => {
           }
 
           const results = await Promise.all(promises);
-          const [userStats, userFavorites, userWatchHistory, profileResponse, uploadsResponse] = results;
+          const [userStats, userFavorites, userWatchHistory, profileResponse, ...rest] = results;
+          const uploadsResponse = rest[0]; // Get uploadsResponse if it exists
 
           if (typeof userStats === 'object' && 'videosWatched' in userStats) {
             setStats(userStats);
@@ -193,33 +228,33 @@ const ProfilePage = () => {
           }
 
           // Load profile data including tip details if not already loaded from public fetch
-          if (!targetProfileData && profileResponse && typeof profileResponse === 'object' && !profileResponse.error && profileResponse.data) {
+          if (!targetProfileData && profileResponse && 'data' in profileResponse && !profileResponse.error && profileResponse.data) {
             const profile = profileResponse.data;
 
-            // Set profile fields
-            setDisplayName(profile.full_name || '');
-            setBio(profile.bio || 'Welcome to my profile! 🌟');
-            setLocation(profile.location || '');
-            setWebsite(profile.website || '');
-            setProfilePhoto(profile.profile_picture_url || '');
-            setCoverPhoto(profile.cover_photo_url || '');
+            // Set profile fields with available data
+            setDisplayName(profile.full_name || profile.username || '');
+            setBio('Welcome to my profile! 🌟'); // Default values
+            setLocation('');
+            setWebsite('');
+            setProfilePhoto(profile.avatar_url || '');
+            setCoverPhoto('');
 
-            // Set tip details
+            // Set default tip details since tip columns don't exist
             setTipDetails({
-              paypal: profile.tip_paypal || '',
-              venmo: profile.tip_venmo || '',
-              cashapp: profile.tip_cashapp || '',
-              bitcoin: profile.tip_bitcoin || '',
-              ethereum: profile.tip_ethereum || '',
-              description: profile.tip_description || 'Support my content creation journey! 💖'
+              paypal: '',
+              venmo: '',
+              cashapp: '',
+              bitcoin: '',
+              ethereum: '',
+              description: 'Support my content creation journey! 💖'
             });
-          } else if (!targetProfileData && profileResponse && typeof profileResponse === 'object' && profileResponse.error) {
+          } else if (!targetProfileData && profileResponse && 'error' in profileResponse && profileResponse.error) {
             console.log('Profile not found, will create on first save');
           }
 
-          if (uploadsResponse && typeof uploadsResponse === 'object' && !uploadsResponse.error) {
+          if (uploadsResponse && 'data' in uploadsResponse && !uploadsResponse.error) {
             setUploadedVideos(uploadsResponse.data || []);
-          } else if (uploadsResponse && typeof uploadsResponse === 'object' && uploadsResponse.error) {
+          } else if (uploadsResponse && 'error' in uploadsResponse && uploadsResponse.error) {
             console.error('Error fetching uploaded videos:', uploadsResponse.error);
           }
         } catch (error) {
@@ -236,8 +271,8 @@ const ProfilePage = () => {
     const fetchSocialData = async () => {
       let targetUserId = user?.id;
 
-      // If viewing someone else's profile, get their user ID from username
-      if (username && !isOwnProfile) {
+      // If viewing someone else's profile by username (or guest viewing any profile)
+      if (username && (currentUserUsername !== username || !currentUserUsername)) {
         try {
           const { data } = await supabase
             .from('profiles')
@@ -248,11 +283,13 @@ const ProfilePage = () => {
           if (data) {
             targetUserId = data.id;
           } else {
+            console.log('Profile not found for username:', username);
             // If username doesn't exist, we cannot fetch social data for them
             targetUserId = null;
           }
         } catch (error) {
           console.error('Error fetching user ID for posts:', error);
+          setPostsLoading(false);
           return;
         }
       }
@@ -269,24 +306,26 @@ const ProfilePage = () => {
         setSubscriberCount(subCount);
 
         // Check if current user is subscribed (only if viewing another user's profile and logged in)
-        if (!isOwnProfile && targetUserId !== user?.id && user?.id) {
+        if (targetUserId && targetUserId !== user?.id && user?.id) {
           const subscribed = await isSubscribedToCreator(targetUserId);
           setIsSubscribed(subscribed);
         }
       }
 
-      // Fetch feed posts only for own profile
-      if (isOwnProfile && user?.id) {
+      // Fetch feed posts only for own profile (authenticated user viewing their own profile)
+      if (user?.id && (!username || (currentUserUsername && username === currentUserUsername))) {
         setFeedLoading(true);
         const feed = await getFeedPosts(50);
         setFeedPosts(feed);
+        setFeedLoading(false);
+      } else {
         setFeedLoading(false);
       }
     };
 
     fetchUserData();
     fetchSocialData();
-  }, [user?.id, userType, username, isOwnProfile]); // Added dependencies
+  }, [user?.id, userType, username, currentUserUsername, profileLoadComplete]); // Added dependencies
 
   if (loading) {
     return (
@@ -317,7 +356,7 @@ const ProfilePage = () => {
     }
   };
 
-  const [profileUserType, setProfileUserType] = useState(userType);
+  const [profileUserType, setProfileUserType] = useState<UserType | null>(userType);
 
   const getUserTypeInfo = () => {
     // Use profileUserType for display, which can be set from fetched profile data
