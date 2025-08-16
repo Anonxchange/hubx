@@ -56,7 +56,7 @@ import VerificationBadge from '@/components/VerificationBadge';
 import UploadPage from '@/pages/UploadPage';
 import AdComponent from '@/components/AdComponent';
 import { supabase } from '@/integrations/supabase/client';
-import { uploadProfilePicture, uploadCoverPhoto, extractPathFromUrl, deleteFromBunnyStorage } from '@/services/bunnyStorageService';
+import { uploadProfilePicture, uploadCoverPhoto, extractPathFromUrl, deleteFromBunnyStorage, uploadPostMedia } from '@/services/bunnyStorageService';
 
 const ProfilePage = () => {
   const { user, userType, loading } = useAuth();
@@ -65,7 +65,7 @@ const ProfilePage = () => {
   const [currentUserUsername, setCurrentUserUsername] = useState<string | null>(null);
   const [profileLoadComplete, setProfileLoadComplete] = useState(false);
   const [profileUserType, setProfileUserType] = useState<string>('user'); // For viewing other users' profiles
-  
+
   // Determine if this is own profile after we know the current user's username
   const isOwnProfile = !username || (currentUserUsername && username === currentUserUsername);
   const [isEditing, setIsEditing] = useState(false);
@@ -123,7 +123,7 @@ const ProfilePage = () => {
             .select('username')
             .eq('id', user.id)
             .single();
-          
+
           setCurrentUserUsername(profile?.username || null);
           setProfileLoadComplete(true);
         } catch (error) {
@@ -390,7 +390,7 @@ const ProfilePage = () => {
         const uploadResult = await uploadCoverPhoto(file, user.id);
         if (uploadResult.success && uploadResult.url) {
           setCoverPhoto(uploadResult.url);
-          
+
           // Save to database immediately
           const { error } = await supabase
             .from('profiles')
@@ -439,7 +439,7 @@ const ProfilePage = () => {
         const uploadResult = await uploadProfilePicture(file, user.id);
         if (uploadResult.success && uploadResult.url) {
           setProfilePhoto(uploadResult.url);
-          
+
           // Save to database immediately
           const { error } = await supabase
             .from('profiles')
@@ -472,7 +472,7 @@ const ProfilePage = () => {
     }
   };
 
-  
+
 
   const getUserTypeInfo = () => {
     // Use profileUserType for display, which can be set from fetched profile data
@@ -507,7 +507,7 @@ const ProfilePage = () => {
       // Upload media if present using Bunny CDN
       if (newPostMedia && user?.id) {
         const uploadResult = await uploadPostMedia(newPostMedia, user.id);
-        
+
         if (!uploadResult.success || !uploadResult.url) {
           console.error('Error uploading media:', uploadResult.error);
           throw new Error('Failed to upload media');
@@ -1205,7 +1205,7 @@ const ProfilePage = () => {
                                 .upsert(basicProfileData, {
                                   onConflict: 'id'
                                 });
-                              
+
                               if (basicError) {
                                 console.error('Error saving basic profile:', basicError);
                                 alert('Error saving profile. Please try again.');
