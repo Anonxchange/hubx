@@ -63,8 +63,9 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   const navigate = useNavigate();
 
   const handleProfileClick = () => {
-    if (!video || !video.uploader_username) return;
-    navigate(`/profile/${video.uploader_username}`);
+    const uploaderUsername = video?.profiles?.username || video?.uploader_username;
+    if (!uploaderUsername) return;
+    navigate(`/profile/${uploaderUsername}`);
   };
   const formatViews = (count: number) => {
     if (!count || count < 0) return '0';
@@ -124,7 +125,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
           <div className="flex items-center gap-3 mb-4">
             <Avatar 
               className="h-12 w-12 cursor-pointer"
-              onClick={() => navigate(`/profile/${video.profiles?.username || video.uploader_username}`)}
+              onClick={handleProfileClick}
             >
               <AvatarImage src={video.profiles?.avatar_url || video.uploader_avatar} />
               <AvatarFallback className="bg-gray-600 text-white text-sm">
@@ -136,7 +137,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
               <div className="flex items-center gap-2 mb-1">
                 <h3 
                   className="font-semibold text-white text-base cursor-pointer hover:text-orange-400 transition-colors"
-                  onClick={() => navigate(`/profile/${video.profiles?.username || video.uploader_username}`)}
+                  onClick={handleProfileClick}
                 >
                   {video.profiles?.full_name || video.profiles?.username || video.uploader_name || video.uploader_username}
                 </h3>
@@ -153,7 +154,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
           <Button
             variant="outline"
             className="w-full bg-transparent border border-gray-600 text-white hover:bg-gray-800 hover:border-gray-500 py-3 font-medium text-sm mb-2"
-            onClick={() => navigate(`/profile/${video.profiles?.username || video.uploader_username}`)}
+            onClick={handleProfileClick}
           >
             Subscribe
           </Button>
@@ -163,7 +164,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
             <Button
               variant="ghost"
               className="text-gray-400 hover:text-white text-sm font-medium p-2"
-              onClick={() => navigate(`/profile/${video.profiles?.username || video.uploader_username}`)}
+              onClick={handleProfileClick}
             >
               VIEW MORE
             </Button>
