@@ -1,7 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { VideoIcon, Download } from 'lucide-react';
+import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import { useAuth } from '@/contexts/AuthContext';
 import { trackVideoView } from '@/services/userStatsService';
 
@@ -33,54 +32,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [showingAd, setShowingAd] = useState(false);
   const [adShown, setAdShown] = useState(false);
   
-  const [viewTracked, setViewTracked] = useState(false); // State to track if view has been logged
+  const [viewTracked, setViewTracked] = useState(false);
   const [vastCache, setVastCache] = useState<{[key: string]: any}>({});
-  const { user } = useAuth(); // Get user from AuthContext
-
-  const [connectionSpeed, setConnectionSpeed] = useState<number>(0);
-  const [bufferHealth, setBufferHealth] = useState<number>(0);
+  const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
-  const { getVideoPreloadStrategy } = useBandwidthOptimization();
-
   
 
-  // Lightweight connection estimation - no network requests
-  const estimateConnectionSpeed = () => {
-    if (connectionSpeed > 0) return;
-
-    // Use Network Information API if available
-    const connection = (navigator as any).connection;
-    if (connection) {
-      const downlink = connection.downlink || 2; // Mbps
-      setConnectionSpeed(downlink * 1000000); // Convert to bps
-    } else {
-      setConnectionSpeed(2000000); // Default to 2 Mbps
-    }
-  };
-
   
-
-  // Monitor buffer health (simplified - no UI display)
-  const monitorBufferHealth = () => {
-    if (!videoRef.current) return;
-
-    const video = videoRef.current;
-    const buffered = video.buffered;
-    const currentTime = video.currentTime;
-
-    if (buffered.length > 0) {
-      // Find the buffer range that contains current time
-      for (let i = 0; i < buffered.length; i++) {
-        if (currentTime >= buffered.start(i) && currentTime <= buffered.end(i)) {
-          const bufferAhead = buffered.end(i) - currentTime;
-          setBufferHealth(bufferAhead);
-          break;
-        }
-      }
-    }
-  };
 
   
 
@@ -91,9 +51,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const video = videoRef.current;
 
     if (!hasStartedPlaying) {
-      estimateConnectionSpeed();
       setHasStartedPlaying(true);
-      video.src = src; // Use original source
+      video.src = src;
       video.load();
     }
 
@@ -107,22 +66,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Monitor video events for ABR - optimized with throttling
+  // Monitor video events - simplified
   useEffect(() => {
     if (!videoRef.current || !hasStartedPlaying) return;
 
     const video = videoRef.current;
-    let timeUpdateThrottle: NodeJS.Timeout;
-
-    const handleTimeUpdate = () => {
-      // Throttle time update events to reduce CPU usage
-      if (!timeUpdateThrottle) {
-        timeUpdateThrottle = setTimeout(() => {
-          monitorBufferHealth();
-          timeUpdateThrottle = null as any;
-        }, 2000); // Check every 2 seconds instead of constantly
-      }
-    };
 
     const handleLoadedData = () => {
       setIsLoading(false);
@@ -137,23 +85,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     const handlePlay = () => setIsPlaying(true);
     const handlePause = () => setIsPlaying(false);
 
-    video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadeddata', handleLoadedData);
     video.addEventListener('error', handleError);
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePause);
 
-    // Monitor buffer health every 3 seconds instead of every second
-    const bufferInterval = setInterval(monitorBufferHealth, 3000);
-
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadeddata', handleLoadedData);
       video.removeEventListener('error', handleError);
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePause);
-      clearInterval(bufferInterval);
-      if (timeUpdateThrottle) clearTimeout(timeUpdateThrottle);
     };
   }, [hasStartedPlaying]);
 
@@ -481,26 +422,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Loading Indicator */}
-      {isLoading && hasStartedPlaying && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white z-30">
-          <div className="text-center space-y-2">
-            <div className="w-8 h-8 mx-auto border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <p className="text-sm">Loading...</p>
-          </div>
-        </div>
-      )}
-
       
-
-      {/* Connection Speed Indicator */}
-      {hasStartedPlaying && connectionSpeed > 0 && !showingAd && (
-        <div className="absolute top-4 left-4 z-30 opacity-0 group-hover:opacity-100 transition-opacity">
-          <div className="bg-black/80 text-white px-2 py-1 rounded text-xs">
-            {(connectionSpeed / 1000000).toFixed(1)} Mbps
-          </div>
-        </div>
-      )}
 
       {/* Ad Indicator */}
       {showingAd && (
@@ -509,12 +431,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Ad Video Element */}
+      {/* Ad Video Element - VAST handles its own controls */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
         style={{ display: 'none', backgroundColor: '#000' }}
-        controls={true}
+        controls={false}
         autoPlay
         playsInline
       />
