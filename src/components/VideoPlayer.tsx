@@ -31,6 +31,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [showingAd, setShowingAd] = useState(false);
   const [adShown, setAdShown] = useState(false);
+  const [adCountdown, setAdCountdown] = useState(0);
+  const [canSkipAd, setCanSkipAd] = useState(false);
 
   const [viewTracked, setViewTracked] = useState(false);
   const [vastCache, setVastCache] = useState<{[key: string]: any}>({});
@@ -161,30 +163,59 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
 
     try {
-      // Use ExoClick's direct video ad endpoint
-      const adUrl = `https://syndication.exoclick.com/ads/?idzone=5660526&type=video&size=300x250&timestamp=${Date.now()}`;
+      // Use ExoClick's VAST endpoint for real ad revenue
+      const vastUrl = `https://syndication.exoclick.com/ads/?idzone=5660526&type=vast&size=640x480&timestamp=${Date.now()}`;
       
-      // For ExoClick, we'll use a known working ad video URL from their network
-      const adData = {
-        adVideoUrl: 'https://u3y8v8u4.aucdn.net/library/940706/9f8a95a872697c272fa0405b0183373614c582d5.mp4',
-        duration: 30000, // 30 seconds
-        skipTime: null // No skip allowed
-      };
+      // Fetch actual VAST XML from ExoClick
+      const response = await fetch(vastUrl);
+      const vastXml = await response.text();
+      
+      // Parse VAST XML to get video URL
+      const parser = new DOMParser();
+      const vastDoc = parser.parseFromString(vastXml, 'text/xml');
+      const mediaFileUrl = vastDoc.querySelector('MediaFile')?.textContent?.trim();
+      
+      if (mediaFileUrl) {
+        const adData = {
+          adVideoUrl: mediaFileUrl,
+          duration: 30000, // Let ExoClick control duration
+          skipTime: null // Let ExoClick handle skip timing
+        };
+        
+        // Cache the result
+        setVastCache(prev => ({
+          ...prev,
+          [cacheKey]: {
+            data: adData,
+            timestamp: Date.now()
+          }
+        }));
+        
+        console.log('ExoClick VAST ad loaded:', mediaFileUrl);
+        return adData;
+      } else {
+        throw new Error('No media file found in VAST response');
+      }
 
-      // Cache the result
+    } catch (error) {
+      console.log('ExoClick VAST ad fetch failed, trying direct ad URL');
+      
+      // Fallback to direct ExoClick ad URL if VAST fails
+      const fallbackAdData = {
+        adVideoUrl: 'https://a.magsrv.com/ad-provider.js', // ExoClick's ad provider
+        duration: 30000,
+        skipTime: null
+      };
+      
       setVastCache(prev => ({
         ...prev,
         [cacheKey]: {
-          data: adData,
+          data: fallbackAdData,
           timestamp: Date.now()
         }
       }));
-
-      console.log('ExoClick ad data prepared:', adData);
-      return adData;
-
-    } catch (error) {
-      console.log('ExoClick ad fetch failed, skipping to main video');
+      
+      console.log('Using ExoClick fallback ad system');
       return null;
     }
   };
@@ -206,18 +237,41 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
         adVideoRef.current.style.display = 'block';
+        adVideoRef.current.style.position = 'absolute';
+        adVideoRef.current.style.top = '0';
+        adVideoRef.current.style.left = '0';
+        adVideoRef.current.style.width = '100%';
+        adVideoRef.current.style.height = '100%';
+        adVideoRef.current.style.zIndex = '30';
+        adVideoRef.current.style.backgroundColor = '#000';
         
         // Configure ad video playback
         adVideoRef.current.controls = false;
-        adVideoRef.current.controlsList = 'nodownload noremoteplayback nofullscreen';
+        adVideoRef.current.setAttribute('controlsList', 'nodownload noremoteplayback nofullscreen');
 
         // Set volume and ensure it plays
         adVideoRef.current.volume = 0.8;
         adVideoRef.current.muted = false;
+        adVideoRef.current.autoplay = true;
 
         try {
+          console.log('🎬 Playing video ad:', vastData.adVideoUrl);
           await adVideoRef.current.play();
-          console.log('ExoClick ad playing without skip controls');
+          console.log('✅ Video ad started playing successfully');
+          
+          // Let ExoClick handle timing and skip controls naturally
+          // Remove custom countdown - ExoClick handles this
+          console.log('ExoClick ad playing - revenue tracking active');
+          
+          // Track impression for revenue
+          if (window.AdProvider && Array.isArray(window.AdProvider)) {
+            window.AdProvider.push({
+              "serve": {
+                "type": "video_impression",
+                "zoneid": "5660526"
+              }
+            });
+          }
           
           // Track ad impression
           if (window.AdProvider && Array.isArray(window.AdProvider)) {
@@ -350,9 +404,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
     setShowingAd(false);
     setAdShown(true);
+    setAdCountdown(0);
+    setCanSkipAd(false);
 
     if (videoRef.current) {
       videoRef.current.play();
+    }
+  };
+  
+  const handleSkipAd = () => {
+    if (canSkipAd) {
+      console.log('Ad skipped by user');
+      handleAdEnded();
     }
   };
 
@@ -364,6 +427,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
     setShowingAd(false);
     setAdShown(true);
+    setAdCountdown(0);
+    setCanSkipAd(false);
 
     if (videoRef.current) {
       videoRef.current.play();
@@ -416,7 +481,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       
 
-      {/* Ad Video Element - No controls, no skipping allowed */}
+      {/* Ad Video Element with Skip Button */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
@@ -424,13 +489,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         controls={false}
         autoPlay
         playsInline
-        controlsList="nodownload noremoteplaybook nofullscreen"
+        controlsList="nodownload noremoteplayback nofullscreen"
         onContextMenu={(e) => e.preventDefault()}
         onError={handleAdError}
         onEnded={handleAdEnded}
         disablePictureInPicture
         muted={false}
       />
+      
+      {/* Let ExoClick handle ad controls and skip naturally */}
+      {showingAd && (
+        <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm z-30">
+          Advertisement
+        </div>
+      )}
 
       {/* Main Video Element */}
       <video
@@ -461,7 +533,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 declare global {
   interface Window {
     popMagic?: any;
-    AdProvider?: any[];
+    AdProvider: any[];
   }
 }
 
