@@ -38,80 +38,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [vastCache, setVastCache] = useState<{[key: string]: any}>({});
   const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
-  const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
-
-
-
-
-
-
-
-  // Handle play button click with lazy loading
-  const handlePlayClick = () => {
-    if (!videoRef.current) return;
-
-    const video = videoRef.current;
-
-    if (!hasStartedPlaying) {
-      setHasStartedPlaying(true);
-      video.src = src;
-      video.load();
-
-      // Wait for the video to be ready before playing
-      video.addEventListener('loadeddata', () => {
-        video.play().then(() => {
-          setIsPlaying(true);
-        }).catch((error) => {
-          console.error('Error playing video:', error);
-          setVideoError(true);
-        });
-      }, { once: true });
-    } else {
-      if (video.paused) {
-        video.play().then(() => {
-          setIsPlaying(true);
-        }).catch((error) => {
-          console.error('Error playing video:', error);
-          setVideoError(true);
-        });
-      } else {
-        video.pause();
-        setIsPlaying(false);
-      }
-    }
-  };
-
-  // Monitor video events - simplified
-  useEffect(() => {
-    if (!videoRef.current || !hasStartedPlaying) return;
-
-    const video = videoRef.current;
-
-    const handleLoadedData = () => {
-      setIsLoading(false);
-      if (onCanPlay) onCanPlay();
-    };
-
-    const handleError = () => {
-      setVideoError(true);
-      if (onError) onError();
-    };
-
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-
-    video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('error', handleError);
-    video.addEventListener('play', handlePlay);
-    video.addEventListener('pause', handlePause);
-
-    return () => {
-      video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('error', handleError);
-      video.removeEventListener('play', handlePlay);
-      video.removeEventListener('pause', handlePause);
-    };
-  }, [hasStartedPlaying]);
 
   // Disable right-click to prevent download
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -352,10 +278,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       adVideo.addEventListener('error', handleAdError);
     }
 
-    // Set preload to metadata for better user experience
-    video.preload = 'metadata';
-
     return () => {
+      // Pause videos when component unmounts to prevent background playback
+      if (video) {
+        video.pause();
+        video.currentTime = 0;
+      }
+      if (adVideo) {
+        adVideo.pause();
+        adVideo.currentTime = 0;
+      }
+
       video.removeEventListener('loadstart', handleLoadStart);
       video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('error', handleError);
@@ -444,19 +377,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   return (
     <div ref={containerRef} className="relative w-full h-full group" onContextMenu={handleContextMenu}>
-      {/* Play Overlay for Lazy Loading */}
-      {!hasStartedPlaying && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-white z-40 cursor-pointer" onClick={handlePlayClick}>
-          <div className="text-center">
-            <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center mb-4 mx-auto hover:bg-white/30 transition-colors">
-              <svg className="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8 5v14l11-7z"/>
-              </svg>
-            </div>
-            <p className="text-lg font-medium">Click to Play</p>
-          </div>
-        </div>
-      )}
 
 
 
@@ -489,19 +409,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <video
         ref={videoRef}
         className="w-full h-full"
-        poster={hasStartedPlaying ? undefined : poster}
-        preload="none"
+        src={src}
+        poster={poster}
+        preload="metadata"
         playsInline
-        controls={hasStartedPlaying}
+        controls
         controlsList="nodownload"
         style={{ width: '100%', height: '100%', backgroundColor: '#000' }}
         onError={handleVideoError}
         onContextMenu={handleContextMenu}
+        onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
       >
-        {hasStartedPlaying && (
-          <source src={src} type="video/mp4" />
-        )}
         Your browser does not support the video tag.
       </video>
 
