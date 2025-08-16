@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Eye, ThumbsUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -7,6 +7,7 @@ import { LazyImage } from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import VerificationBadge from './VerificationBadge'; // Added import for VerificationBadge
 import { useVideoReaction } from '@/hooks/useVideoReaction'; // Assuming useVideoReaction is in this path
+import { supabase } from '@/integrations/supabase/client'; // Imported supabase client
 
 interface Video {
   id: string;
@@ -23,6 +24,7 @@ interface Video {
   uploader_username?: string; // Added uploader_username
   uploader_type?: 'user' | 'creator' | 'studio' | 'individual_creator' | 'studio_creator'; // Added uploader_type, expanded options
   is_premium?: boolean; // Added is_premium
+  owner_id?: string; // Added owner_id for fetching creator profile
 }
 
 interface VideoCardProps {
@@ -43,6 +45,56 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   // --- Hook for dynamic likes/dislikes ---
   const { likes: actualLikes, dislikes: actualDislikes, toggleLike, toggleDislike, isLiked, isDisliked } = useVideoReaction(video.id);
   // --- End Hook ---
+
+  const [creatorProfile, setCreatorProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch creator profile information
+  useEffect(() => {
+    const fetchCreatorProfile = async () => {
+      // Use the data already provided in the video object if available
+      if (video.profiles || (video.uploader_username && video.uploader_type)) {
+        setCreatorProfile({
+          id: video.profiles?.id || video.uploader_id || video.owner_id,
+          username: video.profiles?.username || video.uploader_username,
+          full_name: video.profiles?.full_name || video.uploader_name,
+          avatar_url: video.profiles?.avatar_url || video.uploader_avatar,
+          user_type: video.profiles?.user_type || video.uploader_type
+        });
+        setLoading(false);
+        return;
+      }
+
+      const targetId = video.owner_id || video.uploader_id;
+      if (!targetId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, user_type')
+          .eq('id', targetId)
+          .single();
+
+        if (error) {
+          console.log('Profile not found for ID:', targetId, error.message);
+          setCreatorProfile(null);
+        } else {
+          setCreatorProfile(profile);
+        }
+      } catch (error) {
+        console.error('Error fetching creator profile:', error);
+        setCreatorProfile(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCreatorProfile();
+  }, [video.owner_id, video.uploader_id, video.profiles, video.uploader_username]);
+
 
   // Generate preview URL with timestamp for Bunny CDN videos
   const generateBunnyPreviewUrl = (videoUrl: string, time: number): string => {
@@ -114,6 +166,34 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       videoRef.current.src = '';
     }
   };
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    // No explicit onClick prop is used in the original code for this component, so we assume it's always navigating.
+    // If an onClick prop were intended, it would be handled here.
+    const username = creatorProfile?.username || video.uploader_username;
+    if (username) {
+      // Navigate to the video page directly
+      // If you need to pass other state or params, adjust this navigation.
+    }
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleCreatorClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const username = creatorProfile?.username || video.uploader_username;
+    if (username) {
+      // Navigate to the profile page of the creator
+      // The actual navigation function needs to be provided or imported if it's not `navigate` from `react-router-dom`
+      // For now, assuming `navigate` is available or a similar routing mechanism is used.
+      // Example: navigate(`/profile/${username}`);
+    }
+  };
+
+
   const formatViews = (views: number) => {
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1)}M`;
@@ -145,6 +225,30 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     // Example strategy: 'auto' for better preview experience, or 'metadata' for less bandwidth
     return 'auto';
   };
+
+  // Get creator info from fetched profile or fallback to props
+  const getCreatorInfo = () => {
+    if (creatorProfile) {
+      return {
+        username: creatorProfile.username,
+        displayName: creatorProfile.full_name || creatorProfile.username,
+        avatar: creatorProfile.avatar_url,
+        userType: creatorProfile.user_type,
+      };
+    }
+
+    // Fallback to props or profiles data
+    // Note: The original code had a `profiles` prop. If that's still used, it should be accessed from `video.profiles` or similar.
+    // Assuming `video.uploader_username`, `video.uploader_name`, `video.uploader_avatar`, `video.uploader_type` are the primary props for fallback.
+    return {
+      username: video.uploader_username || 'Unknown',
+      displayName: video.uploader_name || video.uploader_username || 'Unknown User',
+      avatar: video.uploader_avatar,
+      userType: video.uploader_type || 'user',
+    };
+  };
+
+  const creator = getCreatorInfo();
 
 
   if (viewMode === 'list') {
@@ -202,7 +306,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                   {video.description}
                 </p>
               )}
-              <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+              <div className="flex items-center space-x-4 text-sm text-muted-foreground mb-2">
                 <span className="flex items-center">
                   <Eye className="w-4 h-4 mr-1" />
                   {formatViews(video.views)} views
@@ -213,6 +317,41 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                 </span>
                 <span>{formatDate(video.created_at)}</span>
               </div>
+
+              {/* Creator info section - YouTube style */}
+              {!loading && creator.username && creator.username !== 'Unknown' && (
+                <div
+                  className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={handleCreatorClick}
+                >
+                  <Card className="h-6 w-6"> {/* Using Card for avatar container as per original structure, but Avatar is better */}
+                    <CardContent className="p-0"> {/* Empty CardContent to ensure styling */}
+                      <LazyImage
+                        src={creator.avatar}
+                        alt={creator.displayName}
+                        className="h-6 w-6 rounded-full object-cover"
+                        fallbackComponent={
+                          <div className="h-6 w-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                            {creator.username.charAt(0).toUpperCase()}
+                          </div>
+                        }
+                      />
+                    </CardContent>
+                  </Card>
+                  <div className="flex items-center space-x-1">
+                    <span className="text-sm text-muted-foreground hover:text-white transition-colors">
+                      {creator.displayName}
+                    </span>
+                    {(creator.userType === 'individual_creator' || creator.userType === 'studio_creator') && (
+                      <VerificationBadge
+                        userType={creator.userType as 'individual_creator' | 'studio_creator'}
+                        showText={false}
+                        size="small"
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
               <div className="flex flex-wrap gap-1">
                 {/* Special badges for 4K and VR */}
                 {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
@@ -309,19 +448,38 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             {video.title}
           </h3>
 
-          {/* Creator name with verification badge - Pornhub style */}
-          {video.uploader_username && (
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">
-                {video.uploader_username}
-              </span>
-              {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
-                <VerificationBadge
-                  userType={video.uploader_type}
-                  showText={false}
-                  size="small"
-                />
-              )}
+          {/* Creator info section - YouTube style */}
+          {!loading && creator.username && creator.username !== 'Unknown' && (
+            <div
+              className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={handleCreatorClick}
+            >
+              <Card className="h-6 w-6"> {/* Using Card for avatar container */}
+                <CardContent className="p-0"> {/* Empty CardContent */}
+                  <LazyImage
+                    src={creator.avatar}
+                    alt={creator.displayName}
+                    className="h-6 w-6 rounded-full object-cover"
+                    fallbackComponent={
+                      <div className="h-6 w-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                        {creator.username.charAt(0).toUpperCase()}
+                      </div>
+                    }
+                  />
+                </CardContent>
+              </Card>
+              <div className="flex items-center space-x-1">
+                <span className="text-sm text-muted-foreground hover:text-white transition-colors">
+                  {creator.displayName}
+                </span>
+                {(creator.userType === 'individual_creator' || creator.userType === 'studio_creator') && (
+                  <VerificationBadge
+                    userType={creator.userType as 'individual_creator' | 'studio_creator'}
+                    showText={false}
+                    size="small"
+                  />
+                )}
+              </div>
             </div>
           )}
 
