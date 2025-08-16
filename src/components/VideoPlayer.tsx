@@ -131,6 +131,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  // Handle ad time updates for skip functionality
+  const handleAdTimeUpdate = () => {
+    if (adVideoRef.current && showingAd) {
+      const currentTime = Math.floor(adVideoRef.current.currentTime);
+      const duration = Math.floor(adVideoRef.current.duration || 0);
+      
+      if (duration > 0) {
+        const remainingTime = Math.max(0, duration - currentTime);
+        setAdCountdown(remainingTime);
+        
+        // Allow skip after 5 seconds or halfway through ad
+        const skipTime = Math.min(5, Math.floor(duration / 2));
+        if (currentTime >= skipTime) {
+          setCanSkipAd(true);
+        }
+      }
+    }
+  };
+
   // Function to play video ad from real VAST endpoint
   const playVastAd = async () => {
     if (adShown || showingAd) {
@@ -140,6 +159,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     console.log('Attempting to play video ad from real VAST endpoint...');
     setShowingAd(true);
+    setCanSkipAd(false);
+    setAdCountdown(0);
+    
     const vastData = await fetchVastAd();
 
     if (vastData?.adVideoUrl) {
@@ -153,12 +175,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         adVideoRef.current.style.left = '0';
         adVideoRef.current.style.width = '100%';
         adVideoRef.current.style.height = '100%';
-        adVideoRef.current.style.zIndex = '30';
+        adVideoRef.current.style.zIndex = '20';
         adVideoRef.current.style.backgroundColor = '#000';
 
-        // Configure ad video playback
-        adVideoRef.current.controls = false;
-        adVideoRef.current.setAttribute('controlsList', 'nodownload noremoteplayback nofullscreen');
+        // Configure ad video playback with controls enabled
+        adVideoRef.current.controls = true;
+        adVideoRef.current.setAttribute('controlsList', 'nodownload noremoteplayback');
 
         // Set volume and ensure it plays
         adVideoRef.current.volume = 0.8;
@@ -276,6 +298,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (adVideo) {
       adVideo.addEventListener('ended', handleAdEnded);
       adVideo.addEventListener('error', handleAdError);
+      adVideo.addEventListener('timeupdate', handleAdTimeUpdate);
     }
 
     return () => {
@@ -297,6 +320,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (adVideo) {
         adVideo.removeEventListener('ended', handleAdEnded);
         adVideo.removeEventListener('error', handleAdError);
+        adVideo.removeEventListener('timeupdate', handleAdTimeUpdate);
       }
     };
   }, [src, onError, onCanPlay, adShown, viewTracked, user, videoId]); // Added dependencies
@@ -382,26 +406,39 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
 
 
-      {/* Ad Video Element with Skip Button */}
+      {/* Ad Video Element with Controls Enabled */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
         style={{ display: 'none', backgroundColor: '#000' }}
-        controls={false}
+        controls={true}
         autoPlay
         playsInline
-        controlsList="nodownload noremoteplayback nofullscreen"
+        controlsList="nodownload noremoteplaybook"
         onContextMenu={(e) => e.preventDefault()}
         onError={handleAdError}
         onEnded={handleAdEnded}
         disablePictureInPicture
         muted={false}
+        onTimeUpdate={handleAdTimeUpdate}
       />
 
-      {/* Let ExoClick handle ad controls and skip naturally */}
+      {/* Ad overlay with skip button */}
       {showingAd && (
-        <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm z-30">
-          Advertisement
+        <div className="absolute inset-0 z-30 pointer-events-none">
+          <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm pointer-events-auto">
+            Advertisement {adCountdown > 0 && `(${adCountdown}s)`}
+          </div>
+          {canSkipAd && (
+            <div className="absolute top-4 right-4">
+              <button
+                onClick={handleSkipAd}
+                className="bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded text-sm pointer-events-auto transition-colors"
+              >
+                Skip Ad
+              </button>
+            </div>
+          )}
         </div>
       )}
 
