@@ -178,12 +178,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         adVideoRef.current.style.zIndex = '20';
         adVideoRef.current.style.backgroundColor = '#000';
 
-        // Configure ad video playback with controls enabled
+        // Configure ad video playback - let ad handle its own controls
         adVideoRef.current.controls = true;
-        adVideoRef.current.setAttribute('controlsList', 'nodownload noremoteplayback');
+        adVideoRef.current.setAttribute('controlsList', 'nodownload');
+        adVideoRef.current.setAttribute('preload', 'auto');
 
-        // Set volume and ensure it plays
-        adVideoRef.current.volume = 0.8;
+        // Set proper volume and ensure it plays
+        adVideoRef.current.volume = 1.0;
         adVideoRef.current.muted = false;
         adVideoRef.current.autoplay = true;
 
@@ -406,7 +407,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
 
 
-      {/* Ad Video Element with Controls Enabled */}
+      {/* Ad Video Element - Let ad handle its own controls */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
@@ -414,7 +415,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         controls={true}
         autoPlay
         playsInline
-        controlsList="nodownload noremoteplaybook"
+        controlsList="nodownload"
         onContextMenu={(e) => e.preventDefault()}
         onError={handleAdError}
         onEnded={handleAdEnded}
@@ -423,22 +424,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onTimeUpdate={handleAdTimeUpdate}
       />
 
-      {/* Ad overlay with skip button */}
-      {showingAd && (
-        <div className="absolute inset-0 z-30 pointer-events-none">
-          <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1 rounded text-sm pointer-events-auto">
-            Advertisement {adCountdown > 0 && `(${adCountdown}s)`}
-          </div>
-          {canSkipAd && (
-            <div className="absolute top-4 right-4">
-              <button
-                onClick={handleSkipAd}
-                className="bg-black/70 hover:bg-black/90 text-white px-4 py-2 rounded text-sm pointer-events-auto transition-colors"
-              >
-                Skip Ad
-              </button>
-            </div>
-          )}
+      {/* Minimal ad overlay - only skip button when available */}
+      {showingAd && canSkipAd && (
+        <div className="absolute top-4 right-4 z-30">
+          <button
+            onClick={handleSkipAd}
+            className="bg-black/80 hover:bg-black/90 text-white px-4 py-2 rounded text-sm transition-colors"
+          >
+            Skip Ad
+          </button>
         </div>
       )}
 
