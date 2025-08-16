@@ -29,9 +29,11 @@ import UploadPage from './pages/UploadPage';
 import DebugAuth from './pages/DebugAuth';
 import ChannelPage from '@/pages/ChannelPage';
 import PlaylistsPage from './pages/PlaylistsPage';
-import ReportVideoPage from './pages/ReportVideoPage';
+import ReportVideoPage from '@/pages/ReportVideoPage';
 import FavoritesPage from '@/pages/FavoritesPage';
 import FeedPage from '@/pages/FeedPage.tsx';
+import NotificationsPage from '@/pages/NotificationsPage';
+import InboxPage from '@/pages/InboxPage';
 
 import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
 
@@ -112,6 +114,8 @@ const App = () => (
 
                 <Route path="/contact" element={<ContactUs />} />
                 <Route path="/debug-auth" element={<DebugAuth />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/inbox" element={<InboxPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </AgeGateWrapper>
