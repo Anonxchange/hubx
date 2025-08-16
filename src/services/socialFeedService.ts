@@ -97,21 +97,58 @@ export const getCreatorPosts = async (creatorId: string): Promise<Post[]> => {
     const { data: user } = await supabase.auth.getUser();
     const currentUserId = user.user?.id;
 
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        creator:profiles!posts_creator_id_fkey(
-          id,
-          username,
-          full_name,
-          profile_picture_url,
-          user_type
-        )
-      `)
-      .eq('creator_id', creatorId)
-      .or(`privacy.eq.public${currentUserId === creatorId ? ',creator_id.eq.' + currentUserId : ''}`)
-      .order('created_at', { ascending: false });
+    // Try to fetch posts with profile data, handle potential FK relationship issues
+    let data, error;
+    try {
+      const result = await supabase
+        .from('posts')
+        .select(`
+          *,
+          creator:profiles!posts_creator_id_fkey(
+            id,
+            username,
+            full_name,
+            profile_picture_url,
+            user_type
+          )
+        `)
+        .eq('creator_id', creatorId)
+        .or(`privacy.eq.public${currentUserId === creatorId ? ',creator_id.eq.' + currentUserId : ''}`)
+        .order('created_at', { ascending: false });
+      data = result.data;
+      error = result.error;
+    } catch (relationError) {
+      // Fallback: fetch posts without the relationship if FK constraint is missing
+      console.log('Foreign key relationship not found, fetching posts without profile join');
+      const fallbackResult = await supabase
+        .from('posts')
+        .select('*')
+        .eq('creator_id', creatorId)
+        .or(`privacy.eq.public${currentUserId === creatorId ? ',creator_id.eq.' + currentUserId : ''}`)
+        .order('created_at', { ascending: false });
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+      
+      // Add creator info manually if we have posts
+      if (data && data.length > 0) {
+        try {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, profile_picture_url, user_type')
+            .eq('id', creatorId)
+            .single();
+          
+          if (profileData) {
+            data = data.map(post => ({
+              ...post,
+              creator: profileData
+            }));
+          }
+        } catch (profileError) {
+          console.error('Error fetching profile for posts:', profileError);
+        }
+      }
+    }
 
     if (error) throw error;
 
@@ -155,22 +192,60 @@ export const getFeedPosts = async (limit: number = 20): Promise<Post[]> => {
 
     const creatorIds = subscriptions.map(sub => sub.creator_id);
 
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        creator:profiles!posts_creator_id_fkey(
-          id,
-          username,
-          full_name,
-          profile_picture_url,
-          user_type
-        )
-      `)
-      .in('creator_id', creatorIds)
-      .eq('privacy', 'public')
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    // Try to fetch posts with profile data, handle potential FK relationship issues
+    let data, error;
+    try {
+      const result = await supabase
+        .from('posts')
+        .select(`
+          *,
+          creator:profiles!posts_creator_id_fkey(
+            id,
+            username,
+            full_name,
+            profile_picture_url,
+            user_type
+          )
+        `)
+        .in('creator_id', creatorIds)
+        .eq('privacy', 'public')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      data = result.data;
+      error = result.error;
+    } catch (relationError) {
+      // Fallback: fetch posts without the relationship if FK constraint is missing
+      console.log('Foreign key relationship not found, fetching posts without profile join');
+      const fallbackResult = await supabase
+        .from('posts')
+        .select('*')
+        .in('creator_id', creatorIds)
+        .eq('privacy', 'public')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+      
+      // Add creator info manually if we have posts
+      if (data && data.length > 0) {
+        try {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, profile_picture_url, user_type')
+            .in('id', creatorIds);
+          
+          if (profilesData && profilesData.length > 0) {
+            const profilesMap = new Map(profilesData.map(profile => [profile.id, profile]));
+            data = data.map(post => ({
+              ...post,
+              creator: profilesMap.get(post.creator_id) || null
+            }));
+          }
+        } catch (profileError) {
+          console.error('Error fetching profiles for posts:', profileError);
+        }
+      }
+    }
 
     if (error) throw error;
 
