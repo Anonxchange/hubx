@@ -71,18 +71,24 @@ const CreatorPostCard: React.FC<CreatorPostCardProps> = ({
 
         {/* Media content */}
         {post.media_url && (
-          <div className="mt-3 -mx-6">
+          <div className="mt-3 -mx-6 w-screen max-w-none relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
             {post.media_type === 'image' ? (
               <img 
                 src={post.media_url} 
-                alt="Post media" 
-                className="w-full h-auto object-cover max-h-96"
+                alt="Post media"
+                className="w-full h-auto object-cover"
               />
-            ) : (
+            ) : post.media_type === 'video' ? (
               <video 
                 src={post.media_url} 
-                controls 
-                className="w-full h-auto max-h-96"
+                controls
+                className="w-full h-auto"
+              />
+            ) : (
+              <img 
+                src={post.media_url} 
+                alt="Post media"
+                className="w-full h-auto object-cover"
               />
             )}
           </div>
