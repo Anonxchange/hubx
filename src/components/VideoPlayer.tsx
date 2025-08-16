@@ -31,18 +31,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [showingAd, setShowingAd] = useState(false);
   const [adShown, setAdShown] = useState(false);
-  
+
   const [viewTracked, setViewTracked] = useState(false);
   const [vastCache, setVastCache] = useState<{[key: string]: any}>({});
   const { user } = useAuth();
   const [isPlaying, setIsPlaying] = useState(false);
   const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
-  
 
-  
 
-  
+
+
+
 
   // Handle play button click with lazy loading
   const handlePlayClick = () => {
@@ -54,7 +54,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setHasStartedPlaying(true);
       video.src = src;
       video.load();
-      
+
       // Wait for the video to be ready before playing
       video.addEventListener('loadeddata', () => {
         video.play().then(() => {
@@ -186,7 +186,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Function to play VAST ad with proper skip functionality
+  // Function to play VAST ad - let ExoClick handle skip functionality naturally
   const playVastAd = async () => {
     if (adShown || showingAd) {
       console.log('Ad already shown or currently showing for this video');
@@ -203,15 +203,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
         adVideoRef.current.style.display = 'block';
-        adVideoRef.current.controls = true; // Always enable controls for skip functionality
+        // Let VAST ads handle their own controls and skip timing
+        adVideoRef.current.controls = true;
         adVideoRef.current.controlsList = 'nodownload noremoteplayback';
-        
-        // Enable standard video controls including skip
-        adVideoRef.current.style.cursor = 'pointer';
 
         try {
           await adVideoRef.current.play();
-          console.log('VAST ad playing with skip controls enabled');
+          console.log('VAST ad playing with native controls');
         } catch (playError) {
           console.error('Error playing ad video:', playError);
           setShowingAd(false);
@@ -233,7 +231,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  
+
 
   // Reset ad state when video source changes - FRESH START EVERY VIDEO
   useEffect(() => {
@@ -333,7 +331,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     onError?.();
   };
 
-  
+
 
   // Handles the end of the ad video
   const handleAdEnded = () => {
@@ -357,13 +355,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
     setShowingAd(false);
     setAdShown(true);
-    
+
     if (videoRef.current) {
       videoRef.current.play();
     }
   };
 
-  
+
 
 
 
@@ -405,27 +403,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      
 
-      {/* Ad Indicator with Skip Button */}
+
+      {/* Ad Indicator - Simple indicator only */}
       {showingAd && (
-        <div className="absolute top-4 left-4 z-40 flex gap-2">
-          <div className="bg-black/80 text-white px-3 py-1 rounded text-sm">
-            Advertisement
-          </div>
-          <button
-            onClick={() => {
-              console.log('Skip ad clicked');
-              handleAdEnded();
-            }}
-            className="bg-white/80 hover:bg-white text-black px-3 py-1 rounded text-sm font-medium transition-colors"
-          >
-            Skip Ad
-          </button>
+        <div className="absolute top-4 left-4 z-40 bg-black/80 text-white px-3 py-1 rounded text-sm">
+          Advertisement
         </div>
       )}
 
-      {/* Ad Video Element - Enable controls for VAST skip functionality */}
+      {/* Ad Video Element - Let VAST handle native controls and skip */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
