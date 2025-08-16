@@ -207,7 +207,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
-  // Function to play VAST ad - ALWAYS PLAYS ON EVERY VIDEO
+  // Function to play VAST ad with proper skip functionality
   const playVastAd = async () => {
     if (adShown) {
       console.log('Ad already shown for this video');
@@ -224,15 +224,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       if (adVideoRef.current) {
         adVideoRef.current.src = vastData.adVideoUrl;
         adVideoRef.current.style.display = 'block';
-        adVideoRef.current.controls = true; // Let VAST ad have its own controls
-
-        // Add click handler if click-through URL exists
-        if (vastData.clickThroughUrl) {
-          adVideoRef.current.style.cursor = 'pointer';
-          adVideoRef.current.onclick = () => {
-            window.open(vastData.clickThroughUrl, '_blank');
-          };
-        }
+        adVideoRef.current.controls = true; // Enable controls for VAST skip functionality
+        adVideoRef.current.controlsList = 'nodownload noremoteplayback';
+        
+        // Remove click-through redirects but keep VAST controls
+        adVideoRef.current.onclick = null;
+        adVideoRef.current.style.cursor = 'default';
 
         try {
           await adVideoRef.current.play();
@@ -382,6 +379,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   };
 
+  
+
 
 
   if (videoError) {
@@ -424,14 +423,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       
 
-      {/* Ad Indicator */}
+      {/* Ad Indicator - Let VAST handle skip functionality */}
       {showingAd && (
         <div className="absolute top-4 left-4 z-40 bg-black/80 text-white px-3 py-1 rounded text-sm">
           Advertisement
         </div>
       )}
 
-      {/* Ad Video Element - VAST handles its own controls */}
+      {/* Ad Video Element - No controls to prevent redirects */}
       <video
         ref={adVideoRef}
         className="absolute top-0 left-0 w-full h-full z-20"
@@ -439,6 +438,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         controls={false}
         autoPlay
         playsInline
+        controlsList="nodownload noremoteplayback"
+        onContextMenu={(e) => e.preventDefault()}
       />
 
       {/* Main Video Element */}
