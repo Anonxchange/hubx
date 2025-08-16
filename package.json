@@ -61,7 +61,8 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.3",
     "zod": "^3.23.8",
-    "video.js": "^8.13.0",
+
+    "video.js": "^7.21.5",
     "videojs-contrib-ads": "^7.5.2",
     "videojs-ima": "^1.11.0"
   },
