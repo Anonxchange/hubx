@@ -92,21 +92,46 @@ const StudioDashboard = () => {
     fetchStudioContent();
   }, [user?.id]);
 
-  // Function to handle image upload (example, needs actual implementation)
-  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Function to handle thumbnail upload using Bunny CDN
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, videoId: string) => {
     if (!event.target.files || event.target.files.length === 0) {
       return;
     }
     const file = event.target.files[0];
-    // Implement your image upload logic here, e.g., to Supabase storage
-    console.log('Uploading image:', file);
-    // Example: upload to Supabase storage
-    const { data, error } = await supabase.storage.from('thumbnails').upload(`public/${user?.id}/${file.name}`, file);
-    if (error) {
-      console.error('Error uploading image:', error);
-    } else {
-      console.log('Image uploaded successfully:', data);
-      // Update video data with new thumbnail URL if needed
+    
+    try {
+      // Import the upload function dynamically
+      const { uploadToBunnyStorage, generateUniqueFilename } = await import('@/services/bunnyStorageService');
+      
+      // Generate unique filename for thumbnail
+      const filename = generateUniqueFilename(file.name, user?.id || '', 'thumbnails');
+      
+      // Upload to Bunny CDN
+      const uploadResult = await uploadToBunnyStorage(file, filename);
+      
+      if (uploadResult.success && uploadResult.url) {
+        // Update video thumbnail in database
+        const { error } = await supabase
+          .from('videos')
+          .update({ thumbnail_url: uploadResult.url })
+          .eq('id', videoId)
+          .eq('owner_id', user?.id);
+
+        if (error) {
+          console.error('Error updating video thumbnail:', error);
+          alert('Failed to update thumbnail in database');
+        } else {
+          alert('Thumbnail updated successfully!');
+          // Refresh the videos list
+          window.location.reload();
+        }
+      } else {
+        console.error('Failed to upload thumbnail:', uploadResult.error);
+        alert('Failed to upload thumbnail. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error uploading thumbnail:', error);
+      alert('Error uploading thumbnail. Please try again.');
     }
   };
 
@@ -121,7 +146,7 @@ const StudioDashboard = () => {
             <Crown className="w-8 h-8 text-purple-500" />
             <div>
               <h1 className="text-3xl font-bold">Studio Dashboard</h1>
-              <p className="text-gray-400">Manage your studio content and team</p>
+              <p className="text-gray-400">Manage your studio's content library and performers</p>
             </div>
           </div>
           <Badge variant="secondary" className="bg-purple-500 text-white">
@@ -198,7 +223,7 @@ const StudioDashboard = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center">
                     <BarChart3 className="w-5 h-5 mr-2" />
-                    Recent Activity
+                    Studio Activity
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -206,21 +231,21 @@ const StudioDashboard = () => {
                     <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <Upload className="w-5 h-5 text-green-500" />
-                        <span>New video uploaded</span>
+                        <span>Studio content uploaded</span>
                       </div>
                       <span className="text-gray-400 text-sm">2 hours ago</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <UserPlus className="w-5 h-5 text-blue-500" />
-                        <span>New team member added</span>
+                        <span>New performer signed</span>
                       </div>
                       <span className="text-gray-400 text-sm">1 day ago</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-gray-800 rounded-lg">
                       <div className="flex items-center space-x-3">
                         <DollarSign className="w-5 h-5 text-green-500" />
-                        <span>Revenue milestone reached</span>
+                        <span>Revenue sharing distributed</span>
                       </div>
                       <span className="text-gray-400 text-sm">3 days ago</span>
                     </div>
@@ -231,7 +256,7 @@ const StudioDashboard = () => {
               {/* Quick Actions */}
               <Card className="bg-gray-900 border-gray-800">
                 <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
+                  <CardTitle>Studio Management</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 gap-3">
@@ -240,15 +265,15 @@ const StudioDashboard = () => {
                       onClick={() => navigate('/upload')}
                     >
                       <Upload className="w-4 h-4 mr-2" />
-                      Upload New Content
+                      Upload Studio Content
                     </Button>
                     <Button variant="outline" className="border-gray-700 text-white hover:bg-gray-800">
                       <Users className="w-4 h-4 mr-2" />
-                      Manage Team
+                      Manage Performers
                     </Button>
                     <Button variant="outline" className="border-gray-700 text-white hover:bg-gray-800">
                       <BarChart3 className="w-4 h-4 mr-2" />
-                      View Analytics
+                      Revenue Analytics
                     </Button>
                     <Button variant="outline" className="border-gray-700 text-white hover:bg-gray-800">
                       <Settings className="w-4 h-4 mr-2" />
@@ -263,7 +288,7 @@ const StudioDashboard = () => {
           <TabsContent value="content" className="mt-6">
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader>
-                <CardTitle>Content Management ({stats.totalVideos} videos)</CardTitle>
+                <CardTitle>Studio Content Library ({stats.totalVideos} videos)</CardTitle>
               </CardHeader>
               <CardContent>
                 {contentLoading ? (
@@ -349,7 +374,7 @@ const StudioDashboard = () => {
                             id={`thumbnail-upload-${video.id}`}
                             accept="image/*"
                             className="hidden"
-                            onChange={handleImageUpload} // This will need to be adapted to update a specific video
+                            onChange={(e) => handleImageUpload(e, video.id)}
                           />
                         </div>
                       </div>
@@ -376,16 +401,16 @@ const StudioDashboard = () => {
           <TabsContent value="team" className="mt-6">
             <Card className="bg-gray-900 border-gray-800">
               <CardHeader>
-                <CardTitle>Team Management</CardTitle>
+                <CardTitle>Performer Management</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-12">
                   <Users className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Build your team</h3>
-                  <p className="text-gray-400 mb-6">Invite collaborators and manage permissions</p>
+                  <h3 className="text-lg font-semibold mb-2">Manage Your Performers</h3>
+                  <p className="text-gray-400 mb-6">Add performers to your studio and manage revenue sharing</p>
                   <Button className="bg-purple-500 hover:bg-purple-600">
                     <UserPlus className="w-4 h-4 mr-2" />
-                    Invite Team Member
+                    Add Performer
                   </Button>
                 </div>
               </CardContent>
