@@ -133,6 +133,13 @@ const VideoPage = () => {
         <AdComponent zoneId="5660534" />
       </div>
 
+      {/* Video Title above player */}
+      <main className="container mx-auto px-4 pt-4">
+        <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight mb-4">
+          {video.title || 'Untitled Video'}
+        </h1>
+      </main>
+
       {/* Full-width video player - YouTube size */}
       <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
         <div className="relative w-full">
@@ -154,10 +161,10 @@ const VideoPage = () => {
         </div>
       </div>
 
-      {/* Video Info - super tight margin */}
+      {/* Video Info without title - super tight margin */}
       <main className="container mx-auto px-4 py-4 space-y-4">
         <VideoInfo
-          title={video.title}
+          title=""
           views={video.views}
           duration={video.duration}
           createdAt={video.created_at}
@@ -168,6 +175,7 @@ const VideoPage = () => {
           reactToVideo={reactToVideo}
           isReactionLoading={reactionMutationPending}
           reactionMutationPending={reactionMutationPending}
+          showViewsAndDate={true}
         />
 
         <VideoDescription description={video.description} />
