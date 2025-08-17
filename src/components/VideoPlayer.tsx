@@ -78,7 +78,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
     }
   }, [poster, initialized]);
 
-  // Track view
+  // Track views
   const handlePlay = async () => {
     if (user) {
       await trackVideoView(user.id, src);
@@ -87,10 +87,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      <div className="relative bg-black rounded-md overflow-hidden">
+      {/* Keep player 16:9 to avoid ad resizing jump */}
+      <div className="relative pt-[56.25%] bg-black rounded-md overflow-hidden">
         <video
           ref={videoRef}
-          className="w-full h-auto" // ensure responsive scaling
+          className="absolute top-0 left-0 w-full h-full"
           src={src}
           poster={poster}
           preload="metadata"
@@ -99,7 +100,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         />
       </div>
 
-      {/* Overlay controls */}
+      {/* Overlay controls below video */}
       <div className="flex justify-between items-center mt-3 px-2">
         <div className="flex items-center gap-2">
           <VideoIcon className="w-5 h-5 text-red-500" />
