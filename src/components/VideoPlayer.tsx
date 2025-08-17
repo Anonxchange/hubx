@@ -38,9 +38,21 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [fluidPlayerLoaded, setFluidPlayerLoaded] = useState(false);
   const { user } = useAuth();
 
-  // Load FluidPlayer script
+  // Check if device is mobile
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  };
+
+  // Load FluidPlayer script (skip on mobile for better compatibility)
   useEffect(() => {
     const loadFluidPlayer = () => {
+      // On mobile devices, use native controls for better performance
+      if (isMobile()) {
+        console.log('Mobile device detected, using native video controls');
+        setFluidPlayerLoaded(false);
+        return;
+      }
+
       if (window.fluidPlayer) {
         setFluidPlayerLoaded(true);
         return;
@@ -97,7 +109,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   useEffect(() => {
-    if (!videoRef.current || !src || !fluidPlayerLoaded) return;
+    if (!videoRef.current || !src) return;
+    
+    // Skip FluidPlayer on mobile devices for better compatibility
+    if (isMobile()) {
+      setIsLoading(false);
+      return;
+    }
+    
+    if (!fluidPlayerLoaded) return;
 
     // Initialize FluidPlayer
     try {
@@ -150,8 +170,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onCanPlay?.();
       };
 
-      const handleError = () => {
-        console.error('Video error');
+      const handleError = (event: any) => {
+        console.error('Video error:', event);
+        console.error('Video src:', src);
+        console.error('Video error details:', videoElement.error);
         setVideoError(true);
         setIsLoading(false);
         onError?.();
@@ -264,9 +286,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         className="w-full h-full"
         src={src}
         poster={poster}
-        controls={!fluidPlayerLoaded} // Use native controls if FluidPlayer fails
+        controls={!fluidPlayerLoaded || isMobile()} // Always use native controls on mobile
         preload="metadata"
         crossOrigin="anonymous"
+        playsInline // Prevents fullscreen on iOS
+        webkit-playsinline="true" // Legacy iOS support
+        muted={false}
         style={{ width: '100%', height: '100%' }}
       />
     </div>
