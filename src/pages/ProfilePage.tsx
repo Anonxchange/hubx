@@ -1498,7 +1498,7 @@ const ProfilePage = () => {
                         <div className="space-y-4 max-w-full">
                           {posts.map(post => (
                             <div key={post.id} className="max-w-full overflow-hidden">
-                              <PostCard post={post} showDelete={isOwnProfile} />
+                              <PostCard post={post} showDelete={true} />
                             </div>
                           ))}
                         </div>
