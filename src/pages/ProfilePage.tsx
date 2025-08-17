@@ -15,6 +15,7 @@ import {
   addPostComment,
   getPostComments,
   deletePost,
+  editPost,
   Post
 } from '@/services/socialFeedService';
 import { Button } from '@/components/ui/button';
@@ -58,6 +59,8 @@ import AdComponent from '@/components/AdComponent';
 import { supabase } from '@/integrations/supabase/client';
 import { uploadProfilePicture, uploadCoverPhoto, extractPathFromUrl, deleteFromBunnyStorage, uploadPostMedia } from '@/services/bunnyStorageService';
 import MessageButton from '@/components/MessageButton'; // Assuming MessageButton is in this path
+import ShareModal from '@/components/ShareModal';
+import { formatDistanceToNow } from 'date-fns';
 
 const ProfilePage = () => {
   const { user, userType, loading } = useAuth();
@@ -589,66 +592,246 @@ const ProfilePage = () => {
     return date.toLocaleDateString();
   };
 
-  const PostCard: React.FC<{ post: Post; showDelete?: boolean }> = ({ post, showDelete = false }) => (
-    <Card className="bg-gray-900 border-gray-800 mb-4 w-full max-w-full">
-      <CardContent className="p-4 max-w-full overflow-hidden">
-        <div className="flex items-start space-x-3">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={post.creator?.profile_picture_url} />
-            <AvatarFallback className="bg-orange-500 text-white">
-              {post.creator?.username?.charAt(0).toUpperCase() || 'U'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2 mb-2">
-              <span className="font-semibold text-white">{post.creator?.full_name || post.creator?.username}</span>
-              {(post.creator?.user_type === 'individual_creator' || post.creator?.user_type === 'studio_creator') && (
-                <VerificationBadge userType={post.creator.user_type} showText={false} />
+  const PostCard: React.FC<{ post: Post; showDelete?: boolean }> = ({ post, showDelete = false }) => {
+    const [showComments, setShowComments] = useState(false);
+    const [comments, setComments] = useState<any[]>([]);
+    const [commentText, setCommentText] = useState('');
+    const [isEditing, setIsEditing] = useState(false);
+    const [editContent, setEditContent] = useState(post.content || '');
+
+    const toggleComments = async () => {
+      if (!showComments && comments.length === 0) {
+        const postComments = await getPostComments(post.id);
+        setComments(postComments);
+      }
+      setShowComments(!showComments);
+    };
+
+    const handleCommentSubmit = async () => {
+      if (!commentText.trim()) return;
+
+      try {
+        const comment = await addPostComment(post.id, commentText);
+        if (comment) {
+          setComments([comment, ...comments]);
+          setCommentText('');
+          // Update post comments count
+          post.comments_count = post.comments_count + 1;
+        }
+      } catch (error) {
+        console.error('Error adding comment:', error);
+      }
+    };
+
+    const handleEditPost = async () => {
+      if (!editContent.trim()) return;
+
+      try {
+        const success = await editPost(post.id, editContent);
+        if (success) {
+          // Update the post content in the state
+          setPosts(prev => prev.map(p => 
+            p.id === post.id ? { ...p, content: editContent } : p
+          ));
+          setIsEditing(false);
+          alert('Post updated successfully!');
+        } else {
+          alert('Failed to update post. Please try again.');
+        }
+      } catch (error) {
+        console.error('Error editing post:', error);
+        alert('Error updating post. Please try again.');
+      }
+    };
+
+    return (
+      <Card className="bg-gray-900 border-gray-800 mb-4 w-full max-w-full">
+        <CardContent className="p-4 max-w-full overflow-hidden">
+          <div className="flex items-start space-x-3">
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={post.creator?.profile_picture_url} />
+              <AvatarFallback className="bg-orange-500 text-white">
+                {post.creator?.username?.charAt(0).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="font-semibold text-white">{post.creator?.full_name || post.creator?.username}</span>
+                {(post.creator?.user_type === 'individual_creator' || post.creator?.user_type === 'studio_creator') && (
+                  <VerificationBadge userType={post.creator.user_type} showText={false} />
+                )}
+                <span className="text-gray-400 text-sm">@{post.creator?.username}</span>
+                <span className="text-gray-400 text-sm">·</span>
+                <span className="text-gray-400 text-sm">{formatPostDate(post.created_at)}</span>
+                {showDelete && (
+                  <div className="ml-auto flex items-center space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                      onClick={() => setIsEditing(!isEditing)}
+                    >
+                      <Edit3 className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                      onClick={() => handleDeletePost(post.id)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              {isEditing ? (
+                <div className="mb-3">
+                  <Textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    className="bg-gray-700 border-gray-600 text-white mb-2"
+                    rows={3}
+                  />
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      size="sm"
+                      onClick={handleEditPost}
+                      className="bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditContent(post.content || '');
+                      }}
+                      className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-white mb-3 break-words">{post.content}</p>
               )}
-              <span className="text-gray-400 text-sm">@{post.creator?.username}</span>
-              <span className="text-gray-400 text-sm">·</span>
-              <span className="text-gray-400 text-sm">{formatPostDate(post.created_at)}</span>
-              {showDelete && (
+              {post.media_url && (
+                <div className="mb-3 rounded-lg overflow-hidden max-w-full">
+                  {post.media_type === 'image' ? (
+                    <img src={post.media_url} alt="Post media" className="w-full max-h-96 object-cover rounded-lg" />
+                  ) : post.media_type === 'video' ? (
+                    <video src={post.media_url} controls className="w-full max-h-96 rounded-lg" />
+                  ) : null}
+                </div>
+              )}
+              <div className="flex items-center space-x-6 text-gray-400">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="ml-auto text-red-400 hover:text-red-300 hover:bg-red-900/20"
-                  onClick={() => handleDeletePost(post.id)}
+                  className={`flex items-center space-x-1 hover:text-red-400 ${post.isLiked ? 'text-red-400' : ''}`}
+                  onClick={() => handleLikePost(post.id, post.isLiked || false)}
                 >
-                  <X className="w-4 h-4" />
+                  <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
+                  <span>{post.likes_count}</span>
                 </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center space-x-1 hover:text-blue-400"
+                  onClick={toggleComments}
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>{post.comments_count}</span>
+                </Button>
+                <ShareModal
+                  videoId={post.id}
+                  videoTitle={post.content?.substring(0, 50) + '...' || 'Social Post'}
+                >
+                  <Button variant="ghost" size="sm" className="flex items-center space-x-1 hover:text-green-400">
+                    <Send className="w-4 h-4" />
+                    <span>Share</span>
+                  </Button>
+                </ShareModal>
+              </div>
+
+              {/* Comments Section */}
+              {showComments && (
+                <div className="mt-4 border-t border-gray-700 pt-4">
+                  {/* Add Comment Input */}
+                  {user ? (
+                    <div className="flex gap-2 mb-4">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={profilePhoto || ''} />
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                          {(currentUserUsername || 'U')[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 flex gap-2">
+                        <Textarea
+                          placeholder="Write a comment..."
+                          value={commentText}
+                          onChange={(e) => setCommentText(e.target.value)}
+                          className="bg-gray-700 border-gray-600 text-white text-sm min-h-[60px] resize-none"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={handleCommentSubmit}
+                          disabled={!commentText.trim()}
+                          className="bg-blue-500 hover:bg-blue-600 text-white"
+                        >
+                          <Send className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-700 rounded-lg p-4 text-center mb-4">
+                      <p className="text-gray-300 text-sm mb-3">You need to be logged in to comment</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate('/auth')}
+                        className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                      >
+                        Sign In to Comment
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Comments List */}
+                  <div className="space-y-3">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="flex gap-3">
+                        <Avatar className="h-7 w-7">
+                          <AvatarImage src={comment.user?.avatar_url || ''} />
+                          <AvatarFallback className="bg-gray-600 text-white text-xs">
+                            {(comment.user?.username || 'U')[0].toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="bg-gray-700 rounded-lg px-3 py-2">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-sm font-medium text-white">
+                                {comment.user?.full_name || comment.user?.username || 'Anonymous'}
+                              </span>
+                              <span className="text-xs text-gray-400">
+                                {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-200">{comment.content}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
-            <p className="text-white mb-3 break-words">{post.content}</p>
-            {post.media_url && (
-              <div className="mb-3 rounded-lg overflow-hidden max-w-full">
-                {post.media_type === 'image' ? (
-                  <img src={post.media_url} alt="Post media" className="w-full max-h-96 object-cover rounded-lg" />
-                ) : post.media_type === 'video' ? (
-                  <video src={post.media_url} controls className="w-full max-h-96 rounded-lg" />
-                ) : null}
-              </div>
-            )}
-            <div className="flex items-center space-x-6 text-gray-400">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`flex items-center space-x-1 hover:text-red-400 ${post.isLiked ? 'text-red-400' : ''}`}
-                onClick={() => handleLikePost(post.id, post.isLiked || false)}
-              >
-                <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
-                <span>{post.likes_count}</span>
-              </Button>
-              <Button variant="ghost" size="sm" className="flex items-center space-x-1 hover:text-blue-400">
-                <MessageCircle className="w-4 h-4" />
-                <span>{post.comments_count}</span>
-              </Button>
-            </div>
           </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -807,16 +990,23 @@ const ProfilePage = () => {
                 </div>
               </div>
               <div className="flex space-x-2 mt-auto">
-                {!isOwnProfile && user?.id && (profileUserType === 'individual_creator' || profileUserType === 'studio_creator') && (
+                {!isOwnProfile && (profileUserType === 'individual_creator' || profileUserType === 'studio_creator') && (
                   <Button
                     variant={isSubscribed ? "outline" : "default"}
                     className={isSubscribed
                       ? "rounded-full border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
                       : "rounded-full bg-orange-500 hover:bg-orange-600 text-white"
                     }
-                    onClick={handleSubscribe}
+                    onClick={() => {
+                      if (!user?.id) {
+                        alert('Please login to subscribe to creators');
+                        navigate('/auth');
+                        return;
+                      }
+                      handleSubscribe();
+                    }}
                   >
-                    {isSubscribed ? (
+                    {user?.id && isSubscribed ? (
                       <>
                         <UserMinus className="w-4 h-4 mr-2" />
                         Unsubscribe
@@ -828,6 +1018,14 @@ const ProfilePage = () => {
                       </>
                     )}
                   </Button>
+                )}
+                {!isOwnProfile && profileData?.id && (
+                  <MessageButton
+                    creatorId={profileData.id}
+                    creatorName={displayedName}
+                    variant="outline"
+                    className="rounded-full border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                  />
                 )}
                 <Dialog open={isTipModalOpen} onOpenChange={setIsTipModalOpen}>
                   <DialogTrigger asChild>
@@ -1300,7 +1498,7 @@ const ProfilePage = () => {
                         <div className="space-y-4 max-w-full">
                           {posts.map(post => (
                             <div key={post.id} className="max-w-full overflow-hidden">
-                              <PostCard post={post} showDelete={true} />
+                              <PostCard post={post} showDelete={isOwnProfile} />
                             </div>
                           ))}
                         </div>
