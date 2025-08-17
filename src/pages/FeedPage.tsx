@@ -443,25 +443,6 @@ const FeedPage: React.FC = () => {
                             Sign In to Comment
                           </Button>
                         </div>
-                      )})}
-                              className="bg-blue-500 hover:bg-blue-600 text-white"
-                            >
-                              <Send className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="bg-gray-700 rounded-lg p-3 text-center mb-4">
-                          <p className="text-gray-300 text-sm mb-2">You need to be logged in to comment</p>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => window.location.href = '/auth'}
-                            className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white text-xs"
-                          >
-                            Sign In to Comment
-                          </Button>
-                        </div>
                       )}
 
                       {/* Comments List */}
