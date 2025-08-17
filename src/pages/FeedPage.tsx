@@ -31,6 +31,8 @@ import { supabase } from '@/integrations/supabase/client';
 import VerificationBadge from '@/components/VerificationBadge';
 import { formatDistanceToNow } from 'date-fns';
 import { Link } from 'react-router-dom';
+import ShareModal from '@/components/ShareModal';
+import MessageButton from '@/components/MessageButton';
 
 const FeedPage: React.FC = () => {
   const { user, userProfile } = useAuth();
@@ -40,6 +42,9 @@ const FeedPage: React.FC = () => {
   const [newPostPrivacy, setNewPostPrivacy] = useState('public');
   const [isPostingLoading, setIsPostingLoading] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [commentTexts, setCommentTexts] = useState<{[key: string]: string}>({});
+  const [showComments, setShowComments] = useState<{[key: string]: boolean}>({});
+  const [postComments, setPostComments] = useState<{[key: string]: any[]}>({});
 
   // Check if user can post (only creators)
   const canPost = userProfile?.user_type === 'individual_creator' || userProfile?.user_type === 'studio_creator';
@@ -180,6 +185,37 @@ const FeedPage: React.FC = () => {
     } catch (error) {
       console.error('Error toggling like:', error);
     }
+  };
+
+  const handleCommentSubmit = async (postId: string) => {
+    const commentText = commentTexts[postId];
+    if (!commentText?.trim()) return;
+
+    try {
+      const comment = await addPostComment(postId, commentText);
+      if (comment) {
+        setPostComments(prev => ({
+          ...prev,
+          [postId]: [comment, ...(prev[postId] || [])]
+        }));
+        setCommentTexts(prev => ({ ...prev, [postId]: '' }));
+        setFeedPosts(feedPosts.map(post => 
+          post.id === postId 
+            ? { ...post, comments_count: post.comments_count + 1 }
+            : post
+        ));
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error);
+    }
+  };
+
+  const toggleComments = async (postId: string) => {
+    if (!showComments[postId] && !postComments[postId]) {
+      const comments = await getPostComments(postId);
+      setPostComments(prev => ({ ...prev, [postId]: comments }));
+    }
+    setShowComments(prev => ({ ...prev, [postId]: !prev[postId] }));
   };
 
   if (!user) {
@@ -345,16 +381,108 @@ const FeedPage: React.FC = () => {
                       {post.likes_count || 0}
                     </Button>
 
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-blue-500">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-gray-400 hover:text-blue-500"
+                      onClick={() => toggleComments(post.id)}
+                    >
                       <MessageCircle className="h-4 w-4 mr-2" />
                       {post.comments_count || 0}
                     </Button>
 
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-green-500">
-                      <Send className="h-4 w-4 mr-2" />
-                      Share
-                    </Button>
+                    <ShareModal
+                      videoId={post.id}
+                      videoTitle={post.content?.substring(0, 50) + '...' || 'Social Post'}
+                    >
+                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-green-500">
+                        <Send className="h-4 w-4 mr-2" />
+                        Share
+                      </Button>
+                    </ShareModal>
+
+                    {post.creator?.id && post.creator.id !== user?.id && (
+                      <MessageButton
+                        creatorId={post.creator.id}
+                        creatorName={post.creator?.full_name || post.creator?.username || 'Creator'}
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-400 hover:text-purple-500"
+                      />
+                    )}
                   </div>
+
+                  {/* Comments Section */}
+                  {showComments[post.id] && (
+                    <div className="mt-4 border-t border-gray-700 pt-4">
+                      {/* Add Comment Input - Only for authenticated users */}
+                      {user ? (
+                        <div className="flex gap-2 mb-4">
+                          <Avatar className="h-8 w-8">
+                            <AvatarImage src={userProfile?.avatar_url || ''} />
+                            <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                              {(userProfile?.username || 'U')[0].toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 flex gap-2">
+                            <Textarea
+                              placeholder="Write a comment..."
+                              value={commentTexts[post.id] || ''}
+                              onChange={(e) => setCommentTexts(prev => ({ ...prev, [post.id]: e.target.value }))}
+                              className="bg-gray-700 border-gray-600 text-white text-sm min-h-[60px] resize-none"
+                            />
+                            <Button
+                              size="sm"
+                              onClick={() => handleCommentSubmit(post.id)}
+                              disabled={!commentTexts[post.id]?.trim()}
+                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                            >
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-700 rounded-lg p-3 text-center mb-4">
+                          <p className="text-gray-300 text-sm mb-2">You need to be logged in to comment</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.location.href = '/auth'}
+                            className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white text-xs"
+                          >
+                            Sign In to Comment
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Comments List */}
+                      <div className="space-y-3">
+                        {(postComments[post.id] || []).map((comment) => (
+                          <div key={comment.id} className="flex gap-3">
+                            <Avatar className="h-7 w-7">
+                              <AvatarImage src={comment.user?.avatar_url || ''} />
+                              <AvatarFallback className="bg-gray-600 text-white text-xs">
+                                {(comment.user?.username || 'U')[0].toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <div className="bg-gray-700 rounded-lg px-3 py-2">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-sm font-medium text-white">
+                                    {comment.user?.full_name || comment.user?.username || 'Anonymous'}
+                                  </span>
+                                  <span className="text-xs text-gray-400">
+                                    {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-gray-200">{comment.content}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))
