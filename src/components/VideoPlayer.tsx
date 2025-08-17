@@ -162,13 +162,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           ref={videoRef}
           className="w-full h-full"
           poster={poster}
-          preload="metadata"
+          preload="none"
           playsInline
           webkit-playsinline="true"
           crossOrigin="anonymous"
           onPlay={handlePlay}
           onError={(e) => {
-            console.error("Video playback error:", e.currentTarget.error);
+            console.error("Video playbook error:", e.currentTarget.error);
             if (videoRef.current) videoRef.current.controls = true;
           }}
           style={{
