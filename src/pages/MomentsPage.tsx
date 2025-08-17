@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getVideos } from '@/services/videosService';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
+import { useAuth } from '@/contexts/AuthContext';
+import { trackVideoView } from '@/services/userStatsService';
 
 interface MomentVideo {
   id: string;
@@ -24,17 +26,24 @@ interface MomentVideo {
 
 const MomentsPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+  const [trackedViews, setTrackedViews] = useState<Set<string>>(new Set());
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Fetch videos and filter only those where is_moment is true
-  const { data: videosData, isLoading } = useQuery({
+  const { data: videosData, isLoading, error } = useQuery({
     queryKey: ['moments'],
     queryFn: () => getVideos(1, 50, undefined, undefined, true), // Use the API filter for moments
   });
+
+  // Debug logging
+  console.log('Moments data:', videosData);
+  console.log('Moments loading:', isLoading);
+  console.log('Moments error:', error);
 
   // Get all moment videos
   const videos = videosData?.videos || [];
@@ -126,6 +135,17 @@ const MomentsPage = () => {
     setIsMuted(!isMuted);
   };
 
+  const handleVideoPlay = async (videoId: string) => {
+    if (user && !trackedViews.has(videoId)) {
+      try {
+        await trackVideoView(user.id, videoId);
+        setTrackedViews(prev => new Set(prev).add(videoId));
+      } catch (error) {
+        console.error('Error tracking video view:', error);
+      }
+    }
+  };
+
   const handleReaction = (reactionType: 'like' | 'dislike') => {
     if (videos[currentIndex]?.id) {
       reactToVideo({ videoId: videos[currentIndex].id, reactionType });
@@ -201,6 +221,7 @@ const MomentsPage = () => {
               muted={isMuted}
               playsInline
               onEnded={() => handleVideoEnd(index)}
+              onPlay={() => handleVideoPlay(video.id)}
               onClick={togglePlayPause}
               style={{ 
                 cursor: 'pointer',
@@ -316,12 +337,7 @@ const MomentsPage = () => {
                     ))}
                   </div>
 
-                  {/* CTA Button */}
-                  <Link to={`/video/${video.id}`}>
-                    <Button className="bg-primary hover:bg-primary/90 text-white rounded-full px-6 py-2 text-sm font-medium">
-                      Watch Full Video
-                    </Button>
-                  </Link>
+                  
                 </div>
               </div>
             </div>
