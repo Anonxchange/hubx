@@ -22,15 +22,23 @@ import {
   FileText,
   UserPlus,
   ThumbsUp,
-  Tv
+  Tv,
+  Edit,
+  Trash2
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { supabase } from '@/integrations/supabase/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { deleteVideo, updateVideo, Video as VideoType } from '@/services/videosService';
+import { useToast } from '@/hooks/use-toast';
+import VideoEditModal from '@/components/admin/VideoEditModal';
 
 const StudioDashboard = () => {
   const { user, userType, loading } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [stats, setStats] = useState({
     totalVideos: 0,
     totalViews: 0,
@@ -40,7 +48,62 @@ const StudioDashboard = () => {
     pendingUploads: 0
   });
   const [uploadedVideos, setUploadedVideos] = useState<any[]>([]);
+  const [editingVideo, setEditingVideo] = useState<VideoType | null>(null);
   const [contentLoading, setContentLoading] = useState(true);
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: deleteVideo,
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Video deleted successfully!",
+      });
+      // Refresh the videos list
+      fetchStudioContent();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete video. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Delete error:', error);
+    },
+  });
+
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ videoId, updates }: { videoId: string; updates: Partial<VideoType> }) => 
+      updateVideo(videoId, updates),
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Video updated successfully!",
+      });
+      setEditingVideo(null);
+      // Refresh the videos list
+      fetchStudioContent();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update video. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Update error:', error);
+    },
+  });
+
+  const handleDelete = (videoId: string) => {
+    if (window.confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+      deleteMutation.mutate(videoId);
+    }
+  };
+
+  const handleEdit = (video: VideoType) => {
+    setEditingVideo(video);
+  };
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -54,41 +117,41 @@ const StudioDashboard = () => {
     return <Navigate to="/creator-dashboard" replace />;
   }
 
-  useEffect(() => {
-    const fetchStudioContent = async () => {
-      if (!user?.id) return;
+  const fetchStudioContent = async () => {
+    if (!user?.id) return;
 
-      setContentLoading(true);
-      try {
-        // Fetch uploaded videos
-        const { data: videos, error } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('owner_id', user.id)
-          .order('created_at', { ascending: false });
+    setContentLoading(true);
+    try {
+      // Fetch uploaded videos
+      const { data: videos, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false });
 
-        if (error) {
-          console.error('Error fetching studio content:', error);
-          return;
-        }
-
-        setUploadedVideos(videos || []);
-
-        // Update stats
-        const totalViews = videos?.reduce((sum, video) => sum + (video.views || 0), 0) || 0;
-
-        setStats(prev => ({
-          ...prev,
-          totalVideos: videos?.length || 0,
-          totalViews
-        }));
-      } catch (error) {
+      if (error) {
         console.error('Error fetching studio content:', error);
-      } finally {
-        setContentLoading(false);
+        return;
       }
-    };
 
+      setUploadedVideos(videos || []);
+
+      // Update stats
+      const totalViews = videos?.reduce((sum, video) => sum + (video.views || 0), 0) || 0;
+
+      setStats(prev => ({
+        ...prev,
+        totalVideos: videos?.length || 0,
+        totalViews
+      }));
+    } catch (error) {
+      console.error('Error fetching studio content:', error);
+    } finally {
+      setContentLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchStudioContent();
   }, [user?.id]);
 
@@ -355,6 +418,16 @@ const StudioDashboard = () => {
                             <Play className="w-4 h-4 mr-1" />
                             View
                           </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-gray-700 text-white hover:bg-gray-800"
+                            onClick={() => handleEdit(video)}
+                            disabled={updateMutation.isPending}
+                          >
+                            <Edit className="w-4 h-4 mr-1" />
+                            Edit
+                          </Button>
                           {/* Example of a button to trigger image upload for a video */}
                           <Button
                             variant="outline"
@@ -367,6 +440,15 @@ const StudioDashboard = () => {
                           >
                             <Upload className="w-4 h-4 mr-1" />
                             Update Thumbnail
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDelete(video.id)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="w-4 h-4 mr-1" />
+                            Delete
                           </Button>
                           {/* Hidden file input for thumbnail upload */}
                           <input
@@ -458,6 +540,13 @@ const StudioDashboard = () => {
       </div>
 
       <Footer />
+
+      {/* Video Edit Modal */}
+      <VideoEditModal
+        video={editingVideo}
+        isOpen={editingVideo !== null}
+        onClose={() => setEditingVideo(null)}
+      />
     </div>
   );
 };
