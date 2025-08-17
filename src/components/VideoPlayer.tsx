@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import { VideoIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
 
@@ -48,7 +47,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
               video.controls = false;
               video.preload = "metadata";
               
-              // Initialize FluidPlayer with improved configuration
+              // Initialize FluidPlayer with clean configuration
               const fluidPlayerInstance = window.fluidPlayer(video, {
                 layoutControls: {
                   autoPlay: false,
@@ -79,46 +78,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   showProgressbarMarkers: false,
                   allowVPAID: true,
                   maxAllowedVastTagRedirects: 3,
-                  vastTimeout: 10000,
+                  vastTimeout: 8000,
                   adCTAText: "Visit Site",
                   adCTATextPosition: "top left",
                   adClickable: true,
                   vastAdvanced: {
                     vastLoadedCallback: () => {
                       console.log("VAST ad loaded successfully");
-                      // Ensure ad fits container properly
-                      if (videoRef.current) {
-                        videoRef.current.style.objectFit = "contain";
-                      }
                     },
                     vastErrorCallback: (error: any) => {
                       console.log("VAST ad error, proceeding to main video:", error);
-                      // Let FluidPlayer handle the error gracefully
+                      // FluidPlayer will handle this automatically
                     },
                     noVastVideoCallback: () => {
                       console.log("No VAST ad available, playing main video directly");
-                      // FluidPlayer will automatically play main video
                     },
                     adSkippedCallback: () => {
-                      console.log("Ad was skipped, loading main video");
-                      // FluidPlayer automatically transitions to main video
+                      console.log("Ad was skipped, main video will start");
                     },
-                    adStartedCallback: () => {
-                      console.log("Ad playback started");
-                      // Ensure proper scaling during ad playback
-                      if (videoRef.current) {
-                        videoRef.current.style.objectFit = "contain";
-                      }
+                    adFinishedCallback: () => {
+                      console.log("Ad completed, main video starting");
                     },
-                  },
-                  adFinishedCallback: () => {
-                    console.log("Ad completed, main video starting");
-                    // Ensure main video plays with proper scaling
-                    setTimeout(() => {
-                      if (videoRef.current) {
-                        videoRef.current.style.objectFit = "contain";
-                      }
-                    }, 100);
                   },
                 },
               });
