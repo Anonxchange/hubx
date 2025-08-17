@@ -1,12 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Eye, ThumbsUp } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { Eye, ThumbsUp, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { LazyImage } from '@/components/LazyImage';
 import AdComponent from '@/components/AdComponent';
 import { useAuth } from '@/contexts/AuthContext';
 import VerificationBadge from './VerificationBadge';
+import MomentsCarousel from './MomentsCarousel';
 
 interface LightVideo {
   id: string;
@@ -21,6 +22,7 @@ interface LightVideo {
   is_premium?: boolean;
   uploader_username?: string;
   uploader_type?: 'user' | 'creator' | 'studio' | 'individual_creator' | 'studio_creator';
+  uploader_profile_picture?: string; // Added for profile picture
 }
 
 interface OptimizedVideoGridProps {
@@ -92,10 +94,23 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 </p>
               )}
 
-              {/* Creator name with verification badge - Pornhub style */}
+              {/* Creator name with profile picture and verification badge */}
               {video.uploader_username && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">
+                  {video.uploader_profile_picture ? (
+                    <LazyImage
+                      src={video.uploader_profile_picture}
+                      alt={video.uploader_username}
+                      width={24}
+                      height={24}
+                      className="w-6 h-6 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
+                      {video.uploader_username[0].toUpperCase()}
+                    </div>
+                  )}
+                  <span className="text-sm text-muted-foreground font-medium">
                     {video.uploader_username}
                   </span>
                   {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
@@ -194,10 +209,23 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             {video.title}
           </h3>
 
-          {/* Creator name with verification badge - Pornhub style */}
+          {/* Creator name with profile picture and verification badge */}
           {video.uploader_username && (
             <div className="flex items-center space-x-2">
-              <span className="text-xs text-muted-foreground">
+              {video.uploader_profile_picture ? (
+                <LazyImage
+                  src={video.uploader_profile_picture}
+                  alt={video.uploader_username}
+                  width={20}
+                  height={20}
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
+                  {video.uploader_username[0].toUpperCase()}
+                </div>
+              )}
+              <span className="text-xs text-muted-foreground font-medium">
                 {video.uploader_username}
               </span>
               {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
@@ -275,21 +303,22 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
       }}
     >
       {uniqueVideos.map((video, index) => (
-        <div key={`video-${video.id}-${index}`} className="w-full">
+        <React.Fragment key={video.id}>
           <OptimizedVideoCard video={video} viewMode={viewMode} />
-
-          {showAds && viewMode === 'grid' && index === 7 && (
-            <div className="col-span-full md:hidden mt-6">
-              <AdComponent zoneId="5686642" />
+          
+          {/* Insert moments carousel after video 23 */}
+          {index === 22 && (
+            <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+              <MomentsCarousel />
             </div>
           )}
-
-          {showAds && viewMode === 'grid' && index === 19 && (
-            <div className="col-span-full md:hidden mt-6">
-              <AdComponent zoneId="5661270" />
+          
+          {showAds && (index + 1) % 12 === 0 && (
+            <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+              <AdComponent zoneId="5661270" className="w-full" />
             </div>
           )}
-        </div>
+        </React.Fragment>
       ))}
     </div>
   );
