@@ -607,7 +607,8 @@ const ProfilePage = () => {
       setShowComments(!showComments);
     };
 
-    const handleCommentSubmit = async () => {
+    const handleCommentSubmit = async (e?: React.FormEvent) => {
+      if (e) e.preventDefault();
       if (!commentText.trim()) return;
 
       try {
@@ -616,7 +617,12 @@ const ProfilePage = () => {
           setComments([comment, ...comments]);
           setCommentText('');
           // Update post comments count
-          post.comments_count = post.comments_count + 1;
+          setPosts(prev => prev.map(p =>
+            p.id === post.id ? { ...p, comments_count: p.comments_count + 1 } : p
+          ));
+          setFeedPosts(prev => prev.map(p =>
+            p.id === post.id ? { ...p, comments_count: p.comments_count + 1 } : p
+          ));
         }
       } catch (error) {
         console.error('Error adding comment:', error);
@@ -630,7 +636,7 @@ const ProfilePage = () => {
         const success = await editPost(post.id, editContent);
         if (success) {
           // Update the post content in the state
-          setPosts(prev => prev.map(p => 
+          setPosts(prev => prev.map(p =>
             p.id === post.id ? { ...p, content: editContent } : p
           ));
           setIsEditing(false);
@@ -655,31 +661,33 @@ const ProfilePage = () => {
               </AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <div className="flex items-center space-x-2 mb-2">
-                <span className="font-semibold text-white">{post.creator?.full_name || post.creator?.username}</span>
-                {(post.creator?.user_type === 'individual_creator' || post.creator?.user_type === 'studio_creator') && (
-                  <VerificationBadge userType={post.creator.user_type} showText={false} />
-                )}
-                <span className="text-gray-400 text-sm">@{post.creator?.username}</span>
-                <span className="text-gray-400 text-sm">·</span>
-                <span className="text-gray-400 text-sm">{formatPostDate(post.created_at)}</span>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-2">
+                  <span className="font-semibold text-white">{post.creator?.full_name || post.creator?.username}</span>
+                  {(post.creator?.user_type === 'individual_creator' || post.creator?.user_type === 'studio_creator') && (
+                    <VerificationBadge userType={post.creator.user_type} showText={false} />
+                  )}
+                  <span className="text-gray-400 text-sm">@{post.creator?.username}</span>
+                  <span className="text-gray-400 text-sm">·</span>
+                  <span className="text-gray-400 text-sm">{formatPostDate(post.created_at)}</span>
+                </div>
                 {showDelete && (
-                  <div className="ml-auto flex items-center space-x-1">
+                  <div className="flex items-center space-x-1">
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20"
+                      className="text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 p-1 h-6 w-6"
                       onClick={() => setIsEditing(!isEditing)}
                     >
-                      <Edit3 className="w-4 h-4" />
+                      <Edit3 className="w-3 h-3" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="text-red-400 hover:text-red-300 hover:bg-red-900/20"
+                      className="text-red-400 hover:text-red-300 hover:bg-red-900/20 p-1 h-6 w-6"
                       onClick={() => handleDeletePost(post.id)}
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3" />
                     </Button>
                   </div>
                 )}
@@ -735,9 +743,9 @@ const ProfilePage = () => {
                   <Heart className={`w-4 h-4 ${post.isLiked ? 'fill-current' : ''}`} />
                   <span>{post.likes_count}</span>
                 </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="flex items-center space-x-1 hover:text-blue-400"
                   onClick={toggleComments}
                 >
@@ -760,7 +768,7 @@ const ProfilePage = () => {
                 <div className="mt-4 border-t border-gray-700 pt-4">
                   {/* Add Comment Input */}
                   {user ? (
-                    <div className="flex gap-2 mb-4">
+                    <form onSubmit={handleCommentSubmit} className="flex gap-2 mb-4">
                       <Avatar className="h-8 w-8">
                         <AvatarImage src={profilePhoto || ''} />
                         <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
@@ -772,18 +780,24 @@ const ProfilePage = () => {
                           placeholder="Write a comment..."
                           value={commentText}
                           onChange={(e) => setCommentText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleCommentSubmit();
+                            }
+                          }}
                           className="bg-gray-700 border-gray-600 text-white text-sm min-h-[60px] resize-none"
                         />
                         <Button
+                          type="submit"
                           size="sm"
-                          onClick={handleCommentSubmit}
                           disabled={!commentText.trim()}
                           className="bg-blue-500 hover:bg-blue-600 text-white"
                         >
                           <Send className="h-4 w-4" />
                         </Button>
                       </div>
-                    </div>
+                    </form>
                   ) : (
                     <div className="bg-gray-700 rounded-lg p-4 text-center mb-4">
                       <p className="text-gray-300 text-sm mb-3">You need to be logged in to comment</p>
@@ -989,13 +1003,14 @@ const ProfilePage = () => {
                   )}
                 </div>
               </div>
-              <div className="flex space-x-2 mt-auto">
+              <div className="flex flex-wrap gap-2 mt-auto">
                 {!isOwnProfile && (profileUserType === 'individual_creator' || profileUserType === 'studio_creator') && (
                   <Button
                     variant={isSubscribed ? "outline" : "default"}
+                    size="sm"
                     className={isSubscribed
-                      ? "rounded-full border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
-                      : "rounded-full bg-orange-500 hover:bg-orange-600 text-white"
+                      ? "rounded-full border-red-500 text-red-500 hover:bg-red-500 hover:text-white text-xs px-3 py-1"
+                      : "rounded-full bg-orange-500 hover:bg-orange-600 text-white text-xs px-3 py-1"
                     }
                     onClick={() => {
                       if (!user?.id) {
@@ -1008,12 +1023,12 @@ const ProfilePage = () => {
                   >
                     {user?.id && isSubscribed ? (
                       <>
-                        <UserMinus className="w-4 h-4 mr-2" />
-                        Unsubscribe
+                        <UserMinus className="w-3 h-3 mr-1" />
+                        Unsub
                       </>
                     ) : (
                       <>
-                        <UserPlus className="w-4 h-4 mr-2" />
+                        <UserPlus className="w-3 h-3 mr-1" />
                         Subscribe
                       </>
                     )}
@@ -1024,16 +1039,17 @@ const ProfilePage = () => {
                     creatorId={profileData.id}
                     creatorName={displayedName}
                     variant="outline"
-                    className="rounded-full border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                    className="rounded-full border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white text-xs px-3 py-1"
                   />
                 )}
                 <Dialog open={isTipModalOpen} onOpenChange={setIsTipModalOpen}>
                   <DialogTrigger asChild>
                     <Button
                       variant="outline"
-                      className="rounded-full border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white"
+                      size="sm"
+                      className="rounded-full border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white text-xs px-3 py-1"
                     >
-                      <DollarSign className="w-4 h-4 mr-2" />
+                      <DollarSign className="w-3 h-3 mr-1" />
                       Tip
                     </Button>
                   </DialogTrigger>
@@ -1764,6 +1780,9 @@ const ProfilePage = () => {
                                   loading="lazy"
                                 />
                               )}
+                              <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded">
+                                WATCHED
+                              </div>
                               <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                                 {video.duration}
                               </div>
@@ -1860,7 +1879,7 @@ const ProfilePage = () => {
                                 <li>• Monetize your content</li>
                                 <li>• Earn from views & subscriptions</li>
                                 <li>• Build your fanbase</li>
-                                <li>• Analytics dashboard</li>
+                                <li>• Analytics & insights</li>
                                 {userType === 'studio_creator' && (
                                   <>
                                     <li>• Team collaboration tools</li>
