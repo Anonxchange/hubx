@@ -614,7 +614,7 @@ const ProfilePage = () => {
       try {
         const comment = await addPostComment(post.id, commentText);
         if (comment) {
-          setComments([comment, ...comments]);
+          setComments([...comments, comment]);
           setCommentText('');
           // Update post comments count
           setPosts(prev => prev.map(p =>
@@ -783,7 +783,7 @@ const ProfilePage = () => {
                           onKeyDown={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault();
-                              handleCommentSubmit();
+                              handleCommentSubmit(e);
                             }
                           }}
                           className="bg-gray-700 border-gray-600 text-white text-sm min-h-[60px] resize-none"
@@ -1514,7 +1514,7 @@ const ProfilePage = () => {
                         <div className="space-y-4 max-w-full">
                           {posts.map(post => (
                             <div key={post.id} className="max-w-full overflow-hidden">
-                              <PostCard post={post} showDelete={true} />
+                              <PostCard post={post} showDelete={isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator')} />
                             </div>
                           ))}
                         </div>
