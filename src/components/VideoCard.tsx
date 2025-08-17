@@ -25,6 +25,16 @@ interface Video {
   uploader_type?: 'user' | 'creator' | 'studio' | 'individual_creator' | 'studio_creator'; // Added uploader_type, expanded options
   is_premium?: boolean; // Added is_premium
   owner_id?: string; // Added owner_id for fetching creator profile
+  profiles?: { // Added profiles for direct access if available
+    id: string;
+    username: string;
+    full_name: string;
+    avatar_url: string;
+    user_type: string;
+  };
+  uploader_name?: string; // Added for fallback display name
+  uploader_avatar?: string; // Added for fallback avatar url
+  uploader_id?: string; // Added for fallback uploader id
 }
 
 interface VideoCardProps {
@@ -53,11 +63,11 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   useEffect(() => {
     const fetchCreatorProfile = async () => {
       // Use the data already provided in the video object if available
-      if (video.profiles || (video.uploader_username && video.uploader_type)) {
+      if (video.profiles || (video.uploader_username && video.uploader_avatar)) {
         setCreatorProfile({
           id: video.profiles?.id || video.uploader_id || video.owner_id,
           username: video.profiles?.username || video.uploader_username,
-          full_name: video.profiles?.full_name || video.uploader_name,
+          full_name: video.profiles?.full_name || video.uploader_name || video.uploader_username,
           avatar_url: video.profiles?.avatar_url || video.uploader_avatar,
           user_type: video.profiles?.user_type || video.uploader_type
         });
@@ -93,7 +103,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     };
 
     fetchCreatorProfile();
-  }, [video.owner_id, video.uploader_id, video.profiles, video.uploader_username]);
+  }, [video.owner_id, video.uploader_id, video.profiles, video.uploader_username, video.uploader_avatar, video.uploader_name, video.uploader_type]);
 
 
   // Generate preview URL with timestamp for Bunny CDN videos
