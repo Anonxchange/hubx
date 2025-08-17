@@ -25,7 +25,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
 
-        // Load FluidPlayer script if not already loaded
         const existingScript = document.querySelector<HTMLScriptElement>(
           "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
         );
@@ -56,7 +55,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                       roll: "preRoll",
                       vastTag:
                         "https://syndication.exoclick.com/splash.php?idzone=5660526",
-                      // Removed adText to disable custom banner
+                      adText: "Advertisement",
                     },
                   ],
                   skipButtonCaption: "Skip in [seconds]",
@@ -69,34 +68,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   adCTATextPosition: "top left",
                   adClickable: true,
                   vastAdvanced: {
-                    vastLoadedCallback: () => {
-                      console.log("VAST ad loaded successfully");
-                    },
-                    vastErrorCallback: (error: any) => {
-                      console.log(
-                        "VAST ad error, proceeding to main video:",
-                        error
-                      );
-                    },
-                    noVastVideoCallback: () => {
-                      console.log(
-                        "No VAST ad available, playing main video directly"
-                      );
-                    },
-                    adSkippedCallback: () => {
-                      console.log("Ad was skipped, loading main video");
-                    },
-                    adStartedCallback: () => {
-                      console.log("Ad playback started");
-                    },
+                    vastLoadedCallback: () => console.log("VAST ad loaded"),
+                    vastErrorCallback: (err: any) =>
+                      console.log("VAST error, playing main video", err),
+                    noVastVideoCallback: () =>
+                      console.log("No VAST ad, playing main video"),
+                    adSkippedCallback: () => console.log("Ad skipped"),
+                    adStartedCallback: () => console.log("Ad started"),
                   },
-                  adFinishedCallback: () => {
-                    console.log("Ad completed, main video starting");
-                  },
+                  adFinishedCallback: () => console.log("Ad finished"),
                 },
               });
 
-              // Save instance for cleanup
               (video as any).fluidPlayerInstance = fluidPlayerInstance;
               console.log("FluidPlayer initialized successfully");
             } catch (error) {
@@ -134,9 +117,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
       if (videoRef.current) {
         try {
           const player = videoRef.current as any;
-          if (player.fluidPlayerInstance) {
-            player.fluidPlayerInstance.destroy();
-          }
+          if (player.fluidPlayerInstance) player.fluidPlayerInstance.destroy();
         } catch (error) {
           console.log("Error cleaning up FluidPlayer:", error);
         }
@@ -144,16 +125,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
     };
   }, [src, poster]);
 
-  // Track views
   const handlePlay = async () => {
-    if (user) {
-      await trackVideoView(user.id, src);
-    }
+    if (user) await trackVideoView(user.id, src);
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      {/* Responsive container */}
       <div
         className="relative w-full bg-black rounded-lg overflow-hidden"
         style={{ aspectRatio: "16/9" }}
@@ -162,7 +139,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           ref={videoRef}
           className="w-full h-full"
           poster={poster}
-          preload="metadata"
+          preload="none" {/* ✅ prevent main video from loading until play */}
           playsInline
           webkit-playsinline="true"
           crossOrigin="anonymous"
@@ -183,7 +160,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         </video>
       </div>
 
-      {/* Video info */}
       {title && (
         <div className="flex justify-between items-center mt-3 px-2">
           <div className="flex items-center gap-2">
