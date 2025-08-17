@@ -48,7 +48,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
               video.controls = false;
               video.preload = "metadata";
               
-              // Initialize FluidPlayer with proper configuration
+              // Initialize FluidPlayer with improved configuration
               const fluidPlayerInstance = window.fluidPlayer(video, {
                 layoutControls: {
                   autoPlay: false,
@@ -64,6 +64,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                     autoHideTimeout: 3,
                   },
                   primaryColor: "#ff6b35",
+                  responsive: true,
                 },
                 vastOptions: {
                   adList: [
@@ -75,32 +76,49 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   ],
                   skipButtonCaption: "Skip in [seconds]",
                   skipButtonClickCaption: "Skip >>",
-                  showProgressbarMarkers: true,
+                  showProgressbarMarkers: false,
                   allowVPAID: true,
                   maxAllowedVastTagRedirects: 3,
-                  vastTimeout: 8000,
+                  vastTimeout: 10000,
                   adCTAText: "Visit Site",
                   adCTATextPosition: "top left",
+                  adClickable: true,
                   vastAdvanced: {
                     vastLoadedCallback: () => {
                       console.log("VAST ad loaded successfully");
+                      // Ensure ad fits container properly
+                      if (videoRef.current) {
+                        videoRef.current.style.objectFit = "contain";
+                      }
                     },
                     vastErrorCallback: (error: any) => {
-                      console.log("VAST ad error, playing main video:", error);
-                      // FluidPlayer will handle the transition automatically
+                      console.log("VAST ad error, proceeding to main video:", error);
+                      // Let FluidPlayer handle the error gracefully
                     },
                     noVastVideoCallback: () => {
                       console.log("No VAST ad available, playing main video directly");
-                      // FluidPlayer will play main video automatically
+                      // FluidPlayer will automatically play main video
                     },
                     adSkippedCallback: () => {
-                      console.log("Ad was skipped, transitioning to main video");
-                      // FluidPlayer handles this transition
+                      console.log("Ad was skipped, loading main video");
+                      // FluidPlayer automatically transitions to main video
+                    },
+                    adStartedCallback: () => {
+                      console.log("Ad playback started");
+                      // Ensure proper scaling during ad playback
+                      if (videoRef.current) {
+                        videoRef.current.style.objectFit = "contain";
+                      }
                     },
                   },
                   adFinishedCallback: () => {
-                    console.log("Ad completed, main video will play");
-                    // FluidPlayer handles the automatic transition
+                    console.log("Ad completed, main video starting");
+                    // Ensure main video plays with proper scaling
+                    setTimeout(() => {
+                      if (videoRef.current) {
+                        videoRef.current.style.objectFit = "contain";
+                      }
+                    }, 100);
                   },
                 },
               });
@@ -208,10 +226,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           onLoadedData={() => {
             console.log("Video data loaded successfully");
           }}
+          onResize={() => {
+            // Ensure proper scaling when video dimensions change
+            if (videoRef.current) {
+              videoRef.current.style.objectFit = "contain";
+            }
+          }}
           style={{
             objectFit: 'contain',
             backgroundColor: '#000',
-            display: 'block'
+            display: 'block',
+            maxWidth: '100%',
+            maxHeight: '100%'
           }}
         />
       </div>
