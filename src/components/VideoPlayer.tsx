@@ -10,6 +10,7 @@ declare global {
   interface Window {
     fluidPlayer: any;
     AdProvider: any[];
+    ExoLoader: any;
   }
 }
 
@@ -43,9 +44,26 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   };
 
-  // Load FluidPlayer script (skip on mobile for better compatibility)
+  // Load FluidPlayer and Exoclick scripts
   useEffect(() => {
-    const loadFluidPlayer = () => {
+    const loadScripts = () => {
+      // Initialize AdProvider array
+      if (!window.AdProvider) {
+        window.AdProvider = [];
+      }
+
+      // Load Exoclick script first
+      const exoclickScript = document.createElement('script');
+      exoclickScript.src = 'https://a.magsrv.com/ad-provider.js';
+      exoclickScript.async = true;
+      exoclickScript.onload = () => {
+        console.log('Exoclick ad provider loaded successfully');
+      };
+      exoclickScript.onerror = () => {
+        console.error('Failed to load Exoclick ad provider');
+      };
+      document.head.appendChild(exoclickScript);
+
       // On mobile devices, use native controls for better performance
       if (isMobile()) {
         console.log('Mobile device detected, using native video controls');
@@ -73,7 +91,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       document.head.appendChild(link);
     };
 
-    loadFluidPlayer();
+    loadScripts();
   }, []);
 
   // Disable right-click to prevent download
@@ -86,20 +104,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (viewTracked) return;
 
     try {
-      // Track impression with Exoclick
-      if (window.AdProvider && Array.isArray(window.AdProvider)) {
-        console.log('Tracking video view with Exoclick');
-        window.AdProvider.push({
-          "serve": {
-            "type": "impression",
-            "zoneid": "5660526"
-          }
-        });
+      // Ensure AdProvider is available
+      if (!window.AdProvider) {
+        window.AdProvider = [];
       }
+
+      // Track impression with Exoclick
+      console.log('Tracking video view with Exoclick');
+      window.AdProvider.push({
+        "serve": {
+          "zoneid": "5660526"
+        }
+      });
 
       // Fire custom tracking pixel
       const trackingPixel = new Image();
-      trackingPixel.src = `https://s.magsrv.com/v1/track.php?idzone=5660526&type=view&timestamp=${Date.now()}`;
+      trackingPixel.src = `https://syndication.realsrv.com/splash.php?idzone=5660526&type=impression&timestamp=${Date.now()}`;
+      trackingPixel.onload = () => console.log('Tracking pixel loaded');
+      trackingPixel.onerror = () => console.error('Tracking pixel failed');
 
       setViewTracked(true);
       console.log('Video view tracked successfully with Exoclick');
@@ -142,12 +164,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           adList: [
             {
               roll: 'preRoll',
-              vastTag: `https://s.magsrv.com/v1/vast.php?idzone=5660526&timestamp=${Date.now()}`,
+              vastTag: `https://syndication.realsrv.com/splash.php?idzone=5660526`,
               timer: 5
             }
           ],
           adCTAText: 'Visit Now',
-          adCTATextPosition: 'top left'
+          adCTATextPosition: 'top left',
+          showProgressbarMarkers: true
         },
         modules: {
           configureHls: false
@@ -207,18 +230,39 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         console.log('Ad started playing');
         
         // Track ad impression
-        if (window.AdProvider && Array.isArray(window.AdProvider)) {
-          window.AdProvider.push({
-            "serve": {
-              "type": "video_impression",
-              "zoneid": "5660526"
-            }
-          });
+        if (!window.AdProvider) {
+          window.AdProvider = [];
         }
+        window.AdProvider.push({
+          "serve": {
+            "zoneid": "5660526",
+            "type": "video_start"
+          }
+        });
       });
 
       videoElement.addEventListener('ad_completed', () => {
         console.log('Ad completed, content will start');
+        
+        // Track ad completion
+        if (!window.AdProvider) {
+          window.AdProvider = [];
+        }
+        window.AdProvider.push({
+          "serve": {
+            "zoneid": "5660526", 
+            "type": "video_complete"
+          }
+        });
+      });
+
+      // Additional ad event listeners
+      videoElement.addEventListener('ad_error', (e) => {
+        console.error('Ad error occurred:', e);
+      });
+
+      videoElement.addEventListener('ad_skipped', () => {
+        console.log('Ad was skipped');
       });
 
       // Cleanup function
