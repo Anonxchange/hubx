@@ -1,18 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Camera, FileText, User, CheckCircle, Upload, BarChart3, DollarSign, Settings, Play, Eye, ThumbsUp } from 'lucide-react';
+import { Camera, FileText, User, CheckCircle, Upload, BarChart3, DollarSign, Settings, Play, Eye, ThumbsUp, Edit, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { deleteVideo, updateVideo, Video } from '@/services/videosService';
+import { useToast } from '@/hooks/use-toast';
+import VideoEditModal from '@/components/admin/VideoEditModal';
 
 const CreatorDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [accountType] = useState<'individual' | 'business'>('individual');
   const [uploadedVideos, setUploadedVideos] = useState<any[]>([]);
+  const [editingVideo, setEditingVideo] = useState<Video | null>(null);
   const [stats, setStats] = useState({
     totalVideos: 0,
     totalViews: 0,
@@ -21,45 +28,99 @@ const CreatorDashboard = () => {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchCreatorContent = async () => {
-      if (!user?.id) return;
-      
-      setLoading(true);
-      try {
-        // Fetch uploaded videos
-        const { data: videos, error } = await supabase
-          .from('videos')
-          .select('*')
-          .eq('owner_id', user.id)
-          .order('created_at', { ascending: false });
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: deleteVideo,
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Video deleted successfully!",
+      });
+      // Refresh the videos list
+      fetchCreatorContent();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete video. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Delete error:', error);
+    },
+  });
 
-        if (error) {
-          console.error('Error fetching creator content:', error);
-          return;
-        }
+  // Update mutation
+  const updateMutation = useMutation({
+    mutationFn: ({ videoId, updates }: { videoId: string; updates: Partial<Video> }) => 
+      updateVideo(videoId, updates),
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Video updated successfully!",
+      });
+      setEditingVideo(null);
+      // Refresh the videos list
+      fetchCreatorContent();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update video. Please try again.",
+        variant: "destructive",
+      });
+      console.error('Update error:', error);
+    },
+  });
 
-        setUploadedVideos(videos || []);
-        
-        // Calculate stats
-        const totalViews = videos?.reduce((sum, video) => sum + (video.views || 0), 0) || 0;
-        const totalLikes = videos?.reduce((sum, video) => sum + (video.likes || 0), 0) || 0;
-        
-        setStats({
-          totalVideos: videos?.length || 0,
-          totalViews,
-          totalLikes,
-          subscribers: 0 // TODO: Implement subscriber count
-        });
-      } catch (error) {
+  const fetchCreatorContent = async () => {
+    if (!user?.id) return;
+    
+    setLoading(true);
+    try {
+      // Fetch uploaded videos
+      const { data: videos, error } = await supabase
+        .from('videos')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
         console.error('Error fetching creator content:', error);
-      } finally {
-        setLoading(false);
+        return;
       }
-    };
 
+      setUploadedVideos(videos || []);
+      
+      // Calculate stats
+      const totalViews = videos?.reduce((sum, video) => sum + (video.views || 0), 0) || 0;
+      const totalLikes = videos?.reduce((sum, video) => sum + (video.likes || 0), 0) || 0;
+      
+      setStats({
+        totalVideos: videos?.length || 0,
+        totalViews,
+        totalLikes,
+        subscribers: 0 // TODO: Implement subscriber count
+      });
+    } catch (error) {
+      console.error('Error fetching creator content:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchCreatorContent();
   }, [user?.id]);
+
+  const handleDelete = (videoId: string) => {
+    if (window.confirm('Are you sure you want to delete this video? This action cannot be undone.')) {
+      deleteMutation.mutate(videoId);
+    }
+  };
+
+  const handleEdit = (video: Video) => {
+    setEditingVideo(video);
+  };
 
   if (!user) {
     navigate('/auth');
@@ -345,6 +406,24 @@ const CreatorDashboard = () => {
                               <Play className="w-4 h-4 mr-1" />
                               View
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleEdit(video)}
+                              disabled={updateMutation.isPending}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDelete(video.id)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Delete
+                            </Button>
                           </div>
                         </div>
                       ))}
@@ -450,6 +529,13 @@ const CreatorDashboard = () => {
           </Tabs>
         </div>
       </div>
+
+      {/* Video Edit Modal */}
+      <VideoEditModal
+        video={editingVideo}
+        isOpen={editingVideo !== null}
+        onClose={() => setEditingVideo(null)}
+      />
     </div>
   );
 };
