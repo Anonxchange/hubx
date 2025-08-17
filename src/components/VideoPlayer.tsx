@@ -22,7 +22,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    // Load FluidPlayer script once
     const existingScript = document.querySelector<HTMLScriptElement>(
       "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
     );
@@ -46,6 +45,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             fillToContainer: true,
             playButtonShowing: true,
             posterImage: poster || "",
+            allowDownload: false,
+            keyboardControl: true,
+            controlBar: {
+              autoHide: true,
+              autoHideTimeout: 3,
+            },
           },
           vastOptions: {
             adList: [
@@ -59,6 +64,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             skipButtonCaption: "Skip in [seconds]",
             skipButtonClickCaption: "Skip >>",
             showProgressbarMarkers: true,
+            allowVPAID: true,
+            adFinishedCallback: () => {
+              // Ensure main video continues after ad
+              if (videoRef.current && videoRef.current.paused) {
+                videoRef.current.play().catch(() => {});
+              }
+            },
           },
         });
         setInitialized(true);
@@ -66,7 +78,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
     }
   }, [poster, initialized]);
 
-  // Track video view for stats
+  // Track view
   const handlePlay = async () => {
     if (user) {
       await trackVideoView(user.id, src);
@@ -78,7 +90,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
       <div className="relative bg-black rounded-md overflow-hidden">
         <video
           ref={videoRef}
-          className="w-full h-full"
+          className="w-full h-auto" // ensure responsive scaling
           src={src}
           poster={poster}
           preload="metadata"
@@ -87,7 +99,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         />
       </div>
 
-      {/* Example custom overlay (reuse your style) */}
+      {/* Overlay controls */}
       <div className="flex justify-between items-center mt-3 px-2">
         <div className="flex items-center gap-2">
           <VideoIcon className="w-5 h-5 text-red-500" />
