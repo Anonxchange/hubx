@@ -430,25 +430,37 @@ export const addPostComment = async (postId: string, content: string): Promise<P
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) return null;
 
-    const { data, error } = await supabase
+    // First insert the comment
+    const { data: commentData, error: commentError } = await supabase
       .from('post_comments')
       .insert({
         post_id: postId,
         user_id: user.user.id,
         content: content
       })
-      .select(`
-        *,
-        user:profiles!post_comments_user_id_fkey(
-          username,
-          full_name,
-          profile_picture_url
-        )
-      `)
+      .select('*')
       .single();
 
-    if (error) throw error;
-    return data;
+    if (commentError) throw commentError;
+
+    // Then get the user profile data separately
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('username, full_name, avatar_url')
+      .eq('id', user.user.id)
+      .single();
+
+    // Combine the data
+    const comment: PostComment = {
+      ...commentData,
+      user: {
+        username: profileData?.username || '',
+        full_name: profileData?.full_name || '',
+        profile_picture_url: profileData?.avatar_url || ''
+      }
+    };
+
+    return comment;
   } catch (error) {
     console.error('Error adding comment:', error);
     return null;
@@ -458,21 +470,63 @@ export const addPostComment = async (postId: string, content: string): Promise<P
 // Get comments for a post
 export const getPostComments = async (postId: string): Promise<PostComment[]> => {
   try {
-    const { data, error } = await supabase
-      .from('post_comments')
-      .select(`
-        *,
-        user:profiles!post_comments_user_id_fkey(
-          username,
-          full_name,
-          profile_picture_url
-        )
-      `)
-      .eq('post_id', postId)
-      .order('created_at', { ascending: true });
+    // First try with the relationship, then fallback if it fails
+    let data, error;
+    try {
+      const result = await supabase
+        .from('post_comments')
+        .select(`
+          *,
+          user:profiles!post_comments_user_id_fkey(
+            username,
+            full_name,
+            avatar_url
+          )
+        `)
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+      data = result.data;
+      error = result.error;
+    } catch (relationError) {
+      // Fallback: fetch comments and profiles separately
+      console.log('Foreign key relationship not found, fetching comments with manual profile join');
+      const commentsResult = await supabase
+        .from('post_comments')
+        .select('*')
+        .eq('post_id', postId)
+        .order('created_at', { ascending: true });
+      
+      if (commentsResult.error) throw commentsResult.error;
+      data = commentsResult.data;
+
+      // Get user profiles for each comment
+      if (data && data.length > 0) {
+        const userIds = [...new Set(data.map(comment => comment.user_id))];
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url')
+          .in('id', userIds);
+
+        if (profilesData) {
+          const profilesMap = new Map(profilesData.map(profile => [profile.id, profile]));
+          data = data.map(comment => ({
+            ...comment,
+            user: profilesMap.get(comment.user_id) || null
+          }));
+        }
+      }
+    }
 
     if (error) throw error;
-    return data || [];
+
+    // Ensure the correct field mapping for profile_picture_url
+    return (data || []).map(comment => ({
+      ...comment,
+      user: comment.user ? {
+        ...comment.user,
+        profile_picture_url: comment.user.avatar_url || comment.user.profile_picture_url || ''
+      } : null
+    }));
   } catch (error) {
     console.error('Error fetching comments:', error);
     return [];
