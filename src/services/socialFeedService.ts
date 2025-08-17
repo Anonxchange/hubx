@@ -480,6 +480,29 @@ export const getPostComments = async (postId: string): Promise<PostComment[]> =>
   }
 };
 
+// Edit a post
+export const editPost = async (postId: string, content: string): Promise<boolean> => {
+  try {
+    const { error } = await supabase
+      .from('posts')
+      .update({ 
+        content: content,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', postId);
+
+    if (error) {
+      console.error('Error editing post:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error editing post:', error);
+    return false;
+  }
+};
+
 // Delete a post
 export const deletePost = async (postId: string): Promise<boolean> => {
   try {
@@ -488,7 +511,12 @@ export const deletePost = async (postId: string): Promise<boolean> => {
       .delete()
       .eq('id', postId);
 
-    return !error;
+    if (error) {
+      console.error('Error deleting post:', error);
+      return false;
+    }
+
+    return true;
   } catch (error) {
     console.error('Error deleting post:', error);
     return false;
