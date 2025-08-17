@@ -165,7 +165,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           adList: [
             {
               roll: 'preRoll',
-              vastTag: `https://s.magsrv.com/splash.php?idzone=5660526&sw=PLAYER_WIDTH&sh=PLAYER_HEIGHT&sa=PLAYER_AREA`,
+              vastTag: `https://s.magsrv.com/v1/vast.php?idzone=5660526&timestamp=${Date.now()}`,
               timer: false, // Let ad run its full duration
               skipOffset: 5 // Allow skip after 5 seconds
             }
