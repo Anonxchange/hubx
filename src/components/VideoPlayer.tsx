@@ -50,8 +50,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       script.src = 'https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js';
       script.onload = () => setFluidPlayerLoaded(true);
       script.onerror = () => {
-        console.error('Failed to load FluidPlayer');
-        setVideoError(true);
+        console.error('Failed to load FluidPlayer, falling back to native controls');
+        setFluidPlayerLoaded(false);
       };
       document.head.appendChild(script);
 
@@ -264,7 +264,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         className="w-full h-full"
         src={src}
         poster={poster}
-        controls={false} // FluidPlayer handles controls
+        controls={!fluidPlayerLoaded} // Use native controls if FluidPlayer fails
         preload="metadata"
         crossOrigin="anonymous"
         style={{ width: '100%', height: '100%' }}
