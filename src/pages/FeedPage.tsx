@@ -400,16 +400,6 @@ const FeedPage: React.FC = () => {
                         Share
                       </Button>
                     </ShareModal>
-
-                    {post.creator?.id && post.creator.id !== user?.id && (
-                      <MessageButton
-                        creatorId={post.creator.id}
-                        creatorName={post.creator?.full_name || post.creator?.username || 'Creator'}
-                        variant="ghost"
-                        size="sm"
-                        className="text-gray-400 hover:text-purple-500"
-                      />
-                    )}
                   </div>
 
                   {/* Comments Section */}
@@ -435,6 +425,25 @@ const FeedPage: React.FC = () => {
                               size="sm"
                               onClick={() => handleCommentSubmit(post.id)}
                               disabled={!commentTexts[post.id]?.trim()}
+                              className="bg-blue-500 hover:bg-blue-600 text-white"
+                            >
+                              <Send className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-gray-700 rounded-lg p-4 text-center mb-4">
+                          <p className="text-gray-300 text-sm mb-3">You need to be logged in to comment</p>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate('/auth')}
+                            className="border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+                          >
+                            Sign In to Comment
+                          </Button>
+                        </div>
+                      )})}
                               className="bg-blue-500 hover:bg-blue-600 text-white"
                             >
                               <Send className="h-4 w-4" />
