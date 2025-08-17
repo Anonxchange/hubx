@@ -37,6 +37,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [viewTracked, setViewTracked] = useState(false);
   const [fluidPlayerLoaded, setFluidPlayerLoaded] = useState(false);
+  const [adPlayed, setAdPlayed] = useState(false);
   const { user } = useAuth();
 
   // Check if device is mobile
@@ -44,7 +45,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
   };
 
-  // Load FluidPlayer and Exoclick scripts
+  // Load scripts
   useEffect(() => {
     const loadScripts = () => {
       // Initialize AdProvider array
@@ -52,25 +53,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         window.AdProvider = [];
       }
 
-      // Load Exoclick script first
+      // Load Exoclick script
       const exoclickScript = document.createElement('script');
       exoclickScript.src = 'https://a.magsrv.com/ad-provider.js';
       exoclickScript.async = true;
       exoclickScript.onload = () => {
-        console.log('Exoclick ad provider loaded successfully');
-      };
-      exoclickScript.onerror = () => {
-        console.error('Failed to load Exoclick ad provider');
+        console.log('Exoclick ad provider loaded');
       };
       document.head.appendChild(exoclickScript);
 
-      // On mobile devices, use native controls for better performance
+      // Skip FluidPlayer on mobile
       if (isMobile()) {
-        console.log('Mobile device detected, using native video controls');
+        console.log('Mobile device detected, using native controls');
         setFluidPlayerLoaded(false);
+        setIsLoading(false);
         return;
       }
 
+      // Load FluidPlayer
       if (window.fluidPlayer) {
         setFluidPlayerLoaded(true);
         return;
@@ -78,10 +78,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       const script = document.createElement('script');
       script.src = 'https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js';
-      script.onload = () => setFluidPlayerLoaded(true);
+      script.onload = () => {
+        console.log('FluidPlayer loaded successfully');
+        setFluidPlayerLoaded(true);
+      };
       script.onerror = () => {
-        console.error('Failed to load FluidPlayer, falling back to native controls');
+        console.error('Failed to load FluidPlayer');
         setFluidPlayerLoaded(false);
+        setIsLoading(false);
       };
       document.head.appendChild(script);
 
@@ -94,22 +98,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     loadScripts();
   }, []);
 
-  // Disable right-click to prevent download
+  // Disable right-click
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
   };
 
-  // Function to track video view with Exoclick
+  // Track video view with Exoclick
   const trackVideoViewExoclick = () => {
     if (viewTracked) return;
 
     try {
-      // Ensure AdProvider is available
       if (!window.AdProvider) {
         window.AdProvider = [];
       }
 
-      // Track impression with Exoclick
       console.log('Tracking video view with Exoclick');
       window.AdProvider.push({
         "serve": {
@@ -117,33 +119,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
       });
 
-      // Fire custom tracking pixel
-      const trackingPixel = new Image();
-      trackingPixel.src = `https://syndication.realsrv.com/splash.php?idzone=5660526&type=impression&timestamp=${Date.now()}`;
-      trackingPixel.onload = () => console.log('Tracking pixel loaded');
-      trackingPixel.onerror = () => console.error('Tracking pixel failed');
-
       setViewTracked(true);
-      console.log('Video view tracked successfully with Exoclick');
     } catch (error) {
       console.error('Error tracking video view:', error);
     }
   };
 
+  // Initialize FluidPlayer
   useEffect(() => {
-    if (!videoRef.current || !src) return;
-    
-    // Skip FluidPlayer on mobile devices for better compatibility
-    if (isMobile()) {
-      setIsLoading(false);
+    if (!videoRef.current || !src || !fluidPlayerLoaded || isMobile()) {
+      if (isMobile()) {
+        setIsLoading(false);
+      }
       return;
     }
-    
-    if (!fluidPlayerLoaded) return;
 
-    // Initialize FluidPlayer
+    let playerInstance: any = null;
+
     try {
-      playerRef.current = window.fluidPlayer(videoRef.current, {
+      console.log('Initializing FluidPlayer with ad configuration...');
+      
+      playerInstance = window.fluidPlayer(videoRef.current, {
         layoutControls: {
           fillToContainer: true,
           primaryColor: '#FF6B35',
@@ -159,37 +155,45 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           subtitlesEnabled: false,
           keyboardControl: true,
           layout: 'default',
-          autoPlay: false // Prevent autoplay to ensure ads can load first
+          autoPlay: false
         },
         vastOptions: {
           adList: [
             {
               roll: 'preRoll',
-              vastTag: `https://s.magsrv.com/v1/vast.php?idzone=5660526&sw=800&sh=450&cb=${Date.now()}`,
-              timer: 5,
+              vastTag: `https://s.magsrv.com/v1/vast.php?idzone=5660526&sw=800&sh=450&cb=${Date.now()}&r=${Math.random()}`,
+              timer: false,
               skipOffset: 5
             }
           ],
           adCTAText: 'Visit Advertiser',
           adCTATextPosition: 'bottom right',
           showProgressbarMarkers: false,
-          vastTimeout: 15000,
-          maxAllowedVastTagRedirects: 5,
-          skipButtonCaption: 'Skip Ad in {seconds}s',
+          vastTimeout: 20000,
+          maxAllowedVastTagRedirects: 3,
+          skipButtonCaption: 'Skip Ad ({seconds})',
           skipButtonClickCaption: 'Skip Ad',
           adText: 'Advertisement',
-          adTextPosition: 'top left'
+          adTextPosition: 'top left',
+          vastAdvanced: {
+            vastLoadTimeout: 15000,
+            skipButtonCaption: 'Skip Ad in {seconds}s',
+            skipButtonClickCaption: 'Skip Ad ►'
+          }
         },
         modules: {
           configureHls: false
         }
       });
 
-      // Event listeners
-      const videoElement = videoRef.current;
+      playerRef.current = playerInstance;
 
+      const videoElement = videoRef.current;
+      if (!videoElement) return;
+
+      // Basic video events
       const handleLoadStart = () => {
-        console.log('Video load started');
+        console.log('Video loading started');
         setIsLoading(true);
         setVideoError(false);
       };
@@ -203,61 +207,53 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
       const handleError = (event: any) => {
         console.error('Video error:', event);
-        console.error('Video src:', src);
-        console.error('Video error details:', videoElement.error);
         setVideoError(true);
         setIsLoading(false);
         onError?.();
       };
 
-      let adCompleted = false;
-
       const handlePlay = async () => {
-        console.log('Video play triggered');
-
-        // Only track views after ad is completed or if no ads
-        if (adCompleted || !fluidPlayerLoaded) {
-          // Track video view when it starts playing (only for authenticated users)
+        console.log('Video play event triggered');
+        
+        // Only track after ad is complete or if no ads are configured
+        if (adPlayed) {
           if (!viewTracked && user?.id && videoId) {
             try {
-              console.log(`Tracking video view for videoId: ${videoId}, userId: ${user.id}`);
               await trackVideoView(videoId, user.id);
               setViewTracked(true);
             } catch (error) {
               console.error('Error tracking video view:', error);
             }
           }
-
-          // Track with Exoclick when video starts playing
           trackVideoViewExoclick();
         }
       };
 
-      videoElement.addEventListener('loadstart', handleLoadStart);
-      videoElement.addEventListener('canplay', handleCanPlay);
-      videoElement.addEventListener('error', handleError);
-      videoElement.addEventListener('play', handlePlay);
-
-      // FluidPlayer ad events
-      videoElement.addEventListener('vast_ad_started', (e) => {
+      // Ad event handlers
+      const handleAdStarted = (e: any) => {
         console.log('VAST Ad started:', e);
-        adCompleted = false;
+        setAdPlayed(false);
         
-        // Track ad impression
+        // Ensure video is paused during ad
+        if (!videoElement.paused) {
+          videoElement.pause();
+        }
+
+        // Track ad start
         if (!window.AdProvider) {
           window.AdProvider = [];
         }
         window.AdProvider.push({
           "serve": {
             "zoneid": "5660526",
-            "type": "ad_impression"
+            "type": "ad_start"
           }
         });
-      });
+      };
 
-      videoElement.addEventListener('vast_ad_complete', () => {
-        console.log('VAST Ad completed successfully');
-        adCompleted = true;
+      const handleAdComplete = () => {
+        console.log('VAST Ad completed');
+        setAdPlayed(true);
         
         // Track ad completion
         if (!window.AdProvider) {
@@ -269,11 +265,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             "type": "ad_complete"
           }
         });
-      });
+      };
 
-      videoElement.addEventListener('vast_ad_error', (e) => {
+      const handleAdError = (e: any) => {
         console.error('VAST Ad error:', e);
-        adCompleted = true; // Allow video to play even if ad fails
+        setAdPlayed(true); // Allow video to play even if ad fails
         
         // Track ad error
         if (!window.AdProvider) {
@@ -285,11 +281,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             "type": "ad_error"
           }
         });
-      });
+      };
 
-      videoElement.addEventListener('vast_ad_skipped', () => {
+      const handleAdSkipped = () => {
         console.log('VAST Ad skipped');
-        adCompleted = true;
+        setAdPlayed(true);
         
         // Track ad skip
         if (!window.AdProvider) {
@@ -301,41 +297,73 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             "type": "ad_skip"
           }
         });
+      };
+
+      // Add event listeners
+      videoElement.addEventListener('loadstart', handleLoadStart);
+      videoElement.addEventListener('canplay', handleCanPlay);
+      videoElement.addEventListener('error', handleError);
+      videoElement.addEventListener('play', handlePlay);
+
+      // FluidPlayer VAST events
+      videoElement.addEventListener('vast_ad_started', handleAdStarted);
+      videoElement.addEventListener('vast_ad_complete', handleAdComplete);
+      videoElement.addEventListener('vast_ad_error', handleAdError);
+      videoElement.addEventListener('vast_ad_skipped', handleAdSkipped);
+
+      // Additional VAST events
+      videoElement.addEventListener('vast_content_pause_requested', () => {
+        console.log('Content pause requested for ad');
       });
 
-      // Additional safety events
       videoElement.addEventListener('vast_content_resume_requested', () => {
-        console.log('Content resume requested - ad phase complete');
-        adCompleted = true;
+        console.log('Content resume requested after ad');
+        setAdPlayed(true);
       });
+
+      videoElement.addEventListener('vast_ad_loaded', () => {
+        console.log('VAST ad loaded successfully');
+      });
+
+      videoElement.addEventListener('vast_ad_failed', (e: any) => {
+        console.error('VAST ad failed:', e);
+        setAdPlayed(true);
+      });
+
+      console.log('FluidPlayer initialized with VAST ads');
 
       // Cleanup function
       return () => {
-        videoElement.removeEventListener('loadstart', handleLoadStart);
-        videoElement.removeEventListener('canplay', handleCanPlay);
-        videoElement.removeEventListener('error', handleError);
-        videoElement.removeEventListener('play', handlePlay);
-        
-        if (playerRef.current && playerRef.current.destroy) {
-          try {
-            playerRef.current.destroy();
-          } catch (error) {
-            console.log('Error destroying player:', error);
+        try {
+          videoElement.removeEventListener('loadstart', handleLoadStart);
+          videoElement.removeEventListener('canplay', handleCanPlay);
+          videoElement.removeEventListener('error', handleError);
+          videoElement.removeEventListener('play', handlePlay);
+          videoElement.removeEventListener('vast_ad_started', handleAdStarted);
+          videoElement.removeEventListener('vast_ad_complete', handleAdComplete);
+          videoElement.removeEventListener('vast_ad_error', handleAdError);
+          videoElement.removeEventListener('vast_ad_skipped', handleAdSkipped);
+
+          if (playerInstance && playerInstance.destroy) {
+            playerInstance.destroy();
           }
+        } catch (error) {
+          console.log('Error during cleanup:', error);
         }
-        playerRef.current = null;
       };
     } catch (error) {
       console.error('Error initializing FluidPlayer:', error);
       setVideoError(true);
+      setIsLoading(false);
     }
-  }, [src, poster, onError, onCanPlay, user, videoId, viewTracked, fluidPlayerLoaded]);
+  }, [src, poster, onError, onCanPlay, user, videoId, fluidPlayerLoaded]);
 
-  // Reset view tracking when video source changes
+  // Reset tracking when video changes
   useEffect(() => {
     if (src) {
       setViewTracked(false);
-      console.log('New video loaded, view tracking reset');
+      setAdPlayed(false);
+      console.log('New video loaded, tracking reset');
     }
   }, [src]);
 
@@ -374,13 +402,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         className="w-full h-full"
         src={src}
         poster={poster}
-        controls={!fluidPlayerLoaded || isMobile()} // Always use native controls on mobile
+        controls={!fluidPlayerLoaded || isMobile()}
         preload="metadata"
         crossOrigin="anonymous"
-        playsInline // Prevents fullscreen on iOS
-        webkit-playsinline="true" // Legacy iOS support
+        playsInline
+        webkit-playsinline="true"
         muted={false}
-        autoPlay={false} // Explicitly prevent autoplay
+        autoPlay={false}
         style={{ width: '100%', height: '100%' }}
       />
     </div>
