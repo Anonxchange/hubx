@@ -1,16 +1,14 @@
+
 import React, { useRef, useEffect, useState } from 'react';
 import { VideoIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { trackVideoView } from '@/services/userStatsService';
-import videojs from 'video.js';
-import 'video.js/dist/video-js.css';
-import 'videojs-contrib-ads';
-import 'videojs-ima';
 
-// Declare Video.js types
+// Load FluidPlayer from CDN
 declare global {
   interface Window {
+    fluidPlayer: any;
     AdProvider: any[];
   }
 }
@@ -37,7 +35,34 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [videoError, setVideoError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [viewTracked, setViewTracked] = useState(false);
+  const [fluidPlayerLoaded, setFluidPlayerLoaded] = useState(false);
   const { user } = useAuth();
+
+  // Load FluidPlayer script
+  useEffect(() => {
+    const loadFluidPlayer = () => {
+      if (window.fluidPlayer) {
+        setFluidPlayerLoaded(true);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js';
+      script.onload = () => setFluidPlayerLoaded(true);
+      script.onerror = () => {
+        console.error('Failed to load FluidPlayer');
+        setVideoError(true);
+      };
+      document.head.appendChild(script);
+
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.fluidplayer.com/v3/current/fluidplayer.min.css';
+      document.head.appendChild(link);
+    };
+
+    loadFluidPlayer();
+  }, []);
 
   // Disable right-click to prevent download
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -72,78 +97,67 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   };
 
   useEffect(() => {
-    if (!videoRef.current || !src) return;
+    if (!videoRef.current || !src || !fluidPlayerLoaded) return;
 
-    // Initialize Video.js player
-    const player = videojs(videoRef.current, {
-      controls: true,
-      fluid: true,
-      responsive: true,
-      playbackRates: [0.5, 1, 1.25, 1.5, 2],
-      sources: [{
-        src: src,
-        type: 'video/mp4'
-      }],
-      poster: poster,
-      preload: 'metadata'
-    });
-
-    playerRef.current = player;
-
-    // Initialize ads
-    player.ready(() => {
-      try {
-        // Initialize contrib-ads
-        if ((player as any).ads) {
-          (player as any).ads({
-            debug: false,
-            timeout: 5000,
-            prerollTimeout: 8000
-          });
-        }
-
-        // Initialize IMA plugin for VAST ads
-        if ((player as any).ima) {
-          (player as any).ima({
-            adTagUrl: `https://s.magsrv.com/v1/vast.php?idzone=5660526&timestamp=${Date.now()}`,
-            adsManagerLoadedCallback: () => {
-              console.log('IMA ads manager loaded');
-            },
-            adErrorCallback: (error: any) => {
-              console.log('Ad error, proceeding to content:', error);
-              player.trigger('nopreroll');
-            },
-            adsRenderingSettings: {
-              restoreCustomPlaybackStateOnAdBreakComplete: true
+    // Initialize FluidPlayer
+    try {
+      playerRef.current = window.fluidPlayer(videoRef.current, {
+        layoutControls: {
+          fillToContainer: true,
+          primaryColor: '#FF6B35',
+          posterImage: poster,
+          playButtonShowing: true,
+          playPauseAnimation: true,
+          mute: {
+            initiallyMuted: false
+          },
+          allowDownload: false,
+          allowTheatre: true,
+          playbackRates: ['x0.5', 'x1', 'x1.25', 'x1.5', 'x2'],
+          subtitlesEnabled: false,
+          keyboardControl: true,
+          layout: 'default'
+        },
+        vastOptions: {
+          adList: [
+            {
+              roll: 'preRoll',
+              vastTag: `https://s.magsrv.com/v1/vast.php?idzone=5660526&timestamp=${Date.now()}`,
+              timer: 5
             }
-          });
+          ],
+          adCTAText: 'Visit Now',
+          adCTATextPosition: 'top left'
+        },
+        modules: {
+          configureHls: false
         }
-      } catch (error) {
-        console.log('Ad plugins not available, playing without ads:', error);
-      }
+      });
 
-      // Player event listeners
-      player.on('loadstart', () => {
+      // Event listeners
+      const videoElement = videoRef.current;
+
+      const handleLoadStart = () => {
         console.log('Video load started');
         setIsLoading(true);
         setVideoError(false);
-      });
+      };
 
-      player.on('canplay', () => {
+      const handleCanPlay = () => {
         console.log('Video can play');
         setIsLoading(false);
         setVideoError(false);
         onCanPlay?.();
-      });
+      };
 
-      player.on('error', () => {
+      const handleError = () => {
         console.error('Video error');
         setVideoError(true);
         setIsLoading(false);
         onError?.();
-      });
+      };
 
-      player.on('play', async () => {
+      const handlePlay = async () => {
         console.log('Video play triggered');
 
         // Track video view when it starts playing (only for authenticated users)
@@ -159,12 +173,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
         // Track with Exoclick when video starts playing
         trackVideoViewExoclick();
-      });
+      };
 
-      // Ad event listeners
-      player.on('ads-ad-started', () => {
+      videoElement.addEventListener('loadstart', handleLoadStart);
+      videoElement.addEventListener('canplay', handleCanPlay);
+      videoElement.addEventListener('error', handleError);
+      videoElement.addEventListener('play', handlePlay);
+
+      // FluidPlayer specific events
+      videoElement.addEventListener('ad_started', () => {
         console.log('Ad started playing');
-
+        
         // Track ad impression
         if (window.AdProvider && Array.isArray(window.AdProvider)) {
           window.AdProvider.push({
@@ -176,23 +195,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
       });
 
-      player.on('ads-ad-ended', () => {
-        console.log('Ad ended, content will start');
+      videoElement.addEventListener('ad_completed', () => {
+        console.log('Ad completed, content will start');
       });
 
-      player.on('contentloadedmetadata', () => {
-        console.log('Content metadata loaded');
-      });
-    });
-
-    // Cleanup function
-    return () => {
-      if (playerRef.current && !playerRef.current.isDisposed()) {
-        playerRef.current.dispose();
+      // Cleanup function
+      return () => {
+        videoElement.removeEventListener('loadstart', handleLoadStart);
+        videoElement.removeEventListener('canplay', handleCanPlay);
+        videoElement.removeEventListener('error', handleError);
+        videoElement.removeEventListener('play', handlePlay);
+        
+        if (playerRef.current && playerRef.current.destroy) {
+          try {
+            playerRef.current.destroy();
+          } catch (error) {
+            console.log('Error destroying player:', error);
+          }
+        }
         playerRef.current = null;
-      }
-    };
-  }, [src, poster, onError, onCanPlay, user, videoId, viewTracked]);
+      };
+    } catch (error) {
+      console.error('Error initializing FluidPlayer:', error);
+      setVideoError(true);
+    }
+  }, [src, poster, onError, onCanPlay, user, videoId, viewTracked, fluidPlayerLoaded]);
 
   // Reset view tracking when video source changes
   useEffect(() => {
@@ -232,15 +259,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      <div data-vjs-player>
-        <video
-          ref={videoRef}
-          className="video-js vjs-default-skin w-full h-full"
-          data-setup="{}"
-          style={{ width: '100%', height: '100%' }}
-          crossOrigin="anonymous"
-        />
-      </div>
+      <video
+        ref={videoRef}
+        className="w-full h-full"
+        src={src}
+        poster={poster}
+        controls={false} // FluidPlayer handles controls
+        preload="metadata"
+        crossOrigin="anonymous"
+        style={{ width: '100%', height: '100%' }}
+      />
     </div>
   );
 };
