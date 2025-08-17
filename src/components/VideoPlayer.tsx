@@ -37,11 +37,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [isMuted, setIsMuted] = useState(false);
   const [viewTracked, setViewTracked] = useState(false);
   const [adPlayed, setAdPlayed] = useState(false);
-  const [showVideo, setShowVideo] = useState(true);
+  const [showVideo, setShowVideo] = useState(false);
   const [adCountdown, setAdCountdown] = useState(0);
   const [showPlayButton, setShowPlayButton] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [videoReady, setVideoReady] = useState(false);
   const { user } = useAuth();
 
   // Initialize ad provider
@@ -93,9 +94,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
   // Handle play button click
   const handlePlay = async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !videoReady) return;
 
     setShowPlayButton(false);
+    setIsLoading(true);
     
     if (!adPlayed) {
       // Show ad first
@@ -114,10 +116,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     // Play video
     try {
+      setShowVideo(true);
       await videoRef.current.play();
       setIsPlaying(true);
+      setIsLoading(false);
     } catch (error) {
       console.error('Error playing video:', error);
+      setIsLoading(false);
+      setShowPlayButton(true);
     }
   };
 
@@ -152,13 +158,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     if (!video) return;
 
     const handleLoadStart = () => {
-      setIsLoading(true);
       setVideoError(false);
     };
 
     const handleCanPlay = () => {
-      setIsLoading(false);
       setVideoError(false);
+      setVideoReady(true);
       onCanPlay?.();
     };
 
@@ -270,15 +275,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Loading overlay */}
-      {isLoading && (
+      {/* Loading overlay - only show when actively loading */}
+      {isLoading && adCountdown === 0 && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
-          <div className="text-white">Loading...</div>
+          <div className="text-white flex items-center space-x-2">
+            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+            <span>Loading video...</span>
+          </div>
         </div>
       )}
 
       {/* Large play button overlay */}
-      {showPlayButton && !isPlaying && (
+      {showPlayButton && !isPlaying && adCountdown === 0 && videoReady && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
           <Button
             data-testid="video-play-button"
@@ -291,6 +299,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         </div>
       )}
 
+      {/* Video not ready state */}
+      {!videoReady && !videoError && adCountdown === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <div className="text-white text-center">
+            <div className="animate-pulse w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
+              <VideoIcon className="w-8 h-8" />
+            </div>
+            <p>Preparing video...</p>
+          </div>
+        </div>
+      )}
+
       {/* Video element */}
       <video
         ref={videoRef}
@@ -300,6 +320,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         preload="metadata"
         playsInline
         muted={isMuted}
+        controls={false}
+        autoPlay={false}
         style={{ width: '100%', height: '100%' }}
       />
 
