@@ -30,19 +30,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const adContainerRef = useRef<HTMLDivElement>(null);
   const [videoError, setVideoError] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [viewTracked, setViewTracked] = useState(false);
   const [adPlayed, setAdPlayed] = useState(false);
-  const [showVideo, setShowVideo] = useState(false);
   const [adCountdown, setAdCountdown] = useState(0);
   const [showPlayButton, setShowPlayButton] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [videoReady, setVideoReady] = useState(false);
+  const [videoStarted, setVideoStarted] = useState(false);
   const { user } = useAuth();
 
   // Initialize ad provider
@@ -61,47 +58,42 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     document.head.appendChild(exoclickScript);
   }, []);
 
-  // Play ad before video
-  const playAd = () => {
-    return new Promise<void>((resolve) => {
-      console.log('Playing pre-roll ad...');
-      
-      setAdCountdown(5);
-      const countdownInterval = setInterval(() => {
-        setAdCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownInterval);
-            setAdPlayed(true);
-            resolve();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+  // Simple ad countdown
+  const startAdCountdown = () => {
+    setAdCountdown(5);
+    const interval = setInterval(() => {
+      setAdCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setAdPlayed(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-      // Track ad impression
-      try {
-        window.AdProvider?.push({
-          "serve": {
-            "zoneid": "5660526"
-          }
-        });
-      } catch (error) {
-        console.error('Error loading ad:', error);
-      }
-    });
+    // Track ad
+    try {
+      window.AdProvider?.push({
+        "serve": {
+          "zoneid": "5660526"
+        }
+      });
+    } catch (error) {
+      console.error('Error loading ad:', error);
+    }
   };
 
-  // Handle play button click
-  const handlePlay = async () => {
-    if (!videoRef.current || !videoReady) return;
+  // YouTube-style play - one click starts everything
+  const handleVideoClick = async () => {
+    if (!videoRef.current) return;
 
     setShowPlayButton(false);
-    setIsLoading(true);
-    
+    setVideoStarted(true);
+
+    // Start ad first if not played
     if (!adPlayed) {
-      // Show ad first
-      await playAd();
+      startAdCountdown();
       
       // Track video view
       if (user?.id && videoId && !viewTracked) {
@@ -112,64 +104,35 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           console.error('Error tracking video view:', error);
         }
       }
+      return;
     }
 
-    // Play video
+    // Play/pause video
     try {
-      setShowVideo(true);
-      await videoRef.current.play();
-      setIsPlaying(true);
-      setIsLoading(false);
+      if (isPlaying) {
+        videoRef.current.pause();
+      } else {
+        await videoRef.current.play();
+      }
     } catch (error) {
       console.error('Error playing video:', error);
-      setIsLoading(false);
-      setShowPlayButton(true);
     }
   };
 
-  // Handle pause
-  const handlePause = () => {
-    if (videoRef.current) {
-      videoRef.current.pause();
-      setIsPlaying(false);
+  // Auto-play video after ad
+  useEffect(() => {
+    if (adPlayed && videoStarted && videoRef.current) {
+      videoRef.current.play().catch(console.error);
     }
-  };
-
-  // Handle mute toggle
-  const handleMuteToggle = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
-    }
-  };
-
-  // Handle fullscreen
-  const handleFullscreen = () => {
-    if (containerRef.current) {
-      if (containerRef.current.requestFullscreen) {
-        containerRef.current.requestFullscreen();
-      }
-    }
-  };
+  }, [adPlayed, videoStarted]);
 
   // Video event handlers
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const handleLoadStart = () => {
-      setVideoError(false);
-    };
-
-    const handleCanPlay = () => {
-      setVideoError(false);
-      setVideoReady(true);
-      onCanPlay?.();
-    };
-
     const handleError = () => {
       setVideoError(true);
-      setIsLoading(false);
       onError?.();
     };
 
@@ -179,6 +142,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
     const handleLoadedMetadata = () => {
       setDuration(video.duration);
+      onCanPlay?.();
     };
 
     const handlePlay = () => {
@@ -189,8 +153,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       setIsPlaying(false);
     };
 
-    video.addEventListener('loadstart', handleLoadStart);
-    video.addEventListener('canplay', handleCanPlay);
     video.addEventListener('error', handleError);
     video.addEventListener('timeupdate', handleTimeUpdate);
     video.addEventListener('loadedmetadata', handleLoadedMetadata);
@@ -198,8 +160,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     video.addEventListener('pause', handlePause);
 
     return () => {
-      video.removeEventListener('loadstart', handleLoadStart);
-      video.removeEventListener('canplay', handleCanPlay);
       video.removeEventListener('error', handleError);
       video.removeEventListener('timeupdate', handleTimeUpdate);
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
@@ -256,57 +216,33 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }
 
   return (
-    <div ref={containerRef} className="relative w-full h-full group bg-black" onContextMenu={handleContextMenu}>
+    <div 
+      ref={containerRef} 
+      className="relative w-full h-full group bg-black cursor-pointer" 
+      onContextMenu={handleContextMenu}
+      onClick={handleVideoClick}
+    >
       {/* Ad overlay */}
-      {!adPlayed && adCountdown > 0 && (
+      {adCountdown > 0 && (
         <div className="absolute inset-0 bg-black flex flex-col items-center justify-center z-30">
-          <div ref={adContainerRef} className="w-full h-full flex flex-col items-center justify-center">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
-              <p className="text-white text-lg mb-2">Advertisement</p>
-              <p className="text-white/80">Video will start in {adCountdown} seconds</p>
-              <div className="mt-4 w-full bg-white/20 rounded-full h-2">
-                <div 
-                  className="bg-white rounded-full h-2 transition-all duration-1000"
-                  style={{ width: `${((5 - adCountdown) / 5) * 100}%` }}
-                />
-              </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
+            <p className="text-white text-lg mb-2">Advertisement</p>
+            <p className="text-white/80">Video will start in {adCountdown} seconds</p>
+            <div className="mt-4 w-full bg-white/20 rounded-full h-2">
+              <div 
+                className="bg-white rounded-full h-2 transition-all duration-1000"
+                style={{ width: `${((5 - adCountdown) / 5) * 100}%` }}
+              />
             </div>
           </div>
         </div>
       )}
 
-      {/* Loading overlay - only show when actively loading */}
-      {isLoading && adCountdown === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-20">
-          <div className="text-white flex items-center space-x-2">
-            <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
-            <span>Loading video...</span>
-          </div>
-        </div>
-      )}
-
-      {/* Large play button overlay */}
-      {showPlayButton && !isPlaying && adCountdown === 0 && videoReady && (
+      {/* Large play button overlay - like YouTube */}
+      {showPlayButton && !videoStarted && (
         <div className="absolute inset-0 flex items-center justify-center z-10">
-          <Button
-            data-testid="video-play-button"
-            onClick={handlePlay}
-            className="w-20 h-20 rounded-full bg-white/20 hover:bg-white/30 backdrop-blur-sm border-2 border-white/30"
-            variant="ghost"
-          >
+          <div className="w-20 h-20 rounded-full bg-red-600 hover:bg-red-700 flex items-center justify-center transition-colors shadow-lg">
             <Play className="w-8 h-8 text-white ml-1" fill="white" />
-          </Button>
-        </div>
-      )}
-
-      {/* Video not ready state */}
-      {!videoReady && !videoError && adCountdown === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center z-10">
-          <div className="text-white text-center">
-            <div className="animate-pulse w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
-              <VideoIcon className="w-8 h-8" />
-            </div>
-            <p>Preparing video...</p>
           </div>
         </div>
       )}
@@ -319,63 +255,29 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         poster={poster}
         preload="metadata"
         playsInline
-        muted={isMuted}
-        controls={false}
-        autoPlay={false}
+        muted={false}
+        controls={adPlayed && videoStarted}
         style={{ width: '100%', height: '100%' }}
       />
 
-      {/* Custom controls */}
-      {showVideo && (
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          {/* Progress bar */}
-          <div 
-            className="w-full h-2 bg-white/20 rounded-full mb-4 cursor-pointer"
-            onClick={handleProgressClick}
-          >
-            <div 
-              className="h-full bg-white rounded-full transition-all duration-200"
-              style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
-            />
-          </div>
-
-          {/* Control buttons */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Button
-                data-testid="video-play-pause-button"
-                onClick={isPlaying ? handlePause : handlePlay}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20"
-              >
-                {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-              </Button>
-              
-              <Button
-                data-testid="video-mute-button"
-                onClick={handleMuteToggle}
-                variant="ghost"
-                size="sm"
-                className="text-white hover:bg-white/20"
-              >
-                {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-              </Button>
-              
-              <span className="text-white text-sm">
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </span>
+      {/* Simple overlay controls when playing */}
+      {isPlaying && adPlayed && (
+        <div className="absolute inset-0 group-hover:bg-black/20 transition-colors">
+          <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="flex items-center justify-between text-white">
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    videoRef.current?.paused ? videoRef.current?.play() : videoRef.current?.pause();
+                  }}
+                  className="p-2 rounded-full bg-black/50 hover:bg-black/70"
+                >
+                  {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                </button>
+                <span className="text-sm">{Math.floor(currentTime / 60)}:{(Math.floor(currentTime) % 60).toString().padStart(2, '0')}</span>
+              </div>
             </div>
-
-            <Button
-              data-testid="video-fullscreen-button"
-              onClick={handleFullscreen}
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/20"
-            >
-              <Maximize className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       )}
