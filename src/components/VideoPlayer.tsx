@@ -25,7 +25,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
 
-        // Try to load FluidPlayer
         const existingScript = document.querySelector<HTMLScriptElement>(
           "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
         );
@@ -33,7 +32,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         const loadFluidPlayer = () => {
           if (window.fluidPlayer && videoRef.current) {
             try {
-              // Initialize FluidPlayer
               const fluidPlayerInstance = window.fluidPlayer(video, {
                 layoutControls: {
                   autoPlay: false,
@@ -55,9 +53,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   adList: [
                     {
                       roll: "preRoll",
-                      vastTag:
-                        "https://syndication.exoclick.com/splash.php?idzone=5660526",
-                      adText: "Advertisement",
+                      vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
+                      // adText removed to hide the "Advertisement" badge
                     },
                   ],
                   skipButtonCaption: "Skip in [seconds]",
@@ -66,43 +63,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   allowVPAID: true,
                   maxAllowedVastTagRedirects: 3,
                   vastTimeout: 10000,
-                  adCTAText: "Visit Site",
-                  adCTATextPosition: "top left",
+                  // adCTAText and adCTATextPosition removed
                   adClickable: true,
                   vastAdvanced: {
-                    vastLoadedCallback: () => {
-                      console.log("VAST ad loaded successfully");
-                    },
-                    vastErrorCallback: (error: any) => {
-                      console.log(
-                        "VAST ad error, proceeding to main video:",
-                        error
-                      );
-                    },
-                    noVastVideoCallback: () => {
-                      console.log(
-                        "No VAST ad available, playing main video directly"
-                      );
-                    },
-                    adSkippedCallback: () => {
-                      console.log("Ad was skipped, loading main video");
-                    },
-                    adStartedCallback: () => {
-                      console.log("Ad playback started");
-                    },
+                    vastLoadedCallback: () => console.log("VAST ad loaded successfully"),
+                    vastErrorCallback: (error: any) => console.log("VAST ad error:", error),
+                    noVastVideoCallback: () => console.log("No VAST ad available"),
+                    adSkippedCallback: () => console.log("Ad skipped"),
+                    adStartedCallback: () => console.log("Ad started"),
                   },
-                  adFinishedCallback: () => {
-                    console.log("Ad completed, main video starting");
-                  },
+                  adFinishedCallback: () => console.log("Ad completed"),
                 },
               });
 
-              // Save instance for cleanup
               (video as any).fluidPlayerInstance = fluidPlayerInstance;
               console.log("FluidPlayer initialized successfully");
             } catch (error) {
               console.error("Error initializing FluidPlayer:", error);
-              // fallback to native
               video.controls = true;
             }
           }
@@ -110,14 +87,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
 
         if (!existingScript) {
           const script = document.createElement("script");
-          script.src =
-            "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
+          script.src = "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
           script.async = true;
           script.onload = () => setTimeout(loadFluidPlayer, 300);
           script.onerror = () => {
-            console.error(
-              "Failed to load FluidPlayer script, using native player"
-            );
+            console.error("Failed to load FluidPlayer, using native player");
             if (videoRef.current) videoRef.current.controls = true;
           };
           document.body.appendChild(script);
@@ -130,15 +104,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
     };
 
     const timer = setTimeout(initializeVideo, 100);
-
     return () => {
       clearTimeout(timer);
       if (videoRef.current) {
         try {
           const player = videoRef.current as any;
-          if (player.fluidPlayerInstance) {
-            player.fluidPlayerInstance.destroy();
-          }
+          if (player.fluidPlayerInstance) player.fluidPlayerInstance.destroy();
         } catch (error) {
           console.log("Error cleaning up FluidPlayer:", error);
         }
@@ -146,16 +117,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
     };
   }, [src, poster]);
 
-  // Track views
   const handlePlay = async () => {
-    if (user) {
-      await trackVideoView(user.id, src);
-    }
+    if (user) await trackVideoView(user.id, src);
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      {/* Responsive container */}
       <div
         className="relative w-full bg-black rounded-lg overflow-hidden"
         style={{ aspectRatio: "16/9" }}
@@ -181,12 +148,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             maxHeight: "100%",
           }}
         >
-          {/* ✅ Let FluidPlayer pick up the source from here */}
           <source src={src} type="video/mp4" />
         </video>
       </div>
 
-      {/* Video info */}
       {title && (
         <div className="flex justify-between items-center mt-3 px-2">
           <div className="flex items-center gap-2">
