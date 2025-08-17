@@ -165,21 +165,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           adList: [
             {
               roll: 'preRoll',
-              vastTag: `https://s.magsrv.com/v1/vast.php?idzone=5660526&timestamp=${Date.now()}`,
-              timer: false, // Let ad run its full duration
-              skipOffset: 5 // Allow skip after 5 seconds
+              vastTag: `https://s.magsrv.com/v1/vast.php?idzone=5660526&sw=800&sh=450&cb=${Date.now()}`,
+              timer: 5,
+              skipOffset: 5
             }
           ],
-          adCTAText: 'Visit Now',
-          adCTATextPosition: 'top left',
-          showProgressbarMarkers: true,
-          vastTimeout: 10000, // 10 second timeout for VAST loading
-          maxAllowedVastTagRedirects: 3,
-          vastAdvanced: {
-            vastLoadTimeout: 8000,
-            skipButtonCaption: 'Skip Ad',
-            skipButtonClickCaption: 'Skip Ad ►'
-          }
+          adCTAText: 'Visit Advertiser',
+          adCTATextPosition: 'bottom right',
+          showProgressbarMarkers: false,
+          vastTimeout: 15000,
+          maxAllowedVastTagRedirects: 5,
+          skipButtonCaption: 'Skip Ad in {seconds}s',
+          skipButtonClickCaption: 'Skip Ad',
+          adText: 'Advertisement',
+          adTextPosition: 'top left'
         },
         modules: {
           configureHls: false
@@ -211,22 +210,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onError?.();
       };
 
+      let adCompleted = false;
+
       const handlePlay = async () => {
         console.log('Video play triggered');
 
-        // Track video view when it starts playing (only for authenticated users)
-        if (!viewTracked && user?.id && videoId) {
-          try {
-            console.log(`Tracking video view for videoId: ${videoId}, userId: ${user.id}`);
-            await trackVideoView(videoId, user.id);
-            setViewTracked(true);
-          } catch (error) {
-            console.error('Error tracking video view:', error);
+        // Only track views after ad is completed or if no ads
+        if (adCompleted || !fluidPlayerLoaded) {
+          // Track video view when it starts playing (only for authenticated users)
+          if (!viewTracked && user?.id && videoId) {
+            try {
+              console.log(`Tracking video view for videoId: ${videoId}, userId: ${user.id}`);
+              await trackVideoView(videoId, user.id);
+              setViewTracked(true);
+            } catch (error) {
+              console.error('Error tracking video view:', error);
+            }
           }
-        }
 
-        // Track with Exoclick when video starts playing
-        trackVideoViewExoclick();
+          // Track with Exoclick when video starts playing
+          trackVideoViewExoclick();
+        }
       };
 
       videoElement.addEventListener('loadstart', handleLoadStart);
@@ -234,14 +238,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       videoElement.addEventListener('error', handleError);
       videoElement.addEventListener('play', handlePlay);
 
-      // FluidPlayer specific events
-      videoElement.addEventListener('ad_started', (e) => {
-        console.log('Ad started playing:', e);
-        
-        // Pause the main video to ensure ad plays
-        if (!videoElement.paused) {
-          videoElement.pause();
-        }
+      // FluidPlayer ad events
+      videoElement.addEventListener('vast_ad_started', (e) => {
+        console.log('VAST Ad started:', e);
+        adCompleted = false;
         
         // Track ad impression
         if (!window.AdProvider) {
@@ -250,13 +250,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         window.AdProvider.push({
           "serve": {
             "zoneid": "5660526",
-            "type": "video_start"
+            "type": "ad_impression"
           }
         });
       });
 
-      videoElement.addEventListener('ad_completed', () => {
-        console.log('Ad completed, content will start');
+      videoElement.addEventListener('vast_ad_complete', () => {
+        console.log('VAST Ad completed successfully');
+        adCompleted = true;
         
         // Track ad completion
         if (!window.AdProvider) {
@@ -264,24 +265,31 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         }
         window.AdProvider.push({
           "serve": {
-            "zoneid": "5660526", 
-            "type": "video_complete"
+            "zoneid": "5660526",
+            "type": "ad_complete"
           }
         });
       });
 
-      videoElement.addEventListener('ad_error', (e) => {
-        console.error('Ad error occurred:', e);
-        console.log('Attempting to load backup ad...');
+      videoElement.addEventListener('vast_ad_error', (e) => {
+        console.error('VAST Ad error:', e);
+        adCompleted = true; // Allow video to play even if ad fails
         
-        // Try to load a backup ad or continue to video
-        setTimeout(() => {
-          console.log('Continuing to main video after ad error');
-        }, 1000);
+        // Track ad error
+        if (!window.AdProvider) {
+          window.AdProvider = [];
+        }
+        window.AdProvider.push({
+          "serve": {
+            "zoneid": "5660526",
+            "type": "ad_error"
+          }
+        });
       });
 
-      videoElement.addEventListener('ad_skipped', () => {
-        console.log('Ad was skipped');
+      videoElement.addEventListener('vast_ad_skipped', () => {
+        console.log('VAST Ad skipped');
+        adCompleted = true;
         
         // Track ad skip
         if (!window.AdProvider) {
@@ -290,26 +298,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         window.AdProvider.push({
           "serve": {
             "zoneid": "5660526",
-            "type": "video_skip"
+            "type": "ad_skip"
           }
         });
       });
 
-      // Prevent video from starting before ad
-      videoElement.addEventListener('play', (e) => {
-        // Check if this is the main video trying to play before ad
-        if (!viewTracked && videoElement.currentTime === 0) {
-          console.log('Ensuring ad plays first...');
-        }
-      });
-
-      // Ad loading events
-      videoElement.addEventListener('vast_ad_loaded', () => {
-        console.log('VAST ad loaded successfully');
-      });
-
-      videoElement.addEventListener('vast_ad_failed', (e) => {
-        console.error('VAST ad failed to load:', e);
+      // Additional safety events
+      videoElement.addEventListener('vast_content_resume_requested', () => {
+        console.log('Content resume requested - ad phase complete');
+        adCompleted = true;
       });
 
       // Cleanup function
@@ -383,6 +380,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         playsInline // Prevents fullscreen on iOS
         webkit-playsinline="true" // Legacy iOS support
         muted={false}
+        autoPlay={false} // Explicitly prevent autoplay
         style={{ width: '100%', height: '100%' }}
       />
     </div>
