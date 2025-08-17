@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, Heart, MessageCircle, Share, Bookmark, MoreVertical, Volume2, VolumeX } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { getVideos } from '@/services/videosService';
@@ -27,6 +27,8 @@ interface MomentVideo {
 const MomentsPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const startMomentId = searchParams.get('start');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
@@ -47,6 +49,23 @@ const MomentsPage = () => {
 
   // Get all moment videos
   const videos = videosData?.videos || [];
+
+  // Set initial index based on start parameter
+  useEffect(() => {
+    if (startMomentId && videos.length > 0) {
+      const startIndex = videos.findIndex(video => video.id === startMomentId);
+      if (startIndex !== -1) {
+        setCurrentIndex(startIndex);
+        const container = containerRef.current;
+        if (container) {
+          container.scrollTo({
+            top: startIndex * container.clientHeight,
+            behavior: 'auto',
+          });
+        }
+      }
+    }
+  }, [startMomentId, videos]);
 
   const { userReaction, reactToVideo } = useVideoReaction(videos[currentIndex]?.id || '');
 
@@ -247,7 +266,7 @@ const MomentsPage = () => {
               <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black/80 to-transparent" />
 
               {/* Right side actions */}
-              <div className="absolute right-4 bottom-20 flex flex-col space-y-6 pointer-events-auto">
+              <div className="absolute right-4 bottom-32 flex flex-col space-y-4 pointer-events-auto">
                 {/* Profile */}
                 <div className="relative">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
@@ -345,14 +364,7 @@ const MomentsPage = () => {
         ))}
       </div>
 
-      {/* Progress indicator */}
-      <div className="absolute top-16 right-4 z-50">
-        <div className="bg-black/50 rounded-full px-3 py-1">
-          <span className="text-white text-sm">
-            {currentIndex + 1} / {videos.length}
-          </span>
-        </div>
-      </div>
+      
     </div>
   );
 };
