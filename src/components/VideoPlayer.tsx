@@ -25,7 +25,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
 
-        // Try to load FluidPlayer
+        // Load FluidPlayer script if not already loaded
         const existingScript = document.querySelector<HTMLScriptElement>(
           "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
         );
@@ -33,7 +33,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         const loadFluidPlayer = () => {
           if (window.fluidPlayer && videoRef.current) {
             try {
-              // Initialize FluidPlayer
               const fluidPlayerInstance = window.fluidPlayer(video, {
                 layoutControls: {
                   autoPlay: false,
@@ -57,7 +56,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                       roll: "preRoll",
                       vastTag:
                         "https://syndication.exoclick.com/splash.php?idzone=5660526",
-                      adText: "Advertisement",
+                      // Removed adText to disable custom banner
                     },
                   ],
                   skipButtonCaption: "Skip in [seconds]",
@@ -102,7 +101,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
               console.log("FluidPlayer initialized successfully");
             } catch (error) {
               console.error("Error initializing FluidPlayer:", error);
-              // fallback to native
               video.controls = true;
             }
           }
@@ -181,7 +179,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             maxHeight: "100%",
           }}
         >
-          {/* ✅ Let FluidPlayer pick up the source from here */}
           <source src={src} type="video/mp4" />
         </video>
       </div>
