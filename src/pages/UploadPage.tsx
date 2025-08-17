@@ -53,6 +53,7 @@ const UploadPage = () => {
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [isPremium, setIsPremium] = useState(false);
+  const [isMoment, setIsMoment] = useState(false);
 
   // User role check
   const isCreator = userType === 'individual_creator' || userType === 'studio_creator';
@@ -102,6 +103,15 @@ const UploadPage = () => {
       const mins = Math.floor(tempVideo.duration / 60);
       const secs = Math.floor(tempVideo.duration % 60);
       setDuration(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
+      
+      // Check if video is too long for moments
+      if (isMoment && tempVideo.duration > 120) {
+        toast({ 
+          title: "Video too long for moments", 
+          description: "Moments must be 2 minutes or less. Uncheck 'Upload as Moment' or choose a shorter video.", 
+          variant: "destructive" 
+        });
+      }
     };
   };
 
@@ -205,6 +215,22 @@ const UploadPage = () => {
       return;
     }
 
+    // Validate moment duration
+    if (isMoment) {
+      const tempVideo = document.createElement('video');
+      tempVideo.src = URL.createObjectURL(selectedFile);
+      tempVideo.onloadedmetadata = () => {
+        if (tempVideo.duration > 120) {
+          toast({ 
+            title: "Video too long for moments", 
+            description: "Moments must be 2 minutes or less.", 
+            variant: "destructive" 
+          });
+          return;
+        }
+      };
+    }
+
     setIsUploading(true);
     try {
       setUploadProgress(20);
@@ -222,7 +248,7 @@ const UploadPage = () => {
         duration, // actual duration from file
         tags: allTags,
         is_premium: isPremium,
-        is_moment: false
+        is_moment: isMoment
       };
 
       const savedVideo = await uploadVideo(videoData);
@@ -239,6 +265,7 @@ const UploadPage = () => {
       setCustomTags([]);
       setTagInput('');
       setIsPremium(false);
+      setIsMoment(false);
       setUploadProgress(0);
       setDuration('00:00');
 
@@ -416,6 +443,20 @@ const UploadPage = () => {
                     <Switch checked={isPremium} onCheckedChange={setIsPremium} />
                     <Label>Premium Content</Label>
                   </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Switch 
+                      checked={isMoment} 
+                      onCheckedChange={setIsMoment}
+                      disabled={selectedFile && duration !== '00:00' && duration.split(':')[0] !== '00' && (parseInt(duration.split(':')[0]) > 2 || (parseInt(duration.split(':')[0]) === 2 && parseInt(duration.split(':')[1]) > 0))}
+                    />
+                    <Label>Upload as Moment (Max 2 minutes)</Label>
+                  </div>
+                  {isMoment && (
+                    <p className="text-xs text-muted-foreground">
+                      Moments are short-form videos that appear in the Moments feed. Maximum duration: 2 minutes.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
