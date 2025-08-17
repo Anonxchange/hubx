@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { VideoIcon, Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
+import { VideoIcon, Play, Pause } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { trackVideoView } from '@/services/userStatsService';
@@ -32,7 +32,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [videoError, setVideoError] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
   const [viewTracked, setViewTracked] = useState(false);
   const [adPlayed, setAdPlayed] = useState(false);
   const [adCountdown, setAdCountdown] = useState(0);
@@ -72,11 +71,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       });
     }, 1000);
 
-    // Track ad
+    // Inject ad into container
     try {
       window.AdProvider?.push({
-        "serve": {
-          "zoneid": "5660526"
+        serve: {
+          zoneid: 5660526,
+          placement: 'ad-container' // must match the div id below
         }
       });
     } catch (error) {
@@ -94,7 +94,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     // Start ad first if not played
     if (!adPlayed) {
       startAdCountdown();
-      
+
       // Track video view
       if (user?.id && videoId && !viewTracked) {
         try {
@@ -168,26 +168,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     };
   }, [src, onCanPlay, onError]);
 
-  // Format time helper
-  const formatTime = (time: number) => {
-    const minutes = Math.floor(time / 60);
-    const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-  };
-
-  // Handle progress bar click
-  const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoRef.current) return;
-    
-    const rect = e.currentTarget.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const width = rect.width;
-    const newTime = (clickX / width) * duration;
-    
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-  };
-
   // Disable right-click
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -216,20 +196,25 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   }
 
   return (
-    <div 
-      ref={containerRef} 
-      className="relative w-full h-full group bg-black cursor-pointer" 
+    <div
+      ref={containerRef}
+      className="relative w-full h-full group bg-black cursor-pointer"
       onContextMenu={handleContextMenu}
       onClick={handleVideoClick}
     >
       {/* Ad overlay */}
       {adCountdown > 0 && (
         <div className="absolute inset-0 bg-black flex flex-col items-center justify-center z-30">
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center">
-            <p className="text-white text-lg mb-2">Advertisement</p>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6 text-center w-[80%] max-w-xl">
+            <p className="text-white text-lg mb-4">Advertisement</p>
+            {/* Exoclick Ad slot */}
+            <div
+              id="ad-container"
+              className="w-full h-40 bg-black flex items-center justify-center mb-4"
+            />
             <p className="text-white/80">Video will start in {adCountdown} seconds</p>
             <div className="mt-4 w-full bg-white/20 rounded-full h-2">
-              <div 
+              <div
                 className="bg-white rounded-full h-2 transition-all duration-1000"
                 style={{ width: `${((5 - adCountdown) / 5) * 100}%` }}
               />
@@ -266,7 +251,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div className="absolute bottom-4 left-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
             <div className="flex items-center justify-between text-white">
               <div className="flex items-center space-x-2">
-                <button 
+                <button
                   onClick={(e) => {
                     e.stopPropagation();
                     videoRef.current?.paused ? videoRef.current?.play() : videoRef.current?.pause();
@@ -275,7 +260,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                 >
                   {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                 </button>
-                <span className="text-sm">{Math.floor(currentTime / 60)}:{(Math.floor(currentTime) % 60).toString().padStart(2, '0')}</span>
+                <span className="text-sm">
+                  {Math.floor(currentTime / 60)}:
+                  {(Math.floor(currentTime) % 60).toString().padStart(2, '0')}
+                </span>
               </div>
             </div>
           </div>
