@@ -51,6 +51,50 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   primaryColor: "#ff6b35",
                   responsive: true,
                 },
+                vastOptions: {
+                  adList: [
+                    {
+                      roll: "preRoll",
+                      vastTag:
+                        "https://syndication.exoclick.com/splash.php?idzone=5660526",
+                      adText: "Advertisement",
+                    },
+                  ],
+                  skipButtonCaption: "Skip in [seconds]",
+                  skipButtonClickCaption: "Skip >>",
+                  showProgressbarMarkers: false,
+                  allowVPAID: true,
+                  maxAllowedVastTagRedirects: 3,
+                  vastTimeout: 10000,
+                  adCTAText: "Visit Site",
+                  adCTATextPosition: "top left",
+                  adClickable: true,
+                  vastAdvanced: {
+                    vastLoadedCallback: () => {
+                      console.log("VAST ad loaded successfully");
+                    },
+                    vastErrorCallback: (error: any) => {
+                      console.log(
+                        "VAST ad error, proceeding to main video:",
+                        error
+                      );
+                    },
+                    noVastVideoCallback: () => {
+                      console.log(
+                        "No VAST ad available, playing main video directly"
+                      );
+                    },
+                    adSkippedCallback: () => {
+                      console.log("Ad was skipped, loading main video");
+                    },
+                    adStartedCallback: () => {
+                      console.log("Ad playback started");
+                    },
+                  },
+                  adFinishedCallback: () => {
+                    console.log("Ad completed, main video starting");
+                  },
+                },
               });
 
               // Save instance for cleanup
@@ -120,7 +164,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           ref={videoRef}
           className="w-full h-full"
           poster={poster}
-          preload="none" // ✅ prevent main video from loading until play
+          preload="metadata"
           playsInline
           webkit-playsinline="true"
           crossOrigin="anonymous"
@@ -137,6 +181,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             maxHeight: "100%",
           }}
         >
+          {/* ✅ Let FluidPlayer pick up the source from here */}
           <source src={src} type="video/mp4" />
         </video>
       </div>
