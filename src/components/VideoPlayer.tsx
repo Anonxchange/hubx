@@ -44,10 +44,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         const loadFluidPlayer = () => {
           if (window.fluidPlayer && videoRef.current) {
             try {
-              // Remove default controls before FluidPlayer init
+              // Set up video element for FluidPlayer
               video.controls = false;
+              video.preload = "metadata";
               
-              window.fluidPlayer(video, {
+              // Initialize FluidPlayer with proper configuration
+              const fluidPlayerInstance = window.fluidPlayer(video, {
                 layoutControls: {
                   autoPlay: false,
                   mute: false,
@@ -61,6 +63,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                     autoHide: true,
                     autoHideTimeout: 3,
                   },
+                  primaryColor: "#ff6b35",
                 },
                 vastOptions: {
                   adList: [
@@ -83,70 +86,34 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                       console.log("VAST ad loaded successfully");
                     },
                     vastErrorCallback: (error: any) => {
-                      console.log("VAST ad error, proceeding to main video:", error);
-                      // Ensure main video plays after ad error
-                      setTimeout(() => {
-                        if (videoRef.current && src) {
-                          const video = videoRef.current;
-                          video.src = src;
-                          video.load();
-                          video.controls = true;
-                          video.style.display = 'block';
-                        }
-                      }, 100);
+                      console.log("VAST ad error, playing main video:", error);
+                      // FluidPlayer will handle the transition automatically
                     },
                     noVastVideoCallback: () => {
                       console.log("No VAST ad available, playing main video directly");
-                      // Play main video immediately if no ads
-                      if (videoRef.current && src) {
-                        const video = videoRef.current;
-                        video.src = src;
-                        video.load();
-                        video.controls = true;
-                        video.style.display = 'block';
-                      }
+                      // FluidPlayer will play main video automatically
                     },
                     adSkippedCallback: () => {
-                      console.log("Ad was skipped, loading main video");
-                      // Ensure main video loads after skip
-                      setTimeout(() => {
-                        if (videoRef.current && src) {
-                          const video = videoRef.current;
-                          video.src = src;
-                          video.load();
-                          video.controls = true;
-                          video.style.display = 'block';
-                        }
-                      }, 100);
+                      console.log("Ad was skipped, transitioning to main video");
+                      // FluidPlayer handles this transition
                     },
                   },
                   adFinishedCallback: () => {
-                    console.log("Ad completed, loading main video");
-                    // Ensure main video plays after ad completion
-                    setTimeout(() => {
-                      if (videoRef.current && src) {
-                        const video = videoRef.current;
-                        video.src = src;
-                        video.load();
-                        video.controls = true;
-                        video.style.display = 'block';
-                      }
-                    }, 100);
+                    console.log("Ad completed, main video will play");
+                    // FluidPlayer handles the automatic transition
                   },
                 },
               });
               
+              // Store the FluidPlayer instance for cleanup
+              (video as any).fluidPlayerInstance = fluidPlayerInstance;
+              
               console.log("FluidPlayer initialized successfully");
             } catch (error) {
               console.error("Error initializing FluidPlayer:", error);
-              // Fallback to native controls
-              if (videoRef.current) {
-                const video = videoRef.current;
-                video.src = src;
-                video.load();
-                video.controls = true;
-                video.style.display = 'block';
-              }
+              // Fallback to native video player
+              video.controls = true;
+              console.log("Using native video player as fallback");
             }
           }
         };
@@ -162,11 +129,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             console.error("Failed to load FluidPlayer script, using native player");
             // Use native video player as fallback
             if (videoRef.current) {
-              const video = videoRef.current;
-              video.src = src;
-              video.load();
-              video.controls = true;
-              video.style.display = 'block';
+              videoRef.current.controls = true;
             }
           };
           document.body.appendChild(script);
