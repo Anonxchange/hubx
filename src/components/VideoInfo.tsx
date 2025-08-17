@@ -45,6 +45,7 @@ interface VideoInfoProps {
   reactToVideo: ({ videoId, reactionType }: { videoId: string; reactionType: 'like' | 'dislike' }) => void;
   isReactionLoading: boolean;
   reactionMutationPending: boolean;
+  showViewsAndDate?: boolean;
 }
 
 const VideoInfo: React.FC<VideoInfoProps> = ({
@@ -59,6 +60,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   reactToVideo,
   isReactionLoading,
   reactionMutationPending,
+  showViewsAndDate = true,
 }) => {
   const navigate = useNavigate();
 
@@ -88,23 +90,16 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
   return (
     <div className="space-y-3">
-      <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight mb-3">
-        {title || 'Untitled Video'}
-      </h1>
-      <div className="flex items-center space-x-2 text-muted-foreground">
-        <span className="font-medium">
-          {formatViews(views || 0)} Views
-        </span>
-        <span>|</span>
-        <span>
-          {formatDate(createdAt)}
-        </span>
-      </div>
+      {title && (
+        <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight mb-3">
+          {title}
+        </h1>
+      )}
 
       {/* Video Reactions - Like, Dislike, Share, etc. */}
       <VideoReactions
         videoId={video?.id || ''}
-        videoTitle={title}
+        videoTitle={title || video?.title || ''}
         likes={reactionData?.likes || video?.likes || 0}
         dislikes={reactionData?.dislikes || video?.dislikes || 0}
         userReaction={reactionData?.userReaction}
@@ -114,6 +109,18 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
         reactionData={reactionData}
         isPending={reactionMutationPending}
       />
+
+      {showViewsAndDate && (
+        <div className="flex items-center space-x-2 text-muted-foreground">
+          <span className="font-medium">
+            {formatViews(views || 0)} Views
+          </span>
+          <span>|</span>
+          <span>
+            {formatDate(createdAt)}
+          </span>
+        </div>
+      )}
 
       <VideoTags tags={video?.tags || []} />
 
