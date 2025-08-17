@@ -24,18 +24,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
     const initializeVideo = () => {
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
-        
-        // Set basic video properties first
-        video.controls = false; // Will be enabled after FluidPlayer or on fallback
-        video.style.width = "100%";
-        video.style.height = "100%";
-        video.style.objectFit = "contain";
-        
-        // Set video source initially
-        video.src = src;
-        video.load();
-        
-        // Try to load FluidPlayer if available
+
+        // Try to load FluidPlayer
         const existingScript = document.querySelector<HTMLScriptElement>(
           "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
         );
@@ -43,11 +33,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         const loadFluidPlayer = () => {
           if (window.fluidPlayer && videoRef.current) {
             try {
-              // Set up video element for FluidPlayer
-              video.controls = false;
-              video.preload = "metadata";
-              
-              // Initialize FluidPlayer with clean configuration
+              // Initialize FluidPlayer
               const fluidPlayerInstance = window.fluidPlayer(video, {
                 layoutControls: {
                   autoPlay: false,
@@ -57,7 +43,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   posterImage: poster || "",
                   allowDownload: false,
                   keyboardControl: true,
-                  playbackRates: ['x0.5', 'x1', 'x1.25', 'x1.5', 'x2'],
+                  playbackRates: ["x0.5", "x1", "x1.25", "x1.5", "x2"],
                   controlBar: {
                     autoHide: true,
                     autoHideTimeout: 3,
@@ -69,7 +55,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   adList: [
                     {
                       roll: "preRoll",
-                      vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
+                      vastTag:
+                        "https://syndication.exoclick.com/splash.php?idzone=5660526",
                       adText: "Advertisement",
                     },
                   ],
@@ -78,7 +65,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   showProgressbarMarkers: false,
                   allowVPAID: true,
                   maxAllowedVastTagRedirects: 3,
-                  vastTimeout: 8000,
+                  vastTimeout: 10000,
                   adCTAText: "Visit Site",
                   adCTATextPosition: "top left",
                   adClickable: true,
@@ -87,61 +74,63 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                       console.log("VAST ad loaded successfully");
                     },
                     vastErrorCallback: (error: any) => {
-                      console.log("VAST ad error, proceeding to main video:", error);
-                      // FluidPlayer will handle this automatically
+                      console.log(
+                        "VAST ad error, proceeding to main video:",
+                        error
+                      );
                     },
                     noVastVideoCallback: () => {
-                      console.log("No VAST ad available, playing main video directly");
+                      console.log(
+                        "No VAST ad available, playing main video directly"
+                      );
                     },
                     adSkippedCallback: () => {
-                      console.log("Ad was skipped, main video will start");
+                      console.log("Ad was skipped, loading main video");
                     },
-                    adFinishedCallback: () => {
-                      console.log("Ad completed, main video starting");
+                    adStartedCallback: () => {
+                      console.log("Ad playback started");
                     },
+                  },
+                  adFinishedCallback: () => {
+                    console.log("Ad completed, main video starting");
                   },
                 },
               });
-              
-              // Store the FluidPlayer instance for cleanup
+
+              // Save instance for cleanup
               (video as any).fluidPlayerInstance = fluidPlayerInstance;
-              
               console.log("FluidPlayer initialized successfully");
             } catch (error) {
               console.error("Error initializing FluidPlayer:", error);
-              // Fallback to native video player
+              // fallback to native
               video.controls = true;
-              console.log("Using native video player as fallback");
             }
           }
         };
 
         if (!existingScript) {
           const script = document.createElement("script");
-          script.src = "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
+          script.src =
+            "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
           script.async = true;
-          script.onload = () => {
-            setTimeout(loadFluidPlayer, 300);
-          };
+          script.onload = () => setTimeout(loadFluidPlayer, 300);
           script.onerror = () => {
-            console.error("Failed to load FluidPlayer script, using native player");
-            // Use native video player as fallback
-            if (videoRef.current) {
-              videoRef.current.controls = true;
-            }
+            console.error(
+              "Failed to load FluidPlayer script, using native player"
+            );
+            if (videoRef.current) videoRef.current.controls = true;
           };
           document.body.appendChild(script);
         } else if (window.fluidPlayer) {
           setTimeout(loadFluidPlayer, 300);
         }
-        
+
         setInitialized(true);
       }
     };
 
-    // Initialize after a short delay to ensure DOM is ready
     const timer = setTimeout(initializeVideo, 100);
-    
+
     return () => {
       clearTimeout(timer);
       if (videoRef.current) {
@@ -166,8 +155,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      {/* Responsive video container with consistent 16:9 aspect ratio */}
-      <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+      {/* Responsive container */}
+      <div
+        className="relative w-full bg-black rounded-lg overflow-hidden"
+        style={{ aspectRatio: "16/9" }}
+      >
         <video
           ref={videoRef}
           className="w-full h-full"
@@ -179,50 +171,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           onPlay={handlePlay}
           onError={(e) => {
             console.error("Video playback error:", e.currentTarget.error);
-            const error = e.currentTarget.error;
-            if (error) {
-              console.error("Error details:", {
-                code: error.code,
-                message: error.message
-              });
-            }
-            // Show native controls on error
-            if (videoRef.current) {
-              videoRef.current.controls = true;
-            }
-          }}
-          onLoadStart={() => {
-            console.log("Video loading started for:", src);
-          }}
-          onCanPlay={() => {
-            console.log("Video can start playing");
-          }}
-          onLoadedMetadata={() => {
-            console.log("Video metadata loaded");
-          }}
-          onWaiting={() => {
-            console.log("Video buffering...");
-          }}
-          onLoadedData={() => {
-            console.log("Video data loaded successfully");
-          }}
-          onResize={() => {
-            // Ensure proper scaling when video dimensions change
-            if (videoRef.current) {
-              videoRef.current.style.objectFit = "contain";
-            }
+            if (videoRef.current) videoRef.current.controls = true;
           }}
           style={{
-            objectFit: 'contain',
-            backgroundColor: '#000',
-            display: 'block',
-            maxWidth: '100%',
-            maxHeight: '100%'
+            objectFit: "contain",
+            backgroundColor: "#000",
+            display: "block",
+            maxWidth: "100%",
+            maxHeight: "100%",
           }}
-        />
+        >
+          {/* ✅ Let FluidPlayer pick up the source from here */}
+          <source src={src} type="video/mp4" />
+        </video>
       </div>
 
-      {/* Video info below */}
+      {/* Video info */}
       {title && (
         <div className="flex justify-between items-center mt-3 px-2">
           <div className="flex items-center gap-2">
