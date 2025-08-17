@@ -93,14 +93,13 @@ export const createPost = async (postData: CreatePostData): Promise<Post | null>
 
     return {
       ...insertedPost,
-      creator: profileData,
+      creator: {
+        ...profileData,
+        profile_picture_url: profileData?.avatar_url
+      },
       isLiked: false,
       likes_count: 0,
-      comments_count: 0,
-      creator: {
-        ...data.creator,
-        profile_picture_url: data.creator?.avatar_url
-      }
+      comments_count: 0
     };
   } catch (error) {
     console.error('Error creating post:', error);
