@@ -22,120 +22,119 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    const existingScript = document.querySelector<HTMLScriptElement>(
-      "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
-    );
+    const initializeVideo = () => {
+      if (videoRef.current && !initialized) {
+        const video = videoRef.current;
+        
+        // Set basic video properties first
+        video.controls = true;
+        video.style.width = "100%";
+        video.style.height = "100%";
+        video.style.objectFit = "contain";
+        
+        // Try to load FluidPlayer if available
+        const existingScript = document.querySelector<HTMLScriptElement>(
+          "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
+        );
 
-    if (!existingScript) {
-      const script = document.createElement("script");
-      script.src = "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
-      script.async = true;
-      script.onload = () => setTimeout(initPlayer, 200);
-      script.onerror = () => {
-        console.error("Failed to load FluidPlayer script");
-        // Fallback to native video player
-        if (videoRef.current) {
-          videoRef.current.controls = true;
-        }
-      };
-      document.body.appendChild(script);
-    } else {
-      // Ensure DOM and script are ready
-      setTimeout(initPlayer, 200);
-    }
-
-    function initPlayer() {
-      if (videoRef.current && window.fluidPlayer && !initialized) {
-        try {
-          // Ensure video element is ready
-          const video = videoRef.current;
-          video.style.width = "100%";
-          video.style.height = "100%";
-          
-          window.fluidPlayer(video, {
-            layoutControls: {
-              autoPlay: false,
-              mute: false,
-              fillToContainer: true,
-              playButtonShowing: true,
-              posterImage: poster || "",
-              allowDownload: false,
-              keyboardControl: true,
-              playbackRates: ['x0.5', 'x1', 'x1.25', 'x1.5', 'x2'],
-              controlBar: {
-                autoHide: true,
-                autoHideTimeout: 3,
-              },
-            },
-            vastOptions: {
-              adList: [
-                {
-                  roll: "preRoll",
-                  vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
-                  adText: "Advertisement",
+        const loadFluidPlayer = () => {
+          if (window.fluidPlayer && videoRef.current) {
+            try {
+              // Remove default controls before FluidPlayer init
+              video.controls = false;
+              
+              window.fluidPlayer(video, {
+                layoutControls: {
+                  autoPlay: false,
+                  mute: false,
+                  fillToContainer: true,
+                  playButtonShowing: true,
+                  posterImage: poster || "",
+                  allowDownload: false,
+                  keyboardControl: true,
+                  playbackRates: ['x0.5', 'x1', 'x1.25', 'x1.5', 'x2'],
+                  controlBar: {
+                    autoHide: true,
+                    autoHideTimeout: 3,
+                  },
                 },
-              ],
-              skipButtonCaption: "Skip in [seconds]",
-              skipButtonClickCaption: "Skip >>",
-              showProgressbarMarkers: true,
-              allowVPAID: true,
-              maxAllowedVastTagRedirects: 3,
-              vastTimeout: 8000,
-              adCTAText: "Visit Site",
-              adCTATextPosition: "top left",
-              vastAdvanced: {
-                vastLoadedCallback: () => {
-                  console.log("VAST ad loaded successfully");
+                vastOptions: {
+                  adList: [
+                    {
+                      roll: "preRoll",
+                      vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
+                      adText: "Advertisement",
+                    },
+                  ],
+                  skipButtonCaption: "Skip in [seconds]",
+                  skipButtonClickCaption: "Skip >>",
+                  showProgressbarMarkers: true,
+                  allowVPAID: true,
+                  maxAllowedVastTagRedirects: 3,
+                  vastTimeout: 5000,
+                  adCTAText: "Visit Site",
+                  adCTATextPosition: "top left",
+                  vastAdvanced: {
+                    vastLoadedCallback: () => {
+                      console.log("VAST ad loaded successfully");
+                    },
+                    vastErrorCallback: (error: any) => {
+                      console.log("VAST ad error, proceeding to main video:", error);
+                      // Ensure video can still play
+                      if (videoRef.current) {
+                        videoRef.current.controls = true;
+                      }
+                    },
+                    noVastVideoCallback: () => {
+                      console.log("No VAST ad, playing main video");
+                      if (videoRef.current) {
+                        videoRef.current.controls = true;
+                      }
+                    },
+                  },
+                  adFinishedCallback: () => {
+                    console.log("Ad finished, main video ready");
+                  },
                 },
-                vastErrorCallback: (error: any) => {
-                  console.log("VAST ad error, proceeding to main video:", error);
-                  // Force play main video if ad fails
-                  setTimeout(() => {
-                    if (videoRef.current && videoRef.current.paused) {
-                      videoRef.current.play().catch(console.error);
-                    }
-                  }, 500);
-                },
-              },
-              adFinishedCallback: () => {
-                console.log("Ad finished, starting main video");
-                // Ensure main video plays after ad
-                setTimeout(() => {
-                  if (videoRef.current && videoRef.current.paused) {
-                    videoRef.current.play().catch(console.error);
-                  }
-                }, 100);
-              },
-            },
-          });
-          
-          setInitialized(true);
-          console.log("FluidPlayer initialized successfully");
-        } catch (error) {
-          console.error("Error initializing FluidPlayer:", error);
-          // Fallback to basic video player
-          if (videoRef.current) {
-            videoRef.current.controls = true;
-            videoRef.current.style.width = "100%";
-            videoRef.current.style.height = "100%";
+              });
+              
+              console.log("FluidPlayer initialized successfully");
+            } catch (error) {
+              console.error("Error initializing FluidPlayer:", error);
+              // Fallback to native controls
+              if (videoRef.current) {
+                videoRef.current.controls = true;
+              }
+            }
           }
-        }
-      } else if (!window.fluidPlayer) {
-        console.error("FluidPlayer not available, using fallback");
-        // Fallback to native video player
-        if (videoRef.current) {
-          videoRef.current.controls = true;
-          videoRef.current.style.width = "100%";
-          videoRef.current.style.height = "100%";
-        }
-      }
-    }
+        };
 
-    // Cleanup function
+        if (!existingScript) {
+          const script = document.createElement("script");
+          script.src = "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
+          script.async = true;
+          script.onload = () => {
+            setTimeout(loadFluidPlayer, 300);
+          };
+          script.onerror = () => {
+            console.error("Failed to load FluidPlayer script, using native player");
+          };
+          document.body.appendChild(script);
+        } else if (window.fluidPlayer) {
+          setTimeout(loadFluidPlayer, 300);
+        }
+        
+        setInitialized(true);
+      }
+    };
+
+    // Initialize after a short delay to ensure DOM is ready
+    const timer = setTimeout(initializeVideo, 100);
+    
     return () => {
-      if (videoRef.current && window.fluidPlayer) {
+      clearTimeout(timer);
+      if (videoRef.current) {
         try {
-          // Destroy FluidPlayer instance if it exists
           const player = videoRef.current as any;
           if (player.fluidPlayerInstance) {
             player.fluidPlayerInstance.destroy();
@@ -145,7 +144,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         }
       }
     };
-  }, [poster, initialized]);
+  }, [src, poster]);
 
   // Track views
   const handlePlay = async () => {
@@ -157,24 +156,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   return (
     <div className="w-full max-w-5xl mx-auto">
       {/* Responsive video container with consistent 16:9 aspect ratio */}
-      <div className="relative w-full bg-black rounded-md overflow-hidden" style={{ aspectRatio: '16/9' }}>
+      <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
         <video
           ref={videoRef}
-          className="absolute top-0 left-0 w-full h-full"
+          className="w-full h-full"
           src={src}
           poster={poster}
           preload="metadata"
           playsInline
+          webkit-playsinline="true"
           crossOrigin="anonymous"
           onPlay={handlePlay}
           onError={(e) => {
             console.error("Video playback error:", e.currentTarget.error);
-            // Try to reload video on error
-            setTimeout(() => {
-              if (videoRef.current) {
-                videoRef.current.load();
-              }
-            }, 1000);
+            const error = e.currentTarget.error;
+            if (error) {
+              console.error("Error details:", {
+                code: error.code,
+                message: error.message
+              });
+            }
+            // Show native controls on error
+            if (videoRef.current) {
+              videoRef.current.controls = true;
+            }
           }}
           onLoadStart={() => {
             console.log("Video loading started for:", src);
@@ -188,18 +193,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           onWaiting={() => {
             console.log("Video buffering...");
           }}
+          onLoadedData={() => {
+            console.log("Video data loaded successfully");
+          }}
           style={{
             objectFit: 'contain',
-            backgroundColor: '#000'
+            backgroundColor: '#000',
+            display: 'block'
           }}
         />
       </div>
 
-      {/* Overlay controls below video */}
+      {/* Video info below */}
       <div className="flex justify-between items-center mt-3 px-2">
         <div className="flex items-center gap-2">
           <VideoIcon className="w-5 h-5 text-red-500" />
-          <span className="font-medium">{title || "Untitled Video"}</span>
+          <span className="font-medium text-foreground">{title || "Untitled Video"}</span>
         </div>
         <Button variant="outline" size="sm">
           Save
