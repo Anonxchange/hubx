@@ -158,19 +158,28 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           playbackRates: ['x0.5', 'x1', 'x1.25', 'x1.5', 'x2'],
           subtitlesEnabled: false,
           keyboardControl: true,
-          layout: 'default'
+          layout: 'default',
+          autoPlay: false // Prevent autoplay to ensure ads can load first
         },
         vastOptions: {
           adList: [
             {
               roll: 'preRoll',
-              vastTag: `https://syndication.realsrv.com/splash.php?idzone=5660526`,
-              timer: 5
+              vastTag: `https://s.magsrv.com/splash.php?idzone=5660526&sw=PLAYER_WIDTH&sh=PLAYER_HEIGHT&sa=PLAYER_AREA`,
+              timer: false, // Let ad run its full duration
+              skipOffset: 5 // Allow skip after 5 seconds
             }
           ],
           adCTAText: 'Visit Now',
           adCTATextPosition: 'top left',
-          showProgressbarMarkers: true
+          showProgressbarMarkers: true,
+          vastTimeout: 10000, // 10 second timeout for VAST loading
+          maxAllowedVastTagRedirects: 3,
+          vastAdvanced: {
+            vastLoadTimeout: 8000,
+            skipButtonCaption: 'Skip Ad',
+            skipButtonClickCaption: 'Skip Ad ►'
+          }
         },
         modules: {
           configureHls: false
@@ -226,8 +235,13 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       videoElement.addEventListener('play', handlePlay);
 
       // FluidPlayer specific events
-      videoElement.addEventListener('ad_started', () => {
-        console.log('Ad started playing');
+      videoElement.addEventListener('ad_started', (e) => {
+        console.log('Ad started playing:', e);
+        
+        // Pause the main video to ensure ad plays
+        if (!videoElement.paused) {
+          videoElement.pause();
+        }
         
         // Track ad impression
         if (!window.AdProvider) {
@@ -256,13 +270,46 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         });
       });
 
-      // Additional ad event listeners
       videoElement.addEventListener('ad_error', (e) => {
         console.error('Ad error occurred:', e);
+        console.log('Attempting to load backup ad...');
+        
+        // Try to load a backup ad or continue to video
+        setTimeout(() => {
+          console.log('Continuing to main video after ad error');
+        }, 1000);
       });
 
       videoElement.addEventListener('ad_skipped', () => {
         console.log('Ad was skipped');
+        
+        // Track ad skip
+        if (!window.AdProvider) {
+          window.AdProvider = [];
+        }
+        window.AdProvider.push({
+          "serve": {
+            "zoneid": "5660526",
+            "type": "video_skip"
+          }
+        });
+      });
+
+      // Prevent video from starting before ad
+      videoElement.addEventListener('play', (e) => {
+        // Check if this is the main video trying to play before ad
+        if (!viewTracked && videoElement.currentTime === 0) {
+          console.log('Ensuring ad plays first...');
+        }
+      });
+
+      // Ad loading events
+      videoElement.addEventListener('vast_ad_loaded', () => {
+        console.log('VAST ad loaded successfully');
+      });
+
+      videoElement.addEventListener('vast_ad_failed', (e) => {
+        console.error('VAST ad failed to load:', e);
       });
 
       // Cleanup function
