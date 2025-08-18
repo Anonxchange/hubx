@@ -147,25 +147,38 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     // Only load previews if bandwidth allows it
     if (!shouldLoadPreview) return;
 
-    // Increased delay to reduce unnecessary bandwidth usage
+    // Reduced delay for better user experience
     hoverTimeoutRef.current = setTimeout(() => {
       setShowPreview(true);
 
       if (videoRef.current) {
-        // Use preview_url if available, otherwise use main video with timestamp
-        const previewUrl = video.preview_url && video.preview_url.trim() !== ''
-          ? video.preview_url
-          : generateBunnyPreviewUrl(video.video_url, 10); // Start at 10 seconds
+        // Always try to use preview_url first if it exists and is not empty
+        if (video.preview_url && video.preview_url.trim() !== '') {
+          // Check if preview_url is an image (webp, jpg, jpeg, png)
+          const isImagePreview = /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url);
+          
+          if (!isImagePreview) {
+            // It's a video preview, play it
+            videoRef.current.src = video.preview_url;
+            videoRef.current.currentTime = 0;
+            videoRef.current.play().catch((error) => {
+              console.error('Video preview play failed:', error);
+              // Fallback to main video if preview fails
+              videoRef.current.src = video.video_url;
+              videoRef.current.currentTime = 10;
+              videoRef.current.play().catch(() => {});
+            });
+          }
+        } else {
+          // No preview_url, use main video with timestamp
+          videoRef.current.src = video.video_url;
+          videoRef.current.currentTime = 10;
+          videoRef.current.play().catch((error) => {
+            console.error('Main video preview play failed:', error);
+          });
 
-        videoRef.current.src = previewUrl;
-        videoRef.current.currentTime = video.preview_url ? 0 : 10;
-        videoRef.current.play().catch((error) => {
-          console.error('Video play failed:', error);
-        });
-
-        // Cycle through different timestamps for main video previews
-        if (!video.preview_url || video.preview_url.trim() === '') {
-          const previewTimes = [10, 30, 60, 90]; // Different preview points
+          // Cycle through different timestamps for main video previews
+          const previewTimes = [10, 30, 60, 90];
           let timeIndex = 0;
 
           previewCycleRef.current = setInterval(() => {
@@ -176,10 +189,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             if (videoRef.current) {
               videoRef.current.currentTime = newTime;
             }
-          }, 3000); // Change preview every 3 seconds
+          }, 3000);
         }
       }
-    }, 2000); // Increased delay to 2 seconds
+    }, 800); // Reduced delay to 800ms for better responsiveness
   };
 
   const handleMouseLeave = () => {
@@ -449,11 +462,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           />
 
           {/* Show image preview if preview_url is an image */}
-          {showPreview && video.preview_url &&
-           (video.preview_url.includes('.webp') ||
-            video.preview_url.includes('.jpg') ||
-            video.preview_url.includes('.jpeg') ||
-            video.preview_url.includes('.png')) ? (
+          {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
             <LazyImage
               src={video.preview_url}
               alt={`${video.title} preview`}
@@ -461,29 +470,19 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               height={300}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
             />
-          ) : null}
+          )}
 
-          {/* Show video preview for non-image preview_url or generated previews */}
-          {((video.preview_url && video.preview_url.trim() !== '' &&
-             !video.preview_url.includes('.webp') &&
-             !video.preview_url.includes('.jpg') &&
-             !video.preview_url.includes('.jpeg') &&
-             !video.preview_url.includes('.png')) ||
-            showPreview) &&
-           !(video.preview_url &&
-             (video.preview_url.includes('.webp') ||
-              video.preview_url.includes('.jpg') ||
-              video.preview_url.includes('.jpeg') ||
-              video.preview_url.includes('.png'))) ? (
+          {/* Show video preview for video URLs or when no image preview */}
+          {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url)) && (
             <video
               ref={videoRef}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
               muted
-              loop={!!video.preview_url}
+              loop={false}
               playsInline
-              preload={getVideoPreloadStrategy()}
+              preload="metadata"
             />
-          ) : null}
+          )}
 
 
           {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
