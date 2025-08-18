@@ -259,6 +259,20 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
+
+          {/* Special quality/format badges on top right */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1">
+            {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
+              <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white text-xs px-2 py-1 rounded font-bold min-w-[40px] text-center">
+                🥽 VR
+              </div>
+            )}
+            {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
+              <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded font-bold min-w-[40px] text-center">
+                4K
+              </div>
+            )}
+          </div>
         </div>
         <div className="pt-3 space-y-2">
           <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">{video.title}</h3>
