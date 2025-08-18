@@ -304,7 +304,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
       }}
     >
       {uniqueVideos.map((video, index) => (
-        <React.Fragment key={`video-fragment-${video.id}`}>
+        <div key={`video-fragment-${video.id}`}>
           {!video.is_moment && (
             <>
               <OptimizedVideoCard video={video} viewMode={viewMode} />
@@ -320,7 +320,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
               )}
             </>
           )}
-        </React.Fragment>
+        </div>
       ))}
     </div>
   );
