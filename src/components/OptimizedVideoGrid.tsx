@@ -171,7 +171,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   return (
     <Link to={`/video/${video.id}`} className="block w-full">
       <div className="group hover:bg-muted/5 transition-all duration-200 w-full">
-        <div className="relative bg-muted overflow-hidden rounded-xl w-full" style={{ aspectRatio: '16/9', height: 'auto' }}>
+        <div className="relative bg-muted overflow-hidden rounded-xl w-full" style={{ aspectRatio: '16/10', height: 'auto' }}>
           <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
             alt={video.title}
@@ -294,14 +294,14 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
       className={gridClass} 
       style={{
         display: viewMode === 'grid' ? 'grid' : 'block',
-        gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(280px, 1fr))' : undefined,
-        gap: viewMode === 'grid' ? '16px' : undefined,
+        gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(320px, 1fr))' : undefined,
+        gap: viewMode === 'grid' ? '20px' : undefined,
         width: '100%',
         maxWidth: '100%'
       }}
     >
       {uniqueVideos.map((video, index) => (
-        <React.Fragment key={video.id}>
+        <React.Fragment key={`video-fragment-${video.id}`}>
           <OptimizedVideoCard video={video} viewMode={viewMode} />
           
           {/* Insert moments carousel after video 23 */}
