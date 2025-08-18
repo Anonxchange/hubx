@@ -264,11 +264,11 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   if (viewMode === 'list') {
     return (
       <Link to={`/video/${video.id}`} className="block">
-        <Card className="hover:bg-muted/5 transition-colors">
+        <Card className="hover:bg-muted/5 hover:shadow-lg hover:border-primary/20 transition-all duration-200 border border-primary/10">
           <CardContent className="p-4 flex space-x-4">
             <div
-              className="relative w-64 bg-muted rounded-lg overflow-hidden flex-shrink-0"
-              style={{ aspectRatio: '16/9' }}
+              className="relative w-72 bg-muted rounded-lg overflow-hidden flex-shrink-0 border-2 border-primary/20 shadow-lg"
+              style={{ aspectRatio: '16/10' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -398,10 +398,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
   return (
     <Link to={`/video/${video.id}`} className="block">
-      <Card className="group hover:shadow-lg transition-all duration-200 overflow-hidden w-full">
+      <Card className="group hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] transition-all duration-200 overflow-hidden w-full border-2 border-primary/10">
         <div
-          className="relative bg-muted overflow-hidden rounded-lg w-full"
-          style={{ aspectRatio: '16/9' }}
+          className="relative bg-muted overflow-hidden rounded-lg w-full border-2 border-primary/20 shadow-lg"
+          style={{ aspectRatio: '16/10' }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
