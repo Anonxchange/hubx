@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import VerificationBadge from './VerificationBadge';
 import MomentsCarousel from './MomentsCarousel';
 
+// Define LightVideo interface here to avoid potential import issues if it's not exported correctly
 interface LightVideo {
   id: string;
   title: string;
@@ -23,12 +24,14 @@ interface LightVideo {
   uploader_username?: string;
   uploader_type?: 'user' | 'creator' | 'studio' | 'individual_creator' | 'studio_creator';
   uploader_profile_picture?: string; // Added for profile picture
+  is_moment?: boolean; // Added to identify moments
 }
 
 interface OptimizedVideoGridProps {
   videos: LightVideo[];
   viewMode?: 'grid' | 'list';
   showAds?: boolean;
+  showMoments?: boolean; // Added prop to control MomentsCarousel visibility
 }
 
 const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'list' }> = ({
@@ -257,7 +260,8 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   videos,
   viewMode = 'grid',
-  showAds = false
+  showAds = false,
+  showMoments = false // Default to false
 }) => {
   const { loading: authLoading } = useAuth();
 
@@ -302,19 +306,24 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
     >
       {uniqueVideos.map((video, index) => (
         <React.Fragment key={`video-fragment-${video.id}`}>
-          <OptimizedVideoCard video={video} viewMode={viewMode} />
-          
-          {/* Insert moments carousel after video 23 */}
-          {index === 22 && (
-            <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
-              <MomentsCarousel />
-            </div>
-          )}
-          
-          {showAds && (index + 1) % 12 === 0 && (
-            <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
-              <AdComponent zoneId="5661270" className="w-full" />
-            </div>
+          {/* Only render regular videos (no moments) */}
+          {!video.is_moment && (
+            <>
+              <OptimizedVideoCard video={video} viewMode={viewMode} />
+
+              {/* Insert moments carousel after video 23, only if showMoments is true */}
+              {showMoments && index === 22 && (
+                <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+                  <MomentsCarousel />
+                </div>
+              )}
+
+              {showAds && (index + 1) % 12 === 0 && (
+                <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+                  <AdComponent zoneId="5661270" className="w-full" />
+                </div>
+              )}
+            </>
           )}
         </React.Fragment>
       ))}
