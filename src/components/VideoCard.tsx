@@ -192,7 +192,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           }, 3000);
         }
       }
-    }, 800); // Reduced delay to 800ms for better responsiveness
+    }, 500); // Further reduced delay to 500ms for better responsiveness
   };
 
   const handleMouseLeave = () => {
@@ -463,12 +463,11 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
           {/* Show image preview if preview_url is an image */}
           {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
-            <LazyImage
+            <img
               src={video.preview_url}
               alt={`${video.title} preview`}
-              width={400}
-              height={300}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+              loading="lazy"
             />
           )}
 
