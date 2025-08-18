@@ -77,7 +77,7 @@ export const getVideos = async (
     .from('videos')
     .select(
       `
-      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
+      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment, preview_url,
       profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `,
       { count: 'exact' }
