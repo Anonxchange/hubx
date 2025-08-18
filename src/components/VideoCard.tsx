@@ -63,19 +63,33 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   useEffect(() => {
     const fetchCreatorProfile = async () => {
       // Use the data already provided in the video object if available
-      if (video.profiles || (video.uploader_username && video.uploader_avatar)) {
+      if (video.profiles) {
         setCreatorProfile({
-          id: video.profiles?.id || video.uploader_id || video.owner_id,
-          username: video.profiles?.username || video.uploader_username,
-          full_name: video.profiles?.full_name || video.uploader_name || video.uploader_username,
-          avatar_url: video.profiles?.avatar_url || video.uploader_avatar,
-          user_type: video.profiles?.user_type || video.uploader_type
+          id: video.profiles.id,
+          username: video.profiles.username,
+          full_name: video.profiles.full_name || video.profiles.username,
+          avatar_url: video.profiles.avatar_url,
+          user_type: video.profiles.user_type
         });
         setLoading(false);
         return;
       }
 
-      const targetId = video.owner_id || video.uploader_id;
+      // If we have uploader info directly
+      if (video.uploader_username) {
+        setCreatorProfile({
+          id: video.uploader_id || video.owner_id,
+          username: video.uploader_username,
+          full_name: video.uploader_name || video.uploader_username,
+          avatar_url: video.uploader_avatar,
+          user_type: video.uploader_type || 'user'
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Try to fetch from owner_id
+      const targetId = video.owner_id;
       if (!targetId) {
         setLoading(false);
         return;
@@ -90,13 +104,26 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
         if (error) {
           console.log('Profile not found for ID:', targetId, error.message);
-          setCreatorProfile(null);
+          // Set a fallback profile if we can't find one
+          setCreatorProfile({
+            id: targetId,
+            username: 'Unknown User',
+            full_name: 'Unknown User',
+            avatar_url: null,
+            user_type: 'user'
+          });
         } else {
           setCreatorProfile(profile);
         }
       } catch (error) {
         console.error('Error fetching creator profile:', error);
-        setCreatorProfile(null);
+        setCreatorProfile({
+          id: targetId,
+          username: 'Unknown User',
+          full_name: 'Unknown User',
+          avatar_url: null,
+          user_type: 'user'
+        });
       } finally {
         setLoading(false);
       }
@@ -240,16 +267,24 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const getCreatorInfo = () => {
     if (creatorProfile) {
       return {
-        username: creatorProfile.username,
-        displayName: creatorProfile.full_name || creatorProfile.username,
+        username: creatorProfile.username || 'Unknown',
+        displayName: creatorProfile.full_name || creatorProfile.username || 'Unknown User',
         avatar: creatorProfile.avatar_url,
-        userType: creatorProfile.user_type,
+        userType: creatorProfile.user_type || 'user',
       };
     }
 
-    // Fallback to props or profiles data
-    // Note: The original code had a `profiles` prop. If that's still used, it should be accessed from `video.profiles` or similar.
-    // Assuming `video.uploader_username`, `video.uploader_name`, `video.uploader_avatar`, `video.uploader_type` are the primary props for fallback.
+    // Fallback to video props
+    if (video.profiles) {
+      return {
+        username: video.profiles.username || 'Unknown',
+        displayName: video.profiles.full_name || video.profiles.username || 'Unknown User',
+        avatar: video.profiles.avatar_url,
+        userType: video.profiles.user_type || 'user',
+      };
+    }
+
+    // Final fallback to uploader fields
     return {
       username: video.uploader_username || 'Unknown',
       displayName: video.uploader_name || video.uploader_username || 'Unknown User',
@@ -268,7 +303,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           <CardContent className="p-4 flex space-x-4">
             <div
               className="relative w-72 bg-muted rounded-lg overflow-hidden flex-shrink-0 border-2 border-primary/20 shadow-lg"
-              style={{ aspectRatio: '16/10' }}
+              style={{ aspectRatio: '16/9' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
             >
@@ -329,7 +364,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               </div>
 
               {/* Creator info section - YouTube style */}
-              {!loading && creator.username && creator.username !== 'Unknown' && (
+              {!loading && (
                 <div
                   className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
                   onClick={handleCreatorClick}
@@ -401,7 +436,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       <Card className="group hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] transition-all duration-200 overflow-hidden w-full border-2 border-primary/10">
         <div
           className="relative bg-muted overflow-hidden rounded-lg w-full border-2 border-primary/20 shadow-lg"
-          style={{ aspectRatio: '16/10' }}
+          style={{ aspectRatio: '16/9' }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
@@ -459,7 +494,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           </h3>
 
           {/* Creator info section - YouTube style */}
-          {!loading && creator.username && creator.username !== 'Unknown' && (
+          {!loading && (
             <div
               className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={handleCreatorClick}
