@@ -45,23 +45,12 @@ const MomentsCarousel = () => {
     <div className="my-8">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-2xl font-bold text-white">Moments</h2>
-        <div className="flex items-center space-x-2">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={handleRefresh}
-            className="text-muted-foreground hover:text-white"
-            disabled={isLoading}
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+        <Link to="/moments">
+          <Button variant="ghost" className="text-primary hover:text-primary/80">
+            View More
+            <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
-          <Link to="/moments">
-            <Button variant="ghost" className="text-primary hover:text-primary/80">
-              View More
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </Button>
-          </Link>
-        </div>
+        </Link>
       </div>
       
       <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
