@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import { VideoIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -20,34 +19,20 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useAuth();
   const [initialized, setInitialized] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    let isMounted = true;
-    
-    const initializeVideo = async () => {
-      if (!videoRef.current || initialized || !isMounted) return;
-      
-      const video = videoRef.current;
-      setIsLoading(true);
+    const initializeVideo = () => {
+      if (videoRef.current && !initialized) {
+        const video = videoRef.current;
 
-      try {
-        // Check if FluidPlayer script exists
-        const existingScript = document.querySelector(
+        // Load FluidPlayer script if not already loaded
+        const existingScript = document.querySelector<HTMLScriptElement>(
           "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
         );
 
         const loadFluidPlayer = () => {
-          if (!isMounted || !videoRef.current) return;
-          
-          if (window.fluidPlayer) {
+          if (window.fluidPlayer && videoRef.current) {
             try {
-              // Clean up any existing player first
-              const existingPlayer = (video as any).fluidPlayerInstance;
-              if (existingPlayer && typeof existingPlayer.destroy === 'function') {
-                existingPlayer.destroy();
-              }
-
               const fluidPlayerInstance = window.fluidPlayer(video, {
                 layoutControls: {
                   autoPlay: false,
@@ -69,7 +54,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   adList: [
                     {
                       roll: "preRoll",
-                      vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
+                      vastTag:
+                        "https://syndication.exoclick.com/splash.php?idzone=5660526",
+                      // Removed adText to disable custom banner
                     },
                   ],
                   skipButtonCaption: "Skip in [seconds]",
@@ -86,10 +73,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                       console.log("VAST ad loaded successfully");
                     },
                     vastErrorCallback: (error: any) => {
-                      console.log("VAST ad error, proceeding to main video:", error);
+                      console.log(
+                        "VAST ad error, proceeding to main video:",
+                        error
+                      );
                     },
                     noVastVideoCallback: () => {
-                      console.log("No VAST ad available, playing main video directly");
+                      console.log(
+                        "No VAST ad available, playing main video directly"
+                      );
                     },
                     adSkippedCallback: () => {
                       console.log("Ad was skipped, loading main video");
@@ -104,88 +96,46 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                 },
               });
 
+              // Save instance for cleanup
               (video as any).fluidPlayerInstance = fluidPlayerInstance;
-              setInitialized(true);
-              setIsLoading(false);
               console.log("FluidPlayer initialized successfully");
             } catch (error) {
               console.error("Error initializing FluidPlayer:", error);
-              if (videoRef.current) {
-                videoRef.current.controls = true;
-                setIsLoading(false);
-              }
-            }
-          } else {
-            // Fallback to native player
-            if (videoRef.current) {
-              videoRef.current.controls = true;
-              setIsLoading(false);
+              video.controls = true;
             }
           }
         };
 
         if (!existingScript) {
           const script = document.createElement("script");
-          script.src = "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
+          script.src =
+            "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
           script.async = true;
-          
-          script.onload = () => {
-            if (isMounted) {
-              setTimeout(loadFluidPlayer, 100);
-            }
-          };
-          
+          script.onload = () => setTimeout(loadFluidPlayer, 300);
           script.onerror = () => {
-            console.error("Failed to load FluidPlayer script, using native player");
-            if (isMounted && videoRef.current) {
-              videoRef.current.controls = true;
-              setIsLoading(false);
-            }
+            console.error(
+              "Failed to load FluidPlayer script, using native player"
+            );
+            if (videoRef.current) videoRef.current.controls = true;
           };
-          
-          document.head.appendChild(script);
+          document.body.appendChild(script);
         } else if (window.fluidPlayer) {
-          loadFluidPlayer();
-        } else {
-          // Script exists but FluidPlayer not loaded yet, wait and retry
-          let retries = 0;
-          const retryInterval = setInterval(() => {
-            if (retries >= 5 || !isMounted) {
-              clearInterval(retryInterval);
-              if (isMounted && videoRef.current) {
-                videoRef.current.controls = true;
-                setIsLoading(false);
-              }
-              return;
-            }
-            
-            if (window.fluidPlayer) {
-              clearInterval(retryInterval);
-              loadFluidPlayer();
-            }
-            retries++;
-          }, 200);
+          setTimeout(loadFluidPlayer, 300);
         }
-      } catch (error) {
-        console.error("Error in video initialization:", error);
-        if (isMounted && videoRef.current) {
-          videoRef.current.controls = true;
-          setIsLoading(false);
-        }
+
+        setInitialized(true);
       }
     };
 
-    initializeVideo();
+    const timer = setTimeout(initializeVideo, 100);
 
     return () => {
-      isMounted = false;
-      
+      clearTimeout(timer);
       if (videoRef.current) {
         try {
           const player = videoRef.current as any;
-          if (player.fluidPlayerInstance && typeof player.fluidPlayerInstance.destroy === 'function') {
+          if (player.fluidPlayerInstance) {
             player.fluidPlayerInstance.destroy();
-            delete player.fluidPlayerInstance;
           }
         } catch (error) {
           console.log("Error cleaning up FluidPlayer:", error);
@@ -197,20 +147,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   // Track views
   const handlePlay = async () => {
     if (user) {
-      try {
-        await trackVideoView(user.id, src);
-      } catch (error) {
-        console.error("Error tracking video view:", error);
-      }
+      await trackVideoView(user.id, src);
     }
-  };
-
-  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-    console.error("Video playback error:", e.currentTarget.error);
-    if (videoRef.current) {
-      videoRef.current.controls = true;
-    }
-    setIsLoading(false);
   };
 
   return (
@@ -220,24 +158,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         className="relative w-full bg-black rounded-lg overflow-hidden"
         style={{ aspectRatio: "16/9" }}
       >
-        {isLoading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-            <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        )}
-        
         <video
           ref={videoRef}
           className="w-full h-full"
           poster={poster}
-          preload="metadata"
+          preload="none"
           playsInline
           webkit-playsinline="true"
           crossOrigin="anonymous"
           onPlay={handlePlay}
-          onError={handleVideoError}
-          onLoadStart={() => setIsLoading(true)}
-          onCanPlay={() => setIsLoading(false)}
+          onError={(e) => {
+            console.error("Video playbook error:", e.currentTarget.error);
+            if (videoRef.current) videoRef.current.controls = true;
+          }}
           style={{
             objectFit: "contain",
             backgroundColor: "#000",
@@ -247,7 +180,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           }}
         >
           <source src={src} type="video/mp4" />
-          Your browser does not support the video tag.
         </video>
       </div>
 
