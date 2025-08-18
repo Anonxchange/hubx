@@ -257,6 +257,27 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         </div>
         <div className="pt-3 space-y-2">
           <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">{video.title}</h3>
+          {video.uploader_username && (
+            <div className="flex items-center space-x-2">
+              {video.uploader_profile_picture ? (
+                <LazyImage
+                  src={video.uploader_profile_picture}
+                  alt={video.uploader_username}
+                  width={20}
+                  height={20}
+                  className="w-5 h-5 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
+                  {video.uploader_username[0].toUpperCase()}
+                </div>
+              )}
+              <span className="text-xs text-muted-foreground font-medium truncate">{video.uploader_username}</span>
+              {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+                <VerificationBadge userType={video.uploader_type} showText={false} size="small" />
+              )}
+            </div>
+          )}
         </div>
       </div>
     </Link>
@@ -308,19 +329,19 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
             <>
               <OptimizedVideoCard video={video} viewMode={viewMode} />
               {showMoments && index === 22 && (
-                <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+                <div key={`moments-${index}`} className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                   <MomentsCarousel />
                 </div>
               )}
               {showAds && (index + 1) % 12 === 0 && (
-                <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
+                <div key={`ad-${index}`} className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
                   <AdComponent zoneId="5661270" className="w-full" />
                 </div>
               )}
             </>
           )}
         </React.Fragment>
-      ))}
+      ))}</div>
     </div>
   );
 };
