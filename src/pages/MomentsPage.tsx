@@ -40,6 +40,11 @@ const MomentsPage = () => {
   const { data: videosData, isLoading, error } = useQuery({
     queryKey: ['moments'],
     queryFn: () => getVideos(1, 50, undefined, undefined, true), // Use the API filter for moments
+    staleTime: 1000 * 60 * 2, // Consider data fresh for 2 minutes
+    cacheTime: 1000 * 60 * 10, // Cache for 10 minutes
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchInterval: 1000 * 60 * 5, // Refetch every 5 minutes
   });
 
   // Debug logging
