@@ -32,13 +32,13 @@ const Index = () => {
   // Initialize category from URL params
   useEffect(() => {
     const categoryParam = searchParams.get('category');
-    
+
     if (categoryParam && categories.map(c => c.toLowerCase()).includes(categoryParam)) {
       const matchedCategory = categories.find(c => c.toLowerCase() === categoryParam) || 'All';
       setSelectedCategory(matchedCategory);
     }
   }, [searchParams]);
-  
+
   // Use homepage sectioning for All/default, otherwise use category-specific logic
   const { data, isLoading, error } = useOptimizedVideos(
     currentPage,
@@ -61,7 +61,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-6 space-y-4">
         {/* Hero Section */}
         <div className="text-center space-y-3">
@@ -129,7 +129,7 @@ const Index = () => {
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <span className="text-sm font-medium">Sort:</span>
               <Badge variant="secondary">Newest</Badge>
@@ -181,7 +181,9 @@ const Index = () => {
           </div>
         )}
 
-        
+
+
+
 
         {/* Videos */}
         {isLoading ? (
@@ -202,7 +204,7 @@ const Index = () => {
             <p className="text-muted-foreground">Please try again later.</p>
           </div>
         ) : (
-          <OptimizedVideoGrid videos={videos} viewMode={viewMode} showAds={true} />
+          <OptimizedVideoGrid videos={videos} viewMode={viewMode} showAds={true} showMoments={selectedCategory === 'All'} />
         )}
 
         {/* Ad Code Before Pagination */}
