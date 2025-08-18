@@ -27,6 +27,10 @@ interface LightVideo {
   uploader_username?: string;
   uploader_type?: 'user' | 'creator' | 'studio' | 'individual_creator' | 'studio_creator';
   uploader_profile_picture?: string;
+  uploader_avatar?: string;
+  uploader_name?: string;
+  uploader_id?: string;
+  owner_id?: string;
   is_moment?: boolean;
 }
 
@@ -181,27 +185,27 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               {video.description && (
                 <p className="text-sm text-muted-foreground line-clamp-2">{video.description}</p>
               )}
-              {video.uploader_username && (
-                <div className="flex items-center space-x-2">
-                  {video.uploader_profile_picture ? (
-                    <LazyImage
-                      src={video.uploader_profile_picture}
-                      alt={video.uploader_username}
-                      width={24}
-                      height={24}
-                      className="w-6 h-6 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center text-xs text-white">
-                      {video.uploader_username[0].toUpperCase()}
-                    </div>
-                  )}
-                  <span className="text-sm text-muted-foreground font-medium">{video.uploader_username}</span>
-                  {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
-                    <VerificationBadge userType={video.uploader_type} showText={false} size="small" />
-                  )}
-                </div>
-              )}
+              <div className="flex items-center space-x-2">
+                {video.uploader_avatar ? (
+                  <LazyImage
+                    src={video.uploader_avatar}
+                    alt={video.uploader_name || video.uploader_username || 'Unknown User'}
+                    width={24}
+                    height={24}
+                    className="w-6 h-6 rounded-full object-cover"
+                  />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-xs text-white font-bold">
+                    {(video.uploader_name || video.uploader_username || 'U')[0].toUpperCase()}
+                  </div>
+                )}
+                <span className="text-sm text-muted-foreground font-medium">
+                  {video.uploader_name || video.uploader_username || 'Unknown User'}
+                </span>
+                {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+                  <VerificationBadge userType={video.uploader_type} showText={false} size="small" />
+                )}
+              </div>
               <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                 <span className="flex items-center">
                   <Eye className="w-4 h-4 mr-1" />
@@ -258,6 +262,37 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         </div>
         <div className="pt-3 space-y-2">
           <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">{video.title}</h3>
+          <div className="flex items-center space-x-2">
+            {video.uploader_avatar ? (
+              <LazyImage
+                src={video.uploader_avatar}
+                alt={video.uploader_name || video.uploader_username || 'Unknown User'}
+                width={20}
+                height={20}
+                className="w-5 h-5 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-xs text-white font-bold">
+                {(video.uploader_name || video.uploader_username || 'U')[0].toUpperCase()}
+              </div>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {video.uploader_name || video.uploader_username || 'Unknown User'}
+            </span>
+            {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+              <VerificationBadge userType={video.uploader_type} showText={false} size="small" />
+            )}
+          </div>
+          <div className="flex items-center space-x-4 text-xs text-muted-foreground">
+            <span className="flex items-center">
+              <Eye className="w-3 h-3 mr-1" />
+              {formatViews(video.views)} views
+            </span>
+            <span className="flex items-center">
+              <ThumbsUp className="w-3 h-3 mr-1" />
+              {video.likes || 0}
+            </span>
+          </div>
         </div>
       </div>
     </Link>
