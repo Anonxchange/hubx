@@ -197,7 +197,7 @@ const getLoggedInRecommendations = async (userId: string, page: number, limit: n
     }
   });
 
-  // Get all videos for scoring
+  // Get all videos for scoring - explicitly exclude moments and premium
   const { data: allVideos, error, count } = await supabase
     .from('videos')
     .select(
@@ -296,7 +296,7 @@ const getGuestRecommendations = async (page: number, limit: number) => {
     }
   });
 
-  // Get all videos for scoring
+  // Get all videos for scoring - explicitly exclude moments and premium
   const { data: allVideos, error, count } = await supabase
     .from('videos')
     .select(
@@ -328,7 +328,7 @@ const getGuestRecommendations = async (page: number, limit: number) => {
 
     // Location-based popularity
     const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
-    const hasLocationTag = videoTagsLower.includes(userCountry) || 
+    const hasLocationTag = videoTagsLower.includes(userCountry) ||
                           videoTagsLower.some(tag => tag.includes(userCountry));
     if (hasLocationTag) {
       score += 0.25;
@@ -591,7 +591,7 @@ const applyCategorySectioning = async (
       }
 
       // Location popularity
-      const hasLocationTag = videoTagsLower.includes(userCountry) || 
+      const hasLocationTag = videoTagsLower.includes(userCountry) ||
                             videoTagsLower.some(tag => tag.includes(userCountry));
       if (hasLocationTag) {
         score += 0.25;
@@ -615,8 +615,8 @@ const applyCategorySectioning = async (
     const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.3;
 
     // Engagement ratio
-    const engagementRatio = video.views > 0 ? 
-      Math.min((video.likes / video.views) * 0.15, 0.15) : 
+    const engagementRatio = video.views > 0 ?
+      Math.min((video.likes / video.views) * 0.15, 0.15) :
       (video.likes > 0 ? 0.1 : 0);
 
     // Recency bonus
@@ -712,6 +712,7 @@ const getPremiumVideos = async (page: number, limit: number, searchQuery?: strin
       { count: 'exact' }
     )
     .eq('is_premium', true)
+    .eq('is_moment', false)
     .order('created_at', { ascending: false });
 
   if (searchQuery) {
@@ -773,6 +774,8 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
         `
       )
       .neq('id', videoId)
+      .eq('is_moment', false)
+      .eq('is_premium', false)
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -801,6 +804,8 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
       `
     )
     .neq('id', videoId)
+    .eq('is_moment', false)
+    .eq('is_premium', false)
     .overlaps('tags', tags)
     .order('views', { ascending: false })
     .limit(limit * 2); // Get more initially for better sorting
@@ -817,6 +822,8 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
         `
       )
       .neq('id', videoId)
+      .eq('is_moment', false)
+      .eq('is_premium', false)
       .order('views', { ascending: false })
       .limit(limit);
 
@@ -848,6 +855,8 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
         `
       )
       .neq('id', videoId)
+      .eq('is_moment', false)
+      .eq('is_premium', false)
       .order('views', { ascending: false })
       .limit(limit);
 
@@ -878,7 +887,7 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
     // Combine with popularity metrics
     const viewScore = Math.log(Math.max(video.views || 0, 1) + 1) * 0.3;
     const likeScore = Math.log(Math.max(video.likes || 0, 1) + 1) * 0.2;
-    const engagementRatio = (video.views || 0) > 0 ? 
+    const engagementRatio = (video.views || 0) > 0 ?
       ((video.likes || 0) / (video.views || 1)) * 0.1 : 0;
 
     const finalScore = (tagSimilarity * 0.4) + viewScore + likeScore + engagementRatio;
@@ -1116,6 +1125,8 @@ export const searchVideos = async (searchTerm: string) => {
       *,
       profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `)
+    .eq('is_moment', false)
+    .eq('is_premium', false)
     .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`)
     .order('views', { ascending: false })
     .limit(50);
@@ -1153,9 +1164,9 @@ export const getUserCountry = async (): Promise<string> => {
 
 // Get hottest videos by country with advanced location-based ranking
 export const getHottestByCountry = async (
-  country: string, 
-  page = 1, 
-  limit = 60, 
+  country: string,
+  page = 1,
+  limit = 60,
   userId?: string
 ) => {
   // Get user's watched videos to deprioritize them
@@ -1274,6 +1285,7 @@ export const getHottestByCountry = async (
         profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `)
       .eq('is_premium', false)
+      .eq('is_moment', false)
       .order('views', { ascending: false })
       .limit(limit);
 
@@ -1305,6 +1317,8 @@ export const getHottestByCountry = async (
         id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment,
         profiles:owner_id (id, username, avatar_url, full_name, user_type)
       `)
+      .eq('is_premium', false)
+      .eq('is_moment', false)
       .order('views', { ascending: false })
       .limit(limit);
 
@@ -1336,8 +1350,8 @@ export const getHottestByCountry = async (
     const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.3; // 30% weight on likes
 
     // Engagement ratio (likes vs views)
-    const engagementRatio = video.views > 0 ? 
-      Math.min((video.likes / video.views) * 0.15, 0.15) : 
+    const engagementRatio = video.views > 0 ?
+      Math.min((video.likes / video.views) * 0.15, 0.15) :
       (video.likes > 0 ? 0.1 : 0);
 
     // Combine base scores
@@ -1537,13 +1551,13 @@ const applyTrendingAlgorithm = (videos: Video[]): Video[] => {
       const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.25;
 
       // Engagement ratio (likes vs views)
-      const engagementRatio = video.views > 0 ? 
-        Math.min((video.likes / video.views) * 0.15, 0.15) : 
+      const engagementRatio = video.views > 0 ?
+        Math.min((video.likes / video.views) * 0.15, 0.15) :
         (video.likes > 0 ? 0.1 : 0);
 
       // Velocity bonus for videos with good likes-to-age ratio
-      const velocityBonus = ageInDays > 0 ? 
-        Math.min((video.likes / ageInDays) * 0.05, 0.1) : 
+      const velocityBonus = ageInDays > 0 ?
+        Math.min((video.likes / ageInDays) * 0.05, 0.1) :
         (video.likes > 0 ? 0.1 : 0);
 
       // Small randomization factor to prevent staleness
@@ -1705,7 +1719,7 @@ const applyHomepageSectioning = async (
       }
 
       // Location-based popularity
-      const hasLocationTag = videoTagsLower.includes(userCountry) || 
+      const hasLocationTag = videoTagsLower.includes(userCountry) ||
                             videoTagsLower.some(tag => tag.includes(userCountry));
       if (hasLocationTag) {
         score += 0.3;
@@ -1725,7 +1739,7 @@ const applyHomepageSectioning = async (
     const hourMs = 60 * 60 * 1000;
 
     // Strong recency boost for 24-48h window
-    const recencyBoost = age <= (48 * hourMs) ? 
+    const recencyBoost = age <= (48 * hourMs) ?
       Math.max(0, 1 - (age / (48 * hourMs))) * 0.4 : 0;
 
     // Activity metrics
@@ -1733,15 +1747,15 @@ const applyHomepageSectioning = async (
     const likeScore = Math.log(Math.max(video.likes, 1) + 1) * 0.25;
 
     // Engagement ratio
-    const engagementRatio = video.views > 0 ? 
-      Math.min((video.likes / video.views) * 0.15, 0.15) : 
+    const engagementRatio = video.views > 0 ?
+      Math.min((video.likes / video.views) * 0.15, 0.15) :
       (video.likes > 0 ? 0.1 : 0);
 
     // Location-based trending for guests
     let locationBonus = 0;
     if (!userId) {
       const videoTagsLower = video.tags.map((tag: string) => tag.toLowerCase());
-      const hasLocationTag = videoTagsLower.includes(userCountry) || 
+      const hasLocationTag = videoTagsLower.includes(userCountry) ||
                             videoTagsLower.some(tag => tag.includes(userCountry));
       if (hasLocationTag) {
         locationBonus = 0.2;
