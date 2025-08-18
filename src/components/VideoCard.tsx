@@ -447,7 +447,34 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             height={300}
             className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
-          {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
+
+          {/* Show image preview if preview_url is an image */}
+          {showPreview && video.preview_url &&
+           (video.preview_url.includes('.webp') ||
+            video.preview_url.includes('.jpg') ||
+            video.preview_url.includes('.jpeg') ||
+            video.preview_url.includes('.png')) ? (
+            <LazyImage
+              src={video.preview_url}
+              alt={`${video.title} preview`}
+              width={400}
+              height={300}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+            />
+          ) : null}
+
+          {/* Show video preview for non-image preview_url or generated previews */}
+          {((video.preview_url && video.preview_url.trim() !== '' &&
+             !video.preview_url.includes('.webp') &&
+             !video.preview_url.includes('.jpg') &&
+             !video.preview_url.includes('.jpeg') &&
+             !video.preview_url.includes('.png')) ||
+            showPreview) &&
+           !(video.preview_url &&
+             (video.preview_url.includes('.webp') ||
+              video.preview_url.includes('.jpg') ||
+              video.preview_url.includes('.jpeg') ||
+              video.preview_url.includes('.png'))) ? (
             <video
               ref={videoRef}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
@@ -457,6 +484,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               preload={getVideoPreloadStrategy()}
             />
           ) : null}
+
 
           {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
