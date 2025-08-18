@@ -149,9 +149,9 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
       const urlObj = new URL(url);
       const validExtensions = ['.mp4', '.avi', '.mov', '.wmv', '.webm', '.mkv'];
       const pathname = urlObj.pathname.toLowerCase();
-      return validExtensions.some(ext => pathname.endsWith(ext)) || 
-             url.includes('youtube.com') || 
-             url.includes('youtu.be') || 
+      return validExtensions.some(ext => pathname.endsWith(ext)) ||
+             url.includes('youtube.com') ||
+             url.includes('youtu.be') ||
              url.includes('vimeo.com') ||
              url.includes('bunnycdn.net') ||
              url.includes('cloudfront.net');
@@ -272,7 +272,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
         const streamData = await uploadToBunnyStream(file, title.trim());
         finalVideoUrl = streamData.hlsUrl;
         thumbnailUrl = streamData.thumbnailUrl;
-        previewUrl = streamData.previewUrl;
+        previewUrl = streamData.previewUrl; // Use Bunny Stream's automatic preview
         setUploadProgress(60);
 
         // Save video metadata using the same service as UploadPage
@@ -517,7 +517,7 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
                 className="w-full"
               />
               <p className="text-xs text-gray-500">
-                Supported: Direct video URLs (.mp4, .avi, .mov, .wmv, .webm), YouTube, Vimeo, CDN URLs
+                Supported: Direct video URLs (.mp4, .avi, .mov, .wmv, .webm, .mkv), YouTube, Vimeo, CDN URLs
               </p>
               {videoUrl && !isValidVideoUrl(videoUrl) && (
                 <p className="text-xs text-red-500">
@@ -667,10 +667,10 @@ const VideoUploadForm: React.FC<VideoUploadFormProps> = ({ onVideoAdded }) => {
             type="submit"
             className="w-full"
             disabled={
-              uploading || 
-              !title.trim() || 
-              !category || 
-              (uploadMethod === 'file' && !file) || 
+              uploading ||
+              !title.trim() ||
+              !category ||
+              (uploadMethod === 'file' && !file) ||
               (uploadMethod === 'url' && (!videoUrl.trim() || !isValidVideoUrl(videoUrl)))
             }
           >
