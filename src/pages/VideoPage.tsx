@@ -19,7 +19,7 @@ import { trackVideoView } from '@/services/userStatsService';
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const user = { id: 'user123' }; // Replace with real auth hook
+  const user = null; // Using null for now since auth is not implemented
 
   const [videoError, setVideoError] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
@@ -45,8 +45,11 @@ const VideoPage = () => {
   useEffect(() => {
     if (video?.id) {
       incrementViews(video.id).catch(() => {});
-      if (user?.id) {
-        trackVideoView(video.id, user.id);
+      // Only track for authenticated users with valid UUIDs
+      if (user?.id && user.id !== 'user123') {
+        trackVideoView(video.id, user.id).catch(err => {
+          console.log("Video tracking error:", err);
+        });
       }
     }
   }, [video?.id, user?.id]);
