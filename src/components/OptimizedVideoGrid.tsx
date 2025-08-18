@@ -294,12 +294,10 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
       className={gridClass} 
       style={{
         display: viewMode === 'grid' ? 'grid' : 'block',
-        gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(300px, 1fr))' : undefined,
+        gridTemplateColumns: viewMode === 'grid' ? 'repeat(4, 1fr)' : undefined,
         gap: viewMode === 'grid' ? '16px' : undefined,
-        width: '100vw',
-        maxWidth: '100vw',
-        margin: '0 -16px',
-        padding: '0 16px'
+        width: '100%',
+        maxWidth: '100%'
       }}
     >
       {uniqueVideos.map((video, index) => (
