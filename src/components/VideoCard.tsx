@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import VerificationBadge from './VerificationBadge'; // Added import for VerificationBadge
-import { useVideoReaction } from '@/hooks/useVideoReactions';
+import { useVideoReaction } from '@/hooks/useVideoReaction'; // Assuming useVideoReaction is in this path
 import { supabase } from '@/integrations/supabase/client'; // Imported supabase client
 
 interface Video {
@@ -147,38 +147,25 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     // Only load previews if bandwidth allows it
     if (!shouldLoadPreview) return;
 
-    // Reduced delay for better user experience
+    // Increased delay to reduce unnecessary bandwidth usage
     hoverTimeoutRef.current = setTimeout(() => {
       setShowPreview(true);
 
       if (videoRef.current) {
-        // Always try to use preview_url first if it exists and is not empty
-        if (video.preview_url && video.preview_url.trim() !== '') {
-          // Check if preview_url is an image (webp, jpg, jpeg, png)
-          const isImagePreview = /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url);
-          
-          if (!isImagePreview) {
-            // It's a video preview, play it
-            videoRef.current.src = video.preview_url;
-            videoRef.current.currentTime = 0;
-            videoRef.current.play().catch((error) => {
-              console.error('Video preview play failed:', error);
-              // Fallback to main video if preview fails
-              videoRef.current.src = video.video_url;
-              videoRef.current.currentTime = 10;
-              videoRef.current.play().catch(() => {});
-            });
-          }
-        } else {
-          // No preview_url, use main video with timestamp
-          videoRef.current.src = video.video_url;
-          videoRef.current.currentTime = 10;
-          videoRef.current.play().catch((error) => {
-            console.error('Main video preview play failed:', error);
-          });
+        // Use preview_url if available, otherwise use main video with timestamp
+        const previewUrl = video.preview_url && video.preview_url.trim() !== ''
+          ? video.preview_url
+          : generateBunnyPreviewUrl(video.video_url, 10); // Start at 10 seconds
 
-          // Cycle through different timestamps for main video previews
-          const previewTimes = [10, 30, 60, 90];
+        videoRef.current.src = previewUrl;
+        videoRef.current.currentTime = video.preview_url ? 0 : 10;
+        videoRef.current.play().catch((error) => {
+          console.error('Video play failed:', error);
+        });
+
+        // Cycle through different timestamps for main video previews
+        if (!video.preview_url || video.preview_url.trim() === '') {
+          const previewTimes = [10, 30, 60, 90]; // Different preview points
           let timeIndex = 0;
 
           previewCycleRef.current = setInterval(() => {
@@ -189,10 +176,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             if (videoRef.current) {
               videoRef.current.currentTime = newTime;
             }
-          }, 3000);
+          }, 3000); // Change preview every 3 seconds
         }
       }
-    }, 500); // Further reduced delay to 500ms for better responsiveness
+    }, 2000); // Increased delay to 2 seconds
   };
 
   const handleMouseLeave = () => {
@@ -460,29 +447,16 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             height={300}
             className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
-
-          {/* Show image preview if preview_url is an image */}
-          {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
-            <img
-              src={video.preview_url}
-              alt={`${video.title} preview`}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
-              loading="lazy"
-            />
-          )}
-
-          {/* Show video preview for video URLs or when no image preview */}
-          {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url)) && (
+          {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
             <video
               ref={videoRef}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
               muted
-              loop={false}
+              loop={!!video.preview_url}
               playsInline
-              preload="metadata"
+              preload={getVideoPreloadStrategy()}
             />
-          )}
-
+          ) : null}
 
           {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
