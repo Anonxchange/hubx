@@ -45,8 +45,9 @@ const VideoPage = () => {
   useEffect(() => {
     if (video?.id) {
       incrementViews(video.id).catch(() => {});
-      // Only track for authenticated users with valid UUIDs
-      if (user?.id && user.id !== 'user123') {
+      // Only track for authenticated users with valid UUIDs (must be a real UUID format)
+      const isValidUUID = user?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
+      if (isValidUUID) {
         trackVideoView(video.id, user.id).catch(err => {
           console.log("Video tracking error:", err);
         });
