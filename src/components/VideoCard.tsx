@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Eye, ThumbsUp } from 'lucide-react';
+import { Clock, Eye, ThumbsUp, MoreVertical, Plus } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { LazyImage } from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import VerificationBadge from './VerificationBadge'; // Added import for VerificationBadge
@@ -239,6 +240,13 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     }
   };
 
+  const handleWatchLater = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // Add to watch later functionality
+    console.log('Adding to watch later:', video.title);
+    // TODO: Implement watch later functionality with Supabase
+  };
+
 
   const formatViews = (views: number) => {
     if (views >= 1000000) {
@@ -355,36 +363,54 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
               {/* Creator info section - YouTube style */}
               {!loading && (
-                <div
-                  className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={handleCreatorClick}
-                >
-                  <Card className="h-6 w-6"> {/* Using Card for avatar container as per original structure, but Avatar is better */}
-                    <CardContent className="p-0"> {/* Empty CardContent to ensure styling */}
-                      <LazyImage
-                        src={creator.avatar}
-                        alt={creator.displayName}
-                        className="h-6 w-6 rounded-full object-cover"
-                        fallbackComponent={
-                          <div className="h-6 w-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
-                            {creator.username.charAt(0).toUpperCase()}
-                          </div>
-                        }
-                      />
-                    </CardContent>
-                  </Card>
-                  <div className="flex items-center space-x-1">
-                    <span className="text-sm text-muted-foreground hover:text-white transition-colors">
-                      {creator.displayName}
-                    </span>
-                    {(creator.userType === 'individual_creator' || creator.userType === 'studio_creator') && (
-                      <VerificationBadge
-                        userType={creator.userType as 'individual_creator' | 'studio_creator'}
-                        showText={false}
-                        size="small"
-                      />
-                    )}
+                <div className="flex items-center justify-between">
+                  <div
+                    className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={handleCreatorClick}
+                  >
+                    <Card className="h-6 w-6"> {/* Using Card for avatar container as per original structure, but Avatar is better */}
+                      <CardContent className="p-0"> {/* Empty CardContent to ensure styling */}
+                        <LazyImage
+                          src={creator.avatar}
+                          alt={creator.displayName}
+                          className="h-6 w-6 rounded-full object-cover"
+                          fallbackComponent={
+                            <div className="h-6 w-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                              {creator.username.charAt(0).toUpperCase()}
+                            </div>
+                          }
+                        />
+                      </CardContent>
+                    </Card>
+                    <div className="flex items-center space-x-1">
+                      <span className="text-sm text-muted-foreground hover:text-white transition-colors">
+                        {creator.displayName}
+                      </span>
+                      {(creator.userType === 'individual_creator' || creator.userType === 'studio_creator') && (
+                        <VerificationBadge
+                          userType={creator.userType as 'individual_creator' | 'studio_creator'}
+                          showText={false}
+                          size="small"
+                        />
+                      )}
+                    </div>
                   </div>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="p-1 rounded-full hover:bg-muted transition-colors"
+                        onClick={handleActionClick}
+                      >
+                        <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleWatchLater}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add to Watch Later
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               )}
               <div className="flex flex-wrap gap-1">
@@ -485,36 +511,54 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
           {/* Creator info section - YouTube style */}
           {!loading && (
-            <div
-              className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
-              onClick={handleCreatorClick}
-            >
-              <Card className="h-6 w-6"> {/* Using Card for avatar container */}
-                <CardContent className="p-0"> {/* Empty CardContent */}
-                  <LazyImage
-                    src={creator.avatar}
-                    alt={creator.displayName}
-                    className="h-6 w-6 rounded-full object-cover"
-                    fallbackComponent={
-                      <div className="h-6 w-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
-                        {creator.username.charAt(0).toUpperCase()}
-                      </div>
-                    }
-                  />
-                </CardContent>
-              </Card>
-              <div className="flex items-center space-x-1">
-                <span className="text-sm text-muted-foreground hover:text-white transition-colors">
-                  {creator.displayName}
-                </span>
-                {(creator.userType === 'individual_creator' || creator.userType === 'studio_creator') && (
-                  <VerificationBadge
-                    userType={creator.userType as 'individual_creator' | 'studio_creator'}
-                    showText={false}
-                    size="small"
-                  />
-                )}
+            <div className="flex items-center justify-between">
+              <div
+                className="flex items-center space-x-2 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={handleCreatorClick}
+              >
+                <Card className="h-6 w-6"> {/* Using Card for avatar container */}
+                  <CardContent className="p-0"> {/* Empty CardContent */}
+                    <LazyImage
+                      src={creator.avatar}
+                      alt={creator.displayName}
+                      className="h-6 w-6 rounded-full object-cover"
+                      fallbackComponent={
+                        <div className="h-6 w-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
+                          {creator.username.charAt(0).toUpperCase()}
+                        </div>
+                      }
+                    />
+                  </CardContent>
+                </Card>
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm text-muted-foreground hover:text-white transition-colors">
+                    {creator.displayName}
+                  </span>
+                  {(creator.userType === 'individual_creator' || creator.userType === 'studio_creator') && (
+                    <VerificationBadge
+                      userType={creator.userType as 'individual_creator' | 'studio_creator'}
+                      showText={false}
+                      size="small"
+                    />
+                  )}
+                </div>
               </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="p-1 rounded-full hover:bg-muted transition-colors"
+                    onClick={handleActionClick}
+                  >
+                    <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleWatchLater}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add to Watch Later
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
 
