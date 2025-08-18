@@ -171,7 +171,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   return (
     <Link to={`/video/${video.id}`} className="block w-full">
       <div className="group hover:bg-muted/5 transition-all duration-200 w-full">
-        <div className="relative bg-muted overflow-hidden rounded-xl w-full" style={{ aspectRatio: '16/10', height: 'auto' }}>
+        <div className="relative bg-muted overflow-hidden rounded-xl w-full" style={{ aspectRatio: '16/9', height: 'auto' }}>
           <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
             alt={video.title}
