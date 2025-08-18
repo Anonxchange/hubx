@@ -62,6 +62,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   // Fetch creator profile information
   useEffect(() => {
     const fetchCreatorProfile = async () => {
+      setLoading(true);
+      
       // Use the data already provided in the video object if available
       if (video.profiles) {
         setCreatorProfile({
@@ -91,6 +93,13 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       // Try to fetch from owner_id
       const targetId = video.owner_id;
       if (!targetId) {
+        setCreatorProfile({
+          id: 'unknown',
+          username: 'Unknown User',
+          full_name: 'Unknown User',
+          avatar_url: null,
+          user_type: 'user'
+        });
         setLoading(false);
         return;
       }
@@ -102,8 +111,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           .eq('id', targetId)
           .single();
 
-        if (error) {
-          console.log('Profile not found for ID:', targetId, error.message);
+        if (error || !profile) {
+          console.log('Profile not found for ID:', targetId);
           // Set a fallback profile if we can't find one
           setCreatorProfile({
             id: targetId,
@@ -263,28 +272,9 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     return 'auto';
   };
 
-  // Get creator info from fetched profile or fallback to props
+  // Get creator info using the computed fields from video service
   const getCreatorInfo = () => {
-    if (creatorProfile) {
-      return {
-        username: creatorProfile.username || 'Unknown',
-        displayName: creatorProfile.full_name || creatorProfile.username || 'Unknown User',
-        avatar: creatorProfile.avatar_url,
-        userType: creatorProfile.user_type || 'user',
-      };
-    }
-
-    // Fallback to video props
-    if (video.profiles) {
-      return {
-        username: video.profiles.username || 'Unknown',
-        displayName: video.profiles.full_name || video.profiles.username || 'Unknown User',
-        avatar: video.profiles.avatar_url,
-        userType: video.profiles.user_type || 'user',
-      };
-    }
-
-    // Final fallback to uploader fields
+    // Use the computed uploader fields that are set in the video service
     return {
       username: video.uploader_username || 'Unknown',
       displayName: video.uploader_name || video.uploader_username || 'Unknown User',
