@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import VerificationBadge from './VerificationBadge'; // Added import for VerificationBadge
-import { useVideoReaction } from '@/hooks/useVideoReaction'; // Assuming useVideoReaction is in this path
+import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { supabase } from '@/integrations/supabase/client'; // Imported supabase client
 
 interface Video {
