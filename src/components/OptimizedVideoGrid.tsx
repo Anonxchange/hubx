@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, ThumbsUp, Clock } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import AdComponent from '@/components/AdComponent';
 import { useAuth } from '@/contexts/AuthContext';
 import VerificationBadge from './VerificationBadge';
 import MomentsCarousel from './MomentsCarousel';
+import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 
 // Define LightVideo interface here to avoid potential import issues if it's not exported correctly
 interface LightVideo {
@@ -15,6 +16,8 @@ interface LightVideo {
   title: string;
   description?: string;
   thumbnail_url?: string;
+  preview_url?: string; // Added for hover preview functionality
+  video_url?: string; // Added for fallback preview functionality
   duration: string;
   views: number;
   likes: number;
@@ -38,6 +41,82 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   video,
   viewMode = 'grid'
 }) => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [currentPreviewTime, setCurrentPreviewTime] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previewCycleRef = useRef<NodeJS.Timeout | null>(null);
+  const { shouldLoadPreview } = useBandwidthOptimization();
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+
+    if (!shouldLoadPreview) return;
+
+    hoverTimeoutRef.current = setTimeout(() => {
+      setShowPreview(true);
+
+      if (videoRef.current) {
+        if (video.preview_url && video.preview_url.trim() !== '') {
+          const isImagePreview = /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url);
+          
+          if (!isImagePreview) {
+            videoRef.current.src = video.preview_url;
+            videoRef.current.currentTime = 0;
+            videoRef.current.play().catch((error) => {
+              console.error('Video preview play failed:', error);
+              if (video.video_url) {
+                videoRef.current.src = video.video_url;
+                videoRef.current.currentTime = 10;
+                videoRef.current.play().catch(() => {});
+              }
+            });
+          }
+        } else if (video.video_url) {
+          videoRef.current.src = video.video_url;
+          videoRef.current.currentTime = 10;
+          videoRef.current.play().catch((error) => {
+            console.error('Main video preview play failed:', error);
+          });
+
+          const previewTimes = [10, 30, 60, 90];
+          let timeIndex = 0;
+
+          previewCycleRef.current = setInterval(() => {
+            timeIndex = (timeIndex + 1) % previewTimes.length;
+            const newTime = previewTimes[timeIndex];
+            setCurrentPreviewTime(newTime);
+
+            if (videoRef.current) {
+              videoRef.current.currentTime = newTime;
+            }
+          }, 3000);
+        }
+      }
+    }, 500);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    setShowPreview(false);
+    setCurrentPreviewTime(0);
+
+    if (hoverTimeoutRef.current) {
+      clearTimeout(hoverTimeoutRef.current);
+      hoverTimeoutRef.current = null;
+    }
+    if (previewCycleRef.current) {
+      clearInterval(previewCycleRef.current);
+      previewCycleRef.current = null;
+    }
+
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+      videoRef.current.src = '';
+    }
+  };
+
   const formatViews = (views: number) => {
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1)}M`;
@@ -61,17 +140,51 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       <Link to={`/video/${video.id}`} className="block w-full">
         <Card className="hover:bg-muted/5 transition-colors">
           <CardContent className="p-3 flex space-x-3">
-            <div className="relative w-40 bg-muted rounded-lg overflow-hidden flex-shrink-0" style={{ aspectRatio: '16/9' }}>
+            <div 
+              className="relative w-40 bg-muted rounded-lg overflow-hidden flex-shrink-0" 
+              style={{ aspectRatio: '16/9' }}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
               <LazyImage
                 src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
                 alt={video.title}
                 width={400}
                 height={300}
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
               />
+
+              {/* Show image preview if preview_url is an image */}
+              {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
+                <img
+                  src={video.preview_url}
+                  alt={`${video.title} preview`}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+                  loading="lazy"
+                />
+              )}
+
+              {/* Show video preview for video URLs or when no image preview */}
+              {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url)) && (
+                <video
+                  ref={videoRef}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+                  muted
+                  loop={false}
+                  playsInline
+                  preload="metadata"
+                />
+              )}
+
               <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
               </div>
+
+              {showPreview && (
+                <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded animate-fade-in">
+                  {video.preview_url ? 'Preview' : `Preview ${Math.floor(currentPreviewTime)}s`}
+                </div>
+              )}
 
               {/* Special quality/format badges on top right for list view */}
               <div className="absolute top-2 right-2 flex flex-col gap-1">
@@ -174,14 +287,41 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   return (
     <Link to={`/video/${video.id}`} className="block w-full">
       <div className="group hover:bg-muted/5 transition-all duration-200 w-full">
-        <div className="relative bg-muted overflow-hidden rounded-xl w-full" style={{ aspectRatio: '16/9', height: 'auto' }}>
+        <div 
+          className="relative bg-muted overflow-hidden rounded-xl w-full" 
+          style={{ aspectRatio: '16/9', height: 'auto' }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
           <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
             alt={video.title}
             width={400}
             height={300}
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
+
+          {/* Show image preview if preview_url is an image */}
+          {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
+            <img
+              src={video.preview_url}
+              alt={`${video.title} preview`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+              loading="lazy"
+            />
+          )}
+
+          {/* Show video preview for video URLs or when no image preview */}
+          {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url)) && (
+            <video
+              ref={videoRef}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+              muted
+              loop={false}
+              playsInline
+              preload="metadata"
+            />
+          )}
 
           {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
@@ -190,6 +330,12 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
+
+          {showPreview && (
+            <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded animate-fade-in">
+              {video.preview_url ? 'Preview' : `Preview ${Math.floor(currentPreviewTime)}s`}
+            </div>
+          )}
 
           {/* Special quality/format badges on top right */}
           <div className="absolute top-2 right-2 flex flex-col gap-1">
