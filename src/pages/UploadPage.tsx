@@ -244,7 +244,7 @@ const UploadPage = () => {
         description: description.trim() || undefined,
         video_url: streamData.hlsUrl,
         thumbnail_url: streamData.thumbnailUrl,
-        preview_url: streamData.previewUrl,
+        preview_url: streamData.previewUrl, // Bunny Stream's automatic preview
         duration, // actual duration from file
         tags: allTags,
         is_premium: isPremium,
