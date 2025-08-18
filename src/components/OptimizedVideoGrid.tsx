@@ -294,7 +294,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
       className={gridClass} 
       style={{
         display: viewMode === 'grid' ? 'grid' : 'block',
-        gridTemplateColumns: viewMode === 'grid' ? 'repeat(4, 1fr)' : undefined,
+        gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(280px, 1fr))' : undefined,
         gap: viewMode === 'grid' ? '16px' : undefined,
         width: '100%',
         maxWidth: '100%'
