@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Shield } from 'lucide-react'; // Assuming Shield is needed based on changes
+import { CheckCircle, Tv } from 'lucide-react'; // Changed Shield to Tv for channel badge
 import { Badge } from '@/components/ui/badge';
 
 interface VerificationBadgeProps {
@@ -26,7 +26,7 @@ const VerificationBadge: React.FC<VerificationBadgeProps> = ({
       ringColor: 'ring-blue-400/20'
     },
     studio_creator: {
-      text: 'Verified Studio',
+      text: 'Verified Channel',
       bgColor: 'bg-purple-500 hover:bg-purple-600',
       ringColor: 'ring-purple-400/20'
     }
@@ -49,7 +49,7 @@ const VerificationBadge: React.FC<VerificationBadgeProps> = ({
     if (userType === 'individual_creator') {
       return <CheckCircle className={iconSize} />;
     } else if (userType === 'studio_creator') {
-      return <Shield className={iconSize} />;
+      return <Tv className={iconSize} />;
     }
     return <CheckCircle className={iconSize} />;
   };
