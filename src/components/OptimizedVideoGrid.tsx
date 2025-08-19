@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import VerificationBadge from './VerificationBadge';
 import MomentsCarousel from './MomentsCarousel';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
+import VideoPreviewService from '@/services/videoPreviewService';
 
 // Define LightVideo interface here
 interface LightVideo {
@@ -98,7 +99,8 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             console.error('Main video preview play failed:', error);
           });
 
-          const previewTimes = [10, 30, 60, 90];
+          // Use intelligent preview timestamps based on video duration
+          const previewTimes = VideoPreviewService.generatePreviewTimestamps(video.duration);
           let timeIndex = 0;
 
           previewCycleRef.current = window.setInterval(() => {
@@ -108,8 +110,9 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
             if (videoRef.current) {
               videoRef.current.currentTime = newTime;
+              console.log(`Optimized grid switching to preview segment at ${newTime}s`);
             }
-          }, 3000);
+          }, 10000); // 10 seconds per segment as requested
         }
       }
     }, 300);
