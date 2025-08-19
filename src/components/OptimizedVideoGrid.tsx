@@ -77,8 +77,25 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     console.log('Adding to watch later:', video.title);
   };
 
-  const isImagePreview = (url: string) => /\.(jpg|jpeg|png|webp|gif)$/i.test(url);
-  const isVideoPreview = (url: string) => /\.(mp4|mov|webm)$/i.test(url);
+  const isImagePreview = (url: string) => {
+    if (!url || url.trim() === '') return false;
+    return /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
+  };
+  
+  const isVideoPreview = (url: string) => {
+    if (!url || url.trim() === '') return false;
+    return /\.(mp4|mov|webm)(\?.*)?$/i.test(url);
+  };
+
+  const isValidUrl = (url: string) => {
+    if (!url || url.trim() === '') return false;
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
 
   const startPreview = () => {
     if (!shouldLoadPreview) return;
@@ -87,21 +104,24 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       setShowPreview(true);
 
       if (videoRef.current) {
-        if (video.preview_url && video.preview_url.trim() !== '') {
-          if (isVideoPreview(video.preview_url)) {
-            videoRef.current.src = video.preview_url;
-            videoRef.current.currentTime = 0;
-            videoRef.current.muted = true;
-            videoRef.current.play().catch((error) => {
-              console.error('Video preview play failed:', error);
-            });
-          }
-        } else if (video.video_url) {
+        const hasValidPreview = video.preview_url && isValidUrl(video.preview_url);
+        const hasValidVideo = video.video_url && isValidUrl(video.video_url);
+        
+        if (hasValidPreview && isVideoPreview(video.preview_url)) {
+          videoRef.current.src = video.preview_url;
+          videoRef.current.currentTime = 0;
+          videoRef.current.muted = true;
+          videoRef.current.play().catch((error) => {
+            console.error('Video preview play failed:', error);
+            setShowPreview(false);
+          });
+        } else if (hasValidVideo) {
           videoRef.current.src = video.video_url;
           videoRef.current.currentTime = 10;
           videoRef.current.muted = true;
           videoRef.current.play().catch((error) => {
             console.error('Main video preview play failed:', error);
+            setShowPreview(false);
           });
 
           const previewTimes = [10, 30, 60, 90];
@@ -116,6 +136,8 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               videoRef.current.currentTime = newTime;
             }
           }, 3000);
+        } else {
+          setShowPreview(false);
         }
       }
     }, isMobile ? 100 : 500);
@@ -158,35 +180,39 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
     setTouchStartTime(Date.now());
     setIsHovered(true);
     
-    // Start preview after a short delay for touch
+    // Start preview after a longer delay for touch to distinguish from taps
     touchTimeoutRef.current = window.setTimeout(() => {
       startPreview();
       
-      // Auto-hide preview after 3 seconds on mobile to prevent blocking clicks
+      // Auto-hide preview after 2 seconds on mobile to prevent blocking clicks
       setTimeout(() => {
-        if (showPreview) {
-          stopPreview();
-        }
-      }, 3000);
-    }, 200);
+        stopPreview();
+      }, 2000);
+    }, 500);
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     const touchEndTime = Date.now();
     const touchDuration = touchStartTime ? touchEndTime - touchStartTime : 0;
     
-    // If it's a quick tap (less than 300ms), treat it as a click
-    if (touchDuration < 300) {
+    // Clear the preview timeout for quick taps
+    if (touchTimeoutRef.current) {
+      clearTimeout(touchTimeoutRef.current);
+      touchTimeoutRef.current = null;
+    }
+    
+    // If it's a quick tap (less than 400ms), stop any preview and allow navigation
+    if (touchDuration < 400) {
       stopPreview();
-      // Allow the link to work normally for navigation
+      // Don't prevent default - allow normal link navigation
       return;
     }
     
-    e.preventDefault();
+    // For longer touches, still allow navigation after preview
+    stopPreview();
   };
 
   const formatViews = (views: number) => {
@@ -206,7 +232,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     if (!showPreview) return null;
 
     // Show image/gif/webp previews immediately on hover
-    if (video.preview_url && video.preview_url.trim() !== '' && isImagePreview(video.preview_url)) {
+    if (video.preview_url && isValidUrl(video.preview_url) && isImagePreview(video.preview_url)) {
       return (
         <img
           src={video.preview_url}
@@ -215,7 +241,6 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           loading="lazy"
           onError={(e) => {
             console.error('Preview image failed to load:', video.preview_url);
-            // Hide preview on error
             setShowPreview(false);
           }}
         />
@@ -223,17 +248,19 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     }
 
     // Show video previews with proper handling
-    if ((video.preview_url && video.preview_url.trim() !== '' && isVideoPreview(video.preview_url)) || video.video_url) {
+    const hasValidPreview = video.preview_url && isValidUrl(video.preview_url) && isVideoPreview(video.preview_url);
+    const hasValidVideo = video.video_url && isValidUrl(video.video_url);
+    
+    if (hasValidPreview || hasValidVideo) {
       return (
         <video
           ref={videoRef}
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
           muted
           playsInline
-          preload="metadata"
+          preload="none"
           onError={(e) => {
             console.error('Preview video failed to load:', video.preview_url || video.video_url);
-            // Hide preview on error
             setShowPreview(false);
           }}
         />
@@ -259,6 +286,11 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               onMouseLeave={handleMouseLeave}
               onTouchStart={isMobile ? handleTouchStart : undefined}
               onTouchEnd={isMobile ? handleTouchEnd : undefined}
+              style={{ 
+                aspectRatio: '16/9',
+                touchAction: 'manipulation',
+                WebkitTouchCallout: 'none'
+              }}
             >
               <LazyImage
                 src={
