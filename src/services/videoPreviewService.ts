@@ -71,12 +71,14 @@ export class VideoPreviewService {
   // Generate Bunny CDN preview URLs with time ranges and quality optimization
   static generateBunnyPreviewUrl(videoUrl: string, startTime: number, duration: number = 10, quality: 'low' | 'medium' | 'high' = 'low'): string {
     if (videoUrl.includes('bunnycdn.com') || videoUrl.includes('b-cdn.net')) {
-      // Add quality parameters for Bunny CDN
-      const qualityParams = quality === 'low' ? '&width=480&height=270' : 
-                           quality === 'medium' ? '&width=720&height=405' : '';
+      // For Bunny CDN, use their video preview API to generate MP4 clips
+      const baseUrl = videoUrl.split('?')[0];
+      const qualityParams = quality === 'low' ? 'width=480&height=270' : 
+                           quality === 'medium' ? 'width=720&height=405' : 
+                           'width=1080&height=607';
       
-      // Use Bunny CDN's time-based seeking with quality control
-      return `${videoUrl}?t=${startTime}&duration=${duration}${qualityParams}`;
+      // Generate preview clip URL using Bunny's video processing
+      return `${baseUrl}?seek=${startTime}&duration=${duration}&${qualityParams}&format=mp4`;
     }
     return `${videoUrl}#t=${startTime}`;
   }
@@ -381,6 +383,17 @@ export class VideoPreviewService {
   static getWebPPreviewUrl(videoId: string, timestamp: number, userId: string): string {
     const BUNNY_CDN_URL = 'https://hubx.b-cdn.net';
     return `${BUNNY_CDN_URL}/previews/${userId}/preview_${videoId}_${timestamp}.webp`;
+  }
+
+  // Get Bunny CDN generated video preview URL (replaces main video hover previews)
+  static getBunnyVideoPreviewUrl(videoUrl: string, timestamp: number, duration: number = 3): string {
+    if (videoUrl.includes('bunnycdn.com') || videoUrl.includes('b-cdn.net')) {
+      const baseUrl = videoUrl.split('?')[0];
+      // Use Bunny's video processing to create a short preview clip
+      return `${baseUrl}?seek=${timestamp}&duration=${duration}&width=320&height=180&format=mp4&autoplay=false`;
+    }
+    // Fallback for non-Bunny URLs
+    return `${videoUrl}#t=${timestamp}`;
   }
 
   // Create preview manifest for better caching
