@@ -187,18 +187,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       return;
     }
 
-    // Preload video immediately on hover for instant playback
-    if (videoRef.current) {
-      // Set up video source immediately for faster loading
-      if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        videoRef.current.src = video.preview_url;
-        videoRef.current.load(); // Start loading immediately
-      } else if (video.video_url) {
-        // Use Bunny CDN URL for hover preview if it's a Bunny CDN video
-        const previewUrl = generateBunnyPreviewUrl(video.video_url, 5);
-        videoRef.current.src = previewUrl;
-        videoRef.current.load(); // Start loading immediately
-      }
+    // Only preload video if we have a valid preview URL
+    if (videoRef.current && video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
+      videoRef.current.src = video.preview_url;
+      videoRef.current.load();
     }
 
     // Show preview with appropriate delay - faster for touch
@@ -207,14 +199,12 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       setShowPreview(true);
       setIsVideoReady(false); // Reset video ready state
 
-      // Check if preview_url is an image/animation (including animated WebP)
       if (video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        // It's an image/animation preview - show immediately
-        console.log('Showing animated preview for:', video.preview_url);
-        setIsVideoReady(true); // Assume image is ready
+        // Image/animation preview - show immediately
+        setIsVideoReady(true);
         return;
       } else if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        // It's a video preview - play immediately with better error handling
+        // Video preview - start playing
         if (videoRef.current) {
           videoRef.current.currentTime = 0;
           videoRef.current.muted = true; // Ensure muted for autoplay
@@ -224,8 +214,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           });
         }
       } else {
-        // No valid preview_url - don't play any video
-        console.log('No valid preview URL found, skipping video preview');
+        // No preview URL available - don't play any video
+        console.log('No preview URL available for:', video.title, '- skipping video preview');
         setShowPreview(false);
       }
     }, event?.type === 'touchstart' ? 50 : 200); // Much faster response for touch - almost instant
