@@ -69,6 +69,11 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const { shouldLoadPreview } = useBandwidthOptimization();
   const isMobile = useIsMobile();
 
+  // --- State for video loading status ---
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
+  // --- End State ---
+
   // --- Hook for dynamic likes/dislikes ---
   const { userReaction, reactToVideo, isLoading: reactionLoading } = useVideoReaction(video.id);
   // --- End Hook ---
@@ -199,11 +204,13 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     hoverTimeoutRef.current = setTimeout(() => {
       console.log('Setting showPreview to true for:', video.title);
       setShowPreview(true);
+      setIsVideoReady(false); // Reset video ready state
 
       // Check if preview_url is an image/animation (including animated WebP)
       if (video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
         // It's an image/animation preview - show immediately
         console.log('Showing animated preview for:', video.preview_url);
+        setIsVideoReady(true); // Assume image is ready
         return;
       } else if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
         // It's a video preview - play immediately with better error handling
@@ -278,6 +285,9 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       videoRef.current.currentTime = 0;
       videoRef.current.src = '';
     }
+    // Reset loading states when preview is hidden
+    setIsVideoLoading(false);
+    setIsVideoReady(false);
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -421,23 +431,42 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               {showPreview && video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && (
                 <video
                   ref={videoRef}
-                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview && isVideoReady ? 'opacity-100' : 'opacity-0'}`}
                   muted
                   loop={!!video.preview_url}
                   playsInline
-                  preload="metadata"
+                  preload="auto"
                   controls={false}
                   disablePictureInPicture
+                  autoPlay={false}
+                  onLoadStart={() => {
+                    setIsVideoLoading(true);
+                    console.log('Video loading started');
+                  }}
                   onLoadedData={() => {
+                    setIsVideoReady(true);
+                    setIsVideoLoading(false);
                     console.log('List view video preview loaded');
                   }}
                   onCanPlay={() => {
+                    setIsVideoReady(true);
+                    setIsVideoLoading(false);
                     if (showPreview && videoRef.current) {
                       videoRef.current.play().catch(console.error);
                     }
                   }}
+                  onWaiting={() => {
+                    setIsVideoLoading(true);
+                    console.log('Video buffering...');
+                  }}
+                  onPlaying={() => {
+                    setIsVideoLoading(false);
+                    console.log('Video playing smoothly');
+                  }}
                   onError={(e) => {
                     console.error('List view video error:', e);
+                    setIsVideoLoading(false);
+                    setIsVideoReady(false);
                     setShowPreview(false);
                   }}
                 />
@@ -459,6 +488,12 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                   </div>
                 )}
               </div>
+              {/* Loading indicator for video preview */}
+              {showPreview && isVideoLoading && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
             </div>
             <div className="flex-1 space-y-2">
               <h3 className="font-semibold text-lg line-clamp-2 leading-tight">
@@ -601,25 +636,47 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           {showPreview && video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && (
             <video
               ref={videoRef}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview && isVideoReady ? 'opacity-100' : 'opacity-0'}`}
               muted
-              loop
+              loop={false}
               playsInline
               preload="metadata"
               controls={false}
               disablePictureInPicture
               autoPlay={false}
+              style={{
+                filter: 'contrast(0.9) brightness(0.95)',
+                imageRendering: 'auto'
+              }}
+              onLoadStart={() => {
+                setIsVideoLoading(true);
+                console.log('Video loading started');
+              }}
               onLoadedData={() => {
+                setIsVideoReady(true);
+                setIsVideoLoading(false);
                 console.log('Video preview loaded and ready to play');
               }}
               onCanPlay={() => {
                 // Ensure video is ready to play when hovering
+                setIsVideoReady(true);
+                setIsVideoLoading(false);
                 if (showPreview && videoRef.current) {
                   videoRef.current.play().catch(console.error);
                 }
               }}
+              onWaiting={() => {
+                setIsVideoLoading(true);
+                console.log('Video buffering...');
+              }}
+              onPlaying={() => {
+                setIsVideoLoading(false);
+                console.log('Video playing smoothly');
+              }}
               onError={(e) => {
                 console.error('Video preview error:', e);
+                setIsVideoLoading(false);
+                setIsVideoReady(false);
                 setShowPreview(false);
               }}
             />
@@ -650,6 +707,12 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           {showPreview && (
             <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded animate-fade-in">
               {video.preview_url ? 'Preview' : `Preview ${Math.floor(currentPreviewTime)}s`}
+            </div>
+          )}
+          {/* Loading indicator for video preview */}
+          {showPreview && isVideoLoading && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+              <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             </div>
           )}
         </div>
