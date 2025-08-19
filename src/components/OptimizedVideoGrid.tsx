@@ -171,26 +171,31 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 alt={video.title}
                 width={400}
                 height={300}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${
-                  showPreview ? 'opacity-0' : 'opacity-100'
-                }`}
+                className="w-full h-full object-cover"
               />
               {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
                 <img
                   src={video.preview_url}
                   alt={`${video.title} preview`}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
                   loading="lazy"
+                  style={{ 
+                    filter: 'contrast(0.9) brightness(0.95)',
+                    imageRendering: 'auto',
+                    pointerEvents: 'none'
+                  }}
                   onError={(e) => {
                     console.error('WebP preview failed to load:', video.preview_url);
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
                   }}
-                  style={{ 
-                    filter: 'contrast(0.9) brightness(0.95)',
-                    imageRendering: 'auto'
-                  }}
                 />
+              )}
+              {/* Loading bar at bottom when preview is loading */}
+              {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-black/30">
+                  <div className="h-full bg-orange-500 animate-pulse" style={{ width: '100%' }}></div>
+                </div>
               )}
               <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
@@ -286,19 +291,18 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             alt={video.title}
             width={400}
             height={300}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
-              showPreview ? 'opacity-0' : 'opacity-100'
-            }`}
+            className="w-full h-full object-cover"
           />
           {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
             <img
               src={video.preview_url}
               alt={`${video.title} preview`}
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
               loading="lazy"
               style={{ 
                 filter: 'contrast(0.9) brightness(0.95)',
-                imageRendering: 'auto'
+                imageRendering: 'auto',
+                pointerEvents: 'none'
               }}
               onError={(e) => {
                 console.error('Grid WebP preview failed:', video.preview_url);
@@ -306,6 +310,12 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 target.style.display = 'none';
               }}
             />
+          )}
+          {/* Loading bar at bottom when preview is loading */}
+          {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
+            <div className="absolute bottom-0 left-0 w-full h-1 bg-black/30">
+              <div className="h-full bg-orange-500 animate-pulse" style={{ width: '100%' }}></div>
+            </div>
           )}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
