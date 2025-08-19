@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Header from '@/components/Header';
 import AdComponent from '@/components/AdComponent';
@@ -15,15 +15,21 @@ import PlaylistModal from '@/components/PlaylistModal';
 import ShareModal from '@/components/ShareModal';
 import { useAddToPlaylist } from '@/hooks/usePlaylists';
 import { trackVideoView } from '@/services/userStatsService';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const VideoPage = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const user = null; // Using null for now since auth is not implemented
+  const { user } = useAuth();
 
   const [videoError, setVideoError] = useState(false);
   const [isPlaylistModalOpen, setIsPlaylistModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [subscriberCount, setSubscriberCount] = useState(0);
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isSubscribing, setIsSubscribing] = useState(false);
 
   const { data: video, isLoading, error } = useQuery({
     queryKey: ['video', id],
@@ -54,6 +60,39 @@ const VideoPage = () => {
       }
     }
   }, [video?.id, user?.id]);
+
+  // Fetch real subscriber count and subscription status
+  useEffect(() => {
+    const fetchSubscriberData = async () => {
+      if (!video?.owner_id) return;
+
+      try {
+        // Get subscriber count
+        const { count } = await supabase
+          .from('subscriptions')
+          .select('*', { count: 'exact', head: true })
+          .eq('creator_id', video.owner_id);
+
+        setSubscriberCount(count || 0);
+
+        // Check if current user is subscribed
+        if (user?.id) {
+          const { data: subscription } = await supabase
+            .from('subscriptions')
+            .select('id')
+            .eq('subscriber_id', user.id)
+            .eq('creator_id', video.owner_id)
+            .single();
+
+          setIsSubscribed(!!subscription);
+        }
+      } catch (error) {
+        console.error('Error fetching subscriber data:', error);
+      }
+    };
+
+    fetchSubscriberData();
+  }, [video?.owner_id, user?.id]);
 
   if (isLoading) {
     return (
@@ -128,6 +167,69 @@ const VideoPage = () => {
     setVideoError(false);
   };
 
+  const handleSubscribe = async () => {
+    if (!user) {
+      alert('Please login to subscribe to creators');
+      navigate('/auth');
+      return;
+    }
+
+    if (!video?.owner_id) return;
+
+    setIsSubscribing(true);
+
+    try {
+      if (isSubscribed) {
+        // Unsubscribe
+        const { error } = await supabase
+          .from('subscriptions')
+          .delete()
+          .eq('subscriber_id', user.id)
+          .eq('creator_id', video.owner_id);
+
+        if (error) {
+          console.error('Error unsubscribing:', error);
+          alert('Failed to unsubscribe. Please try again.');
+          return;
+        }
+
+        setIsSubscribed(false);
+        setSubscriberCount(prev => prev - 1);
+      } else {
+        // Subscribe
+        const { error } = await supabase
+          .from('subscriptions')
+          .insert({
+            subscriber_id: user.id,
+            creator_id: video.owner_id,
+            created_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('Error subscribing:', error);
+          alert('Failed to subscribe. Please try again.');
+          return;
+        }
+
+        setIsSubscribed(true);
+        setSubscriberCount(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Error updating subscription:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIsSubscribing(false);
+    }
+  };
+
+  const handleProfileClick = () => {
+    if (video?.profiles?.username) {
+      navigate(`/profile/${video.profiles.username}`);
+    } else if (video?.owner_id) {
+      navigate(`/profile/${video.owner_id}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -180,6 +282,11 @@ const VideoPage = () => {
           isReactionLoading={reactionMutationPending}
           reactionMutationPending={reactionMutationPending}
           showViewsAndDate={true}
+          subscriberCount={subscriberCount}
+          isSubscribed={isSubscribed}
+          onSubscribe={handleSubscribe}
+          onProfileClick={handleProfileClick}
+          isSubscribing={isSubscribing}
         />
 
         <VideoDescription description={video.description} />
