@@ -13,6 +13,12 @@ interface MigrationStatus {
   completed: number;
   errors: number;
   estimatedTimeRemaining?: number;
+  errorDetails?: Array<{
+    videoId: string;
+    title: string;
+    error: string;
+    timestamp: string;
+  }>;
 }
 
 class VideoMigrationService {
@@ -62,9 +68,33 @@ class VideoMigrationService {
         try {
           await this.processVideoPreview(video, options);
           this.migrationStatus.completed++;
+          console.log(`✅ Successfully migrated video: ${video.title} (${video.id})`);
         } catch (error) {
-          console.error(`Failed to process video ${video.id}:`, error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          const errorDetails = {
+            videoId: video.id,
+            title: video.title,
+            videoUrl: video.video_url,
+            previewUrl: video.preview_url,
+            error: errorMessage,
+            timestamp: new Date().toISOString()
+          };
+          
+          console.error(`❌ Failed to process video ${video.id} (${video.title}):`, errorDetails);
           this.migrationStatus.errors++;
+          
+          // Store error details for later analysis
+          this.migrationStatus.errorDetails = this.migrationStatus.errorDetails || [];
+          this.migrationStatus.errorDetails.push(errorDetails);
+          
+          // Log specific error types for debugging
+          if (errorMessage.includes('fetch')) {
+            console.error('  → Network/fetch error - check video URL accessibility');
+          } else if (errorMessage.includes('WebP')) {
+            console.error('  → WebP conversion error - video format might be incompatible');
+          } else if (errorMessage.includes('Database')) {
+            console.error('  → Database error - check video record integrity');
+          }
         }
 
         this.migrationStatus.processed = i + 1;
@@ -93,30 +123,47 @@ class VideoMigrationService {
     video: any,
     options: MigrationOptions
   ) {
+    // Validate video data
+    if (!video.video_url) {
+      throw new Error('Video URL is missing');
+    }
+
     // Call the Supabase Edge Function to process video preview
     const { data, error } = await supabase.functions.invoke('process-video', {
       body: {
         videoId: video.id,
         videoUrl: video.video_url,
+        title: video.title || `video-${video.id}`,
         generateStatic: options.generateStatic,
         generateAnimated: options.generateAnimated,
         migrateToWebP: true
       }
     });
 
-    if (error) throw error;
+    if (error) {
+      throw new Error(`Edge function error: ${error.message || JSON.stringify(error)}`);
+    }
+
+    if (!data) {
+      throw new Error('No data returned from edge function');
+    }
 
     // Update the video record with new preview URLs
-    if (data?.preview_url) {
+    if (data.preview_url) {
       const { error: updateError } = await supabase
         .from('videos')
         .update({ 
           preview_url: data.preview_url,
-          thumbnail_url: data.thumbnail_url || video.thumbnail_url
+          thumbnail_url: data.thumbnail_url || video.thumbnail_url,
+          updated_at: new Date().toISOString()
         })
         .eq('id', video.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        throw new Error(`Database update error: ${updateError.message}`);
+      }
+    } else {
+      throw new Error('No preview URL generated');
     }
   }
 
