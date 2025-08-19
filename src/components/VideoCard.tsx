@@ -194,6 +194,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
         videoRef.current.src = video.preview_url;
         videoRef.current.load(); // Start loading immediately
       } else if (video.video_url) {
+        // Use Bunny CDN URL for hover preview if it's a Bunny CDN video
         const previewUrl = generateBunnyPreviewUrl(video.video_url, 5);
         videoRef.current.src = previewUrl;
         videoRef.current.load(); // Start loading immediately
