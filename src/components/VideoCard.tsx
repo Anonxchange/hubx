@@ -9,6 +9,7 @@ import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import VerificationBadge from './VerificationBadge'; // Added import for VerificationBadge
 import { useVideoReaction } from '@/hooks/useVideoReactions'; // Assuming useVideoReaction is in this path
 import { supabase } from '@/integrations/supabase/client'; // Imported supabase client
+import { VideoPreviewService } from '@/services/VideoPreviewService'; // Assuming VideoPreviewService is in this path
 
 interface Video {
   id: string;
@@ -224,18 +225,23 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           });
         }
       } else {
-        // No preview_url - use main video with optimized timestamps
+        // No preview_url - use main video with intelligent timestamp selection
         if (videoRef.current && video.video_url) {
-          videoRef.current.currentTime = 5;
+          // Get intelligent preview timestamps based on video duration
+          const previewTimes = VideoPreviewService.generatePreviewTimestamps(video.duration);
+          let timeIndex = 0;
+
+          // Start with first preview timestamp
+          const initialTime = previewTimes[0] || 5;
+          videoRef.current.currentTime = initialTime;
           videoRef.current.muted = true; // Ensure muted for autoplay
+          setCurrentPreviewTime(initialTime);
+
           videoRef.current.play().catch((error) => {
             console.error('Main video preview failed:', error);
           });
 
-          // Cycle through different timestamps for main video previews
-          const previewTimes = [5, 15, 30, 45];
-          let timeIndex = 0;
-
+          // Cycle through intelligent timestamps every 10 seconds
           previewCycleRef.current = setInterval(() => {
             timeIndex = (timeIndex + 1) % previewTimes.length;
             const newTime = previewTimes[timeIndex];
@@ -243,8 +249,9 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
             if (videoRef.current) {
               videoRef.current.currentTime = newTime;
+              console.log(`Switching to preview segment at ${newTime}s`);
             }
-          }, 2500); // Faster cycling
+          }, 10000); // 10 seconds per segment as requested
         }
       }
     }, event?.type === 'touchstart' ? 50 : 200); // Much faster response for touch - almost instant
