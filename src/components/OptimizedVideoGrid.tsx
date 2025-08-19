@@ -76,56 +76,10 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     hoverTimeoutRef.current = window.setTimeout(() => {
       setShowPreview(true);
 
-      if (videoRef.current) {
-        if (video.preview_url && video.preview_url.trim() !== '') {
-          const imageExtensions = /\.(webp|jpg|jpeg|png)$/i;
-          const isImagePreview = imageExtensions.test(video.preview_url);
-          if (!isImagePreview) {
-            videoRef.current.src = video.preview_url;
-            videoRef.current.currentTime = 0;
-            videoRef.current.muted = true; // Ensure muted for autoplay
-            videoRef.current.play().catch((error) => {
-              console.error('Video preview play failed:', error);
-              if (video.video_url) {
-                videoRef.current.src = video.video_url;
-                videoRef.current.currentTime = 10;
-                videoRef.current.play().catch(() => {});
-              }
-            });
-          }
-        } else if (video.video_url) {
-          videoRef.current.src = video.video_url;
-          videoRef.current.currentTime = 10;
-          videoRef.current.muted = true; // Ensure muted for autoplay
-          videoRef.current.play().catch((error) => {
-            console.error('Main video preview play failed:', error);
-          });
-
-          // Use intelligent preview timestamps based on video duration
-          const previewTimes = VideoPreviewService.generatePreviewTimestamps(video.duration);
-          let timeIndex = 0;
-
-          previewCycleRef.current = window.setInterval(() => {
-            if (videoRef.current && showPreview) {
-              timeIndex = (timeIndex + 1) % previewTimes.length;
-              const newTime = previewTimes[timeIndex];
-              setCurrentPreviewTime(newTime);
-
-              // Pause, seek, then play for smoother transitions
-              videoRef.current.pause();
-              videoRef.current.currentTime = newTime;
-
-              // Wait for seek to complete
-              setTimeout(() => {
-                if (videoRef.current && showPreview) {
-                  videoRef.current.play().catch(console.error);
-                }
-              }, 200);
-
-              console.log(`Optimized grid switching to preview segment at ${newTime}s`);
-            }
-          }, 10000); // Exactly 10 seconds per segment
-        }
+      // Only show WebP/image previews on hover - no video playback needed
+      if (video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url)) {
+        // WebP preview available - no need for video preview
+        console.log('Using WebP preview:', video.preview_url);
       }
     }, 300);
   };
@@ -139,31 +93,9 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     hoverTimeoutRef.current = window.setTimeout(() => {
       setShowPreview(true);
 
-      if (videoRef.current) {
-        if (video.preview_url && video.preview_url.trim() !== '') {
-          const imageExtensions = /\.(webp|jpg|jpeg|png)$/i;
-          const isImagePreview = imageExtensions.test(video.preview_url);
-          if (!isImagePreview) {
-            videoRef.current.src = video.preview_url;
-            videoRef.current.currentTime = 0;
-            videoRef.current.muted = true;
-            videoRef.current.play().catch((error) => {
-              console.error('Video preview play failed:', error);
-              if (video.video_url) {
-                videoRef.current.src = video.video_url;
-                videoRef.current.currentTime = 10;
-                videoRef.current.play().catch(() => {});
-              }
-            });
-          }
-        } else if (video.video_url) {
-          videoRef.current.src = video.video_url;
-          videoRef.current.currentTime = 10;
-          videoRef.current.muted = true;
-          videoRef.current.play().catch((error) => {
-            console.error('Main video preview play failed:', error);
-          });
-        }
+      // For touch devices, just show WebP preview if available
+      if (video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url)) {
+        console.log('Touch: Using WebP preview:', video.preview_url);
       }
     }, 50); // Almost instant for touch
   };
@@ -250,7 +182,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                   className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
                   loading="lazy"
                   onError={(e) => {
-                    // Fallback to video preview if WebP fails
+                    console.error('WebP preview failed to load:', video.preview_url);
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
                   }}
@@ -258,15 +190,6 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                     filter: 'contrast(0.9) brightness(0.95)',
                     imageRendering: 'auto'
                   }}
-                />
-              )}
-              {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url || '')) && (
-                <video
-                  ref={videoRef}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
-                  muted
-                  playsInline
-                  preload="metadata"
                 />
               )}
               <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
@@ -367,37 +290,22 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               showPreview ? 'opacity-0' : 'opacity-100'
             }`}
           />
-          {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url || '')) && (
-            <>
-              <video
-                ref={videoRef}
-                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isVideoReady ? 'opacity-100' : 'opacity-0'}`}
-                muted
-                playsInline
-                preload="metadata"
-                style={{ 
-                  filter: 'contrast(0.9) brightness(0.95)',
-                  imageRendering: 'auto'
-                }}
-                onLoadStart={() => setIsVideoLoading(true)}
-                onCanPlay={() => {
-                  setIsVideoReady(true);
-                  setIsVideoLoading(false);
-                }}
-                onWaiting={() => setIsVideoLoading(true)}
-                onPlaying={() => setIsVideoLoading(false)}
-                onError={() => {
-                  setIsVideoLoading(false);
-                  setIsVideoReady(false);
-                }}
-              />
-              {/* Loading indicator */}
-              {isVideoLoading && (
-                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                </div>
-              )}
-            </>
+          {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
+            <img
+              src={video.preview_url}
+              alt={`${video.title} preview`}
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+              loading="lazy"
+              style={{ 
+                filter: 'contrast(0.9) brightness(0.95)',
+                imageRendering: 'auto'
+              }}
+              onError={(e) => {
+                console.error('Grid WebP preview failed:', video.preview_url);
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
+            />
           )}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
