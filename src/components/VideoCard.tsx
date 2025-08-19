@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { LazyImage } from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import VerificationBadge from './VerificationBadge'; // Added import for VerificationBadge
-import { useVideoReaction } from '@/hooks/useVideoReaction'; // Assuming useVideoReaction is in this path
+import { useVideoReaction } from '@/hooks/useVideoReactions'; // Assuming useVideoReaction is in this path
 import { supabase } from '@/integrations/supabase/client'; // Imported supabase client
 
 interface Video {
@@ -164,6 +164,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       // Check if preview_url is an image/animation (including animated WebP)
       if (video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
         // It's an image/animation preview - no video logic needed, just show it
+        console.log('Showing animated preview for:', video.preview_url);
         return;
       } else if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
         // It's a video preview
@@ -381,7 +382,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                     <Card className="h-6 w-6"> {/* Using Card for avatar container as per original structure, but Avatar is better */}
                       <CardContent className="p-0"> {/* Empty CardContent to ensure styling */}
                         <LazyImage
-                          src={creator.avatar}
+                          src={creator.avatar || ''}
                           alt={creator.displayName}
                           className="h-6 w-6 rounded-full object-cover"
                           fallbackComponent={
@@ -480,7 +481,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                 <img
                   src={video.preview_url}
                   alt={`${video.title} preview`}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100 z-10"
                   onLoad={() => console.log('Animated image loaded:', video.preview_url)}
                   onError={(e) => console.error('Image load error:', e, video.preview_url)}
                 />
@@ -548,7 +549,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                 <Card className="h-6 w-6"> {/* Using Card for avatar container */}
                   <CardContent className="p-0"> {/* Empty CardContent */}
                     <LazyImage
-                      src={creator.avatar}
+                      src={creator.avatar || ''}
                       alt={creator.displayName}
                       className="h-6 w-6 rounded-full object-cover"
                       fallbackComponent={
