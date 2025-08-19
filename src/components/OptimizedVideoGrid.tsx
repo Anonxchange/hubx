@@ -145,12 +145,12 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   if (viewMode === 'list') {
     return (
-      <Link to={`/video/${video.id}`} className="block w-full">
-        <Card className="hover:bg-muted/5 transition-colors">
-          <CardContent className="p-3 flex space-x-3">
+      <Card className="hover:bg-muted/5 transition-colors">
+        <CardContent className="p-3 flex space-x-3">
+          <Link to={`/video/${video.id}`} className="block w-40 flex-shrink-0">
             {/* thumbnail + preview */}
             <div
-              className="relative w-40 bg-muted rounded-lg overflow-hidden flex-shrink-0"
+              className="relative w-full bg-muted rounded-lg overflow-hidden"
               style={{ 
                 aspectRatio: '16/9',
                 touchAction: 'manipulation',
@@ -174,34 +174,38 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 className="w-full h-full object-cover"
               />
               {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
-                <img
-                  src={video.preview_url}
-                  alt={`${video.title} preview`}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
-                  loading="lazy"
-                  style={{ 
-                    filter: 'contrast(0.9) brightness(0.95)',
-                    imageRendering: 'auto',
-                    pointerEvents: 'none'
-                  }}
-                  onError={(e) => {
-                    console.error('WebP preview failed to load:', video.preview_url);
-                    const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
-                  }}
-                />
+                <>
+                  <img
+                    src={video.preview_url}
+                    alt={`${video.title} preview`}
+                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
+                    loading="eager"
+                    style={{ 
+                      filter: 'contrast(0.9) brightness(0.95)',
+                      imageRendering: 'auto',
+                      pointerEvents: 'none',
+                      zIndex: 1
+                    }}
+                    onLoad={() => console.log('List WebP preview loaded successfully:', video.preview_url)}
+                    onError={(e) => {
+                      console.error('WebP preview failed to load:', video.preview_url);
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
+                  />
+                  {/* Loading bar at bottom when preview is loading */}
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-black/30 z-10">
+                    <div className="h-full bg-orange-500 animate-pulse" style={{ width: '100%' }}></div>
+                  </div>
+                </>
               )}
-              {/* Loading bar at bottom when preview is loading */}
-              {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
-                <div className="absolute bottom-0 left-0 w-full h-1 bg-black/30">
-                  <div className="h-full bg-orange-500 animate-pulse" style={{ width: '100%' }}></div>
-                </div>
-              )}
-              <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+              <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded z-20">
                 {video.duration}
               </div>
             </div>
+          </Link>
             {/* details */}
+          <Link to={`/video/${video.id}`} className="flex-1">
             <div className="flex-1 space-y-2">
               <h3 className="font-semibold text-lg line-clamp-2 leading-tight">{video.title}</h3>
               {video.description && (
@@ -258,9 +262,9 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 <span>{formatDate(video.created_at)}</span>
               </div>
             </div>
+          </Link>
           </CardContent>
         </Card>
-      </Link>
     );
   }
 
@@ -294,28 +298,30 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             className="w-full h-full object-cover"
           />
           {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
-            <img
-              src={video.preview_url}
-              alt={`${video.title} preview`}
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
-              loading="lazy"
-              style={{ 
-                filter: 'contrast(0.9) brightness(0.95)',
-                imageRendering: 'auto',
-                pointerEvents: 'none'
-              }}
-              onError={(e) => {
-                console.error('Grid WebP preview failed:', video.preview_url);
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-              }}
-            />
-          )}
-          {/* Loading bar at bottom when preview is loading */}
-          {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
-            <div className="absolute bottom-0 left-0 w-full h-1 bg-black/30">
-              <div className="h-full bg-orange-500 animate-pulse" style={{ width: '100%' }}></div>
-            </div>
+            <>
+              <img
+                src={video.preview_url}
+                alt={`${video.title} preview`}
+                className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
+                loading="eager"
+                style={{ 
+                  filter: 'contrast(0.9) brightness(0.95)',
+                  imageRendering: 'auto',
+                  pointerEvents: 'none',
+                  zIndex: 1
+                }}
+                onLoad={() => console.log('WebP preview loaded successfully:', video.preview_url)}
+                onError={(e) => {
+                  console.error('Grid WebP preview failed:', video.preview_url);
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                }}
+              />
+              {/* Loading bar at bottom when preview is loading */}
+              <div className="absolute bottom-0 left-0 w-full h-1 bg-black/30 z-10">
+                <div className="h-full bg-orange-500 animate-pulse" style={{ width: '100%' }}></div>
+              </div>
+            </>
           )}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
@@ -362,7 +368,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="p-1 rounded-full hover:bg-muted transition-colors"
+                  className="p-1 rounded-full hover:bg-muted transition-colors z-10 relative"
                   onClick={handleActionClick}
                 >
                   <MoreVertical className="w-3 h-3 text-muted-foreground" />
