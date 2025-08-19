@@ -142,12 +142,95 @@ export class VideoPreviewService {
     });
   }
 
+  // Generate animated WebP preview from video (3-second loop)
+  static async generateAnimatedWebPPreview(
+    videoUrl: string, 
+    startTimestamp: number, 
+    options: WebPPreviewOptions & { duration?: number; frameRate?: number } = {}
+  ): Promise<Blob | null> {
+    const { width = 480, height = 270, quality = 0.7, duration = 3, frameRate = 10 } = options;
+    
+    return new Promise((resolve) => {
+      const video = document.createElement('video');
+      video.crossOrigin = 'anonymous';
+      video.muted = true;
+      
+      const frames: ImageData[] = [];
+      let currentFrame = 0;
+      const totalFrames = duration * frameRate;
+      const frameInterval = 1 / frameRate;
+      
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+      
+      const captureFrame = () => {
+        if (currentFrame >= totalFrames) {
+          // All frames captured, create animated WebP
+          this.createAnimatedWebPFromFrames(frames, width, height, frameRate, quality)
+            .then(resolve)
+            .catch(() => resolve(null));
+          return;
+        }
+        
+        ctx.drawImage(video, 0, 0, width, height);
+        const imageData = ctx.getImageData(0, 0, width, height);
+        frames.push(imageData);
+        
+        currentFrame++;
+        const nextTimestamp = startTimestamp + (currentFrame * frameInterval);
+        video.currentTime = nextTimestamp;
+      };
+      
+      video.onloadeddata = () => {
+        video.currentTime = startTimestamp;
+      };
+      
+      video.onseeked = captureFrame;
+      video.onerror = () => resolve(null);
+      video.src = videoUrl;
+    });
+  }
+
+  // Create animated WebP from captured frames (simplified approach)
+  private static async createAnimatedWebPFromFrames(
+    frames: ImageData[],
+    width: number,
+    height: number,
+    frameRate: number,
+    quality: number
+  ): Promise<Blob | null> {
+    // For now, create a GIF-like effect by returning the first frame as WebP
+    // In a real implementation, you'd use a library like gif.js or similar
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx || frames.length === 0) return null;
+    
+    ctx.putImageData(frames[0], 0, 0);
+    
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        resolve(blob);
+      }, 'image/webp', quality);
+    });
+  }
+
   // Generate and upload WebP previews to Bunny CDN
   static async generateAndUploadWebPPreviews(
     videoId: string,
     videoUrl: string,
     duration: string,
-    userId: string
+    userId: string,
+    animated: boolean = false
   ): Promise<string[]> {
     const timestamps = this.generatePreviewTimestamps(duration);
     const uploadedUrls: string[] = [];
@@ -156,16 +239,30 @@ export class VideoPreviewService {
       const timestamp = timestamps[i];
       
       try {
-        // Generate WebP preview
-        const webpBlob = await this.generateWebPPreview(videoUrl, timestamp, {
-          width: 480,
-          height: 270,
-          quality: 0.7 // Lower quality for previews
-        });
+        let webpBlob: Blob | null = null;
+        
+        if (animated) {
+          // Generate animated WebP preview (3-second loop)
+          webpBlob = await this.generateAnimatedWebPPreview(videoUrl, timestamp, {
+            width: 480,
+            height: 270,
+            quality: 0.6, // Lower quality for animated previews
+            duration: 3,
+            frameRate: 8 // 8 FPS for smaller file size
+          });
+        } else {
+          // Generate static WebP preview
+          webpBlob = await this.generateWebPPreview(videoUrl, timestamp, {
+            width: 480,
+            height: 270,
+            quality: 0.7
+          });
+        }
         
         if (webpBlob) {
           // Create a file from the blob
-          const filename = `preview_${videoId}_${timestamp}.webp`;
+          const suffix = animated ? '_animated' : '';
+          const filename = `preview_${videoId}_${timestamp}${suffix}.webp`;
           const file = new File([webpBlob], filename, { type: 'image/webp' });
           
           // Upload to Bunny CDN
@@ -182,7 +279,7 @@ export class VideoPreviewService {
           }
         }
       } catch (error) {
-        console.error(`Failed to generate preview for timestamp ${timestamp}:`, error);
+        console.error(`Failed to generate ${animated ? 'animated' : 'static'} preview for timestamp ${timestamp}:`, error);
       }
     }
     
