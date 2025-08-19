@@ -50,6 +50,8 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [currentPreviewTime, setCurrentPreviewTime] = useState(0);
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
   const previewCycleRef = useRef<number | null>(null);
@@ -104,15 +106,25 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           let timeIndex = 0;
 
           previewCycleRef.current = window.setInterval(() => {
-            timeIndex = (timeIndex + 1) % previewTimes.length;
-            const newTime = previewTimes[timeIndex];
-            setCurrentPreviewTime(newTime);
+            if (videoRef.current && showPreview) {
+              timeIndex = (timeIndex + 1) % previewTimes.length;
+              const newTime = previewTimes[timeIndex];
+              setCurrentPreviewTime(newTime);
 
-            if (videoRef.current) {
+              // Pause, seek, then play for smoother transitions
+              videoRef.current.pause();
               videoRef.current.currentTime = newTime;
+              
+              // Wait for seek to complete
+              setTimeout(() => {
+                if (videoRef.current && showPreview) {
+                  videoRef.current.play().catch(console.error);
+                }
+              }, 200);
+              
               console.log(`Optimized grid switching to preview segment at ${newTime}s`);
             }
-          }, 10000); // 10 seconds per segment as requested
+          }, 10000); // Exactly 10 seconds per segment
         }
       }
     }, 300);
@@ -167,6 +179,8 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     setIsHovered(false);
     setShowPreview(false);
     setCurrentPreviewTime(0);
+    setIsVideoLoading(false);
+    setIsVideoReady(false);
 
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
@@ -345,13 +359,36 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             }`}
           />
           {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url || '')) && (
-            <video
-              ref={videoRef}
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
-              muted
-              playsInline
-              preload="metadata"
-            />
+            <>
+              <video
+                ref={videoRef}
+                className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${isVideoReady ? 'opacity-100' : 'opacity-0'}`}
+                muted
+                playsInline
+                preload="metadata"
+                style={{ 
+                  filter: 'contrast(0.9) brightness(0.95)',
+                  imageRendering: 'auto'
+                }}
+                onLoadStart={() => setIsVideoLoading(true)}
+                onCanPlay={() => {
+                  setIsVideoReady(true);
+                  setIsVideoLoading(false);
+                }}
+                onWaiting={() => setIsVideoLoading(true)}
+                onPlaying={() => setIsVideoLoading(false)}
+                onError={() => {
+                  setIsVideoLoading(false);
+                  setIsVideoReady(false);
+                }}
+              />
+              {/* Loading indicator */}
+              {isVideoLoading && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                  <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              )}
+            </>
           )}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
