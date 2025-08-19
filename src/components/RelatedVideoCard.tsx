@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ThumbsUp } from 'lucide-react';
@@ -55,11 +54,31 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [creatorProfile, setCreatorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { shouldLoadPreview } = useBandwidthOptimization();
   const isMobile = useIsMobile();
+
+  // Generate computed preview URL based on video properties
+  const computedPreviewUrl = React.useMemo(() => {
+    if (video.preview_url) {
+      // If preview_url is already provided and seems like a direct image/video URL
+      if (/\.(webp|gif|jpg|jpeg|png|mp4|webm)$/i.test(video.preview_url)) {
+        return video.preview_url;
+      }
+      // Handle cases where preview_url might be a base for generating the actual URL
+      // Example: if preview_url is a timestamp or part of a CDN URL structure
+      // This is a placeholder and might need adjustment based on actual data
+      if (video.preview_url.includes('bunnycdn.com') || video.preview_url.includes('b-cdn.net')) {
+        // Assuming previews are typically at 2 seconds for Bunny CDN videos
+        return `${video.preview_url}#t=2`;
+      }
+    }
+    // Fallback to thumbnail if no specific preview URL is available or usable
+    return video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=120&fit=crop';
+  }, [video.preview_url, video.thumbnail_url]);
+
 
   // Fetch creator profile information
   useEffect(() => {
@@ -150,6 +169,25 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
     return videoUrl;
   };
 
+  // Check if we have a valid preview URL
+  const hasValidPreviewUrl = () => {
+    return video.preview_url && 
+           typeof video.preview_url === 'string' && 
+           video.preview_url.trim() !== '' &&
+           video.preview_url !== 'undefined' &&
+           video.preview_url !== 'null';
+  };
+
+  // Check if the preview URL is an image/animation
+  const isImagePreview = () => {
+    return hasValidPreviewUrl() && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url!);
+  };
+
+  // Check if the preview URL is a video
+  const isVideoPreview = () => {
+    return hasValidPreviewUrl() && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url!);
+  };
+
   const handleHoverStart = (event?: React.TouchEvent | React.MouseEvent) => {
     setIsHovered(true);
 
@@ -158,28 +196,22 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
       return;
     }
 
-    // Preload video immediately on hover for instant playback
-    if (videoRef.current) {
-      if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        videoRef.current.src = video.preview_url;
-        videoRef.current.load();
-      } else if (video.video_url) {
-        const previewUrl = generateBunnyPreviewUrl(video.video_url, 5);
-        videoRef.current.src = previewUrl;
-        videoRef.current.load();
-      }
+    // Only preload video if we have a valid preview URL
+    if (videoRef.current && isVideoPreview()) {
+      videoRef.current.src = video.preview_url!;
+      videoRef.current.load();
     }
 
     // Show preview with appropriate delay
     hoverTimeoutRef.current = setTimeout(() => {
-      setShowPreview(true);
-      setIsVideoReady(false);
-
-      // Check if preview_url is an image/animation
-      if (video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
+      if (isImagePreview()) {
+        // Image/animation preview - show immediately
+        setShowPreview(true);
         setIsVideoReady(true);
-        return;
-      } else if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
+      } else if (isVideoPreview()) {
+        // Video preview - start playing
+        setShowPreview(true);
+        setIsVideoReady(false);
         if (videoRef.current) {
           videoRef.current.currentTime = 0;
           videoRef.current.muted = true;
@@ -189,6 +221,8 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
           });
         }
       } else {
+        // No preview URL available - don't play any video
+        console.log('No preview URL available for:', video.title, '- skipping video preview');
         setShowPreview(false);
       }
     }, event?.type === 'touchstart' ? 50 : 200);
@@ -208,7 +242,7 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
       videoRef.current.currentTime = 0;
       videoRef.current.src = '';
     }
-    
+
     setIsVideoLoading(false);
     setIsVideoReady(false);
   };
@@ -250,32 +284,23 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
               src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=120&fit=crop'}
               alt={video.title}
               className={`w-full h-full object-cover transition-opacity duration-300 ${
-                (showPreview || (isHovered && video.preview_url && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url))) ? 'opacity-0' : 'opacity-100'
+                (showPreview || (isHovered && isImagePreview())) ? 'opacity-0' : 'opacity-100'
               }`}
             />
-            
+
             {/* Animated preview (WebP/GIF) */}
-            {video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && isHovered && (
+            {isImagePreview() && isHovered && (
               <img
-                src={video.preview_url}
+                src={computedPreviewUrl!}
                 alt={`${video.title} preview`}
                 className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100 z-10"
-                onError={(e) => console.error('Image load error:', e, video.preview_url)}
-              />
-            )}
-            
-            {/* Animated preview (WebP/GIF) */}
-            {video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && isHovered && (
-              <img
-                src={video.preview_url}
-                alt={`${video.title} preview`}
-                className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100 z-10"
-                onError={(e) => console.error('Image load error:', e, video.preview_url)}
+                onLoad={() => console.log('Image preview loaded:', computedPreviewUrl)}
+                onError={(e) => console.error('Image load error:', e, computedPreviewUrl)}
               />
             )}
 
             {/* Video preview */}
-            {showPreview && video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && (
+            {showPreview && isVideoPreview() && (
               <video
                 ref={videoRef}
                 className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
@@ -310,13 +335,13 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
                 }}
               />
             )}
-            
+
             {video.duration && (
               <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
                 {video.duration}
               </div>
             )}
-            
+
             {/* Loading indicator */}
             {showPreview && isVideoLoading && (
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -324,14 +349,14 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
               </div>
             )}
           </div>
-          
+
           <div className="flex-1 min-w-0">
             <h4 className={`font-medium line-clamp-2 mb-1 ${
               viewMode === 'grid' ? 'text-sm' : 'text-xs'
             }`}>
               {video.title}
             </h4>
-            
+
             {/* Creator info with profile picture */}
             {!loading && creatorProfile && (
               <div className="flex items-center space-x-2 mb-1">
@@ -347,11 +372,11 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
                 </span>
               </div>
             )}
-            
+
             <p className="text-xs text-muted-foreground">
               {formatViews(video.views || 0)} views
             </p>
-            
+
             {viewMode === 'grid' && (
               <div className="flex items-center space-x-1 mt-1">
                 <ThumbsUp className="w-3 h-3" />
