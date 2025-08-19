@@ -90,6 +90,10 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const isValidUrl = (url: string) => {
     if (!url || url.trim() === '') return false;
     try {
+      // Handle relative URLs and data URLs
+      if (url.startsWith('/') || url.startsWith('data:') || url.startsWith('blob:')) {
+        return true;
+      }
       new URL(url);
       return true;
     } catch {
@@ -181,17 +185,27 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartTime(Date.now());
-    setIsHovered(true);
     
-    // Start preview after a longer delay for touch to distinguish from taps
-    touchTimeoutRef.current = window.setTimeout(() => {
-      startPreview();
+    // For image/webp previews, show immediately
+    if (video.preview_url && isValidUrl(video.preview_url) && isImagePreview(video.preview_url)) {
+      setIsHovered(true);
       
-      // Auto-hide preview after 2 seconds on mobile to prevent blocking clicks
+      // Auto-hide after 2 seconds to allow clicking
       setTimeout(() => {
-        stopPreview();
+        setIsHovered(false);
       }, 2000);
-    }, 500);
+    } else {
+      // For video previews, use longer delay
+      touchTimeoutRef.current = window.setTimeout(() => {
+        setIsHovered(true);
+        startPreview();
+        
+        // Auto-hide preview after 3 seconds on mobile
+        setTimeout(() => {
+          stopPreview();
+        }, 3000);
+      }, 300);
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -204,15 +218,18 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       touchTimeoutRef.current = null;
     }
     
-    // If it's a quick tap (less than 400ms), stop any preview and allow navigation
-    if (touchDuration < 400) {
-      stopPreview();
-      // Don't prevent default - allow normal link navigation
+    // If it's a quick tap (less than 200ms), allow immediate navigation
+    if (touchDuration < 200) {
+      if (!(video.preview_url && isImagePreview(video.preview_url))) {
+        stopPreview();
+      }
       return;
     }
     
-    // For longer touches, still allow navigation after preview
-    stopPreview();
+    // Prevent default only for longer touches to show preview
+    if (touchDuration >= 200) {
+      e.preventDefault();
+    }
   };
 
   const formatViews = (views: number) => {
@@ -229,7 +246,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     });
 
   const renderPreview = () => {
-    if (!showPreview) return null;
+    if (!showPreview && !isHovered) return null;
 
     // Show image/gif/webp previews immediately on hover
     if (video.preview_url && isValidUrl(video.preview_url) && isImagePreview(video.preview_url)) {
@@ -237,10 +254,17 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         <img
           src={video.preview_url}
           alt={`${video.title} preview`}
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
-          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10"
+          loading="eager"
+          style={{ 
+            imageRendering: 'auto',
+            opacity: isHovered ? 1 : 0 
+          }}
+          onLoad={() => {
+            console.log('WebP/Image preview loaded successfully:', video.preview_url);
+          }}
           onError={(e) => {
-            console.error('Preview image failed to load:', video.preview_url);
+            console.error('Preview image failed to load:', video.preview_url, e);
             setShowPreview(false);
           }}
         />
@@ -251,16 +275,17 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     const hasValidPreview = video.preview_url && isValidUrl(video.preview_url) && isVideoPreview(video.preview_url);
     const hasValidVideo = video.video_url && isValidUrl(video.video_url);
     
-    if (hasValidPreview || hasValidVideo) {
+    if (showPreview && (hasValidPreview || hasValidVideo)) {
       return (
         <video
           ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10"
           muted
           playsInline
           preload="none"
+          controls={false}
           onError={(e) => {
-            console.error('Preview video failed to load:', video.preview_url || video.video_url);
+            console.error('Preview video failed to load:', video.preview_url || video.video_url, e);
             setShowPreview(false);
           }}
         />
