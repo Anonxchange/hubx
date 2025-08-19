@@ -220,47 +220,13 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           videoRef.current.muted = true; // Ensure muted for autoplay
           videoRef.current.play().catch((error) => {
             console.error('Video preview play failed:', error);
-            // Fallback to main video if preview fails
-            if (video.video_url && videoRef.current) {
-              const fallbackUrl = generateBunnyPreviewUrl(video.video_url, 5);
-              videoRef.current.src = fallbackUrl;
-              videoRef.current.currentTime = 5;
-              videoRef.current.load();
-              videoRef.current.play().catch(() => {
-                console.error('Fallback video also failed');
-              });
-            }
+            setShowPreview(false);
           });
         }
       } else {
-        // No preview_url - use main video with intelligent timestamp selection
-        if (videoRef.current && video.video_url) {
-          // Get intelligent preview timestamps based on video duration
-          const previewTimes = VideoPreviewService.generatePreviewTimestamps(video.duration);
-          let timeIndex = 0;
-
-          // Start with first preview timestamp
-          const initialTime = previewTimes[0] || 5;
-          videoRef.current.currentTime = initialTime;
-          videoRef.current.muted = true; // Ensure muted for autoplay
-          setCurrentPreviewTime(initialTime);
-
-          videoRef.current.play().catch((error) => {
-            console.error('Main video preview failed:', error);
-          });
-
-          // Cycle through intelligent timestamps every 10 seconds
-          previewCycleRef.current = setInterval(() => {
-            timeIndex = (timeIndex + 1) % previewTimes.length;
-            const newTime = previewTimes[timeIndex];
-            setCurrentPreviewTime(newTime);
-
-            if (videoRef.current) {
-              videoRef.current.currentTime = newTime;
-              console.log(`Switching to preview segment at ${newTime}s`);
-            }
-          }, 10000); // 10 seconds per segment as requested
-        }
+        // No valid preview_url - don't play any video
+        console.log('No valid preview URL found, skipping video preview');
+        setShowPreview(false);
       }
     }, event?.type === 'touchstart' ? 50 : 200); // Much faster response for touch - almost instant
   };
