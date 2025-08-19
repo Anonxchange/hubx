@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Search, Users, Play, Eye, TrendingUp, Star, Crown, Check, Heart } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ interface Channel {
 }
 
 const ChannelPage = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [channels, setChannels] = useState<Channel[]>([]);
@@ -158,14 +160,78 @@ const ChannelPage = () => {
     e.preventDefault();
   };
 
-  const handleFollow = (channelId: string) => {
-    setChannels(prevChannels =>
-      prevChannels.map(channel =>
-        channel.id === channelId
-          ? { ...channel, isFollowing: !channel.isFollowing }
-          : channel
-      )
-    );
+  const handleFollow = async (e: React.MouseEvent, channelId: string) => {
+    e.stopPropagation(); // Prevent card click navigation
+    
+    if (!user) {
+      alert('Please login to subscribe to creators');
+      navigate('/auth');
+      return;
+    }
+
+    const channel = channels.find(c => c.id === channelId);
+    if (!channel) return;
+
+    try {
+      if (channel.isFollowing) {
+        // Unsubscribe
+        const { error } = await supabase
+          .from('subscriptions')
+          .delete()
+          .eq('subscriber_id', user.id)
+          .eq('creator_id', channelId);
+
+        if (error) {
+          console.error('Error unsubscribing:', error);
+          alert('Failed to unsubscribe. Please try again.');
+          return;
+        }
+      } else {
+        // Subscribe
+        const { error } = await supabase
+          .from('subscriptions')
+          .insert({
+            subscriber_id: user.id,
+            creator_id: channelId,
+            created_at: new Date().toISOString()
+          });
+
+        if (error) {
+          console.error('Error subscribing:', error);
+          alert('Failed to subscribe. Please try again.');
+          return;
+        }
+      }
+
+      // Update local state
+      setChannels(prevChannels =>
+        prevChannels.map(ch =>
+          ch.id === channelId
+            ? { 
+                ...ch, 
+                isFollowing: !ch.isFollowing,
+                subscribers: ch.isFollowing ? ch.subscribers - 1 : ch.subscribers + 1
+              }
+            : ch
+        )
+      );
+      
+      setFilteredChannels(prevChannels =>
+        prevChannels.map(ch =>
+          ch.id === channelId
+            ? { 
+                ...ch, 
+                isFollowing: !ch.isFollowing,
+                subscribers: ch.isFollowing ? ch.subscribers - 1 : ch.subscribers + 1
+              }
+            : ch
+        )
+      );
+
+    } catch (error) {
+      console.error('Error updating subscription:', error);
+      alert('An error occurred. Please try again.');
+    }
   };
 
   return (
@@ -252,7 +318,11 @@ const ChannelPage = () => {
             {/* Channels Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
               {filteredChannels.map((channel) => (
-            <Card key={channel.id} className="bg-card border-border hover:border-orange-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-orange-500/10 group overflow-hidden">
+            <Card 
+              key={channel.id} 
+              className="bg-card border-border hover:border-orange-500/50 transition-all duration-300 hover:shadow-xl hover:shadow-orange-500/10 group overflow-hidden cursor-pointer"
+              onClick={() => navigate(`/profile/${channel.username || channel.id}`)}
+            >
               <CardContent className="p-0">
                 {/* Card Header with Rank Badge */}
                 <div className="relative p-6 pb-4">
@@ -346,7 +416,7 @@ const ChannelPage = () => {
                 {/* Subscribe Button */}
                 <div className="p-6 pt-0">
                   <Button
-                    onClick={() => handleFollow(channel.id)}
+                    onClick={(e) => handleFollow(e, channel.id)}
                     className={`w-full font-semibold transition-all ${
                       channel.isFollowing
                         ? 'bg-green-600 hover:bg-green-700 text-white'
