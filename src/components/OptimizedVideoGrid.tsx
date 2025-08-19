@@ -48,10 +48,23 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [currentPreviewTime, setCurrentPreviewTime] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
+  const [touchStartTime, setTouchStartTime] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
   const previewCycleRef = useRef<number | null>(null);
+  const touchTimeoutRef = useRef<number | null>(null);
   const { shouldLoadPreview } = useBandwidthOptimization();
+
+  // Detect mobile device
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const handleActionClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -64,12 +77,10 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     console.log('Adding to watch later:', video.title);
   };
 
-  const isImagePreview = (url: string) => /\.(jpg|jpeg|png)$/i.test(url);
-  const isWebpPreview = (url: string) => /\.webp$/i.test(url);
+  const isImagePreview = (url: string) => /\.(jpg|jpeg|png|webp|gif)$/i.test(url);
   const isVideoPreview = (url: string) => /\.(mp4|mov|webm)$/i.test(url);
 
-  const handleMouseEnter = () => {
-    setIsHovered(true);
+  const startPreview = () => {
     if (!shouldLoadPreview) return;
 
     hoverTimeoutRef.current = window.setTimeout(() => {
@@ -80,6 +91,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           if (isVideoPreview(video.preview_url)) {
             videoRef.current.src = video.preview_url;
             videoRef.current.currentTime = 0;
+            videoRef.current.muted = true;
             videoRef.current.play().catch((error) => {
               console.error('Video preview play failed:', error);
             });
@@ -87,6 +99,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         } else if (video.video_url) {
           videoRef.current.src = video.video_url;
           videoRef.current.currentTime = 10;
+          videoRef.current.muted = true;
           videoRef.current.play().catch((error) => {
             console.error('Main video preview play failed:', error);
           });
@@ -105,10 +118,10 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           }, 3000);
         }
       }
-    }, 500);
+    }, isMobile ? 100 : 500);
   };
 
-  const handleMouseLeave = () => {
+  const stopPreview = () => {
     setIsHovered(false);
     setShowPreview(false);
     setCurrentPreviewTime(0);
@@ -121,12 +134,59 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       clearInterval(previewCycleRef.current);
       previewCycleRef.current = null;
     }
+    if (touchTimeoutRef.current) {
+      clearTimeout(touchTimeoutRef.current);
+      touchTimeoutRef.current = null;
+    }
 
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
       videoRef.current.src = '';
     }
+  };
+
+  const handleMouseEnter = () => {
+    if (isMobile) return; // Don't handle mouse events on mobile
+    setIsHovered(true);
+    startPreview();
+  };
+
+  const handleMouseLeave = () => {
+    if (isMobile) return; // Don't handle mouse events on mobile
+    stopPreview();
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    setTouchStartTime(Date.now());
+    setIsHovered(true);
+    
+    // Start preview after a short delay for touch
+    touchTimeoutRef.current = window.setTimeout(() => {
+      startPreview();
+      
+      // Auto-hide preview after 3 seconds on mobile to prevent blocking clicks
+      setTimeout(() => {
+        if (showPreview) {
+          stopPreview();
+        }
+      }, 3000);
+    }, 200);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const touchEndTime = Date.now();
+    const touchDuration = touchStartTime ? touchEndTime - touchStartTime : 0;
+    
+    // If it's a quick tap (less than 300ms), treat it as a click
+    if (touchDuration < 300) {
+      stopPreview();
+      // Allow the link to work normally for navigation
+      return;
+    }
+    
+    e.preventDefault();
   };
 
   const formatViews = (views: number) => {
@@ -143,32 +203,27 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     });
 
   const renderPreview = () => {
-    if (!showPreview || !video.preview_url) return null;
+    if (!showPreview) return null;
 
-    if (isImagePreview(video.preview_url)) {
+    // Show image/gif/webp previews immediately on hover
+    if (video.preview_url && video.preview_url.trim() !== '' && isImagePreview(video.preview_url)) {
       return (
         <img
           src={video.preview_url}
           alt={`${video.title} preview`}
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
           loading="lazy"
+          onError={(e) => {
+            console.error('Preview image failed to load:', video.preview_url);
+            // Hide preview on error
+            setShowPreview(false);
+          }}
         />
       );
     }
 
-    if (isWebpPreview(video.preview_url)) {
-      // Animated or static webp - browser handles it
-      return (
-        <img
-          src={video.preview_url}
-          alt={`${video.title} preview`}
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
-          loading="lazy"
-        />
-      );
-    }
-
-    if (isVideoPreview(video.preview_url) || video.video_url) {
+    // Show video previews with proper handling
+    if ((video.preview_url && video.preview_url.trim() !== '' && isVideoPreview(video.preview_url)) || video.video_url) {
       return (
         <video
           ref={videoRef}
@@ -176,6 +231,11 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           muted
           playsInline
           preload="metadata"
+          onError={(e) => {
+            console.error('Preview video failed to load:', video.preview_url || video.video_url);
+            // Hide preview on error
+            setShowPreview(false);
+          }}
         />
       );
     }
@@ -191,9 +251,14 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             {/* thumbnail + preview */}
             <div
               className="relative w-40 bg-muted rounded-lg overflow-hidden flex-shrink-0"
-              style={{ aspectRatio: '16/9' }}
+              style={{ 
+                aspectRatio: '16/9',
+                touchAction: 'manipulation'
+              }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
+              onTouchStart={isMobile ? handleTouchStart : undefined}
+              onTouchEnd={isMobile ? handleTouchEnd : undefined}
             >
               <LazyImage
                 src={
@@ -280,12 +345,18 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     <Link to={`/video/${video.id}`} className="block w-full">
       <div
         className="group hover:bg-muted/5 transition-all duration-200 w-full"
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
       >
         <div
           className="relative bg-muted overflow-hidden rounded-xl w-full"
-          style={{ aspectRatio: '16/9', height: 'auto' }}
+          style={{ 
+            aspectRatio: '16/9', 
+            height: 'auto',
+            touchAction: 'manipulation'
+          }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onTouchStart={isMobile ? handleTouchStart : undefined}
+          onTouchEnd={isMobile ? handleTouchEnd : undefined}
         >
           <LazyImage
             src={
