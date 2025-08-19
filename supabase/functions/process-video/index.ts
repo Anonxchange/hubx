@@ -34,6 +34,21 @@ async function generatePreview(videoBlob: Blob): Promise<Blob> {
   return videoBlob
 }
 
+async function convertToWebP(blob: Blob, options: { static: boolean; animated: boolean }): Promise<Blob> {
+  // Placeholder WebP conversion - in production, use FFmpeg or similar
+  // For now, create a simple WebP placeholder
+  const canvas = new OffscreenCanvas(480, 270)
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.fillStyle = '#1a1a1a'
+    ctx.fillRect(0, 0, 480, 270)
+    ctx.fillStyle = '#ffffff'
+    ctx.font = '16px Arial'
+    ctx.fillText('WebP Preview', 180, 140)
+  }
+  return canvas.convertToBlob({ type: 'image/webp', quality: 0.8 })
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -48,6 +63,9 @@ serve(async (req) => {
     const formData = await req.formData()
     const videoFile = formData.get('video') as File
     const title = formData.get('title') as string
+    const migrateToWebP = formData.get('migrateToWebP') === 'true'
+    const generateStatic = formData.get('generateStatic') !== 'false'
+    const generateAnimated = formData.get('generateAnimated') === 'true'
 
     if (!videoFile) {
       throw new Error('No video file provided')
@@ -88,7 +106,27 @@ serve(async (req) => {
 
     if (thumbError) throw thumbError
 
-    // Upload preview
+    // Generate WebP previews if requested
+    let webpPreviewPath = null;
+    if (migrateToWebP || generateStatic || generateAnimated) {
+      // Convert preview to WebP format
+      const webpBlob = await convertToWebP(previewBlob, { 
+        static: generateStatic !== false, 
+        animated: generateAnimated === true 
+      });
+      
+      webpPreviewPath = `${baseFilename}-preview.webp`;
+      const { error: webpError } = await supabaseClient.storage
+        .from('previews')
+        .upload(webpPreviewPath, webpBlob, {
+          contentType: 'image/webp',
+          upsert: true
+        });
+
+      if (webpError) throw webpError;
+    }
+
+    // Upload original preview (fallback)
     const previewPath = `${baseFilename}-preview.${fileExt}`
     const { error: previewError } = await supabaseClient.storage
       .from('previews')
@@ -97,12 +135,12 @@ serve(async (req) => {
         upsert: false
       })
 
-    if (previewError) throw previewError
+    if (previewError && !webpPreviewPath) throw previewError
 
     // Get public URLs
     const { data: videoUrl } = supabaseClient.storage.from('videos').getPublicUrl(videoPath)
     const { data: thumbnailUrl } = supabaseClient.storage.from('thumbnails').getPublicUrl(thumbnailPath)
-    const { data: previewUrl } = supabaseClient.storage.from('previews').getPublicUrl(previewPath)
+    const { data: previewUrl } = supabaseClient.storage.from('previews').getPublicUrl(webpPreviewPath || previewPath)
 
     const result = {
       video_url: videoUrl.publicUrl,
