@@ -80,6 +80,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           if (!isImagePreview) {
             videoRef.current.src = video.preview_url;
             videoRef.current.currentTime = 0;
+            videoRef.current.muted = true; // Ensure muted for autoplay
             videoRef.current.play().catch((error) => {
               console.error('Video preview play failed:', error);
               if (video.video_url) {
@@ -92,6 +93,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         } else if (video.video_url) {
           videoRef.current.src = video.video_url;
           videoRef.current.currentTime = 10;
+          videoRef.current.muted = true; // Ensure muted for autoplay
           videoRef.current.play().catch((error) => {
             console.error('Main video preview play failed:', error);
           });
@@ -110,7 +112,52 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           }, 3000);
         }
       }
-    }, 500);
+    }, 300);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    e.preventDefault();
+    console.log('Touch start on optimized video:', video.title);
+    setIsHovered(true);
+    if (!shouldLoadPreview) return;
+
+    hoverTimeoutRef.current = window.setTimeout(() => {
+      setShowPreview(true);
+
+      if (videoRef.current) {
+        if (video.preview_url && video.preview_url.trim() !== '') {
+          const imageExtensions = /\.(webp|jpg|jpeg|png)$/i;
+          const isImagePreview = imageExtensions.test(video.preview_url);
+          if (!isImagePreview) {
+            videoRef.current.src = video.preview_url;
+            videoRef.current.currentTime = 0;
+            videoRef.current.muted = true;
+            videoRef.current.play().catch((error) => {
+              console.error('Video preview play failed:', error);
+              if (video.video_url) {
+                videoRef.current.src = video.video_url;
+                videoRef.current.currentTime = 10;
+                videoRef.current.play().catch(() => {});
+              }
+            });
+          }
+        } else if (video.video_url) {
+          videoRef.current.src = video.video_url;
+          videoRef.current.currentTime = 10;
+          videoRef.current.muted = true;
+          videoRef.current.play().catch((error) => {
+            console.error('Main video preview play failed:', error);
+          });
+        }
+      }
+    }, 50); // Almost instant for touch
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    console.log('Touch end on optimized video:', video.title);
+    // Show preview for 10 seconds on mobile before hiding
+    setTimeout(() => handleMouseLeave(), 10000);
   };
 
   const handleMouseLeave = () => {
@@ -155,9 +202,17 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             {/* thumbnail + preview */}
             <div
               className="relative w-40 bg-muted rounded-lg overflow-hidden flex-shrink-0"
-              style={{ aspectRatio: '16/9' }}
+              style={{ 
+                aspectRatio: '16/9',
+                touchAction: 'manipulation',
+                WebkitTouchCallout: 'none',
+                WebkitUserSelect: 'none',
+                userSelect: 'none'
+              }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
             >
               <LazyImage
                 src={
@@ -261,6 +316,14 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         className="group hover:bg-muted/5 transition-all duration-200 w-full"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        style={{
+          touchAction: 'manipulation',
+          WebkitTouchCallout: 'none',
+          WebkitUserSelect: 'none',
+          userSelect: 'none'
+        }}
       >
         <div
           className="relative bg-muted overflow-hidden rounded-xl w-full"
