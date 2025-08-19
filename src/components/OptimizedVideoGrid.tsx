@@ -10,7 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import VerificationBadge from './VerificationBadge';
 import MomentsCarousel from './MomentsCarousel';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
-import VideoPreviewService from '@/services/videoPreviewService';
 
 // Define LightVideo interface here
 interface LightVideo {
@@ -50,8 +49,6 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [currentPreviewTime, setCurrentPreviewTime] = useState(0);
-  const [isVideoLoading, setIsVideoLoading] = useState(false);
-  const [isVideoReady, setIsVideoReady] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
   const previewCycleRef = useRef<number | null>(null);
@@ -76,43 +73,50 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     hoverTimeoutRef.current = window.setTimeout(() => {
       setShowPreview(true);
 
-      // Only show WebP/image previews on hover - no video playback needed
-      if (video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        // WebP preview available - no need for video preview
-        console.log('Using WebP preview:', video.preview_url);
+      if (videoRef.current) {
+        if (video.preview_url && video.preview_url.trim() !== '') {
+          const imageExtensions = /\.(webp|jpg|jpeg|png)$/i;
+          const isImagePreview = imageExtensions.test(video.preview_url);
+          if (!isImagePreview) {
+            videoRef.current.src = video.preview_url;
+            videoRef.current.currentTime = 0;
+            videoRef.current.play().catch((error) => {
+              console.error('Video preview play failed:', error);
+              if (video.video_url) {
+                videoRef.current.src = video.video_url;
+                videoRef.current.currentTime = 10;
+                videoRef.current.play().catch(() => {});
+              }
+            });
+          }
+        } else if (video.video_url) {
+          videoRef.current.src = video.video_url;
+          videoRef.current.currentTime = 10;
+          videoRef.current.play().catch((error) => {
+            console.error('Main video preview play failed:', error);
+          });
+
+          const previewTimes = [10, 30, 60, 90];
+          let timeIndex = 0;
+
+          previewCycleRef.current = window.setInterval(() => {
+            timeIndex = (timeIndex + 1) % previewTimes.length;
+            const newTime = previewTimes[timeIndex];
+            setCurrentPreviewTime(newTime);
+
+            if (videoRef.current) {
+              videoRef.current.currentTime = newTime;
+            }
+          }, 3000);
+        }
       }
-    }, 300);
-  };
-
-  const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault();
-    console.log('Touch start on optimized video:', video.title);
-    setIsHovered(true);
-    if (!shouldLoadPreview) return;
-
-    hoverTimeoutRef.current = window.setTimeout(() => {
-      setShowPreview(true);
-
-      // For touch devices, just show WebP preview if available
-      if (video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        console.log('Touch: Using WebP preview:', video.preview_url);
-      }
-    }, 50); // Almost instant for touch
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault();
-    console.log('Touch end on optimized video:', video.title);
-    // Show preview for 10 seconds on mobile before hiding
-    setTimeout(() => handleMouseLeave(), 10000);
+    }, 500);
   };
 
   const handleMouseLeave = () => {
     setIsHovered(false);
     setShowPreview(false);
     setCurrentPreviewTime(0);
-    setIsVideoLoading(false);
-    setIsVideoReady(false);
 
     if (hoverTimeoutRef.current) {
       clearTimeout(hoverTimeoutRef.current);
@@ -145,23 +149,15 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   if (viewMode === 'list') {
     return (
-      <Card className="hover:bg-muted/5 transition-colors">
-        <CardContent className="p-3 flex space-x-3">
-          <Link to={`/video/${video.id}`} className="block w-40 flex-shrink-0">
+      <Link to={`/video/${video.id}`} className="block w-full">
+        <Card className="hover:bg-muted/5 transition-colors">
+          <CardContent className="p-3 flex space-x-3">
             {/* thumbnail + preview */}
             <div
-              className="relative w-full bg-muted rounded-lg overflow-hidden"
-              style={{ 
-                aspectRatio: '16/9',
-                touchAction: 'manipulation',
-                WebkitTouchCallout: 'none',
-                WebkitUserSelect: 'none',
-                userSelect: 'none'
-              }}
+              className="relative w-40 bg-muted rounded-lg overflow-hidden flex-shrink-0"
+              style={{ aspectRatio: '16/9' }}
               onMouseEnter={handleMouseEnter}
               onMouseLeave={handleMouseLeave}
-              onTouchStart={handleTouchStart}
-              onTouchEnd={handleTouchEnd}
             >
               <LazyImage
                 src={
@@ -171,41 +167,32 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 alt={video.title}
                 width={400}
                 height={300}
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover transition-opacity duration-300 ${
+                  showPreview ? 'opacity-0' : 'opacity-100'
+                }`}
               />
               {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
-                <>
-                  <img
-                    src={video.preview_url}
-                    alt={`${video.title} preview`}
-                    className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
-                    loading="eager"
-                    style={{ 
-                      filter: 'contrast(0.9) brightness(0.95)',
-                      imageRendering: 'auto',
-                      pointerEvents: 'none',
-                      zIndex: 1
-                    }}
-                    onLoad={() => console.log('List WebP preview loaded successfully:', video.preview_url)}
-                    onError={(e) => {
-                      console.error('WebP preview failed to load:', video.preview_url);
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
-                    }}
-                  />
-                  {/* Loading bar at bottom when preview is loading */}
-                  <div className="absolute bottom-0 left-0 w-full h-1 bg-black/30 z-10">
-                    <div className="h-full bg-orange-500 animate-pulse" style={{ width: '100%' }}></div>
-                  </div>
-                </>
+                <img
+                  src={video.preview_url}
+                  alt={`${video.title} preview`}
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                  loading="lazy"
+                />
               )}
-              <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded z-20">
+              {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url || '')) && (
+                <video
+                  ref={videoRef}
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                  muted
+                  playsInline
+                  preload="metadata"
+                />
+              )}
+              <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
               </div>
             </div>
-          </Link>
             {/* details */}
-          <Link to={`/video/${video.id}`} className="flex-1">
             <div className="flex-1 space-y-2">
               <h3 className="font-semibold text-lg line-clamp-2 leading-tight">{video.title}</h3>
               {video.description && (
@@ -262,9 +249,9 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 <span>{formatDate(video.created_at)}</span>
               </div>
             </div>
-          </Link>
           </CardContent>
         </Card>
+      </Link>
     );
   }
 
@@ -274,14 +261,6 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         className="group hover:bg-muted/5 transition-all duration-200 w-full"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
-        onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-        style={{
-          touchAction: 'manipulation',
-          WebkitTouchCallout: 'none',
-          WebkitUserSelect: 'none',
-          userSelect: 'none'
-        }}
       >
         <div
           className="relative bg-muted overflow-hidden rounded-xl w-full"
@@ -295,33 +274,18 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             alt={video.title}
             width={400}
             height={300}
-            className="w-full h-full object-cover"
+            className={`w-full h-full object-cover transition-opacity duration-300 ${
+              showPreview ? 'opacity-0' : 'opacity-100'
+            }`}
           />
-          {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
-            <>
-              <img
-                src={video.preview_url}
-                alt={`${video.title} preview`}
-                className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
-                loading="eager"
-                style={{ 
-                  filter: 'contrast(0.9) brightness(0.95)',
-                  imageRendering: 'auto',
-                  pointerEvents: 'none',
-                  zIndex: 1
-                }}
-                onLoad={() => console.log('WebP preview loaded successfully:', video.preview_url)}
-                onError={(e) => {
-                  console.error('Grid WebP preview failed:', video.preview_url);
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = 'none';
-                }}
-              />
-              {/* Loading bar at bottom when preview is loading */}
-              <div className="absolute bottom-0 left-0 w-full h-1 bg-black/30 z-10">
-                <div className="h-full bg-orange-500 animate-pulse" style={{ width: '100%' }}></div>
-              </div>
-            </>
+          {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url || '')) && (
+            <video
+              ref={videoRef}
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+              muted
+              playsInline
+              preload="metadata"
+            />
           )}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
@@ -368,7 +332,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="p-1 rounded-full hover:bg-muted transition-colors z-10 relative"
+                  className="p-1 rounded-full hover:bg-muted transition-colors"
                   onClick={handleActionClick}
                 >
                   <MoreVertical className="w-3 h-3 text-muted-foreground" />
