@@ -114,14 +114,14 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               // Pause, seek, then play for smoother transitions
               videoRef.current.pause();
               videoRef.current.currentTime = newTime;
-              
+
               // Wait for seek to complete
               setTimeout(() => {
                 if (videoRef.current && showPreview) {
                   videoRef.current.play().catch(console.error);
                 }
               }, 200);
-              
+
               console.log(`Optimized grid switching to preview segment at ${newTime}s`);
             }
           }, 10000); // Exactly 10 seconds per segment
@@ -249,6 +249,15 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                   alt={`${video.title} preview`}
                   className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
                   loading="lazy"
+                  onError={(e) => {
+                    // Fallback to video preview if WebP fails
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
+                  style={{ 
+                    filter: 'contrast(0.9) brightness(0.95)',
+                    imageRendering: 'auto'
+                  }}
                 />
               )}
               {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url || '')) && (
