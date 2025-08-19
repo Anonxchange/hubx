@@ -260,25 +260,25 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       isImagePreview: video.preview_url ? isImagePreview(video.preview_url) : false
     });
 
-    // For image/webp previews, show immediately
-    if (video.preview_url && isValidUrl(video.preview_url) && isImagePreview(video.preview_url)) {
+    // For image/webp previews, show immediately  
+    if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
       console.log('DEBUG: Showing image preview immediately on touch');
       setIsHovered(true);
 
-      // Auto-hide after 2 seconds to allow clicking
+      // Auto-hide after 10 seconds to allow clicking
       setTimeout(() => {
         setIsHovered(false);
-      }, 2000);
+      }, 10000);
     } else {
       // For video previews, use longer delay
       touchTimeoutRef.current = window.setTimeout(() => {
         setIsHovered(true);
         startPreview();
 
-        // Auto-hide preview after 3 seconds on mobile
+        // Auto-hide preview after 10 seconds on mobile
         setTimeout(() => {
           stopPreview();
-        }, 3000);
+        }, 10000);
       }, 300);
     }
   };
