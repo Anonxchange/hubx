@@ -2,7 +2,6 @@ import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, ThumbsUp, MoreVertical, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { LazyImage } from '@/components/LazyImage';
 import AdComponent from '@/components/AdComponent';
@@ -63,8 +62,11 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     e.stopPropagation();
     e.preventDefault();
     console.log('Adding to watch later:', video.title);
-    // TODO: Implement watch later functionality with Supabase
   };
+
+  const isImagePreview = (url: string) => /\.(jpg|jpeg|png)$/i.test(url);
+  const isWebpPreview = (url: string) => /\.webp$/i.test(url);
+  const isVideoPreview = (url: string) => /\.(mp4|mov|webm)$/i.test(url);
 
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -75,18 +77,11 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
       if (videoRef.current) {
         if (video.preview_url && video.preview_url.trim() !== '') {
-          const imageExtensions = /\.(webp|jpg|jpeg|png)$/i;
-          const isImagePreview = imageExtensions.test(video.preview_url);
-          if (!isImagePreview) {
+          if (isVideoPreview(video.preview_url)) {
             videoRef.current.src = video.preview_url;
             videoRef.current.currentTime = 0;
             videoRef.current.play().catch((error) => {
               console.error('Video preview play failed:', error);
-              if (video.video_url) {
-                videoRef.current.src = video.video_url;
-                videoRef.current.currentTime = 10;
-                videoRef.current.play().catch(() => {});
-              }
             });
           }
         } else if (video.video_url) {
@@ -147,6 +142,47 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       day: 'numeric'
     });
 
+  const renderPreview = () => {
+    if (!showPreview || !video.preview_url) return null;
+
+    if (isImagePreview(video.preview_url)) {
+      return (
+        <img
+          src={video.preview_url}
+          alt={`${video.title} preview`}
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+          loading="lazy"
+        />
+      );
+    }
+
+    if (isWebpPreview(video.preview_url)) {
+      // Animated or static webp - browser handles it
+      return (
+        <img
+          src={video.preview_url}
+          alt={`${video.title} preview`}
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+          loading="lazy"
+        />
+      );
+    }
+
+    if (isVideoPreview(video.preview_url) || video.video_url) {
+      return (
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+          muted
+          playsInline
+          preload="metadata"
+        />
+      );
+    }
+
+    return null;
+  };
+
   if (viewMode === 'list') {
     return (
       <Link to={`/video/${video.id}`} className="block w-full">
@@ -171,23 +207,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                   showPreview ? 'opacity-0' : 'opacity-100'
                 }`}
               />
-              {showPreview && video.preview_url && /\.(webp|jpg|jpeg|png)$/i.test(video.preview_url) && (
-                <img
-                  src={video.preview_url}
-                  alt={`${video.title} preview`}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
-                  loading="lazy"
-                />
-              )}
-              {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url || '')) && (
-                <video
-                  ref={videoRef}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
-                  muted
-                  playsInline
-                  preload="metadata"
-                />
-              )}
+              {renderPreview()}
               <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
               </div>
@@ -255,6 +275,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     );
   }
 
+  // grid mode
   return (
     <Link to={`/video/${video.id}`} className="block w-full">
       <div
@@ -278,27 +299,20 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               showPreview ? 'opacity-0' : 'opacity-100'
             }`}
           />
-          {showPreview && (!video.preview_url || !/\.(webp|jpg|jpeg|png)$/i.test(video.preview_url || '')) && (
-            <video
-              ref={videoRef}
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
-              muted
-              playsInline
-              preload="metadata"
-            />
-          )}
+          {renderPreview()}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
             {video.duration}
           </div>
 
-          {/* Special quality/format badges on top right */}
+          {/* Special quality/format badges */}
           <div className="absolute top-2 right-2 flex flex-col gap-1">
             {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
               <div className="bg-gradient-to-r from-green-500 to-teal-500 text-white text-xs px-2 py-1 rounded font-bold min-w-[40px] text-center">
                 🥽 VR
               </div>
             )}
-            {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
+            {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) &&
+              video.tags.some(tag => tag.toLowerCase() === '4k') && (
               <div className="bg-gradient-to-r from-purple-500 to-blue-500 text-white text-xs px-2 py-1 rounded font-bold min-w-[40px] text-center">
                 4K
               </div>
