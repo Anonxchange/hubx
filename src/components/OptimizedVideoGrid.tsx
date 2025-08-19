@@ -93,38 +93,83 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   };
 
   const isValidUrl = (url: string) => {
-    if (!url || url.trim() === '') return false;
-    try {
-      // Handle relative URLs and data URLs
-      if (url.startsWith('/') || url.startsWith('data:') || url.startsWith('blob:')) {
-        return true;
-      }
-      new URL(url);
-      return true;
-    } catch {
+    if (!url || url.trim() === '') {
+      console.log('DEBUG: URL is empty or null:', url);
       return false;
     }
+    
+    // Handle relative URLs, data URLs, and blob URLs
+    if (url.startsWith('/') || url.startsWith('data:') || url.startsWith('blob:')) {
+      console.log('DEBUG: Valid relative/data/blob URL:', url);
+      return true;
+    }
+    
+    // Handle HTTP/HTTPS URLs
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      try {
+        new URL(url);
+        console.log('DEBUG: Valid HTTP URL:', url);
+        return true;
+      } catch (e) {
+        console.log('DEBUG: Invalid HTTP URL:', url, e);
+        return false;
+      }
+    }
+    
+    // Handle URLs without protocol (assume https)
+    if (url.includes('.') && !url.includes(' ')) {
+      try {
+        new URL('https://' + url);
+        console.log('DEBUG: Valid URL without protocol:', url);
+        return true;
+      } catch (e) {
+        console.log('DEBUG: Invalid URL even with https prefix:', url, e);
+        return false;
+      }
+    }
+    
+    console.log('DEBUG: URL validation failed for:', url);
+    return false;
   };
 
   const startPreview = () => {
     if (!shouldLoadPreview) return;
 
+    // For image previews (WebP, GIF), show immediately without delay
+    if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
+      console.log('DEBUG: Image preview - showing immediately');
+      return; // Image preview is handled in renderPreview
+    }
+
+    // For video previews, use delay
     hoverTimeoutRef.current = window.setTimeout(() => {
+      console.log('DEBUG: Starting video preview');
       setShowPreview(true);
 
       if (videoRef.current) {
         const hasValidPreview = video.preview_url && isValidUrl(video.preview_url);
         const hasValidVideo = video.video_url && isValidUrl(video.video_url);
 
+        console.log('DEBUG: Preview sources:', {
+          hasValidPreview,
+          hasValidVideo,
+          preview_url: video.preview_url,
+          video_url: video.video_url,
+          isVideoPreview: hasValidPreview ? isVideoPreview(video.preview_url) : false
+        });
+
         if (hasValidPreview && isVideoPreview(video.preview_url)) {
+          console.log('DEBUG: Using dedicated preview URL:', video.preview_url);
           videoRef.current.src = video.preview_url;
           videoRef.current.currentTime = 0;
           videoRef.current.muted = true;
+          videoRef.current.loop = true;
           videoRef.current.play().catch((error) => {
             console.error('Video preview play failed:', error);
             setShowPreview(false);
           });
         } else if (hasValidVideo) {
+          console.log('DEBUG: Using main video URL as preview:', video.video_url);
           videoRef.current.src = video.video_url;
           videoRef.current.currentTime = 10;
           videoRef.current.muted = true;
@@ -146,6 +191,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             }
           }, 3000);
         } else {
+          console.log('DEBUG: No valid preview source found');
           setShowPreview(false);
         }
       }
@@ -179,13 +225,6 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   const handleMouseEnter = () => {
     if (isMobile) return; // Don't handle mouse events on mobile
-    console.log('DEBUG: Mouse enter - COMPLETE video object structure:');
-    console.log('=== ALL VIDEO PROPERTIES ===');
-    Object.keys(video).forEach(key => {
-      console.log(`${key}:`, (video as any)[key]);
-    });
-    console.log('=== END VIDEO PROPERTIES ===');
-    
     console.log('DEBUG: Mouse enter - video data analysis:', {
       id: video.id,
       title: video.title,
@@ -196,11 +235,11 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       hasVideoUrl: !!video.video_url,
       hasThumbnail: !!video.thumbnail_url,
       isImagePreview: video.preview_url ? isImagePreview(video.preview_url) : false,
-      isVideoPreview: video.preview_url ? isVideoPreview(video.preview_url) : false,
-      totalProperties: Object.keys(video).length,
-      allKeys: Object.keys(video)
+      isVideoPreview: video.preview_url ? isVideoPreview(video.preview_url) : false
     });
     setIsHovered(true);
+    
+    // Always start preview process - let startPreview handle the logic
     startPreview();
   };
 
@@ -211,10 +250,6 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartTime(Date.now());
-    console.log('DEBUG: Touch start - COMPLETE video analysis:');
-    console.log('Video object keys:', Object.keys(video));
-    console.log('Video object values:', Object.values(video));
-    console.log('Raw video object:', JSON.stringify(video, null, 2));
     console.log('DEBUG: Touch start - checking preview type:', {
       preview_url: video.preview_url,
       'typeof preview_url': typeof video.preview_url,
@@ -285,43 +320,64 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       day: 'numeric'
     });
 
+  // Function to generate preview URL from video URL if preview_url is missing
+  const getPreviewUrl = () => {
+    if (video.preview_url && video.preview_url.trim() !== '') {
+      return video.preview_url;
+    }
+    
+    // Try to generate preview URL from Bunny Stream video URL
+    if (video.video_url && video.video_url.includes('vz-a3bd9097-45c.b-cdn.net')) {
+      // Extract video ID from HLS URL like: https://vz-a3bd9097-45c.b-cdn.net/04c24b96-ad5f-4c61-ab1b-990f186dc4ce/playlist.m3u8
+      const match = video.video_url.match(/vz-a3bd9097-45c\.b-cdn\.net\/([a-f0-9\-]+)/i);
+      if (match && match[1]) {
+        const videoId = match[1];
+        const previewUrl = `https://vz-a3bd9097-45c.b-cdn.net/${videoId}/preview.webp`;
+        console.log('DEBUG: Generated preview URL:', previewUrl);
+        return previewUrl;
+      }
+    }
+    
+    return null;
+  };
+  
+  const computedPreviewUrl = getPreviewUrl();
+
   const renderPreview = () => {
     console.log('DEBUG: renderPreview called:', {
       showPreview,
       isHovered,
-      preview_url: video.preview_url,
-      hasValidUrl: video.preview_url ? isValidUrl(video.preview_url) : false,
-      isImagePreview: video.preview_url ? isImagePreview(video.preview_url) : false
+      original_preview_url: video.preview_url,
+      computed_preview_url: computedPreviewUrl,
+      hasValidUrl: computedPreviewUrl ? isValidUrl(computedPreviewUrl) : false,
+      isImagePreview: computedPreviewUrl ? isImagePreview(computedPreviewUrl) : false
     });
 
-    if (!showPreview && !isHovered) return null;
-
-    // Show image/gif/webp previews immediately on hover
-    if (video.preview_url && isValidUrl(video.preview_url) && isImagePreview(video.preview_url)) {
-      console.log('DEBUG: Rendering image preview:', video.preview_url);
+    // Show image/gif/webp previews immediately on hover (no delay needed)
+    if (isHovered && computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
+      console.log('DEBUG: Rendering image preview:', computedPreviewUrl);
       return (
         <img
-          src={video.preview_url}
+          src={computedPreviewUrl}
           alt={`${video.title} preview`}
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10"
           loading="eager"
           style={{ 
             imageRendering: 'auto',
-            opacity: isHovered ? 1 : 0 
+            opacity: 1
           }}
           onLoad={() => {
-            console.log('DEBUG: WebP/Image preview loaded successfully:', video.preview_url);
+            console.log('DEBUG: WebP/Image preview loaded successfully:', computedPreviewUrl);
           }}
           onError={(e) => {
-            console.error('DEBUG: Preview image failed to load:', video.preview_url, e);
-            setShowPreview(false);
+            console.error('DEBUG: Preview image failed to load:', computedPreviewUrl, e);
           }}
         />
       );
     }
 
-    // Show video previews with proper handling
-    const hasValidPreview = video.preview_url && isValidUrl(video.preview_url) && isVideoPreview(video.preview_url);
+    // Show video previews only after delay (showPreview becomes true)
+    const hasValidPreview = computedPreviewUrl && isValidUrl(computedPreviewUrl) && isVideoPreview(computedPreviewUrl);
     const hasValidVideo = video.video_url && isValidUrl(video.video_url);
 
     if (showPreview && (hasValidPreview || hasValidVideo)) {
@@ -331,11 +387,26 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10"
           muted
           playsInline
-          preload="none"
+          preload="metadata"
           controls={false}
+          crossOrigin="anonymous"
+          onLoadStart={() => {
+            console.log('DEBUG: Video preview load started');
+          }}
+          onCanPlay={() => {
+            console.log('DEBUG: Video preview can play');
+          }}
+          onPlaying={() => {
+            console.log('DEBUG: Video preview is playing');
+          }}
           onError={(e) => {
             console.error('Preview video failed to load:', video.preview_url || video.video_url, e);
-            setShowPreview(false);
+            console.log('DEBUG: Trying without CORS...');
+            // Try without CORS as fallback
+            if (videoRef.current) {
+              videoRef.current.crossOrigin = null;
+              videoRef.current.load();
+            }
           }}
         />
       );
