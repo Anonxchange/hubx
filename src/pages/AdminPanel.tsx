@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Video as VideoIcon, BarChart } from 'lucide-react';
+import { Upload, Video as VideoIcon, BarChart, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { useAuth } from '@/contexts/AuthContext';
 import AdminLogin from '@/components/admin/AdminLogin';
 import VideoUploadForm from '@/components/admin/VideoUploadForm';
 import VideoManagement from '@/components/admin/VideoManagement';
 import AdminAnalytics from '@/components/admin/AdminAnalytics';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { useAuth } from '@/contexts/AuthContext';
 import VideoMigrationService from '@/services/videoMigrationService';
 
 const AdminPanel = () => {
@@ -20,28 +20,36 @@ const AdminPanel = () => {
     isProcessing: false,
     processed: 0,
     total: 0,
-    progress: 0
+    completed: 0,
+    errors: 0
+  });
+
+  const [migrationOptions, setMigrationOptions] = useState({
+    generateStatic: true,
+    generateAnimated: true
   });
 
   const handleLogin = () => {
     setIsAuthenticated(true);
   };
 
-  const startMigration = async () => {
-    await VideoMigrationService.migrateToWebPPreviews(3, (processed, total) => {
+  const handleStartMigration = async () => {
+    // Assuming migrateToWebPPreviews now accepts options
+    await VideoMigrationService.migrateToWebPPreviews(migrationOptions, (processed, total) => {
       setMigrationStatus({
         isProcessing: true,
         processed,
         total,
-        progress: (processed / total) * 100
+        completed: 0,
+        errors: 0
       });
     });
 
-    // Update final status
+    // Update final status after migration completes or stops
     setMigrationStatus(prev => ({ ...prev, isProcessing: false }));
   };
 
-  const stopMigration = () => {
+  const handleStopMigration = () => {
     VideoMigrationService.stopMigration();
     setMigrationStatus(prev => ({ ...prev, isProcessing: false }));
   };
@@ -103,35 +111,107 @@ const AdminPanel = () => {
             <AdminAnalytics />
           </TabsContent>
 
-          <TabsContent value="migration">
+          <TabsContent value="migration" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>WebP Migration</CardTitle>
+                <CardTitle className="flex items-center space-x-2">
+                  <VideoIcon className="w-6 h-6" />
+                  <span>WebP Preview Migration</span>
+                </CardTitle>
+                <CardDescription>
+                  Convert existing video previews to optimized WebP format for better performance
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center space-y-4">
-                  {migrationStatus.isProcessing ? (
-                    <>
-                      <p>
-                        Processing video previews to WebP...
-                      </p>
-                      <Progress value={migrationStatus.progress} className="w-full" />
-                      <p>
-                        {migrationStatus.processed} / {migrationStatus.total} videos processed
-                      </p>
-                      <Button onClick={stopMigration} variant="destructive">
-                        Stop Migration
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <p>Migrate existing video previews to WebP format.</p>
-                      <Button onClick={startMigration} disabled={migrationStatus.total > 0 && migrationStatus.processed < migrationStatus.total}>
-                        Start Migration
-                      </Button>
-                    </>
+              <CardContent className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-800 mb-2">Migration Benefits:</h4>
+                  <ul className="text-sm text-blue-700 space-y-1">
+                    <li>• Faster loading video thumbnails</li>
+                    <li>• Reduced bandwidth consumption</li>
+                    <li>• Better user experience on mobile</li>
+                    <li>• Optimized CDN storage usage</li>
+                    <li>• Animated previews for enhanced engagement</li>
+                  </ul>
+                </div>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <h4 className="font-medium text-yellow-800 mb-2">Preview Options:</h4>
+                  <div className="space-y-2">
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={migrationOptions.generateStatic}
+                        onChange={(e) => setMigrationOptions(prev => ({ ...prev, generateStatic: e.target.checked }))}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-yellow-700">Generate static WebP previews (recommended)</span>
+                    </label>
+                    <label className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={migrationOptions.generateAnimated}
+                        onChange={(e) => setMigrationOptions(prev => ({ ...prev, generateAnimated: e.target.checked }))}
+                        className="rounded"
+                      />
+                      <span className="text-sm text-yellow-700">Generate animated WebP previews (larger files, better engagement)</span>
+                    </label>
+                  </div>
+                </div>
+
+                {migrationStatus.isProcessing && (
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Processing videos...</span>
+                      <span>{migrationStatus.processed}/{migrationStatus.total}</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${migrationStatus.total > 0 ? (migrationStatus.processed / migrationStatus.total) * 100 : 0}%`
+                        }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex space-x-4">
+                  <Button
+                    onClick={handleStartMigration}
+                    disabled={migrationStatus.isProcessing || (!migrationOptions.generateStatic && !migrationOptions.generateAnimated)}
+                    className="flex items-center space-x-2"
+                  >
+                    {migrationStatus.isProcessing ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      <VideoIcon className="w-4 h-4" />
+                    )}
+                    <span>{migrationStatus.isProcessing ? 'Processing...' : 'Start Migration'}</span>
+                  </Button>
+
+                  {migrationStatus.isProcessing && (
+                    <Button
+                      onClick={handleStopMigration}
+                      variant="outline"
+                      className="flex items-center space-x-2"
+                    >
+                      <X className="w-4 h-4" />
+                      <span>Stop Migration</span>
+                    </Button>
                   )}
                 </div>
+
+                {migrationStatus.completed > 0 && (
+                  <div className="text-sm text-green-600">
+                    ✅ Successfully migrated {migrationStatus.completed} videos to WebP format
+                  </div>
+                )}
+
+                {migrationStatus.errors > 0 && (
+                  <div className="text-sm text-red-600">
+                    ⚠️ {migrationStatus.errors} videos failed to migrate
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
