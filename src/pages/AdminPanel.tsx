@@ -136,6 +136,11 @@ const AdminPanel = () => {
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <h4 className="font-medium text-yellow-800 mb-2">Preview Options:</h4>
+                  {migrationStatus.total > 0 && !migrationStatus.isProcessing && (
+                    <div className="text-sm text-blue-600 mb-2">
+                      📊 Found {migrationStatus.total} videos to migrate (estimated {VideoMigrationService.formatTime(VideoMigrationService.calculateEstimatedTime(migrationStatus.total))})
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <label className="flex items-center space-x-2">
                       <input
@@ -159,7 +164,7 @@ const AdminPanel = () => {
                 </div>
 
                 {migrationStatus.isProcessing && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span>Processing videos...</span>
                       <span>{migrationStatus.processed}/{migrationStatus.total}</span>
@@ -171,6 +176,14 @@ const AdminPanel = () => {
                           width: `${migrationStatus.total > 0 ? (migrationStatus.processed / migrationStatus.total) * 100 : 0}%`
                         }}
                       ></div>
+                    </div>
+                    {migrationStatus.estimatedTimeRemaining && (
+                      <div className="text-xs text-gray-600">
+                        Estimated time remaining: {VideoMigrationService.formatTime(migrationStatus.estimatedTimeRemaining)}
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-500">
+                      Completed: {migrationStatus.completed} | Errors: {migrationStatus.errors}
                     </div>
                   </div>
                 )}
@@ -200,6 +213,12 @@ const AdminPanel = () => {
                     </Button>
                   )}
                 </div>
+
+                {migrationStatus.estimatedTimeRemaining && migrationStatus.isProcessing && (
+                  <div className="text-sm text-blue-600">
+                    ⏱️ Estimated time remaining: {VideoMigrationService.formatTime(migrationStatus.estimatedTimeRemaining)}
+                  </div>
+                )}
 
                 {migrationStatus.completed > 0 && (
                   <div className="text-sm text-green-600">
