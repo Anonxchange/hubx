@@ -61,13 +61,33 @@ export class VideoPreviewService {
     return previewData;
   }
 
-  // Generate Bunny CDN preview URLs with time ranges
-  static generateBunnyPreviewUrl(videoUrl: string, startTime: number, duration: number = 10): string {
+  // Generate Bunny CDN preview URLs with time ranges and quality optimization
+  static generateBunnyPreviewUrl(videoUrl: string, startTime: number, duration: number = 10, quality: 'low' | 'medium' | 'high' = 'low'): string {
     if (videoUrl.includes('bunnycdn.com') || videoUrl.includes('b-cdn.net')) {
-      // Use Bunny CDN's time-based seeking
-      return `${videoUrl}#t=${startTime},${startTime + duration}`;
+      // Add quality parameters for Bunny CDN
+      const qualityParams = quality === 'low' ? '&width=480&height=270' : 
+                           quality === 'medium' ? '&width=720&height=405' : '';
+      
+      // Use Bunny CDN's time-based seeking with quality control
+      return `${videoUrl}?t=${startTime}&duration=${duration}${qualityParams}`;
     }
     return `${videoUrl}#t=${startTime}`;
+  }
+
+  // Get optimized preview quality based on connection
+  static getOptimalPreviewQuality(connectionType?: string): 'low' | 'medium' | 'high' {
+    if (!connectionType) return 'low';
+    
+    switch (connectionType) {
+      case 'slow-2g':
+      case '2g':
+        return 'low';
+      case '3g':
+        return 'medium';
+      case '4g':
+      default:
+        return 'low'; // Still use low for previews to save bandwidth
+    }
   }
 
   // Optimize preview loading based on bandwidth
