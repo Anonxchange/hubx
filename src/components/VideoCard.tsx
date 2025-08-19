@@ -194,7 +194,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       }
     }
 
-    // Show preview with very short delay like YouTube
+    // Show preview with appropriate delay - faster for touch
     hoverTimeoutRef.current = setTimeout(() => {
       console.log('Setting showPreview to true for:', video.title);
       setShowPreview(true);
@@ -247,7 +247,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           }, 2500); // Faster cycling
         }
       }
-    }, event?.type === 'touchstart' ? 100 : 200); // Faster response for touch
+    }, event?.type === 'touchstart' ? 50 : 200); // Much faster response for touch - almost instant
   };
 
   const handleMouseLeave = (event?: React.TouchEvent | React.MouseEvent) => {
@@ -274,28 +274,24 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    // e.preventDefault(); // Prevent default touch behavior (handled by touchAction style)
+    e.preventDefault(); // Prevent default touch behavior to avoid conflicts
     console.log('Touch start detected on:', video.title);
     handleHoverStart(e);
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    // e.preventDefault(); // Prevent default touch behavior (handled by touchAction style)
+    e.preventDefault(); // Prevent default touch behavior
     console.log('Touch end detected on:', video.title);
-    // Delay the end to allow for preview viewing
-    setTimeout(() => handleMouseLeave(e), 2000);
+    // Show preview for 10 seconds on mobile before hiding
+    setTimeout(() => handleMouseLeave(e), 10000);
   };
 
-  // Added handleTouchMove to prevent unexpected scrolling or other default behaviors
   const handleTouchMove = (e: React.TouchEvent) => {
-    // If we are showing a preview and the user is trying to scroll,
-    // we might want to prevent default behavior to keep the preview active.
-    // However, for general scrolling, we should allow it.
-    // This might need more nuanced handling based on specific interactions.
-    // For now, we'll leave it to prevent default only if it interferes with the preview.
+    // Allow scrolling by not preventing default for touch move
+    // Only prevent if we specifically need to stop scrolling during preview
     if (showPreview) {
-      // Optionally prevent default if the touch is within the preview area and not intended for scrolling the page
-      // e.preventDefault();
+      // Let the preview continue but allow normal scrolling
+      console.log('Touch move during preview');
     }
   };
 
