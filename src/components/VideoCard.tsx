@@ -43,6 +43,20 @@ interface VideoCardProps {
   viewMode?: 'grid' | 'list';
 }
 
+// Hook to detect if the device is mobile
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent;
+    const mobile = /\b(android|iphone|ipad|ipod|windows phone|blackberry|opera mini|iemobile|mobile|tablet)\b/i.test(userAgent);
+    setIsMobile(mobile);
+  }, []);
+
+  return isMobile;
+};
+
+
 const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -52,10 +66,16 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const previewCycleRef = useRef<NodeJS.Timeout | null>(null);
   // Simplified optimization - avoid heavy hook on every card
   const { shouldLoadPreview } = useBandwidthOptimization();
+  const isMobile = useIsMobile();
 
   // --- Hook for dynamic likes/dislikes ---
-  const { likes: actualLikes, dislikes: actualDislikes, toggleLike, toggleDislike, isLiked, isDisliked } = useVideoReaction(video.id);
+  const { userReaction, reactToVideo, isLoading: reactionLoading } = useVideoReaction(video.id);
   // --- End Hook ---
+
+  // Helper function to get actual likes count
+  const getActualLikes = () => {
+    return video.likes || 0;
+  };
 
   const [creatorProfile, setCreatorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +84,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   useEffect(() => {
     const fetchCreatorProfile = async () => {
       setLoading(true);
-      
+
       // Use the data already provided in the video object if available
       if (video.profiles) {
         setCreatorProfile({
@@ -151,42 +171,69 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     return videoUrl;
   };
 
-  const handleMouseEnter = () => {
+  const handleHoverStart = (event?: React.TouchEvent | React.MouseEvent) => {
+    console.log('Preview triggered:', event?.type || 'unknown', 'for video:', video.title);
     setIsHovered(true);
 
     // Only load previews if bandwidth allows it
-    if (!shouldLoadPreview) return;
+    if (!shouldLoadPreview) {
+      console.log('Preview blocked by bandwidth optimization');
+      return;
+    }
 
-    // Increased delay to reduce unnecessary bandwidth usage
+    // Preload video immediately on hover for instant playback
+    if (videoRef.current) {
+      // Set up video source immediately for faster loading
+      if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
+        videoRef.current.src = video.preview_url;
+        videoRef.current.load(); // Start loading immediately
+      } else if (video.video_url) {
+        const previewUrl = generateBunnyPreviewUrl(video.video_url, 5);
+        videoRef.current.src = previewUrl;
+        videoRef.current.load(); // Start loading immediately
+      }
+    }
+
+    // Show preview with very short delay like YouTube
     hoverTimeoutRef.current = setTimeout(() => {
+      console.log('Setting showPreview to true for:', video.title);
       setShowPreview(true);
 
       // Check if preview_url is an image/animation (including animated WebP)
       if (video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        // It's an image/animation preview - no video logic needed, just show it
+        // It's an image/animation preview - show immediately
         console.log('Showing animated preview for:', video.preview_url);
         return;
       } else if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        // It's a video preview
+        // It's a video preview - play immediately with better error handling
         if (videoRef.current) {
-          videoRef.current.src = video.preview_url;
           videoRef.current.currentTime = 0;
+          videoRef.current.muted = true; // Ensure muted for autoplay
           videoRef.current.play().catch((error) => {
-            console.error('Video play failed:', error);
+            console.error('Video preview play failed:', error);
+            // Fallback to main video if preview fails
+            if (video.video_url && videoRef.current) {
+              const fallbackUrl = generateBunnyPreviewUrl(video.video_url, 5);
+              videoRef.current.src = fallbackUrl;
+              videoRef.current.currentTime = 5;
+              videoRef.current.load();
+              videoRef.current.play().catch(() => {
+                console.error('Fallback video also failed');
+              });
+            }
           });
         }
       } else {
-        // No preview_url - use main video with timestamps
+        // No preview_url - use main video with optimized timestamps
         if (videoRef.current && video.video_url) {
-          const previewUrl = generateBunnyPreviewUrl(video.video_url, 10);
-          videoRef.current.src = previewUrl;
-          videoRef.current.currentTime = 10;
+          videoRef.current.currentTime = 5;
+          videoRef.current.muted = true; // Ensure muted for autoplay
           videoRef.current.play().catch((error) => {
-            console.error('Video play failed:', error);
+            console.error('Main video preview failed:', error);
           });
 
           // Cycle through different timestamps for main video previews
-          const previewTimes = [10, 30, 60, 90];
+          const previewTimes = [5, 15, 30, 45];
           let timeIndex = 0;
 
           previewCycleRef.current = setInterval(() => {
@@ -197,13 +244,14 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             if (videoRef.current) {
               videoRef.current.currentTime = newTime;
             }
-          }, 3000);
+          }, 2500); // Faster cycling
         }
       }
-    }, 1000);
+    }, event?.type === 'touchstart' ? 100 : 200); // Faster response for touch
   };
 
-  const handleMouseLeave = () => {
+  const handleMouseLeave = (event?: React.TouchEvent | React.MouseEvent) => {
+    console.log('Preview ended:', event?.type || 'unknown', 'for video:', video.title);
     setIsHovered(false);
     setShowPreview(false);
     setCurrentPreviewTime(0);
@@ -222,6 +270,32 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
       videoRef.current.src = '';
+    }
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    // e.preventDefault(); // Prevent default touch behavior (handled by touchAction style)
+    console.log('Touch start detected on:', video.title);
+    handleHoverStart(e);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    // e.preventDefault(); // Prevent default touch behavior (handled by touchAction style)
+    console.log('Touch end detected on:', video.title);
+    // Delay the end to allow for preview viewing
+    setTimeout(() => handleMouseLeave(e), 2000);
+  };
+
+  // Added handleTouchMove to prevent unexpected scrolling or other default behaviors
+  const handleTouchMove = (e: React.TouchEvent) => {
+    // If we are showing a preview and the user is trying to scroll,
+    // we might want to prevent default behavior to keep the preview active.
+    // However, for general scrolling, we should allow it.
+    // This might need more nuanced handling based on specific interactions.
+    // For now, we'll leave it to prevent default only if it interferes with the preview.
+    if (showPreview) {
+      // Optionally prevent default if the touch is within the preview area and not intended for scrolling the page
+      // e.preventDefault();
     }
   };
 
@@ -282,9 +356,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     return num.toString();
   };
 
-  const getActualLikes = () => {
-    return actualLikes;
-  };
+
 
   const getVideoPreloadStrategy = () => {
     // Example strategy: 'auto' for better preview experience, or 'metadata' for less bandwidth
@@ -311,28 +383,62 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
         <Card className="hover:bg-muted/5 hover:shadow-lg hover:border-primary/20 transition-all duration-200 border border-primary/10">
           <CardContent className="p-4 flex space-x-4">
             <div
-              className="relative w-72 bg-muted rounded-lg overflow-hidden flex-shrink-0 border-2 border-primary/20 shadow-lg"
-              style={{ aspectRatio: '16/9' }}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
+              className="relative bg-muted rounded-lg overflow-hidden flex-shrink-0 border-2 border-primary/20 shadow-lg"
+              style={{
+                aspectRatio: '16/9',
+                touchAction: 'manipulation',
+                WebkitTouchCallout: 'none',
+                WebkitUserSelect: 'none',
+                userSelect: 'none'
+              }}
+              onMouseEnter={!isMobile ? handleHoverStart : undefined}
+              onMouseLeave={!isMobile ? handleMouseLeave : undefined}
+              onTouchStart={isMobile ? handleTouchStart : undefined}
+              onTouchEnd={isMobile ? handleTouchEnd : undefined}
+              onTouchMove={isMobile ? handleTouchMove : undefined}
             >
               <LazyImage
                 src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop'}
                 alt={video.title}
                 width={400}
                 height={300}
-                className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
+                className={`w-full h-full object-cover transition-opacity duration-300 ${(showPreview || (isHovered && video.preview_url && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url))) ? 'opacity-0' : 'opacity-100'}`}
               />
-              {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
+              {/* Webp/GIF animations show on hover instantly in list view */}
+              {video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && isHovered && (
+                <img
+                  src={video.preview_url}
+                  alt={`${video.title} preview`}
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100 z-10"
+                  onLoad={() => console.log('List view animated webp/gif loaded:', video.preview_url)}
+                  onError={(e) => console.error('List view image load error:', e, video.preview_url)}
+                />
+              )}
+              {/* Video previews show after delay in list view */}
+              {showPreview && video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && (
                 <video
                   ref={videoRef}
                   className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
                   muted
                   loop={!!video.preview_url}
                   playsInline
-                  preload={getVideoPreloadStrategy()}
+                  preload="metadata"
+                  controls={false}
+                  disablePictureInPicture
+                  onLoadedData={() => {
+                    console.log('List view video preview loaded');
+                  }}
+                  onCanPlay={() => {
+                    if (showPreview && videoRef.current) {
+                      videoRef.current.play().catch(console.error);
+                    }
+                  }}
+                  onError={(e) => {
+                    console.error('List view video error:', e);
+                    setShowPreview(false);
+                  }}
                 />
-              ) : null}
+              )}
               <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                 {video.duration}
               </div>
@@ -385,11 +491,6 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                           src={creator.avatar || ''}
                           alt={creator.displayName}
                           className="h-6 w-6 rounded-full object-cover"
-                          fallbackComponent={
-                            <div className="h-6 w-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
-                              {creator.username.charAt(0).toUpperCase()}
-                            </div>
-                          }
                         />
                       </CardContent>
                     </Card>
@@ -462,46 +563,63 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     <Link to={`/video/${video.id}`} className="block">
       <Card className="group hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] transition-all duration-200 overflow-hidden w-full border-2 border-primary/10">
         <div
-          className="relative bg-muted overflow-hidden rounded-lg w-full border-2 border-primary/20 shadow-lg"
-          style={{ aspectRatio: '16/9' }}
-          onMouseEnter={handleMouseEnter}
-          onMouseLeave={handleMouseLeave}
+          className="relative bg-muted rounded-lg overflow-hidden flex-shrink-0 border-2 border-primary/20 shadow-lg"
+          style={{
+            aspectRatio: '16/9',
+            touchAction: 'manipulation',
+            WebkitTouchCallout: 'none',
+            WebkitUserSelect: 'none',
+            userSelect: 'none'
+          }}
+          onMouseEnter={!isMobile ? handleHoverStart : undefined}
+          onMouseLeave={!isMobile ? handleMouseLeave : undefined}
+          onTouchStart={isMobile ? handleTouchStart : undefined}
+          onTouchEnd={isMobile ? handleTouchEnd : undefined}
+          onTouchMove={isMobile ? handleTouchMove : undefined}
         >
           <LazyImage
             src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
             alt={video.title}
             width={400}
             height={300}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
+            className={`w-full h-full object-cover transition-opacity duration-300 ${(showPreview || (isHovered && video.preview_url && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url))) ? 'opacity-0' : 'opacity-100'}`}
           />
-          {showPreview && video.preview_url && video.preview_url.trim() !== '' && (
-            <>
-              {/* Check if preview is an image/animation (GIF, WebP, etc.) */}
-              {/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) ? (
-                <img
-                  src={video.preview_url}
-                  alt={`${video.title} preview`}
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100 z-10"
-                  onLoad={() => console.log('Animated image loaded:', video.preview_url)}
-                  onError={(e) => console.error('Image load error:', e, video.preview_url)}
-                />
-              ) : (
-                <video
-                  ref={videoRef}
-                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
-                  muted
-                  loop
-                  playsInline
-                  preload="metadata"
-                  controls={false}
-                  disablePictureInPicture
-                  onError={(e) => {
-                    console.error('Video error:', e);
-                    setShowPreview(false);
-                  }}
-                />
-              )}
-            </>
+          {/* Webp/GIF animations show on hover, videos show after preview delay */}
+          {video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && isHovered && (
+            <img
+              src={video.preview_url}
+              alt={`${video.title} preview`}
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100 z-20"
+              onLoad={() => console.log('Animated webp/gif loaded:', video.preview_url)}
+              onError={(e) => console.error('Image load error:', e, video.preview_url)}
+            />
+          )}
+          {/* Video previews show after delay */}
+          {showPreview && video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && (
+            <video
+              ref={videoRef}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              controls={false}
+              disablePictureInPicture
+              autoPlay={false}
+              onLoadedData={() => {
+                console.log('Video preview loaded and ready to play');
+              }}
+              onCanPlay={() => {
+                // Ensure video is ready to play when hovering
+                if (showPreview && videoRef.current) {
+                  videoRef.current.play().catch(console.error);
+                }
+              }}
+              onError={(e) => {
+                console.error('Video preview error:', e);
+                setShowPreview(false);
+              }}
+            />
           )}
 
           {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
@@ -552,11 +670,6 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                       src={creator.avatar || ''}
                       alt={creator.displayName}
                       className="h-6 w-6 rounded-full object-cover"
-                      fallbackComponent={
-                        <div className="h-6 w-6 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
-                          {creator.username.charAt(0).toUpperCase()}
-                        </div>
-                      }
                     />
                   </CardContent>
                 </Card>
