@@ -1,175 +1,154 @@
 
-import VideoPreviewService from './videoPreviewService';
 import { supabase } from '@/integrations/supabase/client';
 
-export class VideoMigrationService {
-  private static isProcessing = false;
-  private static processedCount = 0;
-  private static totalCount = 0;
+interface MigrationOptions {
+  generateStatic: boolean;
+  generateAnimated: boolean;
+}
 
-  // Start processing existing videos in batches
+interface MigrationStatus {
+  isProcessing: boolean;
+  processed: number;
+  total: number;
+  completed: number;
+  errors: number;
+  estimatedTimeRemaining?: number;
+}
+
+class VideoMigrationService {
+  private static migrationStatus: MigrationStatus = {
+    isProcessing: false,
+    processed: 0,
+    total: 0,
+    completed: 0,
+    errors: 0
+  };
+
+  private static shouldStop = false;
+  private static startTime: number = 0;
+
   static async migrateToWebPPreviews(
-    batchSize: number = 5,
-    onProgress?: (processed: number, total: number) => void
-  ): Promise<void> {
-    if (this.isProcessing) {
-      console.log('Migration already in progress');
-      return;
-    }
-
-    this.isProcessing = true;
-    this.processedCount = 0;
-
+    options: MigrationOptions,
+    progressCallback?: (processed: number, total: number) => void
+  ) {
     try {
-      // Get total count of videos needing migration
-      const { count: totalVideos } = await supabase
-        .from('videos')
-        .select('*', { count: 'exact', head: true })
-        .or('preview_url.is.null,preview_url.not.like.%.webp')
-        .eq('is_premium', false)
-        .eq('is_moment', false);
-
-      this.totalCount = totalVideos || 0;
+      this.shouldStop = false;
+      this.startTime = Date.now();
       
-      if (this.totalCount === 0) {
-        console.log('No videos need WebP preview migration');
-        return;
-      }
+      // Get all videos that need migration
+      const { data: videos, error } = await supabase
+        .from('videos')
+        .select('id, title, video_url, preview_url')
+        .not('video_url', 'is', null);
 
-      console.log(`Starting migration of ${this.totalCount} videos...`);
+      if (error) throw error;
 
-      let offset = 0;
-      let hasMore = true;
+      const videosToMigrate = videos?.filter(video => 
+        !video.preview_url || !video.preview_url.includes('.webp')
+      ) || [];
 
-      while (hasMore && this.isProcessing) {
-        // Get batch of videos
-        const { data: videos, error } = await supabase
-          .from('videos')
-          .select('id, video_url, duration, owner_id, preview_url, title')
-          .or('preview_url.is.null,preview_url.not.like.%.webp')
-          .eq('is_premium', false)
-          .eq('is_moment', false)
-          .range(offset, offset + batchSize - 1);
+      this.migrationStatus = {
+        isProcessing: true,
+        processed: 0,
+        total: videosToMigrate.length,
+        completed: 0,
+        errors: 0,
+        estimatedTimeRemaining: this.calculateEstimatedTime(videosToMigrate.length)
+      };
 
-        if (error) {
-          console.error('Error fetching videos for migration:', error);
-          break;
-        }
-
-        if (!videos || videos.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        // Process each video in the batch
-        for (const video of videos) {
-          if (!this.isProcessing) break;
-
-          try {
-            console.log(`Migrating video: ${video.title} (${video.id})`);
-            
-            await VideoPreviewService.generateAndUploadWebPPreviews(
-              video.id,
-              video.video_url,
-              video.duration,
-              video.owner_id
-            );
-
-            this.processedCount++;
-            
-            if (onProgress) {
-              onProgress(this.processedCount, this.totalCount);
-            }
-
-            // Small delay between videos
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-          } catch (error) {
-            console.error(`Failed to migrate video ${video.id}:`, error);
-            this.processedCount++; // Count as processed even if failed
-          }
-        }
-
-        offset += batchSize;
+      for (let i = 0; i < videosToMigrate.length && !this.shouldStop; i++) {
+        const video = videosToMigrate[i];
         
-        // Longer delay between batches
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        try {
+          await this.processVideoPreview(video, options);
+          this.migrationStatus.completed++;
+        } catch (error) {
+          console.error(`Failed to process video ${video.id}:`, error);
+          this.migrationStatus.errors++;
+        }
+
+        this.migrationStatus.processed = i + 1;
+        
+        // Update estimated time remaining
+        const elapsed = Date.now() - this.startTime;
+        const avgTimePerVideo = elapsed / (i + 1);
+        const remaining = (videosToMigrate.length - (i + 1)) * avgTimePerVideo;
+        this.migrationStatus.estimatedTimeRemaining = Math.ceil(remaining / 1000);
+
+        progressCallback?.(this.migrationStatus.processed, this.migrationStatus.total);
+        
+        // Small delay to prevent overwhelming the system
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      console.log(`Migration completed. Processed ${this.processedCount} videos.`);
-
+      this.migrationStatus.isProcessing = false;
     } catch (error) {
-      console.error('Error during migration:', error);
-    } finally {
-      this.isProcessing = false;
+      console.error('Migration failed:', error);
+      this.migrationStatus.isProcessing = false;
+      throw error;
     }
   }
 
-  // Stop the migration process
-  static stopMigration(): void {
-    this.isProcessing = false;
-    console.log('Migration stopped by user');
-  }
+  private static async processVideoPreview(
+    video: any,
+    options: MigrationOptions
+  ) {
+    // Call the Supabase Edge Function to process video preview
+    const { data, error } = await supabase.functions.invoke('process-video', {
+      body: {
+        videoId: video.id,
+        videoUrl: video.video_url,
+        generateStatic: options.generateStatic,
+        generateAnimated: options.generateAnimated,
+        migrateToWebP: true
+      }
+    });
 
-  // Get migration status
-  static getMigrationStatus(): {
-    isProcessing: boolean;
-    processed: number;
-    total: number;
-    progress: number;
-  } {
-    return {
-      isProcessing: this.isProcessing,
-      processed: this.processedCount,
-      total: this.totalCount,
-      progress: this.totalCount > 0 ? (this.processedCount / this.totalCount) * 100 : 0
-    };
-  }
+    if (error) throw error;
 
-  // Process a single video
-  static async migrateSingleVideo(videoId: string): Promise<boolean> {
-    try {
-      const { data: video, error } = await supabase
+    // Update the video record with new preview URLs
+    if (data?.preview_url) {
+      const { error: updateError } = await supabase
         .from('videos')
-        .select('id, video_url, duration, owner_id, preview_url')
-        .eq('id', videoId)
-        .single();
+        .update({ 
+          preview_url: data.preview_url,
+          thumbnail_url: data.thumbnail_url || video.thumbnail_url
+        })
+        .eq('id', video.id);
 
-      if (error || !video) {
-        console.error('Video not found:', error);
-        return false;
-      }
+      if (updateError) throw updateError;
+    }
+  }
 
-      // Check if already has WebP preview
-      if (video.preview_url && video.preview_url.endsWith('.webp')) {
-        console.log('Video already has WebP preview');
-        return true;
-      }
+  static calculateEstimatedTime(videoCount: number): number {
+    // Estimate based on average processing time per video
+    // Static WebP: ~2-3 seconds per video
+    // Animated WebP: ~5-8 seconds per video
+    // Adding network overhead and processing time
+    const avgTimePerVideo = 5; // seconds
+    return videoCount * avgTimePerVideo;
+  }
 
-      // Generate both static and animated WebP previews
-      const staticUrls = await VideoPreviewService.generateAndUploadWebPPreviews(
-        video.id,
-        video.video_url,
-        video.duration,
-        video.owner_id,
-        false // static previews
-      );
-      
-      const animatedUrls = await VideoPreviewService.generateAndUploadWebPPreviews(
-        video.id,
-        video.video_url,
-        video.duration,
-        video.owner_id,
-        true // animated previews
-      );
-      
-      const previewUrls = [...staticUrls, ...animatedUrls];
+  static getMigrationStatus(): MigrationStatus {
+    return { ...this.migrationStatus };
+  }
 
-      return previewUrls.length > 0;
+  static stopMigration() {
+    this.shouldStop = true;
+    this.migrationStatus.isProcessing = false;
+  }
 
-    } catch (error) {
-      console.error('Error migrating single video:', error);
-      return false;
+  static formatTime(seconds: number): string {
+    if (seconds < 60) {
+      return `${seconds} seconds`;
+    } else if (seconds < 3600) {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}m ${remainingSeconds}s`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      return `${hours}h ${minutes}m`;
     }
   }
 }
