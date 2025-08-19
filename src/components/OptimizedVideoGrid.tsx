@@ -168,30 +168,8 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             console.error('Video preview play failed:', error);
             setShowPreview(false);
           });
-        } else if (hasValidVideo) {
-          console.log('DEBUG: Using main video URL as preview:', video.video_url);
-          videoRef.current.src = video.video_url;
-          videoRef.current.currentTime = 10;
-          videoRef.current.muted = true;
-          videoRef.current.play().catch((error) => {
-            console.error('Main video preview play failed:', error);
-            setShowPreview(false);
-          });
-
-          const previewTimes = [10, 30, 60, 90];
-          let timeIndex = 0;
-
-          previewCycleRef.current = window.setInterval(() => {
-            timeIndex = (timeIndex + 1) % previewTimes.length;
-            const newTime = previewTimes[timeIndex];
-            setCurrentPreviewTime(newTime);
-
-            if (videoRef.current) {
-              videoRef.current.currentTime = newTime;
-            }
-          }, 3000);
         } else {
-          console.log('DEBUG: No valid preview source found');
+          console.log('DEBUG: No valid preview source found - only playing dedicated preview files');
           setShowPreview(false);
         }
       }
@@ -378,9 +356,8 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
     // Show video previews only after delay (showPreview becomes true)
     const hasValidPreview = computedPreviewUrl && isValidUrl(computedPreviewUrl) && isVideoPreview(computedPreviewUrl);
-    const hasValidVideo = video.video_url && isValidUrl(video.video_url);
 
-    if (showPreview && (hasValidPreview || hasValidVideo)) {
+    if (showPreview && hasValidPreview) {
       return (
         <video
           ref={videoRef}
