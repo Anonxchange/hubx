@@ -161,21 +161,31 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     hoverTimeoutRef.current = setTimeout(() => {
       setShowPreview(true);
 
-      if (videoRef.current) {
-        // Use preview_url if available, otherwise use main video with timestamp
-        const previewUrl = video.preview_url && video.preview_url.trim() !== ''
-          ? video.preview_url
-          : generateBunnyPreviewUrl(video.video_url, 10); // Start at 10 seconds
+      // Check if preview_url is an image/animation (including animated WebP)
+      if (video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
+        // It's an image/animation preview - no video logic needed, just show it
+        return;
+      } else if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
+        // It's a video preview
+        if (videoRef.current) {
+          videoRef.current.src = video.preview_url;
+          videoRef.current.currentTime = 0;
+          videoRef.current.play().catch((error) => {
+            console.error('Video play failed:', error);
+          });
+        }
+      } else {
+        // No preview_url - use main video with timestamps
+        if (videoRef.current && video.video_url) {
+          const previewUrl = generateBunnyPreviewUrl(video.video_url, 10);
+          videoRef.current.src = previewUrl;
+          videoRef.current.currentTime = 10;
+          videoRef.current.play().catch((error) => {
+            console.error('Video play failed:', error);
+          });
 
-        videoRef.current.src = previewUrl;
-        videoRef.current.currentTime = video.preview_url ? 0 : 10;
-        videoRef.current.play().catch((error) => {
-          console.error('Video play failed:', error);
-        });
-
-        // Cycle through different timestamps for main video previews
-        if (!video.preview_url || video.preview_url.trim() === '') {
-          const previewTimes = [10, 30, 60, 90]; // Different preview points
+          // Cycle through different timestamps for main video previews
+          const previewTimes = [10, 30, 60, 90];
           let timeIndex = 0;
 
           previewCycleRef.current = setInterval(() => {
@@ -186,10 +196,10 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             if (videoRef.current) {
               videoRef.current.currentTime = newTime;
             }
-          }, 3000); // Change preview every 3 seconds
+          }, 3000);
         }
       }
-    }, 2000); // Increased delay to 2 seconds
+    }, 1000);
   };
 
   const handleMouseLeave = () => {
@@ -463,16 +473,35 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             height={300}
             className={`w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
-          {(video.preview_url && video.preview_url.trim() !== '') || showPreview ? (
-            <video
-              ref={videoRef}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
-              muted
-              loop={!!video.preview_url}
-              playsInline
-              preload={getVideoPreloadStrategy()}
-            />
-          ) : null}
+          {showPreview && video.preview_url && video.preview_url.trim() !== '' && (
+            <>
+              {/* Check if preview is an image/animation (GIF, WebP, etc.) */}
+              {/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) ? (
+                <img
+                  src={video.preview_url}
+                  alt={`${video.title} preview`}
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100"
+                  onLoad={() => console.log('Animated image loaded:', video.preview_url)}
+                  onError={(e) => console.error('Image load error:', e, video.preview_url)}
+                />
+              ) : (
+                <video
+                  ref={videoRef}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${showPreview ? 'opacity-100' : 'opacity-0'}`}
+                  muted
+                  loop
+                  playsInline
+                  preload="metadata"
+                  controls={false}
+                  disablePictureInPicture
+                  onError={(e) => {
+                    console.error('Video error:', e);
+                    setShowPreview(false);
+                  }}
+                />
+              )}
+            </>
+          )}
 
           {/* Permanent dark gradient overlay at bottom - purely aesthetic */}
           <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/60 via-black/30 to-transparent" />
