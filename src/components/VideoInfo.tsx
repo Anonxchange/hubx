@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, VideoIcon, Share, Eye, Calendar } from 'lucide-react';
+import { Share2, Clock, Eye, Calendar, Check } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,7 +13,7 @@ import { formatDistanceToNow } from 'date-fns';
 interface VideoInfoProps {
   title: string;
   views: number;
-  duration: string;
+  duration?: string;
   createdAt: string;
   onShare: () => void;
   video: { // Assuming video object contains uploader details
@@ -27,7 +27,8 @@ interface VideoInfoProps {
       username: string;
       avatar_url?: string;
       full_name?: string;
-      user_type: string;
+      user_type: 'user' | 'studio_creator' | 'individual_creator';
+      profile_picture_url?: string;
     };
     // Computed fields for backward compatibility
     uploader_avatar?: string;
@@ -38,14 +39,20 @@ interface VideoInfoProps {
     uploader_total_views?: number;
     uploader_name?: string;
     video_count?: number;
+    title?: string;
   };
   // Reaction props
   reactionData?: { userReaction: 'like' | 'dislike' | null | undefined; likes: number; dislikes: number };
   onReaction: (reactionType: 'like' | 'dislike') => void;
   reactToVideo: ({ videoId, reactionType }: { videoId: string; reactionType: 'like' | 'dislike' }) => void;
-  isReactionLoading: boolean;
-  reactionMutationPending: boolean;
+  isReactionLoading?: boolean;
+  reactionMutationPending?: boolean;
   showViewsAndDate?: boolean;
+  subscriberCount?: number;
+  isSubscribed?: boolean;
+  onSubscribe?: () => void;
+  onProfileClick?: () => void;
+  isSubscribing?: boolean;
 }
 
 const VideoInfo: React.FC<VideoInfoProps> = ({
@@ -54,21 +61,27 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   duration,
   createdAt,
   onShare,
-  video, // Destructure video object
+  video,
   reactionData,
   onReaction,
   reactToVideo,
-  isReactionLoading,
-  reactionMutationPending,
+  isReactionLoading = false,
+  reactionMutationPending = false,
   showViewsAndDate = true,
+  subscriberCount = 0,
+  isSubscribed = false,
+  onSubscribe,
+  onProfileClick,
+  isSubscribing = false,
 }) => {
   const navigate = useNavigate();
 
-  const handleProfileClick = () => {
+  const handleProfileNavigation = () => {
     const uploaderUsername = video?.profiles?.username || video?.uploader_username;
     if (!uploaderUsername) return;
     navigate(`/profile/${uploaderUsername}`);
   };
+
   const formatViews = (count: number) => {
     if (!count || count < 0) return '0';
     if (count >= 1000000) {
@@ -87,6 +100,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
       return 'Unknown date';
     }
   };
+
+  const creatorName = video?.profiles?.full_name || video?.profiles?.username || video?.uploader_name || video?.uploader_username || 'Unknown Creator';
 
   return (
     <div className="space-y-3">
@@ -128,54 +143,69 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
       {((video.profiles?.user_type === 'individual_creator' || video.profiles?.user_type === 'studio_creator') || 
         (video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator')) && (
         <div className="bg-transparent mb-6">
-          {/* Creator Info Row */}
-          <div className="flex items-center gap-3 mb-4">
+          {/* Creator Info */}
+          <div className="flex items-center space-x-3 mb-4">
             <Avatar 
-              className="h-12 w-12 cursor-pointer"
-              onClick={handleProfileClick}
+              className="w-10 h-10 cursor-pointer" 
+              onClick={handleProfileNavigation}
             >
-              <AvatarImage src={video.profiles?.avatar_url || video.uploader_avatar} />
-              <AvatarFallback className="bg-gray-600 text-white text-sm">
-                {(video.profiles?.full_name || video.profiles?.username || video.uploader_name || video.uploader_username)?.[0]?.toUpperCase() || 'U'}
+              <AvatarImage 
+                src={video?.profiles?.avatar_url || video?.profiles?.profile_picture_url || '/placeholder.svg'} 
+                alt={creatorName}
+              />
+              <AvatarFallback>
+                {creatorName.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-
             <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center space-x-2">
                 <h3 
-                  className="font-semibold text-white text-base cursor-pointer hover:text-orange-400 transition-colors"
-                  onClick={handleProfileClick}
+                  className="font-semibold text-foreground cursor-pointer hover:text-orange-500 transition-colors"
+                  onClick={handleProfileNavigation}
                 >
-                  {video.profiles?.full_name || video.profiles?.username || video.uploader_name || video.uploader_username}
+                  {creatorName}
                 </h3>
-                <VerificationBadge userType={video.profiles?.user_type || video.uploader_type} />
+                <VerificationBadge
+                  userType={video?.profiles?.user_type || video.uploader_type}
+                  size="small"
+                />
               </div>
-              
-              <p className="text-sm text-gray-400">
-                {video.video_count || 0} Videos | {formatViews(video.uploader_subscribers || 0)} Subscribers
+              <p className="text-sm text-muted-foreground">
+                {subscriberCount >= 1000000
+                  ? `${(subscriberCount / 1000000).toFixed(1)}M`
+                  : subscriberCount >= 1000
+                  ? `${(subscriberCount / 1000).toFixed(1)}K`
+                  : subscriberCount} subscribers
               </p>
             </div>
-          </div>
-
-          {/* Subscribe Button - Full Width */}
-          <Button
-            variant="outline"
-            className="w-full bg-transparent border border-gray-600 text-white hover:bg-gray-800 hover:border-gray-500 py-3 font-medium text-sm mb-2"
-            onClick={handleProfileClick}
-          >
-            Subscribe
-          </Button>
-
-          {/* View More Button */}
-          <div className="text-center">
             <Button
-              variant="ghost"
-              className="text-gray-400 hover:text-white text-sm font-medium p-2"
-              onClick={handleProfileClick}
+              variant="outline"
+              size="sm"
+              className={`${
+                isSubscribed
+                  ? 'bg-green-600 hover:bg-green-700 text-white border-green-600'
+                  : 'bg-orange-500 hover:bg-orange-600 text-white border-orange-500'
+              } transition-all`}
+              onClick={onSubscribe}
+              disabled={isSubscribing}
             >
-              VIEW MORE
+              {isSubscribing ? (
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Loading...</span>
+                </div>
+              ) : isSubscribed ? (
+                <div className="flex items-center space-x-2">
+                  <Check className="w-4 h-4" />
+                  <span>Subscribed</span>
+                </div>
+              ) : (
+                'Subscribe'
+              )}
             </Button>
           </div>
+
+          
         </div>
       )}
     </div>
