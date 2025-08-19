@@ -146,12 +146,24 @@ export class VideoMigrationService {
         return true;
       }
 
-      const previewUrls = await VideoPreviewService.generateAndUploadWebPPreviews(
+      // Generate both static and animated WebP previews
+      const staticUrls = await VideoPreviewService.generateAndUploadWebPPreviews(
         video.id,
         video.video_url,
         video.duration,
-        video.owner_id
+        video.owner_id,
+        false // static previews
       );
+      
+      const animatedUrls = await VideoPreviewService.generateAndUploadWebPPreviews(
+        video.id,
+        video.video_url,
+        video.duration,
+        video.owner_id,
+        true // animated previews
+      );
+      
+      const previewUrls = [...staticUrls, ...animatedUrls];
 
       return previewUrls.length > 0;
 
