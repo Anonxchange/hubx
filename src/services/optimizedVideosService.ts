@@ -26,13 +26,11 @@ export const getOptimizedVideos = async (page = 1, limit = 60, category?: string
     .from('videos')
     .select(`
       *,
-      profiles!videos_owner_id_fkey (
+      profiles:owner_id (
         id,
         username,
         user_type,
-        avatar_url,
-        subscriber_count,
-        verified
+        avatar_url
       )
     `, { count: 'exact' });
 
@@ -40,23 +38,23 @@ export const getOptimizedVideos = async (page = 1, limit = 60, category?: string
   if (category && category !== 'all') {
     switch (category.toLowerCase()) {
       case 'recommended':
-        query = query.eq('is_premium', false).order('views', { ascending: false });
+        query = query.order('views', { ascending: false });
         break;
       case 'trending':
-        query = query.eq('is_premium', false).order('views', { ascending: false });
+        query = query.order('views', { ascending: false });
         break;
       case 'most rated':
-        query = query.eq('is_premium', false).order('likes', { ascending: false });
+        query = query.order('likes', { ascending: false });
         break;
       case 'premium':
-        query = query.eq('is_premium', true).order('created_at', { ascending: false });
+        query = query.order('created_at', { ascending: false });
         break;
       default:
-        query = query.eq('is_premium', false).contains('tags', [category]).order('created_at', { ascending: false });
+        query = query.contains('tags', [category]).order('created_at', { ascending: false });
         break;
     }
   } else {
-    query = query.eq('is_premium', false).order('created_at', { ascending: false });
+    query = query.order('created_at', { ascending: false });
   }
 
   if (searchQuery) {
@@ -81,8 +79,8 @@ export const getOptimizedVideos = async (page = 1, limit = 60, category?: string
       uploader_type: video.profiles?.user_type || 'user',
       uploader_id: video.profiles?.id,
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_subscribers: video.profiles?.subscriber_count || 0,
-      uploader_verified: video.profiles?.verified || false
+      uploader_subscribers: 0,
+      uploader_verified: false
     })) || [],
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / limit)
@@ -97,7 +95,7 @@ export const getVideoById = async (id: string) => {
     .from('videos')
     .select(`
       *,
-      profiles!fk_videos_owner_id (
+      profiles:owner_id (
         id,
         full_name,
         username,
@@ -120,8 +118,8 @@ export const getVideoById = async (id: string) => {
     uploader_type: video.profiles?.user_type || 'user',
     uploader_id: video.profiles?.id,
     uploader_avatar: video.profiles?.avatar_url,
-    uploader_subscribers: video.profiles?.subscriber_count || 0,
-    uploader_verified: video.profiles?.verified || false
+    uploader_subscribers: 0,
+    uploader_verified: false
   };
 };
 
@@ -135,12 +133,12 @@ export const getCategoryVideos = async (category: string, page = 1, limit = 10) 
       title,
       thumbnail_url,
       duration,
-      view_count,
+      views,
       created_at,
       category,
       tags,
       owner_id,
-      profiles!fk_videos_owner_id (
+      profiles:owner_id (
         id,
         full_name,
         username,
@@ -149,7 +147,7 @@ export const getCategoryVideos = async (category: string, page = 1, limit = 10) 
       )
     `)
     .eq('category', category)
-    .eq('approved', true)
+    
     .order('created_at', { ascending: false })
     .limit(limit)
     .range(offset, offset + limit - 1);
@@ -167,8 +165,8 @@ export const getCategoryVideos = async (category: string, page = 1, limit = 10) 
       uploader_type: video.profiles?.user_type || 'user',
       uploader_id: video.profiles?.id,
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_subscribers: video.profiles?.subscriber_count || 0,
-      uploader_verified: video.profiles?.verified || false
+      uploader_subscribers: 0,
+      uploader_verified: false
     })) || [],
     totalCount: videos?.length || 0, // Placeholder, ideally get count from query
   };
@@ -186,12 +184,12 @@ export const getTrendingVideos = async (page = 1, limit = 10) => {
       title,
       thumbnail_url,
       duration,
-      view_count,
+      views,
       created_at,
       category,
       tags,
       owner_id,
-      profiles!fk_videos_owner_id (
+      profiles:owner_id (
         id,
         full_name,
         username,
@@ -199,9 +197,9 @@ export const getTrendingVideos = async (page = 1, limit = 10) => {
         avatar_url
       )
     `)
-    .eq('approved', true)
+    
     .gte('created_at', sevenDaysAgo)
-    .order('view_count', { ascending: false })
+    .order('views', { ascending: false })
     .limit(limit)
     .range(offset, offset + limit - 1);
 
@@ -218,8 +216,8 @@ export const getTrendingVideos = async (page = 1, limit = 10) => {
       uploader_type: video.profiles?.user_type || 'user',
       uploader_id: video.profiles?.id,
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_subscribers: video.profiles?.subscriber_count || 0,
-      uploader_verified: video.profiles?.verified || false
+      uploader_subscribers: 0,
+      uploader_verified: false
     })) || [],
     totalCount: videos?.length || 0, // Placeholder
   };
@@ -236,13 +234,13 @@ export const searchVideos = async (searchTerm: string, page = 1, limit = 10) => 
       title,
       thumbnail_url,
       duration,
-      view_count,
+      views,
       created_at,
       category,
       tags,
       description,
       owner_id,
-      profiles!fk_videos_owner_id (
+      profiles:owner_id (
         id,
         full_name,
         username,
@@ -250,9 +248,9 @@ export const searchVideos = async (searchTerm: string, page = 1, limit = 10) => 
         avatar_url
       )
     `)
-    .eq('approved', true)
+    
     .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`)
-    .order('view_count', { ascending: false })
+    .order('views', { ascending: false })
     .limit(limit)
     .range(offset, offset + limit - 1);
 
@@ -269,8 +267,8 @@ export const searchVideos = async (searchTerm: string, page = 1, limit = 10) => 
       uploader_type: video.profiles?.user_type || 'user',
       uploader_id: video.profiles?.id,
       uploader_avatar: video.profiles?.avatar_url,
-      uploader_subscribers: video.profiles?.subscriber_count || 0,
-      uploader_verified: video.profiles?.verified || false
+      uploader_subscribers: 0,
+      uploader_verified: false
     })) || [],
     totalCount: videos?.length || 0, // Placeholder
   };
