@@ -107,14 +107,16 @@ export const profileService = {
     try {
       const { error } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           ...profileData,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
+        }, {
+          onConflict: 'id'
         });
 
       if (error) {
-        console.error('Error creating profile:', error);
+        console.error('Error creating/updating profile:', error);
         return false;
       }
 
