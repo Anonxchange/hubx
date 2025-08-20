@@ -135,45 +135,16 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const startPreview = () => {
     if (!shouldLoadPreview) return;
 
-    // For image previews (WebP, GIF), show immediately without delay
+    // ONLY show image previews (WebP, GIF) - NO video previews
     if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
       console.log('DEBUG: Image preview - showing immediately');
-      return; // Image preview is handled in renderPreview
+      setShowPreview(true);
+      return;
     }
 
-    // For video previews, use delay
-    hoverTimeoutRef.current = window.setTimeout(() => {
-      console.log('DEBUG: Starting video preview');
-      setShowPreview(true);
-
-      if (videoRef.current) {
-        const hasValidPreview = video.preview_url && isValidUrl(video.preview_url);
-        const hasValidVideo = video.video_url && isValidUrl(video.video_url);
-
-        console.log('DEBUG: Preview sources:', {
-          hasValidPreview,
-          hasValidVideo,
-          preview_url: video.preview_url,
-          video_url: video.video_url,
-          isVideoPreview: hasValidPreview ? isVideoPreview(video.preview_url) : false
-        });
-
-        if (hasValidPreview && isVideoPreview(video.preview_url)) {
-          console.log('DEBUG: Using dedicated preview URL:', video.preview_url);
-          videoRef.current.src = video.preview_url;
-          videoRef.current.currentTime = 0;
-          videoRef.current.muted = true;
-          videoRef.current.loop = true;
-          videoRef.current.play().catch((error) => {
-            console.error('Video preview play failed:', error);
-            setShowPreview(false);
-          });
-        } else {
-          console.log('DEBUG: No valid preview source found - only playing dedicated preview files');
-          setShowPreview(false);
-        }
-      }
-    }, isMobile ? 100 : 500);
+    // No video previews allowed - skip if not an image
+    console.log('DEBUG: No WebP/image preview available - skipping preview');
+    return;
   };
 
   const stopPreview = () => {
@@ -228,36 +199,26 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartTime(Date.now());
-    console.log('DEBUG: Touch start - checking preview type:', {
+    console.log('DEBUG: Touch start - checking for WebP/image preview only:', {
       preview_url: video.preview_url,
-      'typeof preview_url': typeof video.preview_url,
-      'preview_url === undefined': video.preview_url === undefined,
-      'preview_url === null': video.preview_url === null,
-      'preview_url === ""': video.preview_url === "",
       isValidUrl: video.preview_url ? isValidUrl(video.preview_url) : false,
       isImagePreview: video.preview_url ? isImagePreview(video.preview_url) : false
     });
 
-    // For image/webp previews, show immediately  
+    // ONLY show WebP/image previews on touch
     if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
-      console.log('DEBUG: Showing image preview immediately on touch');
+      console.log('DEBUG: Showing WebP/image preview immediately on touch');
       setIsHovered(true);
+      setShowPreview(true);
 
       // Auto-hide after 10 seconds to allow clicking
       setTimeout(() => {
         setIsHovered(false);
+        setShowPreview(false);
       }, 10000);
     } else {
-      // For video previews, use longer delay
-      touchTimeoutRef.current = window.setTimeout(() => {
-        setIsHovered(true);
-        startPreview();
-
-        // Auto-hide preview after 10 seconds on mobile
-        setTimeout(() => {
-          stopPreview();
-        }, 10000);
-      }, 300);
+      console.log('DEBUG: No WebP/image preview available for touch');
+      // No preview to show
     }
   };
 
@@ -331,9 +292,9 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       isImagePreview: computedPreviewUrl ? isImagePreview(computedPreviewUrl) : false
     });
 
-    // Show image/gif/webp previews immediately on hover (no delay needed)
-    if (isHovered && computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
-      console.log('DEBUG: Rendering image preview:', computedPreviewUrl);
+    // ONLY show WebP/image/gif previews - NO video previews
+    if ((isHovered || showPreview) && computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
+      console.log('DEBUG: Rendering WebP/image preview:', computedPreviewUrl);
       return (
         <img
           src={computedPreviewUrl}
@@ -354,41 +315,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       );
     }
 
-    // Show video previews only after delay (showPreview becomes true)
-    const hasValidPreview = computedPreviewUrl && isValidUrl(computedPreviewUrl) && isVideoPreview(computedPreviewUrl);
-
-    if (showPreview && hasValidPreview) {
-      return (
-        <video
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10"
-          muted
-          playsInline
-          preload="metadata"
-          controls={false}
-          crossOrigin="anonymous"
-          onLoadStart={() => {
-            console.log('DEBUG: Video preview load started');
-          }}
-          onCanPlay={() => {
-            console.log('DEBUG: Video preview can play');
-          }}
-          onPlaying={() => {
-            console.log('DEBUG: Video preview is playing');
-          }}
-          onError={(e) => {
-            console.error('Preview video failed to load:', video.preview_url || video.video_url, e);
-            console.log('DEBUG: Trying without CORS...');
-            // Try without CORS as fallback
-            if (videoRef.current) {
-              videoRef.current.crossOrigin = null;
-              videoRef.current.load();
-            }
-          }}
-        />
-      );
-    }
-
+    // NO video previews - return null if not an image preview
     return null;
   };
 
