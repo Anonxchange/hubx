@@ -41,12 +41,12 @@ interface MobileNavItem {
 const mobileNavItems = (country: string): MobileNavItem[] => [
   { name: 'Recommended', icon: ThumbsUp, path: '/recommended', badge: null },
   { name: 'Premium', icon: Star, path: '/premium', badge: 'VIP' },
-  { name: 'Featured Videos', icon: Play, path: '/', badge: null },
+  { name: 'Featured Videos', icon: Play, path: '/featured', badge: null },
   { name: 'Trending', icon: TrendingUp, path: '/trending', badge: 'HOT' },
   { name: 'Moments', icon: Clock, path: '/moments', badge: null },
   { name: `Hottest in ${country}`, icon: Flame, path: `/hottest/${country.toLowerCase().replace(/\s+/g, '-')}`, badge: 'HOT' },
   { name: 'Channel', icon: Tv, path: '/channel', badge: null },
-  { name: 'Most Liked', icon: ThumbsUp, path: '/?sort=likes', badge: null },
+  { name: 'Most Liked', icon: ThumbsUp, path: '/most-liked', badge: null },
   { name: 'Live Cams', icon: Users, url: 'https://chaturbate.com/in/?tour=g4pe&campaign=cxFud&track=default', badge: null },
 ];
 
@@ -359,11 +359,25 @@ const Header = () => {
             </Link>
 
             <Link
+              to="/featured"
+              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors ${location.pathname === '/featured' ? 'text-orange-500' : ''}`}
+            >
+              FEATURED
+            </Link>
+
+            <Link
              to="/recommended"
             className={`text-sm font-medium text-white hover:text-orange-500 transition-colors ${location.pathname === '/recommended' ? 'text-orange-500' : ''}`}
              >
                RECOMMENDED
              </Link>
+
+            <Link
+              to="/most-liked"
+              className={`text-sm font-medium text-white hover:text-orange-500 transition-colors ${location.pathname === '/most-liked' ? 'text-orange-500' : ''}`}
+            >
+              MOST LIKED
+            </Link>
 
             <Link
               to="/premium"
