@@ -96,7 +96,7 @@ const ChannelPage = () => {
 
             return {
               id: profile.id,
-              name: profile.full_name || profile.username || 'Unknown Creator',
+              name: profile.full_name || profile.username || profile.email?.split('@')[0] || 'Unknown Creator',
               username: profile.username,
               avatar: profile.avatar_url || profile.profile_picture_url || '/placeholder.svg',
               subscribers: subscriberCount || 0,
