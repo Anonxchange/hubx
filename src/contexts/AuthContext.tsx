@@ -101,36 +101,67 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('Setting user type from profile:', profile.user_type);
         setUserAndCache(currentUser, profile.user_type as UserType);
       } else {
+        // Try multiple sources for user type in order of preference
         let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
         console.log('User metadata type:', metadataUserType);
 
+        // Check localStorage for this specific user
         if (!metadataUserType) {
           const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
-          console.log('Checking localStorage for user type:', { userId: currentUser.id, storedUserType });
+          console.log('Stored user type:', storedUserType);
           if (storedUserType) {
             metadataUserType = storedUserType;
-            console.log('Retrieved user type from localStorage:', storedUserType);
-          } else {
-            console.log('No user type found in localStorage for user:', currentUser.id);
           }
         }
 
-        // Only fall back to 'user' if we truly have no other information
-        const finalUserType = metadataUserType ?? 'user';
-        console.log('Setting final user type:', finalUserType);
-        
-        // If we got a user type from storage, update the profile in the background
-        if (metadataUserType && metadataUserType !== 'user') {
-          profileService.updateProfile(currentUser.id, { userType: metadataUserType });
+        // Check for temp signup data (for users who just signed up)
+        if (!metadataUserType && currentUser.email) {
+          const tempUserType = localStorage.getItem(`temp_signup_usertype_${currentUser.email}`) as UserType | null;
+          console.log('Temp signup user type:', tempUserType);
+          if (tempUserType) {
+            metadataUserType = tempUserType;
+            // Store it permanently and clean up temp
+            localStorage.setItem(`user_type_${currentUser.id}`, tempUserType);
+            localStorage.removeItem(`temp_signup_usertype_${currentUser.email}`);
+          }
         }
-        
+
+        // Check app_metadata as final fallback before defaulting to 'user'
+        if (!metadataUserType) {
+          metadataUserType = currentUser.app_metadata?.user_type as UserType | undefined;
+          console.log('App metadata user type:', metadataUserType);
+        }
+
+        const finalUserType = metadataUserType || 'user';
+        console.log('Setting final user type:', finalUserType);
+
+        // Create or update profile if we have a non-default user type
+        if (finalUserType !== 'user') {
+          console.log('Creating/updating profile with user type:', finalUserType);
+          try {
+            await profileService.createProfile({
+              id: currentUser.id,
+              email: currentUser.email || '',
+              userType: finalUserType,
+              fullName: currentUser.user_metadata?.first_name && currentUser.user_metadata?.last_name 
+                ? `${currentUser.user_metadata.first_name} ${currentUser.user_metadata.last_name}`
+                : currentUser.user_metadata?.first_name || ''
+            });
+          } catch (createError) {
+            console.log('Profile already exists, trying to update:', createError);
+            await profileService.updateProfile(currentUser.id, { userType: finalUserType });
+          }
+        }
+
         setUserAndCache(currentUser, finalUserType);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
-      // Fallback to cached or default user type
-      const cachedUserType = localStorage.getItem('auth_user_type') as UserType;
-      setUserAndCache(currentUser, cachedUserType || 'user');
+      // Try to get from localStorage as last resort
+      const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType;
+      const fallbackUserType = storedUserType || 'user';
+      console.log('Using fallback user type:', fallbackUserType);
+      setUserAndCache(currentUser, fallbackUserType);
     }
   };
 
@@ -230,48 +261,59 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     fullName?: string
   ): Promise<{ error: AuthError | null }> => {
     try {
+      // Store the user type immediately before signup
+      const tempUserTypeKey = `temp_signup_usertype_${email}`;
+      localStorage.setItem(tempUserTypeKey, userType);
+      console.log('Stored temporary user type for signup:', userType);
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: `${window.location.origin}/auth?confirmed=true`,
+          data: {
+            user_type: userType, // Include in auth metadata
+            full_name: fullName
+          }
         },
       });
 
       if (error) {
         console.error('Signup error:', error);
+        // Clean up temp storage on error
+        localStorage.removeItem(tempUserTypeKey);
         return { error };
       }
 
       if (data.user) {
         console.log('Signup successful, creating profile with userType:', userType);
-        
-        // Check if profile exists first, create only if it doesn't
-        const existingProfile = await profileService.getProfile(data.user.id);
 
-        if (!existingProfile) {
-          console.log('Creating new profile with userType:', userType);
+        // Store user type with user ID for future reference
+        localStorage.setItem(`user_type_${data.user.id}`, userType);
+        
+        // Try to create profile immediately
+        try {
           const profileCreated = await profileService.createProfile({
             id: data.user.id,
             email: data.user.email || '',
-            userType: userType
+            userType: userType,
+            fullName: fullName
           });
 
-          if (!profileCreated) {
-            console.error('Failed to create user profile');
-            // Don't throw error here as the user account was created successfully
-          } else {
+          if (profileCreated) {
             console.log('Profile created successfully with userType:', userType);
+          } else {
+            console.error('Failed to create user profile - will retry later');
           }
-        } else {
-          console.log('Profile already exists:', existingProfile);
+        } catch (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Don't fail signup if profile creation fails
         }
 
-        // Store the user type for this user so it's available during login
-        localStorage.setItem(`user_type_${data.user.id}`, userType);
-        console.log('Stored user type in localStorage:', userType);
-        
-        // Also immediately set the user in the auth context if they're logged in
+        // Clean up temp storage
+        localStorage.removeItem(tempUserTypeKey);
+
+        // If user is immediately logged in (rare but possible), set the context
         if (data.session) {
           console.log('User is immediately logged in, setting user type in context');
           setUserAndCache(data.user as User, userType);
@@ -338,7 +380,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // Use the profile user_type (from database) as the source of truth
-        const correctUserType = profile.user_type;
+        const correctUserType = profile.user_type as UserType;
         localStorage.setItem(`user_type_${data.user.id}`, correctUserType);
         setUserAndCache(data.user as User, correctUserType);
       }
