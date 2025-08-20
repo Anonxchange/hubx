@@ -307,7 +307,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         } catch (profileError) {
           console.error('Profile creation error:', profileError);
-          // Don't fail signup if profile creation fails
+          // If profile creation fails, try direct database insert
+          try {
+            await supabase
+              .from('profiles')
+              .insert({
+                id: data.user.id,
+                email: data.user.email || '',
+                user_type: userType,
+                full_name: fullName
+              });
+            console.log('Profile created via direct database insert with user_type:', userType);
+          } catch (directInsertError) {
+            console.error('Direct profile creation also failed:', directInsertError);
+          }
         }
 
         // Clean up temp storage
@@ -360,12 +373,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           .eq('id', data.user.id)
           .single();
 
+        console.log('Profile fetch for signin:', { profile, profileError, userId: data.user.id });
+
         if (profileError) {
+          console.error('Profile error details:', profileError);
           await supabase.auth.signOut();
           return {
             error: { message: 'Could not verify user type. Please try again later.' },
           };
         }
+
+        console.log('Database user_type:', profile.user_type, 'Selected user_type:', selectedUserType);
 
         if (selectedUserType && profile.user_type !== selectedUserType) {
           await supabase.auth.signOut();
