@@ -106,14 +106,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         if (!metadataUserType) {
           const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
+          console.log('Checking localStorage for user type:', { userId: currentUser.id, storedUserType });
           if (storedUserType) {
             metadataUserType = storedUserType;
             console.log('Retrieved user type from localStorage:', storedUserType);
+          } else {
+            console.log('No user type found in localStorage for user:', currentUser.id);
           }
         }
 
+        // Only fall back to 'user' if we truly have no other information
         const finalUserType = metadataUserType ?? 'user';
         console.log('Setting final user type:', finalUserType);
+        
+        // If we got a user type from storage, update the profile in the background
+        if (metadataUserType && metadataUserType !== 'user') {
+          profileService.updateProfile(currentUser.id, { userType: metadataUserType });
+        }
+        
         setUserAndCache(currentUser, finalUserType);
       }
     } catch (error) {
@@ -234,10 +244,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (data.user) {
+        console.log('Signup successful, creating profile with userType:', userType);
+        
         // Check if profile exists first, create only if it doesn't
         const existingProfile = await profileService.getProfile(data.user.id);
 
         if (!existingProfile) {
+          console.log('Creating new profile with userType:', userType);
           const profileCreated = await profileService.createProfile({
             id: data.user.id,
             email: data.user.email || '',
@@ -247,7 +260,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (!profileCreated) {
             console.error('Failed to create user profile');
             // Don't throw error here as the user account was created successfully
+          } else {
+            console.log('Profile created successfully with userType:', userType);
           }
+        } else {
+          console.log('Profile already exists:', existingProfile);
+        }
+
+        // Store the user type for this user so it's available during login
+        localStorage.setItem(`user_type_${data.user.id}`, userType);
+        console.log('Stored user type in localStorage:', userType);
+        
+        // Also immediately set the user in the auth context if they're logged in
+        if (data.session) {
+          console.log('User is immediately logged in, setting user type in context');
+          setUserAndCache(data.user as User, userType);
         }
       }
 
@@ -310,8 +337,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           };
         }
 
-        localStorage.setItem(`user_type_${data.user.id}`, selectedUserType ?? profile.user_type);
-        setUserAndCache(data.user as User, selectedUserType ?? profile.user_type);
+        // Use the profile user_type (from database) as the source of truth
+        const correctUserType = profile.user_type;
+        localStorage.setItem(`user_type_${data.user.id}`, correctUserType);
+        setUserAndCache(data.user as User, correctUserType);
       }
 
       return { error: null };
