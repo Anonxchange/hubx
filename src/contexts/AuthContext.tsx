@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { profileService } from '@/services/profileService';
 
 export type UserType = 'user' | 'individual_creator' | 'studio_creator';
 
@@ -126,7 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // On component mount, get session and subscribe to auth state changes
   useEffect(() => {
     let isInitialLoad = true;
-    
+
     const getSession = async () => {
       try {
         const {
@@ -145,7 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // If we have cached data and it matches the session user, don't refetch
           const cachedUser = localStorage.getItem('auth_user');
           const cachedUserType = localStorage.getItem('auth_user_type');
-          
+
           if (cachedUser && cachedUserType && isInitialLoad) {
             try {
               const parsedUser = JSON.parse(cachedUser) as User;
@@ -164,7 +165,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               localStorage.removeItem('auth_user_type');
             }
           }
-          
+
           await fetchUserAndSetType(session.user as User);
         } else {
           // No session, clear everything
@@ -194,7 +195,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('Auth state change:', event, session?.user?.id);
       setLoading(true);
-      
+
       if (session?.user) {
         // Always fetch user type on auth state changes (login, token refresh, etc.)
         await fetchUserAndSetType(session.user as User);
@@ -233,20 +234,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (data.user) {
-        const profileInsert: any = {
-          id: data.user.id,
-          email,
-          user_type: userType,
-        };
-        if (fullName) {
-          profileInsert.full_name = fullName;
-        }
+        // Check if profile exists first, create only if it doesn't
+        const existingProfile = await profileService.getProfile(data.user.id);
 
-        const { error: profileError } = await supabase.from('profiles').insert(profileInsert);
+        if (!existingProfile) {
+          const profileCreated = await profileService.createProfile({
+            id: data.user.id,
+            email: data.user.email || '',
+            userType: userType
+          });
 
-        if (profileError) {
-          console.error('Error inserting profile:', profileError);
-          return { error: profileError };
+          if (!profileCreated) {
+            console.error('Failed to create user profile');
+            // Don't throw error here as the user account was created successfully
+          }
         }
       }
 
