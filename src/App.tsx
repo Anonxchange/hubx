@@ -11,6 +11,8 @@ import CategoryPage from "./pages/CategoryPage";
 import AllCategoriesPage from "./pages/AllCategoriesPage";
 import MomentsPage from "./pages/MomentsPage";
 import RecommendedPage from "./pages/RecommendedPage";
+import FeaturedPage from "./pages/FeaturedPage";
+import MostLikedPage from "./pages/MostLikedPage";
 import HottestPage from './pages/HottestPage';
 import TrendingPage from './pages/TrendingPage';
 import PremiumPage from "./pages/PremiumPage";
@@ -62,6 +64,8 @@ const App = () => (
                 <Route path="/report/:videoId" element={<ReportVideoPage />} />
                 <Route path="/faq" element={<FAQPage />} />
                 <Route path="/recommended" element={<RecommendedPage />} />
+                <Route path="/featured" element={<FeaturedPage />} />
+                <Route path="/most-liked" element={<MostLikedPage />} />
                 <Route path="/hottest" element={<HottestPage />} />
                 <Route path="/hottest/:country" element={<HottestPage />} />
                 <Route path="/trending" element={<TrendingPage />} />
