@@ -58,6 +58,16 @@ const useIsMobile = () => {
 };
 
 
+// Global state to track active preview - only one video can preview at a time
+let activePreviewCard: string | null = null;
+const setActivePreviewCard = (cardId: string | null) => {
+  activePreviewCard = cardId;
+  // Dispatch event to notify other cards to stop their previews
+  if (cardId) {
+    window.dispatchEvent(new CustomEvent('activePreviewChanged', { detail: { activeCardId: cardId } }));
+  }
+};
+
 const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -65,6 +75,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previewCycleRef = useRef<NodeJS.Timeout | null>(null);
+  const cardId = useRef(`video-card-${video.id}-${Math.random()}`).current;
   // Simplified optimization - avoid heavy hook on every card
   const { shouldLoadPreview } = useBandwidthOptimization();
   const isMobile = useIsMobile();
@@ -73,6 +84,29 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
   // --- End State ---
+
+  // Listen for global stop preview events
+  useEffect(() => {
+    const handleStopPreview = (event: CustomEvent) => {
+      if (event.detail.excludeId !== cardId) {
+        cleanup();
+      }
+    };
+
+    const handleActivePreviewChange = (event: CustomEvent) => {
+      if (event.detail.activeCardId !== cardId) {
+        cleanup();
+      }
+    };
+
+    window.addEventListener('stopVideoPreview', handleStopPreview as EventListener);
+    window.addEventListener('activePreviewChanged', handleActivePreviewChange as EventListener);
+    return () => {
+      window.removeEventListener('stopVideoPreview', handleStopPreview as EventListener);
+      window.removeEventListener('activePreviewChanged', handleActivePreviewChange as EventListener);
+      cleanup(); // Cleanup on unmount
+    };
+  }, [cardId]);
 
   // --- Hook for dynamic likes/dislikes ---
   const { userReaction, reactToVideo, isLoading: reactionLoading } = useVideoReaction(video.id);
@@ -179,6 +213,12 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
   const handleHoverStart = (event?: React.TouchEvent | React.MouseEvent) => {
     console.log('Preview triggered:', event?.type || 'unknown', 'for video:', video.title);
+
+    // Stop any currently active preview immediately
+    if (activePreviewCard && activePreviewCard !== cardId) {
+      setActivePreviewCard(null);
+    }
+
     setIsHovered(true);
 
     // Only load previews if bandwidth allows it
@@ -187,42 +227,24 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       return;
     }
 
-    // Only preload video if we have a valid preview URL
-    if (videoRef.current && video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
-      videoRef.current.src = video.preview_url;
-      videoRef.current.load();
+    // ONLY show WebP/image previews - NO video previews
+    const isImagePreview = video.preview_url && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url);
+
+    if (isImagePreview) {
+      // Image/WebP/GIF preview - show immediately
+      setActivePreviewCard(cardId);
+      console.log('WebP/Image preview detected - showing immediately for:', video.title);
+      setShowPreview(true);
+      setIsVideoReady(true);
+      return;
     }
 
-    // Show preview with appropriate delay - faster for touch
-    hoverTimeoutRef.current = setTimeout(() => {
-      console.log('Setting showPreview to true for:', video.title);
-      setShowPreview(true);
-      setIsVideoReady(false); // Reset video ready state
-
-      if (video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        // Image/animation preview - show immediately
-        setIsVideoReady(true);
-        return;
-      } else if (video.preview_url && video.preview_url.trim() !== '' && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url)) {
-        // Video preview - start playing
-        if (videoRef.current) {
-          videoRef.current.currentTime = 0;
-          videoRef.current.muted = true; // Ensure muted for autoplay
-          videoRef.current.play().catch((error) => {
-            console.error('Video preview play failed:', error);
-            setShowPreview(false);
-          });
-        }
-      } else {
-        // No preview URL available - don't play any video
-        console.log('No preview URL available for:', video.title, '- skipping video preview');
-        setShowPreview(false);
-      }
-    }, event?.type === 'touchstart' ? 50 : 200); // Much faster response for touch - almost instant
+    // If no image preview exists, don't show any preview
+    console.log('No WebP/image preview available for:', video.title, '- skipping preview');
+    return;
   };
 
-  const handleMouseLeave = (event?: React.TouchEvent | React.MouseEvent) => {
-    console.log('Preview ended:', event?.type || 'unknown', 'for video:', video.title);
+  const cleanup = () => {
     setIsHovered(false);
     setShowPreview(false);
     setCurrentPreviewTime(0);
@@ -241,31 +263,67 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
       videoRef.current.src = '';
+      videoRef.current.load(); // Force cleanup
     }
+
     // Reset loading states when preview is hidden
     setIsVideoLoading(false);
     setIsVideoReady(false);
+
+    // Clear active preview if it's this card
+    if (activePreviewCard === cardId) {
+      setActivePreviewCard(null);
+    }
+  };
+
+  const handleMouseLeave = (event?: React.TouchEvent | React.MouseEvent) => {
+    console.log('Preview ended:', event?.type || 'unknown', 'for video:', video.title);
+    cleanup();
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent default touch behavior to avoid conflicts
+    // Don't prevent default to allow normal scrolling
     console.log('Touch start detected on:', video.title);
-    handleHoverStart(e);
+
+    // Check if this is a WebP/image preview - show immediately
+    const isImagePreview = video.preview_url && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url);
+    if (isImagePreview) {
+      console.log('WebP preview detected on touch for:', video.title);
+      // Stop any other active previews first
+      if (activePreviewCard && activePreviewCard !== cardId) {
+        setActivePreviewCard(null);
+      }
+      setIsHovered(true);
+      setActivePreviewCard(cardId);
+      setShowPreview(true);
+      setIsVideoReady(true);
+
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        if (activePreviewCard === cardId) {
+          cleanup();
+        }
+      }, 5000);
+    } else {
+      handleHoverStart(e);
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    e.preventDefault(); // Prevent default touch behavior
     console.log('Touch end detected on:', video.title);
-    // Show preview for 10 seconds on mobile before hiding
-    setTimeout(() => handleMouseLeave(e), 10000);
+    // For WebP previews, don't auto-hide immediately on touch end
+    const isImagePreview = video.preview_url && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url);
+    if (!isImagePreview) {
+      // For video previews, shorter time
+      setTimeout(() => handleMouseLeave(e), 3000);
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    // Allow scrolling by not preventing default for touch move
-    // Only prevent if we specifically need to stop scrolling during preview
+    // If user scrolls, stop the preview to save resources
     if (showPreview) {
-      // Let the preview continue but allow normal scrolling
-      console.log('Touch move during preview');
+      console.log('Touch move during preview - stopping to save resources');
+      cleanup();
     }
   };
 
@@ -374,8 +432,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                 height={300}
                 className={`w-full h-full object-cover transition-opacity duration-300 ${(showPreview || (isHovered && video.preview_url && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url))) ? 'opacity-0' : 'opacity-100'}`}
               />
-              {/* Webp/GIF animations show on hover instantly in list view */}
-              {video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && isHovered && (
+              {/* Webp/GIF animations show on hover/touch instantly in list view */}
+              {video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && (isHovered || showPreview) && (
                 <img
                   src={video.preview_url}
                   alt={`${video.title} preview`}
@@ -579,8 +637,8 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             height={300}
             className={`w-full h-full object-cover transition-opacity duration-300 ${(showPreview || (isHovered && video.preview_url && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url))) ? 'opacity-0' : 'opacity-100'}`}
           />
-          {/* Webp/GIF animations show on hover, videos show after preview delay */}
-          {video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && isHovered && (
+          {/* Webp/GIF animations show on hover/touch, videos show after preview delay */}
+          {video.preview_url && video.preview_url.trim() !== '' && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url) && (isHovered || showPreview) && (
             <img
               src={video.preview_url}
               alt={`${video.title} preview`}
