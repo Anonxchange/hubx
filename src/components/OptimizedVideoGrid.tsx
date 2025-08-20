@@ -41,6 +41,16 @@ interface OptimizedVideoGridProps {
   showMoments?: boolean;
 }
 
+// Global state to track active preview - only one video can preview at a time
+let activePreviewCard: string | null = null;
+const setActivePreviewCard = (cardId: string | null) => {
+  activePreviewCard = cardId;
+  // Dispatch event to notify other cards to stop their previews
+  if (cardId) {
+    window.dispatchEvent(new CustomEvent('activePreviewChanged', { detail: { activeCardId: cardId } }));
+  }
+};
+
 const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'list' }> = ({
   video,
   viewMode = 'grid'
@@ -54,7 +64,23 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const hoverTimeoutRef = useRef<number | null>(null);
   const previewCycleRef = useRef<number | null>(null);
   const touchTimeoutRef = useRef<number | null>(null);
+  const cardId = useRef(`optimized-video-card-${video.id}-${Math.random()}`).current;
   const { shouldLoadPreview } = useBandwidthOptimization();
+
+  // Listen for global stop preview events
+  React.useEffect(() => {
+    const handleActivePreviewChange = (event: CustomEvent) => {
+      if (event.detail.activeCardId !== cardId) {
+        stopPreview();
+      }
+    };
+
+    window.addEventListener('activePreviewChanged', handleActivePreviewChange as EventListener);
+    return () => {
+      window.removeEventListener('activePreviewChanged', handleActivePreviewChange as EventListener);
+      stopPreview(); // Cleanup on unmount
+    };
+  }, [cardId]);
 
   // Detect mobile device
   React.useEffect(() => {
@@ -135,9 +161,15 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const startPreview = () => {
     if (!shouldLoadPreview) return;
 
+    // Stop any currently active preview immediately
+    if (activePreviewCard && activePreviewCard !== cardId) {
+      setActivePreviewCard(null);
+    }
+
     // ONLY show image previews (WebP, GIF) - NO video previews
     if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
       console.log('DEBUG: Image preview - showing immediately');
+      setActivePreviewCard(cardId);
       setShowPreview(true);
       return;
     }
@@ -169,6 +201,11 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       videoRef.current.pause();
       videoRef.current.currentTime = 0;
       videoRef.current.src = '';
+    }
+
+    // Clear active preview if it's this card
+    if (activePreviewCard === cardId) {
+      setActivePreviewCard(null);
     }
   };
 
@@ -205,16 +242,23 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       isImagePreview: video.preview_url ? isImagePreview(video.preview_url) : false
     });
 
+    // Stop any other active previews first
+    if (activePreviewCard && activePreviewCard !== cardId) {
+      setActivePreviewCard(null);
+    }
+
     // ONLY show WebP/image previews on touch
     if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
       console.log('DEBUG: Showing WebP/image preview immediately on touch');
+      setActivePreviewCard(cardId);
       setIsHovered(true);
       setShowPreview(true);
 
       // Auto-hide after 10 seconds to allow clicking
       setTimeout(() => {
-        setIsHovered(false);
-        setShowPreview(false);
+        if (activePreviewCard === cardId) {
+          stopPreview();
+        }
       }, 10000);
     } else {
       console.log('DEBUG: No WebP/image preview available for touch');
