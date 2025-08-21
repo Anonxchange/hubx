@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Crown, Star, Shield, Eye, Clock, ThumbsUp, CreditCard, Share, Heart, MessageSquare, Download, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Crown, Star, Shield, Eye, Clock, ThumbsUp, CreditCard, Share, Heart, MessageSquare, Download, MoreHorizontal, ChevronDown, Play } from 'lucide-react';
 import PremiumHeader from '@/components/PremiumHeader';
 import PremiumFooter from '@/components/PremiumFooter';
 import PremiumVideoPlayer from '@/components/PremiumVideoPlayer';
@@ -23,7 +23,6 @@ const PremiumVideoPage = () => {
   const { user } = useAuth();
 
   const [videoError, setVideoError] = useState(false);
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('12months');
 
   const { data: video, isLoading, error } = useQuery({
@@ -181,37 +180,256 @@ const PremiumVideoPage = () => {
         ))}
       </div>
 
-      {/* Full-width Video Player */}
-      <div className="relative aspect-video bg-black">
-        <PremiumVideoPlayer
-          src={video.video_url || ''}
-          poster={video.thumbnail_url || ''}
-          title={video.title || ''}
-          isPremium={true}
-          quality="4K"
-        />
-        {videoError && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg">
-            Failed to load premium video.
-          </div>
-        )}
-        
-        {/* Mute/Sound Button */}
-        <button className="absolute top-4 left-4 bg-black/50 text-white p-2 rounded">
-          <ArrowLeft className="w-4 h-4" />
-        </button>
-      </div>
+      {/* Video Player - Completely No Container */}
+      <PremiumVideoPlayer
+        src={video.video_url || ''}
+        poster={video.thumbnail_url || ''}
+        title={video.title || ''}
+        isPremium={true}
+        quality="4K"
+      />
 
-      {/* Video Title */}
-      <div className="px-4 py-4">
-        <h1 className="text-lg font-semibold text-white leading-tight mb-2">
-          {video.title}
-        </h1>
-        <p className="text-xs text-gray-400 mb-3">15:08</p>
-        
-        {/* Creator Info */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-3">
+      {/* Video Info - Directly under video */}
+      <div className="bg-black">
+        {/* Video Title */}
+        <div className="px-4 py-4">
+          <h1 className="text-lg font-semibold text-white leading-tight mb-2">
+            {video.title || "I Give My New Stepsister a Nice Fuck for the First Time to Her"}
+          </h1>
+          
+          {/* Creator Info */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden">
+                <img 
+                  src="https://images.unsplash.com/photo-1494790108755-2616b612b547?w=100&h=100&fit=crop&crop=face" 
+                  alt="Creator" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <span className="text-white text-sm font-medium">{video.uploader_username || video.uploader_name || "Creator"}</span>
+            </div>
+            
+            <Button 
+              className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm px-4 py-2 rounded-full"
+            >
+              <Star className="w-4 h-4 mr-1" />
+              Send gift
+            </Button>
+          </div>
+        </div>
+
+        {/* Subscription Options - Directly on page */}
+        <div className="px-4 py-4 bg-gray-900">
+          {/* Trial Option */}
+          <div 
+            className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-3 ${
+              selectedPlan === 'trial' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
+            }`}
+            onClick={() => setSelectedPlan('trial')}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded-full border-2 ${
+                selectedPlan === 'trial' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
+              }`}></div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-white">2-day trial</span>
+                  <Badge className="bg-red-600 text-white text-xs">TRY IT</Badge>
+                </div>
+                <span className="text-gray-400 text-sm">Limited access</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-white font-bold">$0.99</div>
+              <div className="text-gray-400 text-xs">/2 days</div>
+            </div>
+          </div>
+
+          {/* 12 Months Option */}
+          <div 
+            className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-3 ${
+              selectedPlan === '12months' ? 'border-yellow-400 bg-yellow-500' : 'border-gray-600 bg-yellow-500'
+            }`}
+            onClick={() => setSelectedPlan('12months')}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded-full border-2 ${
+                selectedPlan === '12months' ? 'border-black bg-black' : 'border-black'
+              }`}></div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-black font-medium">12 months</span>
+                  <Badge className="bg-red-600 text-white text-xs">40% OFF</Badge>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-black font-bold">$2.99</div>
+              <div className="text-black text-xs">/month</div>
+            </div>
+          </div>
+
+          {/* 3 Months Option */}
+          <div 
+            className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-3 ${
+              selectedPlan === '3months' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
+            }`}
+            onClick={() => setSelectedPlan('3months')}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded-full border-2 ${
+                selectedPlan === '3months' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
+              }`}></div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-white">3 months</span>
+                  <Badge className="bg-red-600 text-white text-xs">20% OFF</Badge>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-white font-bold">$3.99</div>
+              <div className="text-gray-400 text-xs">/month</div>
+            </div>
+          </div>
+
+          {/* 1 Month Option */}
+          <div 
+            className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-3 ${
+              selectedPlan === '1month' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
+            }`}
+            onClick={() => setSelectedPlan('1month')}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded-full border-2 ${
+                selectedPlan === '1month' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
+              }`}></div>
+              <span className="text-white">1 month</span>
+            </div>
+            <div className="text-right">
+              <div className="text-white font-bold">$4.99</div>
+              <div className="text-gray-400 text-xs">/month</div>
+            </div>
+          </div>
+
+          {/* Lifetime Option */}
+          <div 
+            className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-4 ${
+              selectedPlan === 'lifetime' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
+            }`}
+            onClick={() => setSelectedPlan('lifetime')}
+          >
+            <div className="flex items-center space-x-3">
+              <div className={`w-4 h-4 rounded-full border-2 ${
+                selectedPlan === 'lifetime' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
+              }`}></div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-white">Lifetime</span>
+                  <Badge className="bg-red-600 text-white text-xs">Use forever</Badge>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-white font-bold">$399.99</div>
+              <div className="text-gray-400 text-xs">/once</div>
+            </div>
+          </div>
+
+          {/* Payment Methods */}
+          <div className="flex space-x-2 py-4">
+            <Button className="flex-1 bg-yellow-500 text-black">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Credit card
+            </Button>
+            <Button className="flex-1 bg-blue-600 text-white">
+              PayPal
+            </Button>
+            <Button className="flex-1 bg-orange-500 text-white">
+              Cryptocoins
+            </Button>
+          </div>
+
+          {/* Sign Up Options */}
+          <div className="space-y-4">
+            <div className="text-center">
+              <span className="text-white">Create account or </span>
+              <button className="text-blue-400">Sign in</button>
+            </div>
+
+            <Button className="w-full bg-white text-black border border-gray-300">
+              <span className="mr-2">G</span>
+              Sign up with Google
+            </Button>
+
+            <div className="text-center text-gray-400 text-xs">
+              — or continue with email —
+            </div>
+
+            <div className="space-y-3">
+              <div className="relative">
+                <input 
+                  type="text" 
+                  placeholder="Username" 
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white placeholder-gray-400"
+                />
+              </div>
+              <div className="relative">
+                <input 
+                  type="email" 
+                  placeholder="Your email" 
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white placeholder-gray-400"
+                />
+              </div>
+            </div>
+
+            <div className="text-xs text-gray-400">
+              By creating account, you agree to our Terms and Conditions & Privacy Policy
+            </div>
+
+            <Button className="w-full bg-yellow-500 text-black font-bold text-lg py-4">
+              <Crown className="w-5 h-5 mr-2" />
+              GET FULL VIDEO
+            </Button>
+
+            <div className="text-xs text-gray-400 text-center">
+              Payments are processed by <span className="text-green-400">EPOCH</span>. Billed as $35.88<br />
+              Followed by a payment of $35.88 after 12 months.
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-center space-x-4 py-4 bg-gray-900">
+          <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
+            <Heart className="w-5 h-5 text-white mb-1" />
+            <span className="text-xs text-white">538</span>
+          </button>
+          <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
+            <MessageSquare className="w-5 h-5 text-white mb-1" />
+          </button>
+          <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
+            <Download className="w-5 h-5 text-white mb-1" />
+          </button>
+          <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
+            <Share className="w-5 h-5 text-white mb-1" />
+          </button>
+          <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
+            <MoreHorizontal className="w-5 h-5 text-white mb-1" />
+          </button>
+        </div>
+
+        {/* Video Info */}
+        <div className="px-4 py-3 bg-black">
+          <p className="text-gray-400 text-sm mb-2">Published: 14.12.2024</p>
+          <div className="flex items-center space-x-2 mb-3">
+            <span className="text-gray-400 text-sm">More info</span>
+            <ChevronDown className="w-4 h-4 text-gray-400" />
+          </div>
+          
+          {/* Creator Profile */}
+          <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden">
               <img 
                 src="https://images.unsplash.com/photo-1494790108755-2616b612b547?w=100&h=100&fit=crop&crop=face" 
@@ -219,255 +437,87 @@ const PremiumVideoPage = () => {
                 className="w-full h-full object-cover"
               />
             </div>
-            <span className="text-white text-sm font-medium">ManuelaAlvarez</span>
+            <span className="text-white text-sm">{video.uploader_username || video.uploader_name || "ManuelaAlvarez"}</span>
           </div>
-          
-          <Button 
-            onClick={() => setShowSubscriptionModal(true)}
-            className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm px-4 py-2 rounded-full"
-          >
-            <Star className="w-4 h-4 mr-1" />
-            Send gift
-          </Button>
+
+          {/* Tags */}
+          <div className="flex flex-wrap gap-2">
+            {['Amateur', 'Blowjob', 'Brunette', '18 Year Old', 'Colombian', 'Eating Pussy', 'Latina'].map((tag) => (
+              <Badge key={tag} className="bg-gray-800 text-gray-300 border-gray-600 text-xs">
+                {tag}
+              </Badge>
+            ))}
+            <button className="bg-gray-800 text-gray-300 border border-gray-600 rounded px-2 py-1 text-xs">
+              <ChevronDown className="w-3 h-3" />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {/* Subscription Modal */}
-      <Dialog open={showSubscriptionModal} onOpenChange={setShowSubscriptionModal}>
-        <DialogContent className="bg-gray-900 border-gray-700 text-white max-w-md mx-auto rounded-lg">
-          <div className="space-y-4">
-            {/* Trial Option */}
-            <div 
-              className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer ${
-                selectedPlan === 'trial' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
-              }`}
-              onClick={() => setSelectedPlan('trial')}
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  selectedPlan === 'trial' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
-                }`}></div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-white">2-day trial</span>
-                    <Badge className="bg-red-600 text-white text-xs">TRY IT</Badge>
-                  </div>
-                  <span className="text-gray-400 text-sm">Limited access</span>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-white font-bold">$0.99</div>
-                <div className="text-gray-400 text-xs">/2 days</div>
-              </div>
-            </div>
-
-            {/* 12 Months Option */}
-            <div 
-              className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer ${
-                selectedPlan === '12months' ? 'border-yellow-400 bg-yellow-500' : 'border-gray-600 bg-yellow-500'
-              }`}
-              onClick={() => setSelectedPlan('12months')}
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  selectedPlan === '12months' ? 'border-black bg-black' : 'border-black'
-                }`}></div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-black font-medium">12 months</span>
-                    <Badge className="bg-red-600 text-white text-xs">40% OFF</Badge>
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-black font-bold">$2.99</div>
-                <div className="text-black text-xs">/month</div>
-              </div>
-            </div>
-
-            {/* 3 Months Option */}
-            <div 
-              className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer ${
-                selectedPlan === '3months' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
-              }`}
-              onClick={() => setSelectedPlan('3months')}
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  selectedPlan === '3months' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
-                }`}></div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-white">3 months</span>
-                    <Badge className="bg-red-600 text-white text-xs">20% OFF</Badge>
+        {/* More Premium Videos Section */}
+        {relatedVideos.length > 0 && (
+          <div className="bg-black px-4 py-6">
+            <h3 className="text-white text-lg font-bold mb-4 flex items-center">
+              <Crown className="w-5 h-5 text-yellow-400 mr-2" />
+              More Premium Content
+            </h3>
+            
+            <div className="space-y-0">
+              {relatedVideos.slice(0, 6).map((relatedVideo) => (
+                <div key={relatedVideo.id} className="relative">
+                  <div className="relative aspect-video bg-black">
+                    <img
+                      src={relatedVideo.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
+                      alt={relatedVideo.title}
+                      className="w-full h-full object-cover"
+                    />
+                    
+                    {/* Gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
+                    
+                    {/* Premium badge */}
+                    <div className="absolute top-3 left-3">
+                      <Badge className="bg-yellow-500 text-black text-xs font-bold px-2 py-1">
+                        <Crown className="w-3 h-3 mr-1" />
+                        PREMIUM
+                      </Badge>
+                    </div>
+                    
+                    {/* Play button */}
+                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                      <div className="bg-black/50 text-white p-3 rounded-full">
+                        <Play className="w-6 h-6" fill="currentColor" />
+                      </div>
+                    </div>
+                    
+                    {/* Video info */}
+                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
+                          <Crown className="w-4 h-4 text-black" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
+                            {relatedVideo.title}
+                          </h4>
+                          <p className="text-gray-300 text-xs">
+                            {relatedVideo.uploader_username || relatedVideo.uploader_name || "Premium Creator"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Duration */}
+                    <div className="absolute bottom-3 right-3">
+                      <span className="bg-black/80 text-white text-xs px-2 py-1 rounded">
+                        {relatedVideo.duration || '15:30'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className="text-white font-bold">$3.99</div>
-                <div className="text-gray-400 text-xs">/month</div>
-              </div>
-            </div>
-
-            {/* 1 Month Option */}
-            <div 
-              className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer ${
-                selectedPlan === '1month' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
-              }`}
-              onClick={() => setSelectedPlan('1month')}
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  selectedPlan === '1month' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
-                }`}></div>
-                <span className="text-white">1 month</span>
-              </div>
-              <div className="text-right">
-                <div className="text-white font-bold">$4.99</div>
-                <div className="text-gray-400 text-xs">/month</div>
-              </div>
-            </div>
-
-            {/* Lifetime Option */}
-            <div 
-              className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer ${
-                selectedPlan === 'lifetime' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
-              }`}
-              onClick={() => setSelectedPlan('lifetime')}
-            >
-              <div className="flex items-center space-x-3">
-                <div className={`w-4 h-4 rounded-full border-2 ${
-                  selectedPlan === 'lifetime' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
-                }`}></div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-white">Lifetime</span>
-                    <Badge className="bg-red-600 text-white text-xs">Use forever</Badge>
-                  </div>
-                </div>
-              </div>
-              <div className="text-right">
-                <div className="text-white font-bold">$399.99</div>
-                <div className="text-gray-400 text-xs">/once</div>
-              </div>
-            </div>
-
-            {/* Payment Methods */}
-            <div className="flex space-x-2 py-4">
-              <Button className="flex-1 bg-yellow-500 text-black">
-                <CreditCard className="w-4 h-4 mr-2" />
-                Credit card
-              </Button>
-              <Button className="flex-1 bg-blue-600 text-white">
-                PayPal
-              </Button>
-              <Button className="flex-1 bg-orange-500 text-white">
-                Cryptocoins
-              </Button>
-            </div>
-
-            {/* Sign Up Options */}
-            <div className="space-y-4">
-              <div className="text-center">
-                <span className="text-white">Create account or </span>
-                <button className="text-blue-400">Sign in</button>
-              </div>
-
-              <Button className="w-full bg-white text-black border border-gray-300">
-                <span className="mr-2">G</span>
-                Sign up with Google
-              </Button>
-
-              <div className="text-center text-gray-400 text-xs">
-                — or continue with email —
-              </div>
-
-              <div className="space-y-3">
-                <div className="relative">
-                  <input 
-                    type="text" 
-                    placeholder="Username" 
-                    className="w-full bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white placeholder-gray-400"
-                  />
-                </div>
-                <div className="relative">
-                  <input 
-                    type="email" 
-                    placeholder="Your email" 
-                    className="w-full bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white placeholder-gray-400"
-                  />
-                </div>
-              </div>
-
-              <div className="text-xs text-gray-400">
-                By creating account, you agree to our Terms and Conditions & Privacy Policy
-              </div>
-
-              <Button className="w-full bg-yellow-500 text-black font-bold text-lg py-4">
-                <Crown className="w-5 h-5 mr-2" />
-                GET FULL VIDEO
-              </Button>
-
-              <div className="text-xs text-gray-400 text-center">
-                Payments are processed by EPOCH. Billed as $35.88<br />
-                Followed by a payment of $35.88 after 12 months.
-              </div>
+              ))}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Action Buttons */}
-      <div className="flex justify-center space-x-4 py-4 bg-gray-900">
-        <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
-          <Heart className="w-5 h-5 text-white mb-1" />
-          <span className="text-xs text-white">538</span>
-        </button>
-        <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
-          <MessageSquare className="w-5 h-5 text-white mb-1" />
-        </button>
-        <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
-          <Download className="w-5 h-5 text-white mb-1" />
-        </button>
-        <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
-          <Share className="w-5 h-5 text-white mb-1" />
-        </button>
-        <button className="flex flex-col items-center bg-gray-800 p-3 rounded-lg">
-          <MoreHorizontal className="w-5 h-5 text-white mb-1" />
-        </button>
-      </div>
-
-      {/* Video Info */}
-      <div className="px-4 py-3 bg-black">
-        <p className="text-gray-400 text-sm mb-2">Published: 14.12.2024</p>
-        <div className="flex items-center space-x-2 mb-3">
-          <span className="text-gray-400 text-sm">More info</span>
-          <ChevronDown className="w-4 h-4 text-gray-400" />
-        </div>
-        
-        {/* Creator Profile */}
-        <div className="flex items-center space-x-3 mb-4">
-          <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden">
-            <img 
-              src="https://images.unsplash.com/photo-1494790108755-2616b612b547?w=100&h=100&fit=crop&crop=face" 
-              alt="Creator" 
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <span className="text-white text-sm">ManuelaAlvarez</span>
-        </div>
-
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2">
-          {['Amateur', '18 Year Old', 'Colombian', 'Brunette', 'Eating Pussy', 'Latina'].map((tag) => (
-            <Badge key={tag} className="bg-gray-800 text-gray-300 border-gray-600 text-xs">
-              {tag}
-            </Badge>
-          ))}
-          <button className="bg-gray-800 text-gray-300 border border-gray-600 rounded px-2 py-1 text-xs">
-            <ChevronDown className="w-3 h-3" />
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );
