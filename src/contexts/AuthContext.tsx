@@ -39,6 +39,7 @@ interface AuthContextType {
     userType?: UserType
   ) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
+  forgotPassword: (email: string) => Promise<{ error: AuthError | null }>;
   isEmailConfirmed: boolean;
 }
 
@@ -420,9 +421,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('auth_user_type');
   };
 
+  // Forgot password function
+  const forgotPassword = async (email: string): Promise<{ error: AuthError | null }> => {
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?reset=true`,
+      });
+
+      if (error) {
+        return { error };
+      }
+
+      return { error: null };
+    } catch (err) {
+      console.error('Forgot password error:', err);
+      return { error: { message: 'An unexpected error occurred while sending reset email' } as AuthError };
+    }
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, userType, loading, signUp, signIn, signOut, isEmailConfirmed }}
+      value={{ user, userType, loading, signUp, signIn, signOut, forgotPassword, isEmailConfirmed }}
     >
       {children}
     </AuthContext.Provider>
