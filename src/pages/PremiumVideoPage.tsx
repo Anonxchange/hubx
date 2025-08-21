@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -53,19 +52,48 @@ const PremiumVideoPage = () => {
     }
   }, [video?.id, user?.id]);
 
-  if (isLoading) {
+  if (isLoading || !id) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-black via-purple-900/20 to-black text-white">
-        <PremiumHeader />
-        <main className="container mx-auto px-4 py-8">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-purple-500/20 rounded w-24"></div>
-            <div className="aspect-video bg-purple-500/20 rounded-lg"></div>
-            <div className="h-8 bg-purple-500/20 rounded w-3/4"></div>
-            <div className="h-4 bg-purple-500/20 rounded w-1/2"></div>
+      <div className="min-h-screen bg-black text-white">
+        {/* Top Status Bar */}
+        <div className="flex items-center justify-between px-4 py-2 text-xs bg-black border-b border-gray-800">
+          <div className="flex items-center space-x-1">
+            <div className="w-1 h-1 bg-red-500 rounded-full"></div>
+            <span>Live</span>
           </div>
-        </main>
-        <PremiumFooter />
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-4 bg-gray-600 rounded-full relative">
+              <div className="w-3 h-3 bg-white rounded-full absolute top-0.5 right-0.5"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Header */}
+        <div className="bg-black px-4 py-3 border-b border-gray-800">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Crown className="w-8 h-8 text-yellow-400" />
+            </div>
+            <div className="flex items-center space-x-4">
+              <ArrowLeft className="w-5 h-5 text-gray-400" />
+            </div>
+          </div>
+        </div>
+
+        {/* Loading Video Player */}
+        <div className="aspect-video bg-black animate-pulse">
+          <div className="w-full h-full bg-gray-900 flex items-center justify-center">
+            <div className="text-white">Loading...</div>
+          </div>
+        </div>
+
+        {/* Loading Content */}
+        <div className="bg-black px-4 py-4">
+          <div className="animate-pulse space-y-4">
+            <div className="h-6 bg-gray-800 rounded w-3/4"></div>
+            <div className="h-4 bg-gray-800 rounded w-1/2"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -148,7 +176,7 @@ const PremiumVideoPage = () => {
           <div className="flex items-center space-x-3">
             <Crown className="w-8 h-8 text-yellow-400" />
           </div>
-          
+
           <div className="flex items-center space-x-4">
             <div className="relative">
               <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center">
@@ -170,8 +198,8 @@ const PremiumVideoPage = () => {
           <button
             key={tab}
             className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${
-              index === 0 
-                ? 'text-yellow-400 border-b-2 border-yellow-400' 
+              index === 0
+                ? 'text-yellow-400 border-b-2 border-yellow-400'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -196,15 +224,15 @@ const PremiumVideoPage = () => {
           <h1 className="text-lg font-semibold text-white leading-tight mb-2">
             {video.title || "I Give My New Stepsister a Nice Fuck for the First Time to Her"}
           </h1>
-          
+
           {/* Creator Info */}
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden">
                 {(video.profiles?.avatar_url || video.uploader_avatar) ? (
-                  <img 
-                    src={video.profiles?.avatar_url || video.uploader_avatar} 
-                    alt={video.uploader_username || "Creator"} 
+                  <img
+                    src={video.profiles?.avatar_url || video.uploader_avatar}
+                    alt={video.uploader_username || "Creator"}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
@@ -225,8 +253,8 @@ const PremiumVideoPage = () => {
               </div>
               <span className="text-white text-sm font-medium">{video.uploader_username || video.uploader_name || "Creator"}</span>
             </div>
-            
-            <Button 
+
+            <Button
               className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm px-4 py-2 rounded-full"
             >
               <Star className="w-4 h-4 mr-1" />
@@ -238,7 +266,7 @@ const PremiumVideoPage = () => {
         {/* Subscription Options - Directly on page */}
         <div className="px-4 py-4 bg-gray-900">
           {/* Trial Option */}
-          <div 
+          <div
             className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-3 ${
               selectedPlan === 'trial' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
             }`}
@@ -263,7 +291,7 @@ const PremiumVideoPage = () => {
           </div>
 
           {/* 12 Months Option */}
-          <div 
+          <div
             className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-3 ${
               selectedPlan === '12months' ? 'border-yellow-400 bg-yellow-500' : 'border-gray-600 bg-yellow-500'
             }`}
@@ -287,7 +315,7 @@ const PremiumVideoPage = () => {
           </div>
 
           {/* 3 Months Option */}
-          <div 
+          <div
             className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-3 ${
               selectedPlan === '3months' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
             }`}
@@ -311,7 +339,7 @@ const PremiumVideoPage = () => {
           </div>
 
           {/* 1 Month Option */}
-          <div 
+          <div
             className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-3 ${
               selectedPlan === '1month' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
             }`}
@@ -330,7 +358,7 @@ const PremiumVideoPage = () => {
           </div>
 
           {/* Lifetime Option */}
-          <div 
+          <div
             className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-4 ${
               selectedPlan === 'lifetime' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
             }`}
@@ -385,16 +413,16 @@ const PremiumVideoPage = () => {
 
             <div className="space-y-3">
               <div className="relative">
-                <input 
-                  type="text" 
-                  placeholder="Username" 
+                <input
+                  type="text"
+                  placeholder="Username"
                   className="w-full bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white placeholder-gray-400"
                 />
               </div>
               <div className="relative">
-                <input 
-                  type="email" 
-                  placeholder="Your email" 
+                <input
+                  type="email"
+                  placeholder="Your email"
                   className="w-full bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white placeholder-gray-400"
                 />
               </div>
@@ -443,14 +471,14 @@ const PremiumVideoPage = () => {
             <span className="text-gray-400 text-sm">More info</span>
             <ChevronDown className="w-4 h-4 text-gray-400" />
           </div>
-          
+
           {/* Creator Profile */}
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden">
               {(video.profiles?.avatar_url || video.uploader_avatar) ? (
-                <img 
-                  src={video.profiles?.avatar_url || video.uploader_avatar} 
-                  alt={video.uploader_username || "Creator"} 
+                <img
+                  src={video.profiles?.avatar_url || video.uploader_avatar}
+                  alt={video.uploader_username || "Creator"}
                   className="w-full h-full object-cover"
                   onError={(e) => {
                     console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
@@ -492,7 +520,7 @@ const PremiumVideoPage = () => {
               <Crown className="w-5 h-5 text-yellow-400 mr-2" />
               More Premium Content
             </h3>
-            
+
             <div className="space-y-0">
               {relatedVideos.slice(0, 6).map((relatedVideo) => (
                 <div key={relatedVideo.id} className="relative">
@@ -502,10 +530,10 @@ const PremiumVideoPage = () => {
                       alt={relatedVideo.title}
                       className="w-full h-full object-cover"
                     />
-                    
+
                     {/* Gradient overlay */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                    
+
                     {/* Premium badge */}
                     <div className="absolute top-3 left-3">
                       <Badge className="bg-yellow-500 text-black text-xs font-bold px-2 py-1">
@@ -513,14 +541,14 @@ const PremiumVideoPage = () => {
                         PREMIUM
                       </Badge>
                     </div>
-                    
+
                     {/* Play button */}
                     <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                       <div className="bg-black/50 text-white p-3 rounded-full">
                         <Play className="w-6 h-6" fill="currentColor" />
                       </div>
                     </div>
-                    
+
                     {/* Video info */}
                     <div className="absolute bottom-0 left-0 right-0 p-4">
                       <div className="flex items-start space-x-3">
@@ -537,7 +565,7 @@ const PremiumVideoPage = () => {
                         </div>
                       </div>
                     </div>
-                    
+
                     {/* Duration */}
                     <div className="absolute bottom-3 right-3">
                       <span className="bg-black/80 text-white text-xs px-2 py-1 rounded">
