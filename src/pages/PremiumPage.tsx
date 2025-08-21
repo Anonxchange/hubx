@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Crown, Play, Eye, Clock, DollarSign, Search, User, Heart, Settings, ThumbsUp } from 'lucide-react';
 import PremiumVideoCard from '@/components/PremiumVideoCard';
+import SubscriptionModal from '@/components/SubscriptionModal';
 import { useVideos } from '@/hooks/useVideos';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button';
 const PremiumPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'originals' | 'top-creator' | 'best-vids'>('all');
+  const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   
   const { data, isLoading, error } = useVideos(
     currentPage,
@@ -73,7 +75,10 @@ const PremiumPage = () => {
               </Badge>
             </div>
             <User className="w-5 h-5 text-gray-400" />
-            <Button className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs px-3 py-1 h-7">
+            <Button 
+              onClick={() => setIsSubscriptionModalOpen(true)}
+              className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs px-3 py-1 h-7"
+            >
               Join now
             </Button>
           </div>
@@ -172,15 +177,25 @@ const PremiumPage = () => {
                       <div className="flex items-start space-x-3">
                         {/* Creator Avatar */}
                         <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
-                          {video.uploader_avatar_url ? (
+                          {(video.profiles?.avatar_url || video.uploader_avatar) ? (
                             <img 
-                              src={video.uploader_avatar_url} 
+                              src={video.profiles?.avatar_url || video.uploader_avatar} 
                               alt={video.uploader_username || "Creator"} 
                               className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  const username = video.uploader_username || video.profiles?.username || video.uploader_name || "User";
+                                  parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">${username.charAt(0).toUpperCase()}</div>`;
+                                }
+                              }}
                             />
                           ) : (
-                            <div className="w-full h-full bg-gray-500 flex items-center justify-center text-white text-xs font-medium">
-                              {(video.uploader_username || video.uploader_name || "C").charAt(0).toUpperCase()}
+                            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">
+                              {(video.uploader_username || video.profiles?.username || video.uploader_name || "U").charAt(0).toUpperCase()}
                             </div>
                           )}
                         </div>
@@ -236,6 +251,12 @@ const PremiumPage = () => {
           </button>
         </div>
       </div>
+
+      {/* Subscription Modal */}
+      <SubscriptionModal 
+        isOpen={isSubscriptionModalOpen}
+        onClose={() => setIsSubscriptionModalOpen(false)}
+      />
     </div>
   );
 };
