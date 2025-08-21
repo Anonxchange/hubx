@@ -67,7 +67,12 @@ const PremiumVideoCard: React.FC<PremiumVideoCardProps> = ({ video, viewMode = '
   };
 
   return (
-    <Link to={`/premium/video/${video.id}`} className="block">
+    <Link 
+      to={`/premium/video/${video.id}`} 
+      className="block"
+      replace={false}
+      style={{ textDecoration: 'none' }}
+    >
         <Card className="group hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 overflow-hidden border-purple-500/20 bg-gradient-to-br from-black/80 to-purple-900/20">
         <div 
           className="relative aspect-video bg-gradient-to-br from-purple-900/50 to-black overflow-hidden"
