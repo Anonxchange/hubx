@@ -192,120 +192,29 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
-      {/* Premium Player Container */}
-      <div className="relative w-full bg-gradient-to-br from-black via-purple-900/20 to-black rounded-xl overflow-hidden border border-yellow-500/30 shadow-2xl shadow-yellow-500/20">
-        {/* Premium Header Overlay */}
-        <div className="absolute top-0 left-0 right-0 z-30 bg-gradient-to-b from-black/80 to-transparent p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold px-3 py-1">
-                <Crown className="w-4 h-4 mr-1" />
-                PREMIUM
-              </Badge>
-              <Badge className="bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold px-2 py-1">
-                {quality}
-              </Badge>
-              <Badge className="bg-green-600/80 text-white font-medium px-2 py-1">
-                <Shield className="w-3 h-3 mr-1" />
-                AD-FREE
-              </Badge>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Star className="w-5 h-5 text-yellow-400" />
-              <span className="text-yellow-400 font-semibold text-sm">VIP QUALITY</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Video Container */}
-        <div 
-          className="relative w-full bg-black"
-          style={{ aspectRatio: "16/9" }}
-        >
-          {/* Premium Glow Effect */}
-          <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/5 via-purple-500/10 to-orange-500/5 z-10 pointer-events-none"></div>
-          
-          <video
-            ref={videoRef}
-            className="w-full h-full"
-            poster={poster}
-            preload="metadata"
-            playsInline
-            webkit-playsinline="true"
-            crossOrigin="anonymous"
-            onPlay={handlePlay}
-            onError={(e) => {
-              console.error("Premium video playback error:", e.currentTarget.error);
-              if (videoRef.current) videoRef.current.controls = true;
-            }}
-            style={{
-              objectFit: "contain",
-              backgroundColor: "#000",
-              display: "block",
-              maxWidth: "100%",
-              maxHeight: "100%",
-            }}
-          >
-            <source src={src} type="video/mp4" />
-          </video>
-
-          {/* Premium Corner Watermark */}
-          <div className="absolute bottom-4 right-4 z-20 bg-gradient-to-r from-yellow-500/20 to-orange-500/20 backdrop-blur-sm rounded-lg px-3 py-1 border border-yellow-500/30">
-            <div className="flex items-center space-x-1">
-              <Crown className="w-3 h-3 text-yellow-400" />
-              <span className="text-yellow-400 text-xs font-bold">PREMIUM</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Premium Status Bar */}
-        <div className="absolute bottom-0 left-0 right-0 z-30 bg-gradient-to-t from-black/90 to-transparent p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4 text-white">
-              <div className="flex items-center space-x-2">
-                <Crown className="w-4 h-4 text-yellow-400" />
-                <span className="text-sm font-medium">Premium Exclusive</span>
-              </div>
-              <div className="w-1 h-4 bg-yellow-500/50 rounded-full"></div>
-              <span className="text-xs text-gray-300">
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center space-x-1">
-                <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                <span className="text-xs text-green-400 font-medium">LIVE QUALITY</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Premium Video Info */}
-      {title && (
-        <div className="mt-4 p-4 bg-gradient-to-r from-black/50 to-purple-900/20 rounded-lg border border-purple-500/20">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Crown className="w-6 h-6 text-yellow-400" />
-              <div>
-                <h3 className="font-bold text-white text-lg">{title}</h3>
-                <p className="text-sm text-gray-300">Premium {quality} Quality • Ad-Free Experience</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold">
-                <Star className="w-3 h-3 mr-1" />
-                VIP
-              </Badge>
-              <Badge className="bg-purple-600/80 text-white">
-                {quality} Ultra HD
-              </Badge>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+    <video
+      ref={videoRef}
+      className="w-full aspect-video"
+      poster={poster}
+      preload="metadata"
+      playsInline
+      webkit-playsinline="true"
+      crossOrigin="anonymous"
+      onPlay={handlePlay}
+      onError={(e) => {
+        console.error("Premium video playback error:", e.currentTarget.error);
+        if (videoRef.current) videoRef.current.controls = true;
+      }}
+      style={{
+        objectFit: "cover",
+        backgroundColor: "#000",
+        display: "block",
+        width: "100%",
+        height: "auto",
+      }}
+    >
+      <source src={src} type="video/mp4" />
+    </video>
   );
 };
 
