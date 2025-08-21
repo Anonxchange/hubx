@@ -6,6 +6,7 @@ import SubscriptionModal from '@/components/SubscriptionModal';
 import SignInModal from '@/components/SignInModal';
 import RecommendedVideosModal from '@/components/RecommendedVideosModal';
 import SearchModal from '@/components/SearchModal';
+import PremiumPageFooter from '@/components/PremiumPageFooter';
 import { useVideos } from '@/hooks/useVideos';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import { Badge } from '@/components/ui/badge';
@@ -23,7 +24,10 @@ const PremiumPage = () => {
   const { data, isLoading, error } = useVideos(
     currentPage,
     60,
-    'premium'
+    undefined, // category
+    undefined, // tag
+    undefined, // sortBy
+    true // premiumOnly - this ensures only premium videos are fetched
   );
 
   const { videos = [], totalPages = 0, totalCount = 0 } = data || {};
@@ -308,6 +312,9 @@ const PremiumPage = () => {
         videos={videos}
         onSearchChange={(term) => setSearchTerm(term)}
       />
+
+      {/* Premium Page Footer */}
+      <PremiumPageFooter />
     </div>
   );
 };
