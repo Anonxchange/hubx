@@ -201,11 +201,27 @@ const PremiumVideoPage = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden">
-                <img 
-                  src="https://images.unsplash.com/photo-1494790108755-2616b612b547?w=100&h=100&fit=crop&crop=face" 
-                  alt="Creator" 
-                  className="w-full h-full object-cover"
-                />
+                {(video.profiles?.avatar_url || video.uploader_avatar) ? (
+                  <img 
+                    src={video.profiles?.avatar_url || video.uploader_avatar} 
+                    alt={video.uploader_username || "Creator"} 
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      const parent = target.parentElement;
+                      if (parent) {
+                        const username = video.uploader_username || video.profiles?.username || video.uploader_name || "User";
+                        parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">${username.charAt(0).toUpperCase()}</div>`;
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">
+                    {(video.uploader_username || video.profiles?.username || video.uploader_name || "U").charAt(0).toUpperCase()}
+                  </div>
+                )}
               </div>
               <span className="text-white text-sm font-medium">{video.uploader_username || video.uploader_name || "Creator"}</span>
             </div>
@@ -431,11 +447,27 @@ const PremiumVideoPage = () => {
           {/* Creator Profile */}
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden">
-              <img 
-                src="https://images.unsplash.com/photo-1494790108755-2616b612b547?w=100&h=100&fit=crop&crop=face" 
-                alt="Creator" 
-                className="w-full h-full object-cover"
-              />
+              {(video.profiles?.avatar_url || video.uploader_avatar) ? (
+                <img 
+                  src={video.profiles?.avatar_url || video.uploader_avatar} 
+                  alt={video.uploader_username || "Creator"} 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                    const parent = target.parentElement;
+                    if (parent) {
+                      const username = video.uploader_username || video.profiles?.username || video.uploader_name || "User";
+                      parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">${username.charAt(0).toUpperCase()}</div>`;
+                    }
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">
+                  {(video.uploader_username || video.profiles?.username || video.uploader_name || "U").charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
             <span className="text-white text-sm">{video.uploader_username || video.uploader_name || "ManuelaAlvarez"}</span>
           </div>
