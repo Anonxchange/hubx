@@ -46,10 +46,10 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
         onClick={() => handlePageChange(currentPage - 1)}
         disabled={currentPage === 1}
         className={`
-          px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-bold text-white transition-all flex-shrink-0 text-sm sm:text-base
+          px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-bold transition-all flex-shrink-0 text-sm sm:text-base
           ${currentPage === 1 
-            ? 'bg-muted cursor-not-allowed opacity-50' 
-            : 'bg-card hover:bg-muted border border-border'}
+            ? 'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50' 
+            : 'bg-gray-800 text-white hover:bg-gray-700 border border-gray-700'}
         `}
       >
         Prev
@@ -64,8 +64,8 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
             className={`
               w-10 h-10 sm:w-12 sm:h-12 rounded-lg font-bold text-sm sm:text-lg transition-all flex-shrink-0
               ${currentPage === page 
-                ? 'bg-primary text-primary-foreground border-2 border-primary shadow-lg shadow-primary/20' 
-                : 'bg-card text-foreground hover:bg-muted border border-border'}
+                ? 'bg-yellow-500 text-black border-2 border-yellow-400 shadow-lg shadow-yellow-500/20' 
+                : 'bg-gray-800 text-white hover:bg-gray-700 border border-gray-700'}
             `}
           >
             {page}
@@ -78,10 +78,10 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
         onClick={() => handlePageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
         className={`
-          px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-bold text-white transition-all flex-shrink-0 text-sm sm:text-base
+          px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-bold transition-all flex-shrink-0 text-sm sm:text-base
           ${currentPage === totalPages 
-            ? 'bg-muted cursor-not-allowed opacity-50' 
-            : 'bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20'}
+            ? 'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50' 
+            : 'bg-yellow-500 text-black hover:bg-yellow-600 shadow-lg shadow-yellow-500/20'}
         `}
       >
         Next
