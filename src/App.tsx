@@ -16,6 +16,7 @@ import MostLikedPage from "./pages/MostLikedPage";
 import HottestPage from './pages/HottestPage';
 import TrendingPage from './pages/TrendingPage';
 import PremiumPage from "./pages/PremiumPage";
+import PremiumVideoPage from './pages/PremiumVideoPage';
 import AdminPanel from "./pages/AdminPanel";
 import ContactUs from "./pages/ContactUs";
 import TermsOfService from "./pages/TermsOfService";
@@ -70,6 +71,7 @@ const App = () => (
                 <Route path="/hottest/:country" element={<HottestPage />} />
                 <Route path="/trending" element={<TrendingPage />} />
                 <Route path="/premium" element={<PremiumPage />} />
+                <Route path="/premium/video/:id" element={<PremiumVideoPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/profile/:username?" element={<ProfilePage />} />
                 <Route path="/auth" element={<AuthPage />} />
