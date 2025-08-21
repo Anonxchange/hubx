@@ -172,11 +172,17 @@ const PremiumPage = () => {
                       <div className="flex items-start space-x-3">
                         {/* Creator Avatar */}
                         <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
-                          <img 
-                            src="https://images.unsplash.com/photo-1494790108755-2616b612b547?w=100&h=100&fit=crop&crop=face" 
-                            alt="Creator" 
-                            className="w-full h-full object-cover"
-                          />
+                          {video.uploader_avatar_url ? (
+                            <img 
+                              src={video.uploader_avatar_url} 
+                              alt={video.uploader_username || "Creator"} 
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-500 flex items-center justify-center text-white text-xs font-medium">
+                              {(video.uploader_username || video.uploader_name || "C").charAt(0).toUpperCase()}
+                            </div>
+                          )}
                         </div>
                         
                         {/* Video Details */}
