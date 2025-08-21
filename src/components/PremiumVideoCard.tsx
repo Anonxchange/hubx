@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Eye, ThumbsUp, Crown, Star, Shield } from 'lucide-react';
+import { Clock, Eye, ThumbsUp, Crown, Star, Shield, Play } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -67,8 +67,8 @@ const PremiumVideoCard: React.FC<PremiumVideoCardProps> = ({ video, viewMode = '
   };
 
   return (
-    <Link to={`/video/${video.id}`} className="block">
-      <Card className="group hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 overflow-hidden border-purple-500/20 bg-gradient-to-br from-black/80 to-purple-900/20">
+    <Link to={`/premium/video/${video.id}`} className="block">
+        <Card className="group hover:shadow-2xl hover:shadow-purple-500/20 transition-all duration-300 overflow-hidden border-purple-500/20 bg-gradient-to-br from-black/80 to-purple-900/20">
         <div 
           className="relative aspect-video bg-gradient-to-br from-purple-900/50 to-black overflow-hidden"
           onMouseEnter={handleMouseEnter}
@@ -124,6 +124,15 @@ const PremiumVideoCard: React.FC<PremiumVideoCardProps> = ({ video, viewMode = '
                   <span className="font-bold text-sm">VIP PREVIEW</span>
                   <Star className="w-4 h-4" />
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Play Button Overlay */}
+          {isHovered && !showPreview && (
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+              <div className="bg-gradient-to-r from-purple-600/90 to-pink-600/90 text-white p-4 rounded-full hover:scale-110 transition-transform">
+                <Play className="w-8 h-8" fill="currentColor" />
               </div>
             </div>
           )}
