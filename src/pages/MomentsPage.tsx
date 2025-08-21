@@ -4,7 +4,7 @@ import { ChevronLeft, Heart, MessageCircle, Share, Bookmark, MoreVertical, Volum
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getVideos } from '@/services/videosService';
+import { getMoments } from '@/services/videosService';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { trackVideoView } from '@/services/userStatsService';
@@ -39,12 +39,12 @@ const MomentsPage = () => {
   // Fetch videos and filter only those where is_moment is true
   const { data: videosData, isLoading, error } = useQuery({
     queryKey: ['moments'],
-    queryFn: () => getVideos(1, 50, undefined, undefined, true), // Use the API filter for moments
+    queryFn: () => getMoments(1, 50), // Use dedicated moments function
     staleTime: 1000 * 60 * 2, // Consider data fresh for 2 minutes
     cacheTime: 1000 * 60 * 10, // Cache for 10 minutes
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false, // Reduce unnecessary refetches
     refetchOnMount: true,
-    refetchInterval: 1000 * 60 * 5, // Refetch every 5 minutes
+    refetchInterval: false, // Disable auto-refetch to save resources
   });
 
   // Debug logging
