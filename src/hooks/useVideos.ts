@@ -1,12 +1,18 @@
-
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getVideos, getVideosByCategory, getRelatedVideos, Video } from '@/services/videosService';
 
-export const useVideos = (page = 1, limit = 60, category?: string, searchQuery?: string) => {
+export const useVideos = (
+  page: number = 1,
+  limit: number = 60,
+  category?: string,
+  tag?: string,
+  sortBy?: string,
+  premiumOnly?: boolean
+) => {
   return useQuery({
-    queryKey: ['videos', page, limit, category, searchQuery],
-    queryFn: () => getVideos(page, limit, category, searchQuery),
+    queryKey: ['videos', page, limit, category, tag, sortBy, premiumOnly],
+    queryFn: () => getVideos(page, limit, category, tag, premiumOnly),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };
