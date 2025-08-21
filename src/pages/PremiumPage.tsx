@@ -24,10 +24,10 @@ const PremiumPage = () => {
   const { data, isLoading, error } = useVideos(
     currentPage,
     60,
-    undefined, // category
+    'premium', // category - use premium category to ensure proper filtering
     undefined, // tag
     undefined, // sortBy
-    true // premiumOnly - this ensures only premium videos are fetched
+    false // premiumOnly - let the category handle the filtering
   );
 
   const { videos = [], totalPages = 0, totalCount = 0 } = data || {};
