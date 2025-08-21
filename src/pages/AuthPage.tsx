@@ -20,8 +20,13 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
   const [confirmationSuccess, setConfirmationSuccess] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetPasswordMode, setResetPasswordMode] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
 
-  const { signIn, signUp, signOut } = useAuth();
+  const { signIn, signUp, signOut, forgotPassword } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -34,6 +39,14 @@ const AuthPage = () => {
       setIsLogin(true);
 
       // Remove the ?confirmed=true param so message shows only once
+      navigate('/auth', { replace: true });
+    }
+
+    if (searchParams.get('reset') === 'true') {
+      setResetPasswordMode(true);
+      setIsLogin(true);
+      setShowForgotPassword(false);
+      // Remove the ?reset=true param
       navigate('/auth', { replace: true });
     }
   }, [searchParams, signOut, navigate]);
@@ -54,6 +67,65 @@ const AuthPage = () => {
       options: { redirectTo: window.location.origin },
     });
     if (error) setError(error.message);
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const { error } = await forgotPassword(email);
+      if (error) {
+        setError(error.message);
+      } else {
+        setResetEmailSent(true);
+      }
+    } catch (err: any) {
+      console.error('Forgot password error:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    if (newPassword !== confirmNewPassword) {
+      setError('Passwords do not match');
+      setLoading(false);
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setResetPasswordMode(false);
+        setConfirmationSuccess(true);
+        // Clear form
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }
+    } catch (err: any) {
+      console.error('Reset password error:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -217,16 +289,34 @@ const AuthPage = () => {
           {/* Auth Form */}
           <Card>
             <CardHeader>
-              <Tabs value={isLogin ? 'login' : 'signup'} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="login" onClick={() => setIsLogin(true)}>
-                    Login
-                  </TabsTrigger>
-                  <TabsTrigger value="signup" onClick={() => setIsLogin(false)}>
-                    Sign Up
-                  </TabsTrigger>
-                </TabsList>
-              </Tabs>
+              {!showForgotPassword && !resetPasswordMode && (
+                <Tabs value={isLogin ? 'login' : 'signup'} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="login" onClick={() => setIsLogin(true)}>
+                      Login
+                    </TabsTrigger>
+                    <TabsTrigger value="signup" onClick={() => setIsLogin(false)}>
+                      Sign Up
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              )}
+              {showForgotPassword && (
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold">Reset Password</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Enter your email to receive a password reset link
+                  </p>
+                </div>
+              )}
+              {resetPasswordMode && (
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold">Set New Password</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Choose a new password for your account
+                  </p>
+                </div>
+              )}
             </CardHeader>
 
             <CardContent>
@@ -239,7 +329,7 @@ const AuthPage = () => {
               {confirmationSuccess && (
                 <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
                   <p className="text-sm text-green-600 dark:text-green-400">
-                    Email confirmed successfully! You can now log in.
+                    {resetPasswordMode ? 'Password reset successfully! You can now log in.' : 'Email confirmed successfully! You can now log in.'}
                   </p>
                 </div>
               )}
@@ -252,7 +342,78 @@ const AuthPage = () => {
                 </div>
               )}
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              {resetEmailSent && (
+                <div className="mb-4 p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-md">
+                  <p className="text-sm text-green-600 dark:text-green-400">
+                    Password reset email sent! Please check your inbox and follow the instructions.
+                  </p>
+                </div>
+              )}
+
+              {showForgotPassword && !resetEmailSent ? (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email"
+                      required
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? 'Sending...' : 'Send Reset Email'}
+                  </Button>
+
+                  <div className="text-center">
+                    <Button
+                      type="button"
+                      variant="link"
+                      onClick={() => {
+                        setShowForgotPassword(false);
+                        setError(null);
+                      }}
+                      className="text-sm text-muted-foreground"
+                    >
+                      Back to Login
+                    </Button>
+                  </div>
+                </form>
+              ) : resetPasswordMode ? (
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <Input
+                      id="newPassword"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter your new password"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmNewPassword">Confirm New Password</Label>
+                    <Input
+                      id="confirmNewPassword"
+                      type="password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      placeholder="Confirm your new password"
+                      required
+                    />
+                  </div>
+
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? 'Updating...' : 'Update Password'}
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input
@@ -307,12 +468,22 @@ const AuthPage = () => {
 
                 {isLogin && (
                   <div className="text-center">
-                    <Button variant="link" className="text-sm text-muted-foreground">
+                    <Button
+                      type="button"
+                      variant="link"
+                      onClick={() => {
+                        setShowForgotPassword(true);
+                        setError(null);
+                        setEmail('');
+                      }}
+                      className="text-sm text-muted-foreground"
+                    >
                       Forgot your password?
                     </Button>
                   </div>
                 )}
               </form>
+              )}
             </CardContent>
           </Card>
 
