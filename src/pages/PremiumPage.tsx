@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Crown, Play, Eye, Clock, DollarSign, Search, User, Heart, Settings } from 'lucide-react';
+import { Star, Crown, Play, Eye, Clock, DollarSign, Search, User, Heart, Settings, ThumbsUp } from 'lucide-react';
 import PremiumVideoCard from '@/components/PremiumVideoCard';
 import { useVideos } from '@/hooks/useVideos';
 import ImageStylePagination from '@/components/ImageStylePagination';
@@ -146,52 +146,18 @@ const PremiumPage = () => {
           </div>
         ) : (
           <>
-            {/* Full-width video grid - mobile style */}
+            {/* Video Cards - Full Width No Container */}
             <div className="space-y-0">
               {videos.map((video, index) => (
-                <div key={video.id} className="relative">
-                  <Link to={`/premium/video/${video.id}`} className="block">
-                    <div className="relative aspect-video bg-black">
+                <Link key={video.id} to={`/premium/video/${video.id}`} className="block">
+                  <div className="bg-black">
+                    {/* Video Thumbnail */}
+                    <div className="relative aspect-video">
                       <img
                         src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
                         alt={video.title}
                         className="w-full h-full object-cover"
                       />
-                      
-                      {/* Gradient overlay */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-                      
-                      {/* Premium badge */}
-                      <div className="absolute top-3 left-3">
-                        <Badge className="bg-yellow-500 text-black text-xs font-bold px-2 py-1">
-                          <Crown className="w-3 h-3 mr-1" />
-                          PREMIUM
-                        </Badge>
-                      </div>
-                      
-                      {/* Play button */}
-                      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                        <div className="bg-black/50 text-white p-3 rounded-full">
-                          <Play className="w-6 h-6" fill="currentColor" />
-                        </div>
-                      </div>
-                      
-                      {/* Video info */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Crown className="w-4 h-4 text-black" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
-                              {video.title}
-                            </h3>
-                            <p className="text-gray-300 text-xs">
-                              Premium Creator
-                            </p>
-                          </div>
-                        </div>
-                      </div>
                       
                       {/* Duration */}
                       <div className="absolute bottom-3 right-3">
@@ -200,8 +166,32 @@ const PremiumPage = () => {
                         </span>
                       </div>
                     </div>
-                  </Link>
-                </div>
+                    
+                    {/* Video Info Card */}
+                    <div className="p-4">
+                      <div className="flex items-start space-x-3">
+                        {/* Creator Avatar */}
+                        <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
+                          <img 
+                            src="https://images.unsplash.com/photo-1494790108755-2616b612b547?w=100&h=100&fit=crop&crop=face" 
+                            alt="Creator" 
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        
+                        {/* Video Details */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
+                            {video.title}
+                          </h3>
+                          <p className="text-gray-300 text-xs">
+                            {video.uploader_username || video.uploader_name || "Premium Creator"}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
               ))}
             </div>
 
