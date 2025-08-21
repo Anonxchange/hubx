@@ -1,9 +1,11 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Star, Crown, Play, Eye, Clock, DollarSign, Search, User, Heart, Settings, ThumbsUp } from 'lucide-react';
 import PremiumVideoCard from '@/components/PremiumVideoCard';
 import SubscriptionModal from '@/components/SubscriptionModal';
+import SignInModal from '@/components/SignInModal';
+import RecommendedVideosModal from '@/components/RecommendedVideosModal';
+import SearchModal from '@/components/SearchModal';
 import { useVideos } from '@/hooks/useVideos';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +15,11 @@ const PremiumPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'originals' | 'top-creator' | 'best-vids'>('all');
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
-  
+  const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
+  const [isRecommendedModalOpen, setIsRecommendedModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
   const { data, isLoading, error } = useVideos(
     currentPage,
     60,
@@ -21,6 +27,14 @@ const PremiumPage = () => {
   );
 
   const { videos = [], totalPages = 0, totalCount = 0 } = data || {};
+
+  // Filter videos based on search term only when search modal is not open
+  const filteredVideos = isSearchModalOpen ? videos : videos.filter(video => 
+    searchTerm === '' || 
+    video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    video.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    video.channelName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -65,17 +79,27 @@ const PremiumPage = () => {
               <h1 className="text-lg font-bold text-yellow-400">Premium</h1>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-4">
-            <Search className="w-5 h-5 text-gray-400" />
-            <div className="relative">
-              <DollarSign className="w-5 h-5 text-gray-400" />
+            <button 
+              onClick={() => setIsSearchModalOpen(true)}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              <Search className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={() => setIsRecommendedModalOpen(true)}
+              className="relative hover:bg-gray-800 p-1 rounded transition-colors"
+            >
+              <DollarSign className="w-5 h-5 text-gray-400 hover:text-yellow-400 transition-colors" />
               <Badge className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1 min-w-[16px] h-4 flex items-center justify-center rounded-full">
                 20
               </Badge>
-            </div>
-            <User className="w-5 h-5 text-gray-400" />
-            <Button 
+            </button>
+            <button onClick={() => setIsSignInModalOpen(true)}>
+              <User className="w-5 h-5 text-gray-400 hover:text-white transition-colors" />
+            </button>
+            <Button
               onClick={() => setIsSubscriptionModalOpen(true)}
               className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs px-3 py-1 h-7"
             >
@@ -91,8 +115,8 @@ const PremiumPage = () => {
           <button
             key={tab}
             className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${
-              index === 0 
-                ? 'text-yellow-400 border-b-2 border-yellow-400' 
+              index === 0
+                ? 'text-yellow-400 border-b-2 border-yellow-400'
                 : 'text-gray-400 hover:text-white'
             }`}
           >
@@ -106,14 +130,14 @@ const PremiumPage = () => {
         {filters.map((filter) => {
           const IconComponent = filter.icon;
           const isSelected = selectedFilter === filter.id;
-          
+
           return (
             <button
               key={filter.id}
               onClick={() => setSelectedFilter(filter.id as any)}
               className={`flex items-center space-x-2 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap ${
-                isSelected 
-                  ? 'bg-yellow-500 text-black' 
+                isSelected
+                  ? 'bg-yellow-500 text-black'
                   : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
               }`}
             >
@@ -143,17 +167,24 @@ const PremiumPage = () => {
             <h3 className="text-lg font-semibold mb-2 text-white">Error loading premium content</h3>
             <p className="text-gray-400 text-sm">Please try again later.</p>
           </div>
-        ) : videos.length === 0 ? (
+        ) : filteredVideos.length === 0 ? (
           <div className="text-center py-12 px-4">
             <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold mb-2 text-white">Premium Content Coming Soon</h3>
-            <p className="text-gray-400 text-sm">Exclusive premium videos will be available shortly.</p>
+            <h3 className="text-lg font-semibold mb-2 text-white">
+              {searchTerm ? 'No videos found' : 'Premium Content Coming Soon'}
+            </h3>
+            <p className="text-gray-400 text-sm">
+              {searchTerm 
+                ? `No videos match "${searchTerm}". Try different keywords.`
+                : 'Exclusive premium videos will be available shortly.'
+              }
+            </p>
           </div>
         ) : (
           <>
             {/* Video Cards - Full Width No Container */}
             <div className="space-y-0">
-              {videos.map((video, index) => (
+              {filteredVideos.map((video, index) => (
                 <Link key={video.id} to={`/premium/video/${video.id}`} className="block">
                   <div className="bg-black">
                     {/* Video Thumbnail */}
@@ -163,7 +194,7 @@ const PremiumPage = () => {
                         alt={video.title}
                         className="w-full h-full object-cover"
                       />
-                      
+
                       {/* Duration */}
                       <div className="absolute bottom-3 right-3">
                         <span className="bg-black/80 text-white text-xs px-2 py-1 rounded">
@@ -171,16 +202,16 @@ const PremiumPage = () => {
                         </span>
                       </div>
                     </div>
-                    
+
                     {/* Video Info Card */}
                     <div className="p-4">
                       <div className="flex items-start space-x-3">
                         {/* Creator Avatar */}
                         <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
                           {(video.profiles?.avatar_url || video.uploader_avatar) ? (
-                            <img 
-                              src={video.profiles?.avatar_url || video.uploader_avatar} 
-                              alt={video.uploader_username || "Creator"} 
+                            <img
+                              src={video.profiles?.avatar_url || video.uploader_avatar}
+                              alt={video.uploader_username || "Creator"}
                               className="w-full h-full object-cover"
                               onError={(e) => {
                                 console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
@@ -199,7 +230,7 @@ const PremiumPage = () => {
                             </div>
                           )}
                         </div>
-                        
+
                         {/* Video Details */}
                         <div className="flex-1 min-w-0">
                           <h3 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
@@ -253,9 +284,29 @@ const PremiumPage = () => {
       </div>
 
       {/* Subscription Modal */}
-      <SubscriptionModal 
+      <SubscriptionModal
         isOpen={isSubscriptionModalOpen}
         onClose={() => setIsSubscriptionModalOpen(false)}
+      />
+
+      {/* Sign In Modal */}
+      <SignInModal
+        isOpen={isSignInModalOpen}
+        onClose={() => setIsSignInModalOpen(false)}
+      />
+
+      {/* Recommended Videos Modal */}
+      <RecommendedVideosModal
+        isOpen={isRecommendedModalOpen}
+        onClose={() => setIsRecommendedModalOpen(false)}
+      />
+
+      {/* Search Modal */}
+      <SearchModal
+        isOpen={isSearchModalOpen}
+        onClose={() => setIsSearchModalOpen(false)}
+        videos={videos}
+        onSearchChange={(term) => setSearchTerm(term)}
       />
     </div>
   );
