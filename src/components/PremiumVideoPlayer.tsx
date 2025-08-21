@@ -3,8 +3,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { Crown, Star, Shield, Play, Pause, Volume2, VolumeX, Maximize, Settings } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 
 declare global {
   interface Window {
@@ -58,57 +56,24 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                   posterImage: poster || "",
                   allowDownload: false,
                   keyboardControl: true,
-                  playbackRates: ["x0.5", "x0.75", "x1", "x1.25", "x1.5", "x2"],
+                  playbackRates: ["x0.25", "x0.5", "x0.75", "x1", "x1.25", "x1.5", "x1.75", "x2", "x2.25", "x2.5"],
                   controlBar: {
                     autoHide: true,
-                    autoHideTimeout: 4,
+                    autoHideTimeout: 5,
+                    animated: true
                   },
+                  theatre: true,
+                  captions: true,
                   primaryColor: "#f59e0b", // Premium gold color
                   responsive: true,
                   logo: {
                     imageUrl: null,
-                    position: 'top left',
+                    position: 'top right',
                     clickUrl: null,
                     opacity: 0.8
                   }
                 },
-                vastOptions: {
-                  adList: [
-                    {
-                      roll: "preRoll",
-                      vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
-                    },
-                  ],
-                  skipButtonCaption: "Skip Premium Ad in [seconds]",
-                  skipButtonClickCaption: "Skip >>",
-                  showProgressbarMarkers: false,
-                  allowVPAID: true,
-                  maxAllowedVastTagRedirects: 3,
-                  vastTimeout: 8000, // Shorter timeout for premium
-                  adCTAText: "Visit Premium Partner",
-                  adCTATextPosition: "top right",
-                  adClickable: true,
-                  vastAdvanced: {
-                    vastLoadedCallback: () => {
-                      console.log("Premium VAST ad loaded successfully");
-                    },
-                    vastErrorCallback: (error: any) => {
-                      console.log("Premium VAST ad error, proceeding to premium video:", error);
-                    },
-                    noVastVideoCallback: () => {
-                      console.log("No premium ad available, playing premium video directly");
-                    },
-                    adSkippedCallback: () => {
-                      console.log("Premium ad was skipped, loading premium video");
-                    },
-                    adStartedCallback: () => {
-                      console.log("Premium ad playback started");
-                    },
-                  },
-                  adFinishedCallback: () => {
-                    console.log("Premium ad completed, premium video starting");
-                  },
-                },
+                // No ads for premium content - completely ad-free experience
               });
 
               // Save instance for cleanup
@@ -192,29 +157,33 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   };
 
   return (
-    <video
-      ref={videoRef}
-      className="w-full aspect-video"
-      poster={poster}
-      preload="metadata"
-      playsInline
-      webkit-playsinline="true"
-      crossOrigin="anonymous"
-      onPlay={handlePlay}
-      onError={(e) => {
-        console.error("Premium video playback error:", e.currentTarget.error);
-        if (videoRef.current) videoRef.current.controls = true;
-      }}
-      style={{
-        objectFit: "cover",
-        backgroundColor: "#000",
-        display: "block",
-        width: "100%",
-        height: "auto",
-      }}
-    >
-      <source src={src} type="video/mp4" />
-    </video>
+    <div className="relative w-full">
+      <video
+        ref={videoRef}
+        className="w-full aspect-video rounded-lg"
+        poster={poster}
+        preload="metadata"
+        playsInline
+        webkit-playsinline="true"
+        crossOrigin="anonymous"
+        onPlay={handlePlay}
+        onError={(e) => {
+          console.error("Premium video playback error:", e.currentTarget.error);
+          if (videoRef.current) videoRef.current.controls = true;
+        }}
+        style={{
+          objectFit: "cover",
+          backgroundColor: "#000",
+          display: "block",
+          width: "100%",
+          height: "auto",
+          border: "2px solid #f59e0b",
+          boxShadow: "0 0 20px rgba(245, 158, 11, 0.3)"
+        }}
+      >
+        <source src={src} type="video/mp4" />
+      </video>
+    </div>
   );
 };
 
