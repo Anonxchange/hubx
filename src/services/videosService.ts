@@ -71,7 +71,7 @@ export const getVideos = async (
   limit = 60,
   category?: string,
   searchQuery?: string,
-  isMoment?: boolean
+  premiumOnly?: boolean
 ) => {
   let query = supabase
     .from('videos')
@@ -83,18 +83,28 @@ export const getVideos = async (
       { count: 'exact' }
     );
 
-  if (isMoment !== undefined) {
-    query = query.eq('is_moment', isMoment);
+  if (premiumOnly !== undefined) {
+    query = query.eq('is_premium', premiumOnly);
+    if (premiumOnly) {
+      // For premium videos, also ensure they're not moments
+      query = query.eq('is_moment', false);
+    }
   }
 
   if (category && category !== 'all') {
     switch (category.toLowerCase()) {
       case 'recommended':
       case 'trending':
-        query = query.eq('is_premium', false).eq('is_moment', false).order('views', { ascending: false });
+        if (!premiumOnly) {
+          query = query.eq('is_premium', false).eq('is_moment', false);
+        }
+        query = query.order('views', { ascending: false });
         break;
       case 'most rated':
-        query = query.eq('is_premium', false).eq('is_moment', false).order('likes', { ascending: false });
+        if (!premiumOnly) {
+          query = query.eq('is_premium', false).eq('is_moment', false);
+        }
+        query = query.order('likes', { ascending: false });
         break;
       case 'premium':
         query = query.eq('is_premium', true).eq('is_moment', false).order('created_at', { ascending: false });
@@ -103,15 +113,16 @@ export const getVideos = async (
         query = query.eq('is_moment', true).order('created_at', { ascending: false });
         break;
       default:
-        query = query
-          .eq('is_premium', false)
-          .eq('is_moment', false)
-          .contains('tags', [category])
-          .order('created_at', { ascending: false });
+        if (!premiumOnly) {
+          query = query.eq('is_premium', false).eq('is_moment', false);
+        }
+        query = query.contains('tags', [category]).order('created_at', { ascending: false });
         break;
     }
-  } else if (isMoment === undefined) {
+  } else if (premiumOnly === undefined) {
     query = query.eq('is_premium', false).eq('is_moment', false).order('created_at', { ascending: false });
+  } else if (premiumOnly) {
+    query = query.order('created_at', { ascending: false });
   }
 
   if (searchQuery) {
@@ -1659,7 +1670,7 @@ const applyHomepageSectioning = async (
         .eq('user_id', userId)
         .order('watched_at', { ascending: false })
         .limit(100),
-      
+
       supabase
         .from('video_reactions')
         .select('video_id, created_at, videos(tags, category)')
@@ -1676,7 +1687,7 @@ const applyHomepageSectioning = async (
     watchHistory.data?.forEach(view => {
       const hour = new Date(view.watched_at).getHours();
       timeOfDayPreference[hour] = (timeOfDayPreference[hour] || 0) + 1;
-      
+
       watchedVideoIds.add(view.video_id);
       if (view.videos?.tags) {
         view.videos.tags.forEach((tag: string) => userTags.add(tag.toLowerCase()));
@@ -1746,7 +1757,7 @@ const applyHomepageSectioning = async (
 
     if (userId) {
       // Multi-factor personalization scoring
-      
+
       // 1. Tag affinity with decay for recent preferences
       const tagMatches = videoTagsLower.filter(tag => userTags.has(tag)).length;
       const tagAffinityScore = tagMatches / Math.max(videoTagsLower.length, 1);
@@ -1761,7 +1772,7 @@ const applyHomepageSectioning = async (
       score += timePreferenceBoost;
 
       // 4. Engagement velocity (recent likes/views ratio)
-      const engagementRatio = video.views > 0 ? 
+      const engagementRatio = video.views > 0 ?
         Math.min((video.likes / video.views) * 0.15, 0.15) : 0;
       score += engagementRatio;
 
@@ -1772,7 +1783,7 @@ const applyHomepageSectioning = async (
       score += freshnessBonus;
 
       // 6. Diversity injection - avoid echo chambers
-      const watchedTagOverlap = videoTagsLower.filter(tag => 
+      const watchedTagOverlap = videoTagsLower.filter(tag =>
         Array.from(userTags).some(userTag => userTag === tag)
       ).length;
       if (watchedTagOverlap === 0 && Math.random() < 0.2) {
@@ -1786,7 +1797,7 @@ const applyHomepageSectioning = async (
 
     } else {
       // Guest user: session-based intelligence
-      
+
       // 1. Session click pattern analysis
       const sessionRelevance = videoTagsLower.reduce((acc, tag) => {
         return acc + (sessionClickPattern[tag] || 0);
@@ -1813,7 +1824,7 @@ const applyHomepageSectioning = async (
       }
 
       // 4. Viral momentum detection
-      const viralScore = video.views > 1000 ? 
+      const viralScore = video.views > 1000 ?
         Math.log(video.views) * (video.likes / Math.max(video.views, 1)) * 0.2 : 0;
       score += viralScore;
 
