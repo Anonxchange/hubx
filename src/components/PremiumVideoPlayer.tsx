@@ -1,6 +1,15 @@
-
 import React, { useEffect, useRef, useState } from "react";
-import { Crown, Star, Shield, Play, Pause, Volume2, VolumeX, Maximize, Settings } from "lucide-react";
+import {
+  Crown,
+  Star,
+  Shield,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
+  Maximize,
+  Settings,
+} from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
 
@@ -15,15 +24,15 @@ interface PremiumVideoPlayerProps {
   poster?: string;
   title?: string;
   isPremium?: boolean;
-  quality?: '4K' | '8K' | 'HD';
+  quality?: "4K" | "8K" | "HD";
 }
 
-const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({ 
-  src, 
-  poster, 
-  title, 
+const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
+  src,
+  poster,
+  title,
   isPremium = true,
-  quality = '4K'
+  quality = "4K",
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useAuth();
@@ -56,11 +65,22 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                   posterImage: poster || "",
                   allowDownload: false,
                   keyboardControl: true,
-                  playbackRates: ["x0.25", "x0.5", "x0.75", "x1", "x1.25", "x1.5", "x1.75", "x2", "x2.25", "x2.5"],
+                  playbackRates: [
+                    "x0.25",
+                    "x0.5",
+                    "x0.75",
+                    "x1",
+                    "x1.25",
+                    "x1.5",
+                    "x1.75",
+                    "x2",
+                    "x2.25",
+                    "x2.5",
+                  ],
                   controlBar: {
                     autoHide: true,
                     autoHideTimeout: 5,
-                    animated: true
+                    animated: true,
                   },
                   theatre: true,
                   captions: true,
@@ -68,12 +88,12 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                   responsive: true,
                   logo: {
                     imageUrl: null,
-                    position: 'top right',
+                    position: "top right",
                     clickUrl: null,
-                    opacity: 0.8
-                  }
+                    opacity: 0.8,
+                  },
                 },
-                // No ads for premium content - completely ad-free experience
+                // Premium = ad-free experience
               });
 
               // Save instance for cleanup
@@ -88,11 +108,14 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
         if (!existingScript) {
           const script = document.createElement("script");
-          script.src = "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
+          script.src =
+            "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
           script.async = true;
           script.onload = () => setTimeout(loadFluidPlayer, 300);
           script.onerror = () => {
-            console.error("Failed to load Premium FluidPlayer script, using native player");
+            console.error(
+              "Failed to load Premium FluidPlayer script, using native player"
+            );
             if (videoRef.current) videoRef.current.controls = true;
           };
           document.body.appendChild(script);
@@ -101,23 +124,23 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         }
 
         // Add event listeners for premium features
-        video.addEventListener('loadedmetadata', () => {
+        video.addEventListener("loadedmetadata", () => {
           setDuration(video.duration);
         });
 
-        video.addEventListener('timeupdate', () => {
+        video.addEventListener("timeupdate", () => {
           setCurrentTime(video.currentTime);
         });
 
-        video.addEventListener('play', () => {
+        video.addEventListener("play", () => {
           setIsPlaying(true);
         });
 
-        video.addEventListener('pause', () => {
+        video.addEventListener("pause", () => {
           setIsPlaying(false);
         });
 
-        video.addEventListener('volumechange', () => {
+        video.addEventListener("volumechange", () => {
           setIsMuted(video.muted);
           setVolume(video.volume);
         });
@@ -153,7 +176,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const formatTime = (time: number) => {
     const minutes = Math.floor(time / 60);
     const seconds = Math.floor(time % 60);
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -168,7 +191,10 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         crossOrigin="anonymous"
         onPlay={handlePlay}
         onError={(e) => {
-          console.error("Premium video playback error:", e.currentTarget.error);
+          console.error(
+            "Premium video playback error:",
+            e.currentTarget.error
+          );
           if (videoRef.current) videoRef.current.controls = true;
         }}
         style={{
@@ -177,8 +203,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           display: "block",
           width: "100%",
           height: "auto",
-          border: "2px solid #f59e0b",
-          boxShadow: "0 0 20px rgba(245, 158, 11, 0.3)"
+          borderRadius: "0.5rem", // keep rounded clean
         }}
       >
         <source src={src} type="video/mp4" />
