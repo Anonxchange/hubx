@@ -71,7 +71,7 @@ export const getVideos = async (
   limit = 60,
   category?: string,
   searchQuery?: string,
-  premiumOnly?: boolean
+  isMoment?: boolean
 ) => {
   let query = supabase
     .from('videos')
@@ -83,10 +83,12 @@ export const getVideos = async (
       { count: 'exact' }
     );
 
-  if (premiumOnly !== undefined) {
-    query = query.eq('is_premium', premiumOnly);
-    if (premiumOnly) {
-      // For premium videos, also ensure they're not moments
+  if (isMoment !== undefined) {
+    if (isMoment) {
+      // Filter for moment videos only
+      query = query.eq('is_moment', true);
+    } else {
+      // Filter for non-moment videos
       query = query.eq('is_moment', false);
     }
   }
@@ -95,13 +97,13 @@ export const getVideos = async (
     switch (category.toLowerCase()) {
       case 'recommended':
       case 'trending':
-        if (!premiumOnly) {
+        if (isMoment === undefined) {
           query = query.eq('is_premium', false).eq('is_moment', false);
         }
         query = query.order('views', { ascending: false });
         break;
       case 'most rated':
-        if (!premiumOnly) {
+        if (isMoment === undefined) {
           query = query.eq('is_premium', false).eq('is_moment', false);
         }
         query = query.order('likes', { ascending: false });
@@ -113,15 +115,15 @@ export const getVideos = async (
         query = query.eq('is_moment', true).order('created_at', { ascending: false });
         break;
       default:
-        if (!premiumOnly) {
+        if (isMoment === undefined) {
           query = query.eq('is_premium', false).eq('is_moment', false);
         }
         query = query.contains('tags', [category]).order('created_at', { ascending: false });
         break;
     }
-  } else if (premiumOnly === undefined) {
+  } else if (isMoment === undefined) {
     query = query.eq('is_premium', false).eq('is_moment', false).order('created_at', { ascending: false });
-  } else if (premiumOnly) {
+  } else {
     query = query.order('created_at', { ascending: false });
   }
 
@@ -151,6 +153,46 @@ export const getVideos = async (
     uploader_type: video.profiles?.user_type || 'user',
     uploader_subscribers: 0, // TODO: Calculate from subscriptions table
     video_count: 0, // TODO: Calculate from videos count
+  }));
+
+  return {
+    videos: processedVideos,
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / limit),
+  };
+};
+
+// Get moment videos specifically
+export const getMoments = async (page = 1, limit = 50) => {
+  const { data, error, count } = await supabase
+    .from('videos')
+    .select(
+      `
+      id, owner_id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at, updated_at, is_premium, is_moment, preview_url,
+      profiles:owner_id (id, username, avatar_url, full_name, user_type)
+      `,
+      { count: 'exact' }
+    )
+    .eq('is_moment', true)
+    .eq('is_premium', false)
+    .order('created_at', { ascending: false })
+    .range((page - 1) * limit, page * limit - 1);
+
+  if (error) {
+    console.error('Error fetching moments:', error);
+    throw error;
+  }
+
+  // Process videos to add computed uploader fields
+  const processedVideos = (data || []).map(video => ({
+    ...video,
+    uploader_id: video.profiles?.id || video.owner_id,
+    uploader_username: video.profiles?.username || `User_${video.owner_id?.slice(-8) || 'Unknown'}`,
+    uploader_name: video.profiles?.full_name || video.profiles?.username || `User_${video.owner_id?.slice(-8) || 'Unknown'}`,
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type || 'user',
+    uploader_subscribers: 0,
+    video_count: 0,
   }));
 
   return {
@@ -613,7 +655,7 @@ const applyCategorySectioning = async (
       score += Math.log(Math.max(video.likes, 1) + 1) * 0.15;
     }
 
-    // Small randomization
+    // Small randomization factor
     score += Math.random() * 0.05;
 
     return { ...video, recommendedScore: score };
