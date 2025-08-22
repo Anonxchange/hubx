@@ -1557,7 +1557,7 @@ const ProfilePage = () => {
                             <div
                               key={video.id}
                               className="group cursor-pointer w-full"
-                              onClick={() => navigate(`/video/${video.id}`)}
+                              onClick={() => navigate(video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`)}
                             >
                               <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                                 {video.thumbnail_url && (
@@ -1568,7 +1568,13 @@ const ProfilePage = () => {
                                     loading="lazy"
                                   />
                                 )}
-                                {isOwnProfile && (
+                                {video.is_premium && (
+                                  <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
+                                    <Crown className="w-3 h-3 mr-1 inline" />
+                                    PREMIUM
+                                  </div>
+                                )}
+                                {isOwnProfile && !video.is_premium && (
                                   <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
                                     MY VIDEO
                                   </div>
@@ -1832,7 +1838,7 @@ const ProfilePage = () => {
                         ) : uploadedVideos.length > 0 ? (
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {uploadedVideos.map((video) => (
-                              <div key={video.id} className="group cursor-pointer" onClick={() => navigate(`/video/${video.id}`)}>
+                              <div key={video.id} className="group cursor-pointer" onClick={() => navigate(video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`)}>
                                 <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                                   {video.thumbnail_url && (
                                     <img
@@ -1841,6 +1847,12 @@ const ProfilePage = () => {
                                       className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                                       loading="lazy"
                                     />
+                                  )}
+                                  {video.is_premium && (
+                                    <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
+                                      <Crown className="w-3 h-3 mr-1 inline" />
+                                      PREMIUM
+                                    </div>
                                   )}
                                   <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
                                     {video.duration || '00:00'}
