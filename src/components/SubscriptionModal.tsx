@@ -85,11 +85,18 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
   const selectedPlanData = plans.find(plan => plan.id === selectedPlan);
 
   useEffect(() => {
-    if (isOpen && paymentMethod === 'paypal' && window.paypal && paypalRef.current && selectedPlanData) {
+    if (isOpen && paymentMethod === 'paypal' && paypalRef.current && selectedPlanData) {
       // Clear previous PayPal buttons
       paypalRef.current.innerHTML = '';
 
-      window.paypal.Buttons({
+      // Wait for PayPal SDK to load
+      const initPayPal = () => {
+        if (!window.paypal) {
+          setTimeout(initPayPal, 100);
+          return;
+        }
+
+        window.paypal.Buttons({
         createOrder: (data: any, actions: any) => {
           return actions.order.create({
             purchase_units: [{
@@ -132,6 +139,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           layout: 'vertical'
         }
       }).render(paypalRef.current);
+      };
+
+      initPayPal();
     }
   }, [isOpen, paymentMethod, selectedPlan, selectedPlanData]);
 
@@ -165,6 +175,13 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
 
       const result = await response.json();
       console.log('Payment verified:', result);
+      
+      // Show success message and close modal
+      alert(`Payment successful! Your ${result.subscription.plan_name} subscription is now active.`);
+      onClose();
+      
+      // Optionally refresh the page to update UI
+      window.location.reload();
     } catch (error) {
       console.error('Payment verification error:', error);
       throw error;
@@ -442,7 +459,13 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           {/* PayPal Button Container */}
           {paymentMethod === 'paypal' && (
             <div className="mb-4">
-              <div ref={paypalRef} className="w-full"></div>
+              <div ref={paypalRef} className="w-full min-h-[120px] flex items-center justify-center">
+                {!window.paypal && (
+                  <div className="text-center text-gray-500">
+                    Loading PayPal...
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
