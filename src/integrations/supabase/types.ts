@@ -85,52 +85,6 @@ export type Database = {
           },
         ]
       }
-      posts: {
-        Row: {
-          id: string
-          creator_id: string
-          content: string
-          media_url: string | null
-          media_type: string | null
-          privacy: string
-          created_at: string
-          updated_at: string
-          likes_count: number
-          comments_count: number
-        }
-        Insert: {
-          id?: string
-          creator_id: string
-          content: string
-          media_url?: string | null
-          media_type?: string | null
-          privacy?: string
-          created_at?: string
-          updated_at?: string
-          likes_count?: number
-          comments_count?: number
-        }
-        Update: {
-          id?: string
-          creator_id?: string
-          content?: string
-          media_url?: string | null
-          media_type?: string | null
-          created_at?: string
-          updated_at?: string
-          likes_count?: number
-          comments_count?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "posts_creator_id_fkey"
-            columns: ["creator_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       subscriptions: {
         Row: {
           id: string
@@ -161,6 +115,68 @@ export type Database = {
           {
             foreignKeyName: "subscriptions_creator_id_fkey"
             columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      premium_subscriptions: {
+        Row: {
+          id: string
+          user_id: string
+          plan_id: string
+          plan_name: string
+          amount: number
+          currency: string
+          payment_method: string
+          payment_provider: string
+          payment_id: string | null
+          status: string
+          start_date: string
+          end_date: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          plan_id: string
+          plan_name: string
+          amount: number
+          currency?: string
+          payment_method: string
+          payment_provider: string
+          payment_id?: string | null
+          status?: string
+          start_date?: string
+          end_date?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          plan_id?: string
+          plan_name?: string
+          amount?: number
+          currency?: string
+          payment_method?: string
+          payment_provider?: string
+          payment_id?: string | null
+          status?: string
+          start_date?: string
+          end_date?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "premium_subscriptions_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
