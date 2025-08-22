@@ -7,7 +7,9 @@ import SignInModal from '@/components/SignInModal';
 import RecommendedVideosModal from '@/components/RecommendedVideosModal';
 import SearchModal from '@/components/SearchModal';
 import PremiumPageFooter from '@/components/PremiumPageFooter';
+import ProfileDropdown from '@/components/ProfileDropdown';
 import { useVideos } from '@/hooks/useVideos';
+import { useAuth } from '@/contexts/AuthContext';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +22,8 @@ const PremiumPage = () => {
   const [isRecommendedModalOpen, setIsRecommendedModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  const { user } = useAuth();
 
   const { data, isLoading, error } = useVideos(
     currentPage,
@@ -100,9 +104,13 @@ const PremiumPage = () => {
                 20
               </Badge>
             </button>
-            <button onClick={() => setIsSignInModalOpen(true)}>
-              <User className="w-5 h-5 text-gray-400 hover:text-white transition-colors" />
-            </button>
+            {user ? (
+              <ProfileDropdown />
+            ) : (
+              <button onClick={() => setIsSignInModalOpen(true)}>
+                <User className="w-5 h-5 text-gray-400 hover:text-white transition-colors" />
+              </button>
+            )}
             <Button
               onClick={() => setIsSubscriptionModalOpen(true)}
               className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs px-3 py-1 h-7"
@@ -280,10 +288,17 @@ const PremiumPage = () => {
             <Heart className="w-5 h-5 text-gray-400" />
             <span className="text-xs text-gray-400 mt-1">Favorites</span>
           </button>
-          <button className="flex flex-col items-center py-2 px-4">
-            <User className="w-5 h-5 text-gray-400" />
-            <span className="text-xs text-gray-400 mt-1">Profile</span>
-          </button>
+          {user ? (
+            <div className="flex flex-col items-center py-2 px-4">
+              <ProfileDropdown />
+              <span className="text-xs text-gray-400 mt-1">Profile</span>
+            </div>
+          ) : (
+            <button onClick={() => setIsSignInModalOpen(true)} className="flex flex-col items-center py-2 px-4">
+              <User className="w-5 h-5 text-gray-400" />
+              <span className="text-xs text-gray-400 mt-1">Profile</span>
+            </button>
+          )}
         </div>
       </div>
 
