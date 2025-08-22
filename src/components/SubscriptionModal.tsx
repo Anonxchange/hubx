@@ -162,65 +162,106 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
   const selectedPlanData = plans.find(plan => plan.id === selectedPlan);
 
   useEffect(() => {
-    if (isOpen && paymentMethod === 'paypal' && paypalRef.current && selectedPlanData) {
+    let isComponentMounted = true;
+    
+    if (isOpen && paymentMethod === 'paypal' && paypalRef.current && selectedPlanData && user) {
       // Clear previous PayPal buttons
       paypalRef.current.innerHTML = '';
 
       // Wait for PayPal SDK to load
       const initPayPal = () => {
+        if (!isComponentMounted) return;
         if (!window.paypal) {
-          setTimeout(initPayPal, 100);
+          console.log('PayPal SDK not loaded, retrying...');
+          setTimeout(initPayPal, 500);
           return;
         }
 
+        console.log('Initializing PayPal buttons...');
+
         window.paypal.Buttons({
-        createOrder: (data: any, actions: any) => {
-          return actions.order.create({
-            purchase_units: [{
-              amount: {
-                value: selectedPlanData.amount.toString()
+          createOrder: (data: any, actions: any) => {
+            console.log('Creating PayPal order...');
+            // Create order through unified Supabase Edge Function
+            return fetch(`${supabase.supabaseUrl}/functions/v1/paypal-payments`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${supabase.supabaseKey}`,
               },
-              description: `HubX Premium - ${selectedPlanData.title}`
-            }]
-          });
-        },
-        onApprove: async (data: any, actions: any) => {
-          setIsProcessing(true);
-          try {
-            const order = await actions.order.capture();
-            console.log('PayPal payment successful:', order);
+              body: JSON.stringify({
+                action: 'create',
+                amount: selectedPlanData.amount,
+                description: `HubX Premium - ${selectedPlanData.title}`,
+              }),
+            }).then(res => res.json()).then(order => order.id);
+          },
+          onApprove: async (data: any, actions: any) => {
+            setIsProcessing(true);
+            try {
+              console.log('PayPal payment approved, capturing order...');
+              // Capture order through unified Supabase Edge Function
+              const response = await fetch(`${supabase.supabaseUrl}/functions/v1/paypal-payments`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${supabase.supabaseKey}`,
+                },
+                body: JSON.stringify({
+                  action: 'capture',
+                  orderId: data.orderID,
+                  planId: selectedPlan,
+                  userId: user?.id,
+                }),
+              });
+              const result = await response.json();
 
-            // Here you would typically send the order details to your backend
-            // to verify the payment and activate the subscription
-            await handlePaymentSuccess(order);
+              console.log('PayPal payment successful:', result);
 
-            // Close modal and show success message
-            onClose();
-            alert('Payment successful! Your premium subscription is now active.');
-          } catch (error) {
-            console.error('PayPal payment error:', error);
-            alert('Payment failed. Please try again.');
-          } finally {
+              await handlePaymentSuccess(result);
+              alert('Payment successful! Your premium subscription is now active.');
+              onClose();
+            } catch (error) {
+              console.error('PayPal payment error:', error);
+              alert('Payment failed. Please try again.');
+            } finally {
+              setIsProcessing(false);
+            }
+          },
+          onCancel: (data: any) => {
+            console.log('PayPal payment cancelled:', data);
             setIsProcessing(false);
+          },
+          onError: (err: any) => {
+            console.error('PayPal error:', err);
+            alert('Payment failed. Please try again.');
+            setIsProcessing(false);
+          },
+          style: {
+            color: 'gold',
+            shape: 'rect',
+            label: 'paypal',
+            layout: 'vertical',
+            height: 45
           }
-        },
-        onError: (err: any) => {
-          console.error('PayPal error:', err);
-          alert('Payment failed. Please try again.');
-          setIsProcessing(false);
-        },
-        style: {
-          color: 'gold',
-          shape: 'rect',
-          label: 'paypal',
-          layout: 'vertical'
-        }
-      }).render(paypalRef.current);
+        }).render(paypalRef.current).then(() => {
+          console.log('PayPal buttons rendered successfully');
+        }).catch((error: any) => {
+          console.error('PayPal render error:', error);
+        });
       };
 
-      initPayPal();
+      // Add a small delay to ensure DOM is ready
+      setTimeout(initPayPal, 100);
     }
-  }, [isOpen, paymentMethod, selectedPlan, selectedPlanData]);
+
+    return () => {
+      isComponentMounted = false;
+      if (paypalRef.current) {
+        paypalRef.current.innerHTML = '';
+      }
+    };
+  }, [isOpen, paymentMethod, selectedPlan, selectedPlanData?.amount, user?.id]);
 
   const handlePaymentSuccess = async (paymentData: any) => {
     try {
@@ -231,33 +272,61 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
         throw new Error('User not authenticated');
       }
 
-      // Send payment data to your backend for verification
-      const response = await fetch('/api/verify-payment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          paymentData,
-          email,
-          selectedPlan,
-          paymentMethod,
-          userId: user.id
-        }),
-      });
+      // Calculate expiration date based on selected plan
+      const now = new Date();
+      let expiresAt = new Date();
 
-      if (!response.ok) {
-        throw new Error('Payment verification failed');
+      switch (selectedPlan) {
+        case '2day':
+          expiresAt.setDate(now.getDate() + 2);
+          break;
+        case '1month':
+          expiresAt.setMonth(now.getMonth() + 1);
+          break;
+        case '3months':
+          expiresAt.setMonth(now.getMonth() + 3);
+          break;
+        case '12months':
+          expiresAt.setFullYear(now.getFullYear() + 1);
+          break;
+        case 'lifetime':
+          expiresAt.setFullYear(now.getFullYear() + 100); // Set far in the future for lifetime
+          break;
+        default:
+          expiresAt.setMonth(now.getMonth() + 1);
       }
 
-      const result = await response.json();
-      console.log('Payment verified:', result);
+      // Save subscription to Supabase
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from('premium_subscriptions')
+        .upsert({
+          user_id: user.id,
+          plan_name: selectedPlanData?.title || selectedPlan,
+          plan_type: selectedPlan,
+          payment_method: paymentMethod,
+          amount: selectedPlanData?.amount || 0,
+          currency: 'USD',
+          status: 'active',
+          payment_id: paymentData.id,
+          payment_data: paymentData,
+          created_at: now.toISOString(),
+          expires_at: expiresAt.toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (subscriptionError) {
+        console.error('Supabase error:', subscriptionError);
+        throw new Error('Failed to save subscription');
+      }
+
+      console.log('Subscription saved to Supabase:', subscription);
 
       // Show success message and close modal
-      alert(`Payment successful! Your ${result.subscription.plan_name} subscription is now active.`);
+      alert(`Payment successful! Your ${selectedPlanData?.title} subscription is now active until ${expiresAt.toLocaleDateString()}.`);
       onClose();
 
-      // Optionally refresh the page to update UI
+      // Refresh the page to update premium status
       window.location.reload();
     } catch (error) {
       console.error('Payment verification error:', error);
@@ -536,12 +605,17 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           {/* PayPal Button Container */}
           {paymentMethod === 'paypal' && (
             <div className="mb-4">
-              <div ref={paypalRef} className="w-full min-h-[120px] flex items-center justify-center">
-                {!window.paypal && (
-                  <div className="text-center text-gray-500">
-                    Loading PayPal...
-                  </div>
-                )}
+              <div className="text-center text-sm text-gray-600 mb-2">
+                Complete your payment with PayPal
+              </div>
+              <div 
+                ref={paypalRef} 
+                className="w-full min-h-[60px] bg-gray-50 rounded-lg border-2 border-dashed border-gray-200 flex items-center justify-center"
+                style={{ minHeight: '60px' }}
+              >
+                <div className="text-center text-gray-500 text-sm">
+                  Loading PayPal buttons...
+                </div>
               </div>
             </div>
           )}
