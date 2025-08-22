@@ -37,7 +37,42 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const capture = await captureRes.json();
 
-    // TODO: Update Supabase subscription table here
+    // Update Supabase subscription table
+    if (capture.status === 'COMPLETED') {
+      const { planId, userId } = req.body; // You'll need to pass these from the frontend
+      
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(
+          process.env.SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        const paymentInfo = capture.purchase_units[0].payments.captures[0];
+        
+        await supabase.from('premium_subscriptions').insert({
+          user_id: userId,
+          plan_id: planId,
+          plan_name: planId === 'premium-monthly' ? 'Premium Monthly' : 'Premium Yearly',
+          amount: Math.round(parseFloat(paymentInfo.amount.value) * 100), // Convert to cents
+          currency: paymentInfo.amount.currency_code,
+          payment_method: 'paypal',
+          payment_provider: 'paypal',
+          payment_id: paymentInfo.id,
+          status: 'active',
+          is_active: true,
+          start_date: new Date().toISOString(),
+          end_date: planId === 'premium-monthly' 
+            ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() // 30 days
+            : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 365 days
+        });
+      } catch (supabaseError) {
+        console.error('Supabase error:', supabaseError);
+        // Payment was successful but subscription creation failed
+        // You might want to handle this case specially
+      }
+    }
+
     return res.status(200).json(capture);
   } catch (err) {
     console.error("PayPal capture-order error:", err);
