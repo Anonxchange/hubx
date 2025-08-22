@@ -472,7 +472,7 @@ const ProfilePage = () => {
 
   const userTypeInfo = getUserTypeInfo();
   const TypeIcon = userTypeInfo.icon;
-  const currentUsername = user?.email?.split('@')[0] || 'User';
+  const currentUsername = currentUserUsername || user?.email?.split('@')[0] || 'User';
   const displayedName = displayName || currentUsername;
 
   const handleCreatePost = async () => {
@@ -958,7 +958,7 @@ const ProfilePage = () => {
                     />
                   )}
                 </div>
-                <p className="text-gray-400">@{currentUsername}</p>
+                <p className="text-gray-400">@{username || currentUsername}</p>
                 <Badge className={`${userTypeInfo.bgColor} ${userTypeInfo.color} border-0 w-fit mt-2`}>
                   <TypeIcon className="w-3 h-3 mr-1" />
                   {userTypeInfo.label}
@@ -987,10 +987,19 @@ const ProfilePage = () => {
                   </div>
                 </div>
                 <div className="flex items-center space-x-6 mt-4">
-                  <div className="text-sm">
-                    <span className="font-bold text-white">{stats.videosWatched}</span>
-                    <span className="text-gray-400 ml-1">Videos Watched</span>
-                  </div>
+                  {isOwnProfile ? (
+                    <div className="text-sm">
+                      <span className="font-bold text-white">{stats.videosWatched}</span>
+                      <span className="text-gray-400 ml-1">Videos Watched</span>
+                    </div>
+                  ) : (
+                    ((profileUserType === 'individual_creator' || profileUserType === 'studio_creator') && (
+                      <div className="text-sm">
+                        <span className="font-bold text-white">{uploadedVideos.length}</span>
+                        <span className="text-gray-400 ml-1">Videos</span>
+                      </div>
+                    ))
+                  )}
                   <div className="text-sm">
                     <span className="font-bold text-white">{subscriberCount}</span>
                     <span className="text-gray-400 ml-1">Subscribers</span>
