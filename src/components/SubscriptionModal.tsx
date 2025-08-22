@@ -1,9 +1,9 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Crown, Check } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from "@/contexts/AuthContext";
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -23,6 +23,83 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState<'creditcard' | 'paypal' | 'crypto'>('creditcard');
   const paypalRef = useRef<HTMLDivElement>(null);
+
+  const { user } = useAuth();
+
+  const handleSubscription = async (planId: string, amount: number) => {
+    if (!user) {
+      console.error('User not authenticated');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // Create PayPal order
+      const createResponse = await fetch('/api/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount,
+          description: planId === 'premium-monthly' ? 'Premium Monthly Subscription' : 'Premium Yearly Subscription',
+          planId,
+        }),
+      });
+
+      const order = await createResponse.json();
+
+      if (order.id) {
+        // Redirect to PayPal for payment
+        const approvalUrl = order.links.find((link: any) => link.rel === 'approve')?.href;
+        if (approvalUrl) {
+          // Open PayPal in a new window
+          const paypalWindow = window.open(approvalUrl, 'paypal', 'width=600,height=700');
+
+          // Listen for the window to close (payment completion)
+          const checkClosed = setInterval(() => {
+            if (paypalWindow?.closed) {
+              clearInterval(checkClosed);
+              // Capture the order
+              handlePaymentCapture(order.id, planId);
+            }
+          }, 1000);
+        }
+      }
+    } catch (error) {
+      console.error('Payment error:', error);
+      setIsProcessing(false);
+    }
+  };
+
+  const handlePaymentCapture = async (orderId: string, planId: string) => {
+    try {
+      const captureResponse = await fetch('/api/capture-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId,
+          planId,
+          userId: user.id,
+        }),
+      });
+
+      const result = await captureResponse.json();
+
+      if (result.status === 'COMPLETED') {
+        // Payment successful
+        onClose();
+        window.location.reload(); // Refresh to update premium status
+      }
+    } catch (error) {
+      console.error('Capture error:', error);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
 
   const plans = [
     {
@@ -112,11 +189,11 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           try {
             const order = await actions.order.capture();
             console.log('PayPal payment successful:', order);
-            
+
             // Here you would typically send the order details to your backend
             // to verify the payment and activate the subscription
             await handlePaymentSuccess(order);
-            
+
             // Close modal and show success message
             onClose();
             alert('Payment successful! Your premium subscription is now active.');
@@ -149,7 +226,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
     try {
       // Get current user ID from auth context
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       if (!user) {
         throw new Error('User not authenticated');
       }
@@ -175,11 +252,11 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
 
       const result = await response.json();
       console.log('Payment verified:', result);
-      
+
       // Show success message and close modal
       alert(`Payment successful! Your ${result.subscription.plan_name} subscription is now active.`);
       onClose();
-      
+
       // Optionally refresh the page to update UI
       window.location.reload();
     } catch (error) {
@@ -199,13 +276,13 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       // Handle credit card payment logic here
       // This would typically involve a payment processor like Stripe
       console.log('Processing credit card payment for:', { email, selectedPlan });
-      
+
       // Simulate payment processing
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // Simulate successful payment and process through backend
       await handlePaymentSuccess({ id: `cc_${Date.now()}`, status: 'COMPLETED' });
-      
+
       alert('Credit card payment successful! Your premium subscription is now active.');
       onClose();
     } catch (error) {
@@ -226,16 +303,16 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
     try {
       // Handle cryptocurrency payment logic here
       console.log('Processing crypto payment for:', { email, selectedPlan });
-      
+
       // This would typically redirect to a crypto payment processor
       alert('Redirecting to cryptocurrency payment processor...');
-      
+
       // Simulate payment processing
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Simulate successful payment and process through backend
       await handlePaymentSuccess({ id: `crypto_${Date.now()}`, status: 'COMPLETED' });
-      
+
       alert('Cryptocurrency payment successful! Your premium subscription is now active.');
       onClose();
     } catch (error) {
@@ -272,7 +349,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
         >
           {/* Dark overlay */}
           <div className="absolute inset-0 bg-black/40"></div>
-          
+
           {/* Header content */}
           <div className="relative h-full flex flex-col justify-between p-4">
             {/* Top bar */}
@@ -288,7 +365,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
                 <X className="w-6 h-6" />
               </button>
             </div>
-            
+
             {/* Sign in button */}
             <div className="flex justify-end">
               <Button className="bg-transparent border border-white text-white hover:bg-white hover:text-black px-4 py-2 text-sm">
@@ -303,9 +380,9 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           <h2 className="text-2xl font-bold mb-2">
             Unlock <span className="text-red-500">1,000,000+</span> Full Porn Videos in One Subscription
           </h2>
-          
+
           <h3 className="text-lg font-semibold mb-4 text-gray-800">Choose a plan</h3>
-          
+
           {/* Plans */}
           <div className="space-y-3">
             {plans.map((plan) => (
@@ -332,7 +409,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
                         <div className="w-2 h-2 bg-white rounded-full"></div>
                       )}
                     </div>
-                    
+
                     <div>
                       <div className="flex items-center space-x-2">
                         <span className="font-semibold">{plan.title}</span>
@@ -347,7 +424,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="text-right">
                     <div className="font-bold text-lg">{plan.price}</div>
                     {plan.period && (
@@ -358,7 +435,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
               </div>
             ))}
           </div>
-          
+
           {/* Payment Methods */}
           <div className="flex space-x-2 mb-4 mt-4">
             <Button 
@@ -406,7 +483,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           {/* Create Account Section */}
           <div className="mb-4">
             <h3 className="text-lg font-semibold mb-1">Create account or <span className="text-blue-500">Sign in</span></h3>
-            
+
             {/* Google Sign Up */}
             <Button className="w-full bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 mb-3 py-3">
               <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
@@ -479,7 +556,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
               {isProcessing ? 'PROCESSING...' : 'GET MEMBERSHIP'}
             </Button>
           )}
-          
+
           {/* Footer text */}
           <p className="text-xs text-gray-500 text-center mt-4">
             Payments are processed by <span className="text-green-600 font-semibold">EPOCH</span>. Billed as ${selectedPlanData?.amount || '35.88'}<br />
