@@ -266,6 +266,7 @@ const PremiumPage = () => {
                   currentPage={currentPage}
                   totalPages={totalPages}
                   onPageChange={handlePageChange}
+                  theme="yellow"
                 />
               </div>
             )}
