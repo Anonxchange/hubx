@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Eye, ThumbsUp, MoreVertical, Plus } from 'lucide-react';
+import { Clock, Eye, ThumbsUp, MoreVertical, Plus, Share2, Crown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -625,7 +625,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   }
 
   return (
-    <Link to={video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="block">
+    <Link to={video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="group block w-full">
       <Card className="group hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] transition-all duration-200 overflow-hidden w-full border-2 border-primary/10">
         <div
           className="relative bg-muted rounded-lg overflow-hidden flex-shrink-0 border-2 border-primary/20 shadow-lg"
