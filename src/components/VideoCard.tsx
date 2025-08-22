@@ -11,6 +11,17 @@ import { useVideoReaction } from '@/hooks/useVideoReactions'; // Assuming useVid
 import { supabase } from '@/integrations/supabase/client'; // Imported supabase client
 import { VideoPreviewService } from '@/services/VideoPreviewService'; // Assuming VideoPreviewService is in this path
 
+// Crown icon component (placeholder, assuming it exists elsewhere or will be imported)
+// Example: const CrownIcon = () => <svg>...</svg>;
+// If you have an actual Crown icon component, import it here.
+// For now, let's use a placeholder or assume a simple text/emoji.
+const CrownIcon = () => (
+  <svg className="w-4 h-4 inline-block ml-1" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M10 1.5l2.765 5.596L19.5 8.15l-4.5 4.386 1.06 6.192L10 15.848l-5.56 2.916 1.06-6.192-4.5-4.386 6.735-0.954L10 1.5z"/>
+  </svg>
+);
+
+
 interface Video {
   id: string;
   title: string;
@@ -407,7 +418,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
   if (viewMode === 'list') {
     return (
-      <Link to={`/video/${video.id}`} className="block">
+      <Link to={video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="block">
         <Card className="hover:bg-muted/5 hover:shadow-lg hover:border-primary/20 transition-all duration-200 border border-primary/10">
           <CardContent className="p-4 flex space-x-4">
             <div
@@ -513,6 +524,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
             <div className="flex-1 space-y-2">
               <h3 className="font-semibold text-lg line-clamp-2 leading-tight">
                 {video.title}
+                {video.is_premium && <CrownIcon />}
               </h3>
               {video.description && (
                 <p className="text-sm text-muted-foreground line-clamp-2">
@@ -613,7 +625,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   }
 
   return (
-    <Link to={`/video/${video.id}`} className="block">
+    <Link to={video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="block">
       <Card className="group hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] transition-all duration-200 overflow-hidden w-full border-2 border-primary/10">
         <div
           className="relative bg-muted rounded-lg overflow-hidden flex-shrink-0 border-2 border-primary/20 shadow-lg"
@@ -736,6 +748,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
           {/* Title in separate area below thumbnail */}
           <h3 className="font-semibold text-base line-clamp-2 leading-tight">
             {video.title}
+            {video.is_premium && <CrownIcon />}
           </h3>
 
           {/* Creator info section - YouTube style */}
