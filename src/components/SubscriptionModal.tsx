@@ -1,16 +1,28 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Crown, Check } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+declare global {
+  interface Window {
+    paypal: any;
+  }
+}
+
 const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }) => {
   const [selectedPlan, setSelectedPlan] = useState('12months');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'creditcard' | 'paypal' | 'crypto'>('creditcard');
+  const paypalRef = useRef<HTMLDivElement>(null);
 
   const plans = [
     {
@@ -18,6 +30,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       title: '2-day trial',
       subtitle: 'Limited access',
       price: '$0.99',
+      amount: 0.99,
       period: '/2 days',
       badge: 'TRY IT',
       badgeColor: 'bg-red-500',
@@ -28,6 +41,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       title: '12 months',
       subtitle: '',
       price: '$2.99',
+      amount: 35.88,
       period: '/month',
       badge: '40% OFF',
       badgeColor: 'bg-red-500',
@@ -38,6 +52,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       title: '3 months',
       subtitle: '',
       price: '$3.99',
+      amount: 11.97,
       period: '/month',
       badge: '20% OFF',
       badgeColor: 'bg-red-500',
@@ -48,6 +63,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       title: '1 month',
       subtitle: '',
       price: '$4.99',
+      amount: 4.99,
       period: '/month',
       badge: '',
       badgeColor: '',
@@ -58,12 +74,174 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       title: 'Lifetime',
       subtitle: 'Use forever',
       price: '$399.99',
+      amount: 399.99,
       period: '',
       badge: 'Use forever',
       badgeColor: 'bg-red-500',
       recommended: false
     }
   ];
+
+  const selectedPlanData = plans.find(plan => plan.id === selectedPlan);
+
+  useEffect(() => {
+    if (isOpen && paymentMethod === 'paypal' && window.paypal && paypalRef.current && selectedPlanData) {
+      // Clear previous PayPal buttons
+      paypalRef.current.innerHTML = '';
+
+      window.paypal.Buttons({
+        createOrder: (data: any, actions: any) => {
+          return actions.order.create({
+            purchase_units: [{
+              amount: {
+                value: selectedPlanData.amount.toString()
+              },
+              description: `HubX Premium - ${selectedPlanData.title}`
+            }]
+          });
+        },
+        onApprove: async (data: any, actions: any) => {
+          setIsProcessing(true);
+          try {
+            const order = await actions.order.capture();
+            console.log('PayPal payment successful:', order);
+            
+            // Here you would typically send the order details to your backend
+            // to verify the payment and activate the subscription
+            await handlePaymentSuccess(order);
+            
+            // Close modal and show success message
+            onClose();
+            alert('Payment successful! Your premium subscription is now active.');
+          } catch (error) {
+            console.error('PayPal payment error:', error);
+            alert('Payment failed. Please try again.');
+          } finally {
+            setIsProcessing(false);
+          }
+        },
+        onError: (err: any) => {
+          console.error('PayPal error:', err);
+          alert('Payment failed. Please try again.');
+          setIsProcessing(false);
+        },
+        style: {
+          color: 'gold',
+          shape: 'rect',
+          label: 'paypal',
+          layout: 'vertical'
+        }
+      }).render(paypalRef.current);
+    }
+  }, [isOpen, paymentMethod, selectedPlan, selectedPlanData]);
+
+  const handlePaymentSuccess = async (paymentData: any) => {
+    try {
+      // Get current user ID from auth context
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Send payment data to your backend for verification
+      const response = await fetch('/api/verify-payment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentData,
+          email,
+          selectedPlan,
+          paymentMethod,
+          userId: user.id
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Payment verification failed');
+      }
+
+      const result = await response.json();
+      console.log('Payment verified:', result);
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      throw error;
+    }
+  };
+
+  const handleCreditCardPayment = async () => {
+    if (!email || !password) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // Handle credit card payment logic here
+      // This would typically involve a payment processor like Stripe
+      console.log('Processing credit card payment for:', { email, selectedPlan });
+      
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Simulate successful payment and process through backend
+      await handlePaymentSuccess({ id: `cc_${Date.now()}`, status: 'COMPLETED' });
+      
+      alert('Credit card payment successful! Your premium subscription is now active.');
+      onClose();
+    } catch (error) {
+      console.error('Credit card payment error:', error);
+      alert('Payment failed. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCryptoPayment = async () => {
+    if (!email || !password) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      // Handle cryptocurrency payment logic here
+      console.log('Processing crypto payment for:', { email, selectedPlan });
+      
+      // This would typically redirect to a crypto payment processor
+      alert('Redirecting to cryptocurrency payment processor...');
+      
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Simulate successful payment and process through backend
+      await handlePaymentSuccess({ id: `crypto_${Date.now()}`, status: 'COMPLETED' });
+      
+      alert('Cryptocurrency payment successful! Your premium subscription is now active.');
+      onClose();
+    } catch (error) {
+      console.error('Crypto payment error:', error);
+      alert('Payment failed. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGetMembership = () => {
+    switch (paymentMethod) {
+      case 'creditcard':
+        handleCreditCardPayment();
+        break;
+      case 'paypal':
+        // PayPal payment is handled by the PayPal button
+        break;
+      case 'crypto':
+        handleCryptoPayment();
+        break;
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -165,14 +343,35 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           </div>
           
           {/* Payment Methods */}
-          <div className="flex space-x-2 mb-4">
-            <Button className="flex-1 bg-yellow-500 text-black text-sm py-2">
+          <div className="flex space-x-2 mb-4 mt-4">
+            <Button 
+              onClick={() => setPaymentMethod('creditcard')}
+              className={`flex-1 text-sm py-2 ${
+                paymentMethod === 'creditcard' 
+                  ? 'bg-yellow-500 text-black' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
               Credit card
             </Button>
-            <Button className="flex-1 bg-blue-600 text-white text-sm py-2">
+            <Button 
+              onClick={() => setPaymentMethod('paypal')}
+              className={`flex-1 text-sm py-2 ${
+                paymentMethod === 'paypal' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
               PayPal
             </Button>
-            <Button className="flex-1 bg-orange-500 text-white text-sm py-2">
+            <Button 
+              onClick={() => setPaymentMethod('crypto')}
+              className={`flex-1 text-sm py-2 ${
+                paymentMethod === 'crypto' 
+                  ? 'bg-orange-500 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
               Cryptocoins
             </Button>
           </div>
@@ -216,6 +415,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
                 <input 
                   type="email" 
                   placeholder="Your email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-gray-100 border border-gray-300 rounded-lg px-10 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 />
               </div>
@@ -226,6 +427,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
                 <input 
                   type="password" 
                   placeholder="Password" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-gray-100 border border-gray-300 rounded-lg px-10 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
                 />
               </div>
@@ -236,15 +439,28 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
             </div>
           </div>
 
-          {/* Continue button */}
-          <Button className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-lg py-4 rounded-lg">
-            GET MEMBERSHIP
-          </Button>
+          {/* PayPal Button Container */}
+          {paymentMethod === 'paypal' && (
+            <div className="mb-4">
+              <div ref={paypalRef} className="w-full"></div>
+            </div>
+          )}
+
+          {/* Continue button - Only show for non-PayPal payments */}
+          {paymentMethod !== 'paypal' && (
+            <Button 
+              onClick={handleGetMembership}
+              disabled={isProcessing}
+              className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-lg py-4 rounded-lg disabled:opacity-50"
+            >
+              {isProcessing ? 'PROCESSING...' : 'GET MEMBERSHIP'}
+            </Button>
+          )}
           
           {/* Footer text */}
           <p className="text-xs text-gray-500 text-center mt-4">
-            Payments are processed by <span className="text-green-600 font-semibold">EPOCH</span>. Billed as $35.88<br />
-            Followed by a payment of $35.88 after 12 months.
+            Payments are processed by <span className="text-green-600 font-semibold">EPOCH</span>. Billed as ${selectedPlanData?.amount || '35.88'}<br />
+            {selectedPlan === '12months' && 'Followed by a payment of $35.88 after 12 months.'}
           </p>
         </div>
       </DialogContent>
