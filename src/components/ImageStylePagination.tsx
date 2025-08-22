@@ -6,12 +6,14 @@ interface ImageStylePaginationProps {
   currentPage: number;
   totalPages: number;
   onPageChange: (page: number) => void;
+  theme?: 'purple' | 'yellow';
 }
 
 const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   currentPage,
   totalPages,
   onPageChange,
+  theme = 'purple',
 }) => {
   if (totalPages <= 1) return null;
 
@@ -39,6 +41,18 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
 
   const visiblePages = getVisiblePages();
 
+  // Theme-based colors
+  const colors = {
+    purple: {
+      active: 'bg-purple-500 text-white border-2 border-purple-400 shadow-lg shadow-purple-500/20',
+      next: 'bg-purple-500 text-white hover:bg-purple-600 shadow-lg shadow-purple-500/20'
+    },
+    yellow: {
+      active: 'bg-yellow-500 text-black border-2 border-yellow-400 shadow-lg shadow-yellow-500/20',
+      next: 'bg-yellow-500 text-black hover:bg-yellow-600 shadow-lg shadow-yellow-500/20'
+    }
+  };
+
   return (
     <div className="flex items-center justify-center gap-1 sm:gap-2 my-8 px-4 w-full">
       {/* Previous Button */}
@@ -64,7 +78,7 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
             className={`
               w-10 h-10 sm:w-12 sm:h-12 rounded-lg font-bold text-sm sm:text-lg transition-all flex-shrink-0
               ${currentPage === page 
-                ? 'bg-yellow-500 text-black border-2 border-yellow-400 shadow-lg shadow-yellow-500/20' 
+                ? colors[theme].active
                 : 'bg-gray-800 text-white hover:bg-gray-700 border border-gray-700'}
             `}
           >
@@ -81,7 +95,7 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
           px-3 sm:px-4 py-2 sm:py-3 rounded-lg font-bold transition-all flex-shrink-0 text-sm sm:text-base
           ${currentPage === totalPages 
             ? 'bg-gray-800 text-gray-500 cursor-not-allowed opacity-50' 
-            : 'bg-yellow-500 text-black hover:bg-yellow-600 shadow-lg shadow-yellow-500/20'}
+            : colors[theme].next}
         `}
       >
         Next
