@@ -89,8 +89,8 @@ const Index = () => {
                 to={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
                 className="flex-shrink-0"
               >
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className="whitespace-nowrap px-3 py-1 text-sm font-bold hover:bg-primary hover:text-primary-foreground transition-colors"
                 >
                   {category}
@@ -101,8 +101,8 @@ const Index = () => {
               to="/categories"
               className="flex-shrink-0"
             >
-              <Badge 
-                variant="default" 
+              <Badge
+                variant="default"
                 className="whitespace-nowrap px-3 py-1 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white"
               >
                 View All
@@ -168,9 +168,9 @@ const Index = () => {
                 Showing results for "{searchQuery}"
               </span>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 window.location.href = '/';
               }}
@@ -180,9 +180,6 @@ const Index = () => {
             </Button>
           </div>
         )}
-
-
-
 
 
         {/* Videos */}
@@ -216,6 +213,7 @@ const Index = () => {
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={handlePageChange}
+            theme="purple"
           />
         )}
       </main>
