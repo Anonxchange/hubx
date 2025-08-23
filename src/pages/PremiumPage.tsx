@@ -148,6 +148,28 @@ const PremiumPage = () => {
               </button>
             );
           }
+          if (tab === 'Pornstars') {
+            return (
+              <Link
+                key={tab}
+                to="/premium/creators/individual"
+                className="flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white"
+              >
+                {tab}
+              </Link>
+            );
+          }
+          if (tab === 'Channels') {
+            return (
+              <Link
+                key={tab}
+                to="/premium/creators/studio"
+                className="flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white"
+              >
+                {tab}
+              </Link>
+            );
+          }
           return (
             <button
               key={tab}
