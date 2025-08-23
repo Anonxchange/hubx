@@ -19,6 +19,8 @@ import PremiumPage from "./pages/PremiumPage";
 import PremiumVRPage from './pages/PremiumVRPage';
 import PremiumCategoryPage from '@/pages/PremiumCategoryPage';
 import PremiumVideoPage from './pages/PremiumVideoPage';
+import PremiumStudioCreatorsPage from './pages/PremiumStudioCreatorsPage';
+import PremiumIndividualCreatorsPage from './pages/PremiumIndividualCreatorsPage';
 import AdminPanel from "./pages/AdminPanel";
 import ContactUs from "./pages/ContactUs";
 import TermsOfService from "./pages/TermsOfService";
@@ -75,6 +77,8 @@ const App = () => (
                 <Route path="/premium" element={<PremiumPage />} />
                 <Route path="/premium/vr" element={<PremiumVRPage />} />
                 <Route path="/premium/category/:category" element={<PremiumCategoryPage />} />
+                <Route path="/premium/creators/studio" element={<PremiumStudioCreatorsPage />} />
+                <Route path="/premium/creators/individual" element={<PremiumIndividualCreatorsPage />} />
                 <Route path="/premium/video/:id" element={<PremiumVideoPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/profile/:username?" element={<ProfilePage />} />
