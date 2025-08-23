@@ -418,7 +418,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
   if (viewMode === 'list') {
     return (
-      <Link to={video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="block">
+      <Link to={video.is_moment ? `/moments?start=${video.id}` : video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="block">
         <Card className="hover:bg-muted/5 hover:shadow-lg hover:border-primary/20 transition-all duration-200 border border-primary/10">
           <CardContent className="p-4 flex space-x-4">
             <div
@@ -514,6 +514,15 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                   </div>
                 )}
               </div>
+
+              {/* Moment badge overlay for list view */}
+              {video.is_moment && (
+                <div className="absolute top-2 left-2 z-10">
+                  <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold px-2 py-1">
+                    Moment
+                  </Badge>
+                </div>
+              )}
               {/* Loading indicator for video preview */}
               {showPreview && isVideoLoading && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
@@ -625,7 +634,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   }
 
   return (
-    <Link to={video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="group block w-full">
+    <Link to={video.is_moment ? `/moments?start=${video.id}` : video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="group block w-full">
       <Card className="group hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] transition-all duration-200 overflow-hidden w-full border-2 border-primary/10">
         <div
           className="relative bg-muted rounded-lg overflow-hidden flex-shrink-0 border-2 border-primary/20 shadow-lg"
@@ -730,6 +739,15 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
               </div>
             )}
           </div>
+
+          {/* Moment badge overlay */}
+          {video.is_moment && (
+            <div className="absolute top-2 left-2 z-10">
+              <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold px-2 py-1">
+                Moment
+              </Badge>
+            </div>
+          )}
 
           {showPreview && (
             <div className="absolute top-2 left-2 bg-primary/90 text-primary-foreground text-xs px-2 py-1 rounded animate-fade-in">
