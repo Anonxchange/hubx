@@ -16,6 +16,8 @@ import MostLikedPage from "./pages/MostLikedPage";
 import HottestPage from './pages/HottestPage';
 import TrendingPage from './pages/TrendingPage';
 import PremiumPage from "./pages/PremiumPage";
+import PremiumVRPage from './pages/PremiumVRPage';
+import PremiumCategoryPage from '@/pages/PremiumCategoryPage';
 import PremiumVideoPage from './pages/PremiumVideoPage';
 import AdminPanel from "./pages/AdminPanel";
 import ContactUs from "./pages/ContactUs";
@@ -71,6 +73,8 @@ const App = () => (
                 <Route path="/hottest/:country" element={<HottestPage />} />
                 <Route path="/trending" element={<TrendingPage />} />
                 <Route path="/premium" element={<PremiumPage />} />
+                <Route path="/premium/vr" element={<PremiumVRPage />} />
+                <Route path="/premium/category/:category" element={<PremiumCategoryPage />} />
                 <Route path="/premium/video/:id" element={<PremiumVideoPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/profile/:username?" element={<ProfilePage />} />
