@@ -43,24 +43,29 @@ const PremiumStudioCreatorsPage = () => {
       try {
         setLoading(true);
 
-        // Get studio creators who have uploaded premium content
+        // First, get all studio creators
+        const { data: studioProfiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, username, full_name, avatar_url, profile_picture_url, bio, user_type, created_at')
+          .eq('user_type', 'studio_creator');
+
+        if (profilesError) {
+          console.error('Error fetching studio profiles:', profilesError);
+          return;
+        }
+
+        if (!studioProfiles || studioProfiles.length === 0) {
+          console.log('No studio creators found');
+          return;
+        }
+
+        // Get premium videos for these studio creators
+        const studioIds = studioProfiles.map(p => p.id);
         const { data: premiumVideos, error: videosError } = await supabase
           .from('videos')
-          .select(`
-            owner_id,
-            profiles!videos_owner_id_fkey (
-              id,
-              username,
-              full_name,
-              avatar_url,
-              profile_picture_url,
-              bio,
-              user_type,
-              created_at
-            )
-          `)
+          .select('owner_id, views')
           .eq('is_premium', true)
-          .eq('profiles.user_type', 'studio_creator');
+          .in('owner_id', studioIds);
 
         if (videosError) {
           console.error('Error fetching premium videos:', videosError);
@@ -70,23 +75,30 @@ const PremiumStudioCreatorsPage = () => {
         // Group by creator and get stats
         const creatorMap = new Map();
         
+        // Initialize all studio creators
+        studioProfiles.forEach(profile => {
+          creatorMap.set(profile.id, {
+            profile,
+            videoCount: 0,
+            totalViews: 0
+          });
+        });
+
+        // Add video counts and views
         premiumVideos?.forEach(video => {
-          const profile = video.profiles;
-          if (profile && profile.user_type === 'studio_creator') {
-            if (!creatorMap.has(profile.id)) {
-              creatorMap.set(profile.id, {
-                profile,
-                videoCount: 0,
-                totalViews: 0
-              });
-            }
-            creatorMap.get(profile.id).videoCount += 1;
+          if (creatorMap.has(video.owner_id)) {
+            const creator = creatorMap.get(video.owner_id);
+            creator.videoCount += 1;
+            creator.totalViews += (video.views || 0);
           }
         });
 
+        // Filter out creators with no premium videos
+        const creatorsWithVideos = Array.from(creatorMap.values()).filter(item => item.videoCount > 0);
+
         // Convert to array and fetch additional stats
         const creatorsWithStats = await Promise.all(
-          Array.from(creatorMap.values()).map(async (item, index) => {
+          creatorsWithVideos.map(async (item, index) => {
             const { profile } = item;
             
             // Get subscriber count
