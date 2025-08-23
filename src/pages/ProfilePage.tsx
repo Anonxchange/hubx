@@ -1394,7 +1394,7 @@ const ProfilePage = () => {
                               className="bg-purple-500 hover:bg-purple-600 text-white rounded-full px-6 py-1 text-sm"
                             >
                               {isPostingLoading ? (
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
                               ) : (
                                 'Post'
                               )}
@@ -1566,7 +1566,7 @@ const ProfilePage = () => {
                             <div
                               key={video.id}
                               className="group cursor-pointer w-full"
-                              onClick={() => navigate(video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`)}
+                              onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`)}
                             >
                               <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                                 {video.thumbnail_url && (
@@ -1583,9 +1583,14 @@ const ProfilePage = () => {
                                     PREMIUM
                                   </div>
                                 )}
-                                {isOwnProfile && !video.is_premium && (
+                                {isOwnProfile && !video.is_premium && !video.is_moment && (
                                   <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
                                     MY VIDEO
+                                  </div>
+                                )}
+                                {video.is_moment && (
+                                  <div className="absolute top-2 left-2 bg-blue-500/90 text-white text-xs px-2 py-1 rounded">
+                                    MOMENT
                                   </div>
                                 )}
                                 <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
@@ -1639,7 +1644,7 @@ const ProfilePage = () => {
                               <div
                                 key={video.id}
                                 className="group cursor-pointer w-full"
-                                onClick={() => navigate(`/video/${video.id}`)}
+                                onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
                               >
                                 <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                                   {video.thumbnail_url && (
@@ -1709,7 +1714,7 @@ const ProfilePage = () => {
                             <div
                               key={`${video.id}-${video.watched_at || video.created_at}`}
                               className="group cursor-pointer w-full"
-                              onClick={() => navigate(`/video/${video.id}`)}
+                              onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
                             >
                               <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                                 {video.thumbnail_url && (
@@ -1732,6 +1737,10 @@ const ProfilePage = () => {
                                 <span className="flex items-center space-x-1">
                                   <Eye className="w-3 h-3" />
                                   <span>{video.views?.toLocaleString() || 0}</span>
+                                </span>
+                                <span className="flex items-center space-x-1">
+                                  <Calendar className="w-3 h-3" />
+                                  <span>{new Date(video.watched_at).toLocaleDateString()}</span>
                                 </span>
                               </div>
                             </div>
@@ -1784,7 +1793,7 @@ const ProfilePage = () => {
                           <div
                             key={`${video.id}-${video.watched_at}`}
                             className="group cursor-pointer"
-                            onClick={() => navigate(`/video/${video.id}`)}
+                            onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
                           >
                             <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                               {video.thumbnail_url && (
@@ -1847,7 +1856,7 @@ const ProfilePage = () => {
                         ) : uploadedVideos.length > 0 ? (
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                             {uploadedVideos.map((video) => (
-                              <div key={video.id} className="group cursor-pointer" onClick={() => navigate(video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`)}>
+                              <div key={video.id} className="group cursor-pointer" onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`)}>
                                 <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                                   {video.thumbnail_url && (
                                     <img
@@ -1861,6 +1870,11 @@ const ProfilePage = () => {
                                     <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
                                       <Crown className="w-3 h-3 mr-1 inline" />
                                       PREMIUM
+                                    </div>
+                                  )}
+                                  {video.is_moment && (
+                                    <div className="absolute top-2 left-2 bg-blue-500/90 text-white text-xs px-2 py-1 rounded">
+                                      MOMENT
                                     </div>
                                   )}
                                   <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
