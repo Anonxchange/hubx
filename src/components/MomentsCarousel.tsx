@@ -77,10 +77,7 @@ const MomentsCarousel = () => {
                   </div>
                 </div>
 
-                {/* Duration badge */}
-                <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-                  {moment.duration}
-                </div>
+                
 
                 {/* Moments badge */}
                 <div className="absolute top-2 left-2">
