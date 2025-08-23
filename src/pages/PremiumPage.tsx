@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Star, Crown, Play, Eye, Clock, DollarSign, Search, User, Heart, Settings, ThumbsUp } from 'lucide-react';
+import { Star, Crown, Play, Eye, Clock, DollarSign, Search, User, Heart, Settings, ThumbsUp, Users } from 'lucide-react';
 import PremiumVideoCard from '@/components/PremiumVideoCard';
 import SubscriptionModal from '@/components/SubscriptionModal';
 import SignInModal from '@/components/SignInModal';
@@ -9,8 +9,10 @@ import SearchModal from '@/components/SearchModal';
 import CategoriesModal from '@/components/CategoriesModal';
 import PremiumPageFooter from '@/components/PremiumPageFooter';
 import ProfileDropdown from '@/components/ProfileDropdown';
+import CreatorPostCard from '@/components/CreatorPostCard';
 import { useVideos } from '@/hooks/useVideos';
 import { useAuth } from '@/contexts/AuthContext';
+import { getFeedPosts, createPost } from '@/services/socialFeedService';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,12 +20,15 @@ import { Button } from '@/components/ui/button';
 const PremiumPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedFilter, setSelectedFilter] = useState<'all' | 'originals' | 'top-creator' | 'best-vids'>('all');
+  const [activeTab, setActiveTab] = useState<'videos' | 'community'>('videos');
   const [isSubscriptionModalOpen, setIsSubscriptionModalOpen] = useState(false);
   const [isSignInModalOpen, setIsSignInModalOpen] = useState(false);
   const [isRecommendedModalOpen, setIsRecommendedModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
+  const [feedPosts, setFeedPosts] = useState<any[]>([]);
+  const [feedLoading, setFeedLoading] = useState(false);
 
   const { user } = useAuth();
 
@@ -49,6 +54,25 @@ const PremiumPage = () => {
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
   };
+
+  const loadFeedPosts = async () => {
+    if (!user) return;
+    setFeedLoading(true);
+    try {
+      const posts = await getFeedPosts(20);
+      setFeedPosts(posts);
+    } catch (error) {
+      console.error('Error loading feed posts:', error);
+    } finally {
+      setFeedLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (user && activeTab === 'community') {
+      loadFeedPosts();
+    }
+  }, [user, activeTab]);
 
   const filters = [
     { id: 'all', icon: Play, label: 'All' },
@@ -170,11 +194,28 @@ const PremiumPage = () => {
               </Link>
             );
           }
+          if (tab === 'Community') {
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab('community')}
+                className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${
+                  activeTab === 'community'
+                    ? 'text-yellow-400 border-b-2 border-yellow-400'
+                    : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                <Users className="w-4 h-4 inline mr-1" />
+                {tab}
+              </button>
+            );
+          }
           return (
             <button
               key={tab}
+              onClick={() => setActiveTab('videos')}
               className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${
-                index === 0
+                index === 0 && activeTab === 'videos'
                   ? 'text-yellow-400 border-b-2 border-yellow-400'
                   : 'text-gray-400 hover:text-white'
               }`}
@@ -185,140 +226,213 @@ const PremiumPage = () => {
         })}
       </div>
 
-      {/* Filter Chips */}
-      <div className="flex space-x-2 px-4 py-3 bg-black overflow-x-auto">
-        {filters.map((filter) => {
-          const IconComponent = filter.icon;
-          const isSelected = selectedFilter === filter.id;
+      {/* Filter Chips - Only show for videos tab */}
+      {activeTab === 'videos' && (
+        <div className="flex space-x-2 px-4 py-3 bg-black overflow-x-auto">
+          {filters.map((filter) => {
+            const IconComponent = filter.icon;
+            const isSelected = selectedFilter === filter.id;
 
-          return (
-            <button
-              key={filter.id}
-              onClick={() => setSelectedFilter(filter.id as any)}
-              className={`flex items-center space-x-2 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap ${
-                isSelected
-                  ? 'bg-yellow-500 text-black'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              <IconComponent className="w-3 h-3" />
-              <span>{filter.label}</span>
-            </button>
-          );
-        })}
-      </div>
+            return (
+              <button
+                key={filter.id}
+                onClick={() => setSelectedFilter(filter.id as any)}
+                className={`flex items-center space-x-2 px-3 py-2 rounded-full text-xs font-medium whitespace-nowrap ${
+                  isSelected
+                    ? 'bg-yellow-500 text-black'
+                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}
+              >
+                <IconComponent className="w-3 h-3" />
+                <span>{filter.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Content Title */}
       <div className="px-4 py-3 bg-black">
-        <h2 className="text-lg font-bold text-white">Full-Length Premium Videos</h2>
+        {activeTab === 'videos' ? (
+          <h2 className="text-lg font-bold text-white">Full-Length Premium Videos</h2>
+        ) : (
+          <div className="flex items-center space-x-3">
+            <Crown className="w-6 h-6 text-yellow-400" />
+            <div>
+              <h2 className="text-lg font-bold text-white">Premium Community Feed</h2>
+              {user ? (
+                <p className="text-sm text-gray-400">Exclusive content from your favorite creators</p>
+              ) : (
+                <p className="text-sm text-gray-400">Sign in to see community posts</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
       <div className="bg-black min-h-screen">
-        {isLoading ? (
-          <div className="space-y-0">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="animate-pulse bg-gray-900 aspect-video"></div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="text-center py-12 px-4">
-            <Crown className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold mb-2 text-white">Error loading premium content</h3>
-            <p className="text-gray-400 text-sm">Please try again later.</p>
-          </div>
-        ) : filteredVideos.length === 0 ? (
-          <div className="text-center py-12 px-4">
-            <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold mb-2 text-white">
-              {searchTerm ? 'No videos found' : 'Premium Content Coming Soon'}
-            </h3>
-            <p className="text-gray-400 text-sm">
-              {searchTerm 
-                ? `No videos match "${searchTerm}". Try different keywords.`
-                : 'Exclusive premium videos will be available shortly.'
-              }
-            </p>
-          </div>
-        ) : (
+        {activeTab === 'videos' ? (
+          // Videos Content
           <>
-            {/* Video Cards - Full Width No Container */}
-            <div className="space-y-0">
-              {filteredVideos.map((video, index) => (
-                <Link key={video.id} to={`/premium/video/${video.id}`} className="block">
-                  <div className="bg-black">
-                    {/* Video Thumbnail */}
-                    <div className="relative aspect-video">
-                      <img
-                        src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
-                        alt={video.title}
-                        className="w-full h-full object-cover"
-                      />
-
-                      {/* Duration */}
-                      <div className="absolute bottom-3 right-3">
-                        <span className="bg-black/80 text-white text-xs px-2 py-1 rounded">
-                          {video.duration || '15:30'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Video Info Card */}
-                    <div className="p-4">
-                      <div className="flex items-start space-x-3">
-                        {/* Creator Avatar */}
-                        <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
-                          {(video.profiles?.avatar_url || video.uploader_avatar) ? (
-                            <img
-                              src={video.profiles?.avatar_url || video.uploader_avatar}
-                              alt={video.uploader_username || "Creator"}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                const parent = target.parentElement;
-                                if (parent) {
-                                  const username = video.uploader_username || video.profiles?.username || video.uploader_name || "User";
-                                  parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">${username.charAt(0).toUpperCase()}</div>`;
-                                }
-                              }}
-                            />
-                          ) : (
-                            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">
-                              {(video.uploader_username || video.profiles?.username || video.uploader_name || "U").charAt(0).toUpperCase()}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Video Details */}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
-                            {video.title}
-                          </h3>
-                          <p className="text-gray-300 text-xs">
-                            {video.uploader_username || video.uploader_name || "Premium Creator"}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            {totalPages > 1 && (
-              <div className="flex justify-center py-6 px-4">
-                <ImageStylePagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={handlePageChange}
-                  theme="yellow"
-                />
+            {isLoading ? (
+              <div className="space-y-0">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="animate-pulse bg-gray-900 aspect-video"></div>
+                ))}
               </div>
+            ) : error ? (
+              <div className="text-center py-12 px-4">
+                <Crown className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold mb-2 text-white">Error loading premium content</h3>
+                <p className="text-gray-400 text-sm">Please try again later.</p>
+              </div>
+            ) : filteredVideos.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <Crown className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold mb-2 text-white">
+                  {searchTerm ? 'No videos found' : 'Premium Content Coming Soon'}
+                </h3>
+                <p className="text-gray-400 text-sm">
+                  {searchTerm 
+                    ? `No videos match "${searchTerm}". Try different keywords.`
+                    : 'Exclusive premium videos will be available shortly.'
+                  }
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Video Cards - Full Width No Container */}
+                <div className="space-y-0">
+                  {filteredVideos.map((video, index) => (
+                    <Link key={video.id} to={`/premium/video/${video.id}`} className="block">
+                      <div className="bg-black">
+                        {/* Video Thumbnail */}
+                        <div className="relative aspect-video">
+                          <img
+                            src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
+                            alt={video.title}
+                            className="w-full h-full object-cover"
+                          />
+
+                          {/* Duration */}
+                          <div className="absolute bottom-3 right-3">
+                            <span className="bg-black/80 text-white text-xs px-2 py-1 rounded">
+                              {video.duration || '15:30'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Video Info Card */}
+                        <div className="p-4">
+                          <div className="flex items-start space-x-3">
+                            {/* Creator Avatar */}
+                            <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
+                              {(video.profiles?.avatar_url || video.uploader_avatar) ? (
+                                <img
+                                  src={video.profiles?.avatar_url || video.uploader_avatar}
+                                  alt={video.uploader_username || "Creator"}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                    const parent = target.parentElement;
+                                    if (parent) {
+                                      const username = video.uploader_username || video.profiles?.username || video.uploader_name || "User";
+                                      parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">${username.charAt(0).toUpperCase()}</div>`;
+                                    }
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">
+                                  {(video.uploader_username || video.profiles?.username || video.uploader_name || "U").charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Video Details */}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
+                                {video.title}
+                              </h3>
+                              <p className="text-gray-300 text-xs">
+                                {video.uploader_username || video.uploader_name || "Premium Creator"}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex justify-center py-6 px-4">
+                    <ImageStylePagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      theme="yellow"
+                    />
+                  </div>
+                )}
+              </>
             )}
           </>
+        ) : (
+          // Community Feed Content
+          <div className="max-w-2xl mx-auto">
+            {!user ? (
+              <div className="text-center py-12 px-4">
+                <Users className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2 text-white">Sign In Required</h3>
+                <p className="text-gray-400 text-sm mb-6">
+                  You need to be signed in to view the premium community feed
+                </p>
+                <Button
+                  onClick={() => setIsSignInModalOpen(true)}
+                  className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
+                >
+                  Sign In Now
+                </Button>
+              </div>
+            ) : feedLoading ? (
+              <div className="space-y-4 p-4">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="animate-pulse bg-gray-900 rounded-lg p-4 h-32"></div>
+                ))}
+              </div>
+            ) : feedPosts.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <Crown className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2 text-white">No Posts Yet</h3>
+                <p className="text-gray-400 text-sm">
+                  Follow some creators to see their posts in your premium feed
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4 p-4">
+                {feedPosts.map((post) => (
+                  <div key={post.id} className="bg-gradient-to-br from-gray-900 to-black border border-yellow-500/20 rounded-lg overflow-hidden">
+                    <CreatorPostCard
+                      post={post}
+                      onPostUpdate={loadFeedPosts}
+                      className="border-none bg-transparent"
+                    />
+                    {/* Premium Badge Overlay */}
+                    <div className="absolute top-3 right-3">
+                      <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold px-2 py-1 text-xs">
+                        <Crown className="w-3 h-3 mr-1" />
+                        PREMIUM
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
 
