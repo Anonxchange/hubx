@@ -6,6 +6,7 @@ import SubscriptionModal from '@/components/SubscriptionModal';
 import SignInModal from '@/components/SignInModal';
 import RecommendedVideosModal from '@/components/RecommendedVideosModal';
 import SearchModal from '@/components/SearchModal';
+import CategoriesModal from '@/components/CategoriesModal';
 import PremiumPageFooter from '@/components/PremiumPageFooter';
 import ProfileDropdown from '@/components/ProfileDropdown';
 import { useVideos } from '@/hooks/useVideos';
@@ -22,6 +23,7 @@ const PremiumPage = () => {
   const [isRecommendedModalOpen, setIsRecommendedModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
 
   const { user } = useAuth();
 
@@ -123,18 +125,42 @@ const PremiumPage = () => {
 
       {/* Navigation Tabs */}
       <div className="flex overflow-x-auto bg-black border-b border-gray-800 px-4">
-        {['Videos', 'VR Porn', 'Categories', 'Pornstars', 'Channels', 'Community'].map((tab, index) => (
-          <button
-            key={tab}
-            className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${
-              index === 0
-                ? 'text-yellow-400 border-b-2 border-yellow-400'
-                : 'text-gray-400 hover:text-white'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+        {['Videos', 'VR Porn', 'Categories', 'Pornstars', 'Channels', 'Community'].map((tab, index) => {
+          if (tab === 'VR Porn') {
+            return (
+              <Link
+                key={tab}
+                to="/premium/vr"
+                className="flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white"
+              >
+                {tab}
+              </Link>
+            );
+          }
+          if (tab === 'Categories') {
+            return (
+              <button
+                key={tab}
+                onClick={() => setIsCategoriesModalOpen(true)}
+                className="flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap text-gray-400 hover:text-white"
+              >
+                {tab}
+              </button>
+            );
+          }
+          return (
+            <button
+              key={tab}
+              className={`flex-shrink-0 px-4 py-3 text-sm font-medium whitespace-nowrap ${
+                index === 0
+                  ? 'text-yellow-400 border-b-2 border-yellow-400'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              {tab}
+            </button>
+          );
+        })}
       </div>
 
       {/* Filter Chips */}
@@ -327,6 +353,12 @@ const PremiumPage = () => {
         onClose={() => setIsSearchModalOpen(false)}
         videos={videos}
         onSearchChange={(term) => setSearchTerm(term)}
+      />
+
+      {/* Categories Modal */}
+      <CategoriesModal
+        isOpen={isCategoriesModalOpen}
+        onClose={() => setIsCategoriesModalOpen(false)}
       />
 
       {/* Premium Page Footer */}
