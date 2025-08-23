@@ -27,7 +27,27 @@ const CategoriesModal: React.FC<CategoriesModalProps> = ({ isOpen, onClose }) =>
     { name: 'Latina', icon: Heart, color: 'text-rose-400', path: '/premium/category/latina' },
     { name: 'MILF', icon: Crown, color: 'text-violet-400', path: '/premium/category/milf' },
     { name: 'POV', icon: Camera, color: 'text-emerald-400', path: '/premium/category/pov' },
-    { name: 'Teen', icon: Sparkles, color: 'text-lime-400', path: '/premium/category/teen' }
+    { name: 'Teen', icon: Sparkles, color: 'text-lime-400', path: '/premium/category/teen' },
+    { name: 'Mature', icon: Users, color: 'text-orange-500', path: '/premium/category/mature' },
+    { name: 'Interracial', icon: Globe, color: 'text-purple-500', path: '/premium/category/interracial' },
+    { name: 'Lesbian', icon: Heart, color: 'text-pink-500', path: '/premium/category/lesbian' },
+    { name: 'Threesome', icon: Users, color: 'text-red-400', path: '/premium/category/threesome' },
+    { name: 'Cumshot', icon: Sparkles, color: 'text-blue-500', path: '/premium/category/cumshot' },
+    { name: 'Fetish', icon: Star, color: 'text-violet-500', path: '/premium/category/fetish' },
+    { name: 'Gangbang', icon: Users, color: 'text-red-600', path: '/premium/category/gangbang' },
+    { name: 'Compilation', icon: Video, color: 'text-cyan-500', path: '/premium/category/compilation' },
+    { name: 'Masturbation', icon: Heart, color: 'text-pink-600', path: '/premium/category/masturbation' },
+    { name: 'Handjob', icon: Zap, color: 'text-blue-600', path: '/premium/category/handjob' },
+    { name: 'Facial', icon: Camera, color: 'text-yellow-500', path: '/premium/category/facial' },
+    { name: 'Redhead', icon: Star, color: 'text-red-500', path: '/premium/category/redhead' },
+    { name: 'Deepthroat', icon: Zap, color: 'text-purple-600', path: '/premium/category/deepthroat' },
+    { name: 'Squirting', icon: Sparkles, color: 'text-cyan-600', path: '/premium/category/squirting' },
+    { name: 'Orgasm', icon: Heart, color: 'text-rose-500', path: '/premium/category/orgasm' },
+    { name: 'Virtual Reality', icon: Gamepad2, color: 'text-indigo-500', path: '/premium/category/virtual-reality' },
+    { name: 'HD Porn', icon: Video, color: 'text-green-500', path: '/premium/category/hd-porn' },
+    { name: 'Verified Models', icon: Crown, color: 'text-gold-400', path: '/premium/category/verified-models' },
+    { name: 'Interactive', icon: Gamepad2, color: 'text-lime-500', path: '/premium/category/interactive' },
+    { name: 'Exclusive', icon: Star, color: 'text-gold-500', path: '/premium/category/exclusive' }
   ];
 
   return (
