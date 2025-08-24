@@ -15,6 +15,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import PremiumVideoCard from '@/components/PremiumVideoCard';
+import SubscriptionModal from '@/components/SubscriptionModal';
+import { supabase } from '@/integrations/supabase/client';
 
 const PremiumVideoPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -23,6 +25,14 @@ const PremiumVideoPage = () => {
 
   const [videoError, setVideoError] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState('12months');
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'creditcard' | 'paypal' | 'crypto'>('creditcard');
+  const [selectedCrypto, setSelectedCrypto] = useState('btc');
+  const [isSignIn, setIsSignIn] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const { data: video, isLoading, error } = useQuery({
     queryKey: ['premium-video', id],
@@ -147,6 +157,226 @@ const PremiumVideoPage = () => {
     });
   };
 
+  const handleSubscriptionSuccess = () => {
+    setShowSubscriptionModal(false);
+    // Refresh the page to update premium status
+    window.location.reload();
+  };
+
+  const plans = [
+    {
+      id: '2day',
+      title: '2-day trial',
+      subtitle: 'Limited access',
+      price: '$0.99',
+      amount: 0.99,
+      period: '/2 days',
+      badge: 'TRY IT',
+      badgeColor: 'bg-red-500',
+      recommended: false
+    },
+    {
+      id: '12months',
+      title: '12 months',
+      subtitle: '',
+      price: '$2.99',
+      amount: 35.88,
+      period: '/month',
+      badge: '40% OFF',
+      badgeColor: 'bg-red-500',
+      recommended: true
+    },
+    {
+      id: '3months',
+      title: '3 months',
+      subtitle: '',
+      price: '$3.99',
+      amount: 11.97,
+      period: '/month',
+      badge: '20% OFF',
+      badgeColor: 'bg-red-500',
+      recommended: false
+    },
+    {
+      id: '1month',
+      title: '1 month',
+      subtitle: '',
+      price: '$4.99',
+      amount: 4.99,
+      period: '/month',
+      badge: '',
+      badgeColor: '',
+      recommended: false
+    },
+    {
+      id: 'lifetime',
+      title: 'Lifetime',
+      subtitle: 'Use forever',
+      price: '$399.99',
+      amount: 399.99,
+      period: '',
+      badge: 'Use forever',
+      badgeColor: 'bg-red-500',
+      recommended: false
+    }
+  ];
+
+  const selectedPlanData = plans.find(plan => plan.id === selectedPlan);
+
+  const handlePaymentSuccess = async (paymentData: any) => {
+    try {
+      // Calculate expiration date based on selected plan
+      const now = new Date();
+      let expiresAt = new Date();
+
+      switch (selectedPlan) {
+        case '2day':
+          expiresAt.setDate(now.getDate() + 2);
+          break;
+        case '1month':
+          expiresAt.setMonth(now.getMonth() + 1);
+          break;
+        case '3months':
+          expiresAt.setMonth(now.getMonth() + 3);
+          break;
+        case '12months':
+          expiresAt.setFullYear(now.getFullYear() + 1);
+          break;
+        case 'lifetime':
+          expiresAt.setFullYear(now.getFullYear() + 100);
+          break;
+        default:
+          expiresAt.setMonth(now.getMonth() + 1);
+      }
+
+      // Save subscription to Supabase
+      const { data: subscription, error: subscriptionError } = await supabase
+        .from('premium_subscriptions')
+        .upsert({
+          user_id: user.id,
+          plan_name: selectedPlanData?.title || selectedPlan,
+          plan_type: selectedPlan,
+          payment_method: paymentMethod,
+          amount: selectedPlanData?.amount || 0,
+          currency: 'USD',
+          status: 'active',
+          payment_id: paymentData.id,
+          payment_data: paymentData,
+          created_at: now.toISOString(),
+          expires_at: expiresAt.toISOString()
+        }, {
+          onConflict: 'user_id'
+        });
+
+      if (subscriptionError) {
+        console.error('Supabase error:', subscriptionError);
+        throw new Error('Failed to save subscription');
+      }
+
+      alert(`Payment successful! Your ${selectedPlanData?.title} subscription is now active until ${expiresAt.toLocaleDateString()}.`);
+      window.location.reload();
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      throw error;
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setAuthError(null);
+    setIsProcessing(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.href,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
+        },
+      });
+
+      if (error) {
+        setAuthError(error.message);
+        setIsProcessing(false);
+      }
+    } catch (error) {
+      setAuthError('Failed to authenticate with Google');
+      setIsProcessing(false);
+    }
+  };
+
+  const handleGetMembership = async () => {
+    // If not authenticated, handle authentication first
+    if (!user) {
+      if (!email || !password) {
+        setAuthError('Please fill in email and password');
+        return;
+      }
+
+      setAuthError(null);
+      setIsProcessing(true);
+
+      try {
+        let authResult;
+        if (isSignIn) {
+          authResult = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+        } else {
+          authResult = await supabase.auth.signUp({
+            email,
+            password
+          });
+        }
+
+        if (authResult.error) {
+          setAuthError(authResult.error.message);
+          setIsProcessing(false);
+          return;
+        }
+
+        // If sign up, show confirmation message
+        if (!isSignIn && !authResult.data.user?.email_confirmed_at) {
+          setAuthError('Please check your email to confirm your account before proceeding with payment.');
+          setIsProcessing(false);
+          return;
+        }
+      } catch (error: any) {
+        setAuthError('An unexpected error occurred');
+        setIsProcessing(false);
+        return;
+      }
+    }
+
+    // Process payment
+    setIsProcessing(true);
+    try {
+      const planAmount = selectedPlanData?.amount;
+      if (planAmount === undefined) {
+        throw new Error('Selected plan amount is undefined.');
+      }
+
+      // For demo purposes, simulate successful payment
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      await handlePaymentSuccess({ 
+        id: `demo_${Date.now()}`, 
+        status: 'COMPLETED',
+        paymentMethod: paymentMethod,
+        amount: planAmount,
+        currency: 'USD'
+      });
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      alert(`Payment failed: ${error.message}. Please try again.`);
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white">
       {/* Top Status Bar */}
@@ -185,7 +415,10 @@ const PremiumVideoPage = () => {
             </div>
             <CreditCard className="w-5 h-5 text-gray-400" />
             <ArrowLeft className="w-5 h-5 text-gray-400" onClick={() => navigate('/premium')} />
-            <Button className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs px-3 py-1 h-7">
+            <Button 
+              onClick={() => setShowSubscriptionModal(true)}
+              className="bg-yellow-500 hover:bg-yellow-600 text-black text-xs px-3 py-1 h-7"
+            >
               Join now
             </Button>
           </div>
@@ -235,9 +468,7 @@ const PremiumVideoPage = () => {
                     alt={video.uploader_username || "Creator"}
                     className="w-full h-full object-cover"
                     onError={(e) => {
-                      console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
                       const target = e.target as HTMLImageElement;
-                      target.style.display = 'none';
                       const parent = target.parentElement;
                       if (parent) {
                         const username = video.uploader_username || video.profiles?.username || video.uploader_name || "User";
@@ -399,11 +630,21 @@ const PremiumVideoPage = () => {
           <div className="space-y-4">
             <div className="text-center">
               <span className="text-white">Create account or </span>
-              <button className="text-blue-400">Sign in</button>
+              <button className="text-blue-400" onClick={() => setIsSignIn(!isSignIn)}>
+                {isSignIn ? "Sign up" : "Sign in"}
+              </button>
             </div>
 
-            <Button className="w-full bg-white text-black border border-gray-300">
-              <span className="mr-2">G</span>
+            <Button 
+              onClick={handleGoogleAuth}
+              className="w-full bg-white text-black border border-gray-300"
+            >
+              <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
+                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              </svg>
               Sign up with Google
             </Button>
 
@@ -414,27 +655,39 @@ const PremiumVideoPage = () => {
             <div className="space-y-3">
               <div className="relative">
                 <input
-                  type="text"
-                  placeholder="Username"
+                  type="email"
+                  placeholder="Your email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white placeholder-gray-400"
                 />
               </div>
               <div className="relative">
                 <input
-                  type="email"
-                  placeholder="Your email"
+                  type="password"
+                  placeholder="Password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className="w-full bg-gray-800 border border-gray-600 rounded px-4 py-3 text-white placeholder-gray-400"
                 />
               </div>
             </div>
 
+            {authError && (
+              <div className="text-red-400 text-xs text-center">{authError}</div>
+            )}
+
             <div className="text-xs text-gray-400">
               By creating account, you agree to our Terms and Conditions & Privacy Policy
             </div>
 
-            <Button className="w-full bg-yellow-500 text-black font-bold text-lg py-4">
+            <Button 
+              onClick={handleGetMembership}
+              disabled={isProcessing}
+              className="w-full bg-yellow-500 text-black font-bold text-lg py-4 disabled:opacity-50"
+            >
               <Crown className="w-5 h-5 mr-2" />
-              GET FULL VIDEO
+              {isProcessing ? 'PROCESSING...' : 'GET FULL VIDEO'}
             </Button>
 
             <div className="text-xs text-gray-400 text-center">
@@ -481,9 +734,7 @@ const PremiumVideoPage = () => {
                   alt={video.uploader_username || "Creator"}
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
                     const target = e.target as HTMLImageElement;
-                    target.style.display = 'none';
                     const parent = target.parentElement;
                     if (parent) {
                       const username = video.uploader_username || video.profiles?.username || video.uploader_name || "User";
@@ -497,7 +748,7 @@ const PremiumVideoPage = () => {
                 </div>
               )}
             </div>
-            <span className="text-white text-sm">{video.uploader_username || video.uploader_name || "ManuelaAlvarez"}</span>
+            <span className="text-white text-sm">{video.uploader_username || video.uploader_name || "Creator"}</span>
           </div>
 
           {/* Tags */}
@@ -578,6 +829,13 @@ const PremiumVideoPage = () => {
             </div>
           </div>
         )}
+
+        {/* Subscription Modal */}
+        <SubscriptionModal
+          isOpen={showSubscriptionModal}
+          onClose={() => setShowSubscriptionModal(false)}
+          onSubscriptionSuccess={handleSubscriptionSuccess}
+        />
       </div>
     </div>
   );
