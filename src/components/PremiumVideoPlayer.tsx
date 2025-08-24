@@ -55,6 +55,18 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   
   const PREVIEW_TIME_LIMIT = 84; // 1 minute 24 seconds in seconds
 
+  // Update duration display when premium status changes
+  useEffect(() => {
+    if (videoRef.current && initialized) {
+      const video = videoRef.current;
+      if (!hasPremiumSubscription && !premiumLoading) {
+        setDuration(PREVIEW_TIME_LIMIT);
+      } else if (video.duration) {
+        setDuration(video.duration);
+      }
+    }
+  }, [hasPremiumSubscription, premiumLoading, initialized]);
+
   useEffect(() => {
     const initializePremiumPlayer = () => {
       if (videoRef.current && !initialized) {
@@ -137,7 +149,12 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
         // Add event listeners for premium features
         video.addEventListener("loadedmetadata", () => {
-          setDuration(video.duration);
+          // For non-premium users, show only preview duration (1:24)
+          if (!hasPremiumSubscription && !premiumLoading) {
+            setDuration(PREVIEW_TIME_LIMIT);
+          } else {
+            setDuration(video.duration);
+          }
         });
 
         video.addEventListener("timeupdate", () => {
