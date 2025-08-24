@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,271 +7,125 @@ const corsHeaders = {
 };
 
 interface PaymentRequest {
-  amount: number;
-  currency: string;
-  cryptocurrency?: string;
-  orderId?: string;
+  price_amount: number;
+  price_currency: string;
+  pay_currency?: string;
+  order_id?: string;
+  order_description?: string;
+  success_url?: string;
+  cancel_url?: string;
 }
 
-interface PaymentResponse {
-  success: boolean;
-  paymentId?: string;
-  paymentUrl?: string;
-  qrCode?: string;
-  error?: string;
-}
-
-const NOWPAYMENTS_API_KEY = "D0NCM3M-7EAMCPG-NAG7YXW-FB5C87D";
-const NOWPAYMENTS_PUBLIC_KEY = "0704a9d4-4954-49d0-8b15-258eddd70b68";
-const NOWPAYMENTS_API_URL = "https://api.nowpayments.io/v1";
-
-// Minimum amounts for different cryptocurrencies (in USD equivalent)
-const MINIMUM_AMOUNTS: Record<string, number> = {
-  'btc': 5.0,   // Bitcoin minimum $5
-  'eth': 5.0,   // Ethereum minimum $5
-  'usdt': 1.0,  // USDT minimum $1
-  'usdc': 1.0,  // USDC minimum $1
-  'bnb': 2.0,   // BNB minimum $2
-  'ada': 2.0,   // ADA minimum $2
-  'dot': 2.0,   // DOT minimum $2
-  'ltc': 2.0,   // LTC minimum $2
-};
-
-const validateMinimumAmount = (amount: number, currency: string, cryptocurrency: string): string | null => {
-  const minAmount = MINIMUM_AMOUNTS[cryptocurrency.toLowerCase()] || 5.0;
-  
-  // For simplicity, assuming 1:1 conversion for non-USD currencies
-  // In production, you'd want to use real exchange rates
-  let usdAmount = amount;
-  
-  if (usdAmount < minAmount) {
-    return `Minimum amount for ${cryptocurrency.toUpperCase()} is $${minAmount} USD equivalent`;
-  }
-  
-  return null;
-};
-
-const handler = async (req: Request): Promise<Response> => {
-  console.log('🚀 Crypto payment function called');
-  
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    const nowPaymentsApiKey = Deno.env.get('NOWPAYMENTS_API_KEY');
+    const nowPaymentsApiUrl = Deno.env.get('NOWPAYMENTS_API_URL');
+
+    console.log('Environment check:', {
+      hasApiKey: !!nowPaymentsApiKey,
+      apiUrl: nowPaymentsApiUrl,
+      keyLength: nowPaymentsApiKey ? nowPaymentsApiKey.length : 0
+    });
+
+    if (!nowPaymentsApiKey || !nowPaymentsApiUrl) {
+      throw new Error('NowPayments API credentials not configured');
+    }
+
+    console.log('Processing crypto payment request...');
 
     if (req.method === 'POST') {
-      const { amount, currency, cryptocurrency = 'btc', orderId }: PaymentRequest = await req.json();
+      const paymentData: PaymentRequest = await req.json();
       
-      console.log('💰 Creating payment:', { amount, currency, cryptocurrency, orderId });
+      console.log('Payment data received:', {
+        amount: paymentData.price_amount,
+        currency: paymentData.price_currency,
+        pay_currency: paymentData.pay_currency
+      });
 
-      // Validate minimum amount
-      const minAmountError = validateMinimumAmount(amount, currency, cryptocurrency);
-      if (minAmountError) {
-        console.log('❌ Minimum amount validation failed:', minAmountError);
-        
-        const errorResponse: PaymentResponse = {
-          success: false,
-          error: minAmountError,
-        };
-
-        return new Response(JSON.stringify(errorResponse), {
-          status: 400,
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders,
-          },
-        });
-      }
-
-      // Check if the cryptocurrency is available
-      console.log('🔍 Checking available currencies...');
-      
-      try {
-        const currenciesResponse = await fetch(`${NOWPAYMENTS_API_URL}/currencies`, {
-          headers: {
-            'x-api-key': NOWPAYMENTS_API_KEY,
-          },
-        });
-
-        if (currenciesResponse.ok) {
-          const currencies = await currenciesResponse.json();
-          if (!currencies.currencies?.includes(cryptocurrency.toLowerCase())) {
-            throw new Error(`Cryptocurrency ${cryptocurrency.toUpperCase()} is not supported`);
-          }
-        }
-      } catch (currencyError) {
-        console.log('⚠️ Could not verify currency availability:', currencyError);
-        // Continue anyway, let NOWPayments API handle it
-      }
-
-      // Create payment with NOWPayments API
-      const paymentData = {
-        price_amount: amount,
-        price_currency: currency.toUpperCase(),
-        pay_currency: cryptocurrency.toLowerCase(),
-        order_id: orderId || `order_${Date.now()}`,
-        order_description: `Crypto payment for ${amount} ${currency.toUpperCase()}`,
-        ipn_callback_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/crypto-payment/webhook`,
-        success_url: `${req.headers.get('origin')}/payment/success`,
-        cancel_url: `${req.headers.get('origin')}/payment/cancel`,
-      };
-
-      console.log('📡 Sending request to NOWPayments API...');
-      
-      const response = await fetch(`${NOWPAYMENTS_API_URL}/payment`, {
+      // Create payment with NowPayments
+      console.log('Making payment request to:', `${nowPaymentsApiUrl}/v1/payment`);
+      const response = await fetch(`${nowPaymentsApiUrl}/v1/payment`, {
         method: 'POST',
         headers: {
-          'x-api-key': NOWPAYMENTS_API_KEY,
+          'x-api-key': nowPaymentsApiKey,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(paymentData),
+        body: JSON.stringify({
+          price_amount: paymentData.price_amount,
+          price_currency: paymentData.price_currency,
+          pay_currency: paymentData.pay_currency || 'btc',
+          order_id: paymentData.order_id || `order_${Date.now()}`,
+          order_description: paymentData.order_description || 'Crypto Payment',
+          ipn_callback_url: `${req.headers.get("origin")}/api/payment-callback`,
+        }),
       });
 
-      const responseData = await response.json();
-      console.log('📥 NOWPayments API response:', responseData);
+      console.log('Payment response status:', response.status);
 
       if (!response.ok) {
-        let errorMessage = responseData.message || 'Unknown error occurred';
-        
-        // Handle specific error cases
-        if (responseData.code === 'AMOUNT_MINIMAL_ERROR') {
-          errorMessage = `The amount is too small for ${cryptocurrency.toUpperCase()}. Please increase the amount and try again.`;
-        } else if (responseData.message?.includes('minimal')) {
-          errorMessage = `Minimum payment amount not met for ${cryptocurrency.toUpperCase()}. Please increase the amount.`;
-        }
-        
-        throw new Error(errorMessage);
+        const errorData = await response.text();
+        console.error('NowPayments API error:', errorData);
+        throw new Error(`Payment creation failed: ${response.status} ${errorData}`);
       }
 
-      // Store payment in database
-      const { error: dbError } = await supabase
-        .from('crypto_payments')
-        .insert([
-          {
-            payment_id: responseData.payment_id,
-            order_id: paymentData.order_id,
-            amount: amount,
-            currency: currency.toUpperCase(),
-            cryptocurrency: cryptocurrency.toLowerCase(),
-            status: 'pending',
-            payment_url: responseData.invoice_url,
-            created_at: new Date().toISOString(),
-          }
-        ]);
+      const paymentResult = await response.json();
+      console.log('Payment created successfully:', paymentResult.payment_id);
 
-      if (dbError) {
-        console.error('❌ Database error:', dbError);
-      }
-
-      const result: PaymentResponse = {
+      return new Response(JSON.stringify({
         success: true,
-        paymentId: responseData.payment_id,
-        paymentUrl: responseData.invoice_url,
-        qrCode: responseData.qr_code,
-      };
-
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
+        payment: paymentResult
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // GET request - fetch available currencies
     if (req.method === 'GET') {
-      const url = new URL(req.url);
-      const paymentId = url.searchParams.get('paymentId');
+      console.log('Fetching available currencies...');
+      console.log('Making request to:', `${nowPaymentsApiUrl}/v1/currencies`);
       
-      if (!paymentId) {
-        throw new Error('Payment ID is required');
-      }
-
-      console.log('🔍 Checking payment status:', paymentId);
-
-      // Check payment status with NOWPayments API
-      const response = await fetch(`${NOWPAYMENTS_API_URL}/payment/${paymentId}`, {
+      const response = await fetch(`${nowPaymentsApiUrl}/v1/currencies`, {
+        method: 'GET',
         headers: {
-          'x-api-key': NOWPAYMENTS_API_KEY,
+          'x-api-key': nowPaymentsApiKey,
         },
       });
 
-      const paymentData = await response.json();
-      console.log('📊 Payment status:', paymentData);
+      console.log('Currencies response status:', response.status);
 
-      // Update database with current status
-      const { error: dbError } = await supabase
-        .from('crypto_payments')
-        .update({ 
-          status: paymentData.payment_status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('payment_id', paymentId);
-
-      if (dbError) {
-        console.error('❌ Database update error:', dbError);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch currencies: ${response.status}`);
       }
 
-      return new Response(JSON.stringify(paymentData), {
-        status: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          ...corsHeaders,
-        },
+      const currencies = await response.json();
+      console.log('Available currencies fetched successfully');
+
+      return new Response(JSON.stringify({
+        success: true,
+        currencies: currencies.currencies || []
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Webhook endpoint for NOWPayments IPN
-    if (req.url.includes('/webhook')) {
-      console.log('🔔 Webhook received');
-      const webhookData = await req.json();
-      
-      // Update payment status in database
-      const { error: dbError } = await supabase
-        .from('crypto_payments')
-        .update({ 
-          status: webhookData.payment_status,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('payment_id', webhookData.payment_id);
-
-      if (dbError) {
-        console.error('❌ Webhook database error:', dbError);
-      }
-
-      return new Response('OK', {
-        status: 200,
-        headers: corsHeaders,
-      });
-    }
-
-    return new Response('Method not allowed', {
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: corsHeaders,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error: any) {
-    console.error('❌ Error in crypto payment function:', error);
-    
-    const errorResponse: PaymentResponse = {
+  } catch (error) {
+    console.error('Error in crypto-payment function:', error);
+    return new Response(JSON.stringify({ 
       success: false,
-      error: error.message || 'An unexpected error occurred',
-    };
-
-    return new Response(JSON.stringify(errorResponse), {
+      error: error.message 
+    }), {
       status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        ...corsHeaders,
-      },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
-};
-
-serve(handler);
+});
