@@ -154,10 +154,12 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
               setShowPreviewOverlay(true);
             }
             
-            if (currentTime >= PREVIEW_TIME_LIMIT && !previewTimeReached) {
-              setPreviewTimeReached(true);
+            // Enforce strict time limit - pause and show modal
+            if (currentTime >= PREVIEW_TIME_LIMIT) {
               video.pause();
+              video.currentTime = PREVIEW_TIME_LIMIT; // Force video back to limit
               setIsPlaying(false);
+              setPreviewTimeReached(true);
               setShowPreviewOverlay(false);
               setShowSubscriptionModal(true);
             }
@@ -165,14 +167,17 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         });
 
         video.addEventListener("play", () => {
-          setIsPlaying(true);
-          
           // Check if non-premium user is trying to play beyond preview time
           if (!hasPremiumSubscription && !premiumLoading && video.currentTime >= PREVIEW_TIME_LIMIT) {
             video.pause();
+            video.currentTime = PREVIEW_TIME_LIMIT; // Reset to limit
             setIsPlaying(false);
+            setPreviewTimeReached(true);
             setShowSubscriptionModal(true);
+            return;
           }
+          
+          setIsPlaying(true);
         });
 
         // Prevent seeking beyond preview limit for non-premium users
