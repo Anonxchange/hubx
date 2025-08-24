@@ -418,38 +418,46 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
     try {
       console.log('Processing crypto payment for user:', user.id, { email, selectedPlan });
 
+      // Verify Supabase connection
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Authentication required. Please sign in again.');
+      }
+
       // Create crypto payment using Supabase function
       const response = await fetch(`${supabase.supabaseUrl}/functions/v1/crypto-payment`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.supabaseKey}`,
+          'Authorization': `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
-          amount: selectedPlanData?.amount || 0,
-          currency: 'USD',
-          cryptocurrency: selectedCrypto,
-          orderId: `subscription_${user.id}_${Date.now()}`,
-          userId: user.id,
-          planType: selectedPlan,
+          action: 'createPayment',
+          amount: selectedPlanData?.amount?.toString() || '0',
+          currency: selectedCrypto,
+          payoutCurrency: 'usd',
+          description: `${selectedPlanData?.title} Subscription`,
+          returnUrl: window.location.origin,
         }),
       });
 
       const result = await response.json();
 
-      if (!result.success) {
+      if (!result.success || !result.payment) {
         throw new Error(result.error || 'Failed to create crypto payment');
       }
 
       console.log('Crypto payment created:', result);
 
+      const payment = result.payment;
+      
       // Validate payment URL exists
-      if (!result.paymentUrl) {
+      if (!payment.pay_url) {
         throw new Error('Payment processor did not provide a payment URL. Please try a different cryptocurrency or contact support.');
       }
 
       // Open payment URL in new window
-      const cryptoWindow = window.open(result.paymentUrl, 'crypto-payment', 'width=800,height=700');
+      const cryptoWindow = window.open(payment.pay_url, 'crypto-payment', 'width=800,height=700');
 
       if (!cryptoWindow) {
         throw new Error('Failed to open payment window. Please allow popups and try again.');
@@ -458,31 +466,41 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       // Poll for payment completion
       const checkPayment = async () => {
         try {
-          const statusResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/crypto-payment?paymentId=${result.paymentId}`, {
+          const statusResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/crypto-payment`, {
+            method: 'POST',
             headers: {
-              'Authorization': `Bearer ${supabase.supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
             },
+            body: JSON.stringify({
+              action: 'getPaymentStatus',
+              paymentId: payment.payment_id
+            }),
           });
 
-          const statusData = await statusResponse.json();
+          const statusResult = await statusResponse.json();
+          
+          if (statusResult.success && statusResult.payment) {
+            const paymentStatus = statusResult.payment.payment_status;
+            
+            if (paymentStatus === 'finished' || paymentStatus === 'confirmed') {
+              clearInterval(pollInterval);
+              cryptoWindow?.close();
 
-          if (statusData.payment_status === 'finished' || statusData.payment_status === 'confirmed') {
-            clearInterval(pollInterval);
-            cryptoWindow?.close();
+              // Process successful payment
+              await handlePaymentSuccess({ 
+                id: payment.payment_id, 
+                status: 'COMPLETED',
+                paymentMethod: 'crypto'
+              });
 
-            // Process successful payment
-            await handlePaymentSuccess({ 
-              id: result.paymentId, 
-              status: 'COMPLETED',
-              paymentMethod: 'crypto'
-            });
-
-            alert('Cryptocurrency payment successful! Your premium subscription is now active.');
-            onClose();
-          } else if (statusData.payment_status === 'failed') {
-            clearInterval(pollInterval);
-            cryptoWindow?.close();
-            throw new Error('Payment failed');
+              alert('Cryptocurrency payment successful! Your premium subscription is now active.');
+              onClose();
+            } else if (paymentStatus === 'failed' || paymentStatus === 'expired') {
+              clearInterval(pollInterval);
+              cryptoWindow?.close();
+              throw new Error('Payment failed or expired');
+            }
           }
         } catch (error) {
           console.error('Error checking payment status:', error);
