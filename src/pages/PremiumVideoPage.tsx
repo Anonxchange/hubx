@@ -225,12 +225,17 @@ const PremiumVideoPage = () => {
 
   const handlePaymentSuccess = async (paymentData: any) => {
     try {
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
       // Calculate expiration date based on selected plan
       const now = new Date();
       let expiresAt = new Date();
 
       switch (selectedPlan) {
         case '2day':
+        case 'trial':
           expiresAt.setDate(now.getDate() + 2);
           break;
         case '1month':
@@ -249,34 +254,66 @@ const PremiumVideoPage = () => {
           expiresAt.setMonth(now.getMonth() + 1);
       }
 
-      // Save subscription to Supabase
-      const { data: subscription, error: subscriptionError } = await supabase
+      // First check if user already has a subscription
+      const { data: existingSub } = await supabase
         .from('premium_subscriptions')
-        .upsert({
-          user_id: user.id,
-          plan_name: selectedPlanData?.title || selectedPlan,
-          plan_type: selectedPlan,
-          payment_method: paymentMethod,
-          amount: selectedPlanData?.amount || 0,
-          currency: 'USD',
-          status: 'active',
-          payment_id: paymentData.id,
-          payment_data: paymentData,
-          created_at: now.toISOString(),
-          expires_at: expiresAt.toISOString()
-        }, {
-          onConflict: 'user_id'
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
 
-      if (subscriptionError) {
-        console.error('Supabase error:', subscriptionError);
-        throw new Error('Failed to save subscription');
+      let subscriptionResult;
+      
+      if (existingSub) {
+        // Update existing subscription
+        subscriptionResult = await supabase
+          .from('premium_subscriptions')
+          .update({
+            plan_name: selectedPlanData?.title || selectedPlan,
+            plan_type: selectedPlan,
+            payment_method: paymentMethod,
+            amount: selectedPlanData?.amount || 0,
+            currency: 'USD',
+            status: 'active',
+            is_active: true,
+            payment_id: paymentData.id,
+            payment_data: paymentData,
+            start_date: now.toISOString(),
+            end_date: expiresAt.toISOString(),
+            updated_at: now.toISOString()
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Create new subscription
+        subscriptionResult = await supabase
+          .from('premium_subscriptions')
+          .insert({
+            user_id: user.id,
+            plan_name: selectedPlanData?.title || selectedPlan,
+            plan_type: selectedPlan,
+            payment_method: paymentMethod,
+            amount: selectedPlanData?.amount || 0,
+            currency: 'USD',
+            status: 'active',
+            is_active: true,
+            payment_id: paymentData.id,
+            payment_data: paymentData,
+            start_date: now.toISOString(),
+            end_date: expiresAt.toISOString(),
+            created_at: now.toISOString(),
+            updated_at: now.toISOString()
+          });
+      }
+
+      if (subscriptionResult.error) {
+        console.error('Supabase error:', subscriptionResult.error);
+        throw new Error(`Failed to save subscription: ${subscriptionResult.error.message}`);
       }
 
       alert(`Payment successful! Your ${selectedPlanData?.title} subscription is now active until ${expiresAt.toLocaleDateString()}.`);
       window.location.reload();
     } catch (error) {
       console.error('Payment verification error:', error);
+      alert(`Payment processing failed: ${error.message}. Please try again.`);
       throw error;
     }
   };
@@ -499,13 +536,13 @@ const PremiumVideoPage = () => {
           {/* Trial Option */}
           <div
             className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer mb-3 ${
-              selectedPlan === 'trial' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
+              selectedPlan === '2day' ? 'border-yellow-400 bg-gray-800' : 'border-gray-600 bg-gray-800'
             }`}
-            onClick={() => setSelectedPlan('trial')}
+            onClick={() => setSelectedPlan('2day')}
           >
             <div className="flex items-center space-x-3">
               <div className={`w-4 h-4 rounded-full border-2 ${
-                selectedPlan === 'trial' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
+                selectedPlan === '2day' ? 'border-yellow-400 bg-yellow-400' : 'border-gray-400'
               }`}></div>
               <div>
                 <div className="flex items-center space-x-2">
