@@ -241,6 +241,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (session?.user) {
         // Always fetch user type on auth state changes (login, token refresh, etc.)
         await fetchUserAndSetType(session.user as User);
+        
+        // Check if this is a Google OAuth return and redirect to subscription modal
+        if (event === 'SIGNED_IN' && window.location.hash.includes('subscription-modal')) {
+          // Clear the hash and trigger subscription modal if needed
+          window.location.hash = '';
+          // You can dispatch a custom event here to open the subscription modal
+          window.dispatchEvent(new CustomEvent('google-auth-success'));
+        }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setUserType(null);
