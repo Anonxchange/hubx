@@ -182,48 +182,60 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
         window.paypal.Buttons({
           createOrder: (data: any, actions: any) => {
             console.log('Creating PayPal order...');
-            // Create order through unified Supabase Edge Function
-            return fetch(`${supabase.supabaseUrl}/functions/v1/paypal-payments`, {
+            // Create order through Supabase Edge Function
+            return fetch(`${supabase.supabaseUrl}/functions/v1/paypal-payment?action=create`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${supabase.supabaseKey}`,
               },
               body: JSON.stringify({
-                action: 'create',
-                amount: selectedPlanData.amount,
-                description: `HubX Premium - ${selectedPlanData.title}`,
+                amount: selectedPlanData.amount.toString(),
+                currency: 'USD'
               }),
-            }).then(res => res.json()).then(order => order.id);
+            }).then(res => res.json()).then(order => {
+              if (order.error) {
+                throw new Error(order.error);
+              }
+              return order.orderId;
+            });
           },
           onApprove: async (data: any, actions: any) => {
             setIsProcessing(true);
             try {
               console.log('PayPal payment approved, capturing order...');
-              // Capture order through unified Supabase Edge Function
-              const response = await fetch(`${supabase.supabaseUrl}/functions/v1/paypal-payments`, {
+              // Capture order through Supabase Edge Function
+              const response = await fetch(`${supabase.supabaseUrl}/functions/v1/paypal-payment?action=capture`, {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                   'Authorization': `Bearer ${supabase.supabaseKey}`,
                 },
                 body: JSON.stringify({
-                  action: 'capture',
-                  orderId: data.orderID,
-                  planId: selectedPlan,
-                  userId: user?.id,
+                  orderId: data.orderID
                 }),
               });
               const result = await response.json();
 
+              if (result.error) {
+                throw new Error(result.error);
+              }
+
               console.log('PayPal payment successful:', result);
 
-              await handlePaymentSuccess(result);
+              // Create payment data object for handlePaymentSuccess
+              const paymentData = {
+                id: result.orderId,
+                status: result.status,
+                captureResult: result.captureResult
+              };
+
+              await handlePaymentSuccess(paymentData);
               alert('Payment successful! Your premium subscription is now active.');
               onClose();
             } catch (error) {
               console.error('PayPal payment error:', error);
-              alert('Payment failed. Please try again.');
+              alert(`Payment failed: ${error.message}. Please try again.`);
             } finally {
               setIsProcessing(false);
             }
