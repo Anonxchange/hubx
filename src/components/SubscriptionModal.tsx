@@ -494,16 +494,57 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
 
       const payment = result.payment;
 
-      // Validate payment URL exists
-      if (!payment.pay_url) {
-        throw new Error('Payment processor did not provide a payment URL. Please try a different cryptocurrency or contact support.');
-      }
+      // Declare cryptoWindow at proper scope for polling functions
+      let cryptoWindow: Window | null = null;
 
-      // Open payment URL in new window
-      const cryptoWindow = window.open(payment.pay_url, 'crypto-payment', 'width=800,height=700');
+      // Check if we have a payment URL or address
+      const paymentUrl = payment.pay_url || payment.payment_url || payment.invoice_url;
+      
+      if (paymentUrl) {
+        console.log('Opening payment URL:', paymentUrl);
+        // Open payment URL in new window
+        cryptoWindow = window.open(paymentUrl, 'crypto-payment', 'width=800,height=700');
+        if (!cryptoWindow) {
+          throw new Error('Failed to open payment window. Please allow popups and try again.');
+        }
+      } else if (payment.pay_address) {
+        // For direct crypto payments, show payment details
+        console.log('Direct crypto payment details:', payment);
+        
+        const paymentDetails = `
+Crypto Payment Details:
+━━━━━━━━━━━━━━━━━━━━━━━━━
 
-      if (!cryptoWindow) {
-        throw new Error('Failed to open payment window. Please allow popups and try again.');
+💰 Amount: ${payment.pay_amount} ${payment.pay_currency.toUpperCase()}
+📍 Address: ${payment.pay_address}
+💵 USD Value: $${payment.price_amount}
+⏰ Valid Until: ${new Date(payment.expiration_estimate_date).toLocaleString()}
+
+Please send exactly ${payment.pay_amount} ${payment.pay_currency.toUpperCase()} to the address above.
+
+Payment ID: ${payment.payment_id}
+Status: ${payment.payment_status}
+        `.trim();
+
+        // Show payment details in alert for now - you might want to create a proper modal
+        alert(paymentDetails);
+        
+        // Copy address to clipboard with fallback
+        if (navigator.clipboard && window.isSecureContext) {
+          try {
+            await navigator.clipboard.writeText(payment.pay_address);
+            alert('Payment address copied to clipboard!');
+          } catch (err) {
+            console.error('Failed to copy to clipboard:', err);
+            alert('Could not copy to clipboard automatically. Please copy the address manually.');
+          }
+        } else {
+          // Fallback for non-secure contexts
+          alert('Could not copy to clipboard automatically. Please copy the address manually.');
+        }
+      } else {
+        console.error('Payment object structure:', payment);
+        throw new Error('Payment processor did not provide payment details. Please try a different cryptocurrency or contact support.');
       }
 
       // Poll for payment completion
