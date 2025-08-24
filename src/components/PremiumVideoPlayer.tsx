@@ -51,6 +51,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [previewTimeReached, setPreviewTimeReached] = useState(false);
   const [timeLeft, setTimeLeft] = useState(84); // 1 minute 24 seconds
+  const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
   
   const PREVIEW_TIME_LIMIT = 84; // 1 minute 24 seconds in seconds
 
@@ -148,10 +149,16 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             const remaining = Math.max(0, PREVIEW_TIME_LIMIT - currentTime);
             setTimeLeft(Math.ceil(remaining));
             
+            // Show preview overlay when 10 seconds left
+            if (remaining <= 10 && remaining > 0 && !showPreviewOverlay) {
+              setShowPreviewOverlay(true);
+            }
+            
             if (currentTime >= PREVIEW_TIME_LIMIT && !previewTimeReached) {
               setPreviewTimeReached(true);
               video.pause();
               setIsPlaying(false);
+              setShowPreviewOverlay(false);
               setShowSubscriptionModal(true);
             }
           }
@@ -162,6 +169,16 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           
           // Check if non-premium user is trying to play beyond preview time
           if (!hasPremiumSubscription && !premiumLoading && video.currentTime >= PREVIEW_TIME_LIMIT) {
+            video.pause();
+            setIsPlaying(false);
+            setShowSubscriptionModal(true);
+          }
+        });
+
+        // Prevent seeking beyond preview limit for non-premium users
+        video.addEventListener("seeking", () => {
+          if (!hasPremiumSubscription && !premiumLoading && video.currentTime >= PREVIEW_TIME_LIMIT) {
+            video.currentTime = PREVIEW_TIME_LIMIT - 1;
             video.pause();
             setIsPlaying(false);
             setShowSubscriptionModal(true);
@@ -257,19 +274,30 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         <source src={src} type="video/mp4" />
       </video>
 
-      {/* Preview Time Indicator - Only show for non-premium users */}
-      {!hasPremiumSubscription && !premiumLoading && !previewTimeReached && isPlaying && (
-        <div className="absolute top-4 right-4 bg-black/80 text-white px-3 py-2 rounded-lg text-sm flex items-center space-x-2">
-          <Crown className="w-4 h-4 text-yellow-400" />
-          <span>Preview: {formatTimeLeft(timeLeft)} left</span>
-        </div>
-      )}
+      {/* Preview Time Indicator removed as requested */}
 
-      {/* Premium Badge - Show for premium users */}
-      {hasPremiumSubscription && (
-        <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-3 py-2 rounded-lg text-sm font-bold flex items-center space-x-2">
-          <Crown className="w-4 h-4" />
-          <span>PREMIUM</span>
+      {/* Premium Badge removed as requested */}
+
+      {/* Preview Warning Overlay */}
+      {showPreviewOverlay && !hasPremiumSubscription && !previewTimeReached && (
+        <div className="absolute bottom-20 left-4 right-4 bg-gradient-to-r from-red-600/90 to-purple-600/90 backdrop-blur-sm text-white p-4 rounded-lg border border-yellow-400/50 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Crown className="w-6 h-6 text-yellow-400 animate-pulse" />
+              <div>
+                <h4 className="font-bold text-sm">Preview ending soon!</h4>
+                <p className="text-xs text-gray-200">
+                  {timeLeft} seconds left - Subscribe for unlimited access
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSubscriptionModal(true)}
+              className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg font-bold text-sm transition-all transform hover:scale-105"
+            >
+              Subscribe Now
+            </button>
+          </div>
         </div>
       )}
 
