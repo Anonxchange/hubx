@@ -9,9 +9,12 @@ import {
   VolumeX,
   Maximize,
   Settings,
+  Lock,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
+import { usePremiumSubscription } from "@/hooks/usePremiumSubscription";
+import SubscriptionModal from "@/components/SubscriptionModal";
 
 declare global {
   interface Window {
@@ -36,12 +39,20 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useAuth();
+  const { isPremium: hasPremiumSubscription, isLoading: premiumLoading, refreshSubscription } = usePremiumSubscription();
   const [initialized, setInitialized] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
+  
+  // Premium access control states
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [previewTimeReached, setPreviewTimeReached] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(84); // 1 minute 24 seconds
+  
+  const PREVIEW_TIME_LIMIT = 84; // 1 minute 24 seconds in seconds
 
   useEffect(() => {
     const initializePremiumPlayer = () => {
@@ -129,11 +140,32 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         });
 
         video.addEventListener("timeupdate", () => {
-          setCurrentTime(video.currentTime);
+          const currentTime = video.currentTime;
+          setCurrentTime(currentTime);
+          
+          // Check preview time limit for non-premium users
+          if (!hasPremiumSubscription && !premiumLoading) {
+            const remaining = Math.max(0, PREVIEW_TIME_LIMIT - currentTime);
+            setTimeLeft(Math.ceil(remaining));
+            
+            if (currentTime >= PREVIEW_TIME_LIMIT && !previewTimeReached) {
+              setPreviewTimeReached(true);
+              video.pause();
+              setIsPlaying(false);
+              setShowSubscriptionModal(true);
+            }
+          }
         });
 
         video.addEventListener("play", () => {
           setIsPlaying(true);
+          
+          // Check if non-premium user is trying to play beyond preview time
+          if (!hasPremiumSubscription && !premiumLoading && video.currentTime >= PREVIEW_TIME_LIMIT) {
+            video.pause();
+            setIsPlaying(false);
+            setShowSubscriptionModal(true);
+          }
         });
 
         video.addEventListener("pause", () => {
@@ -179,6 +211,22 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     return `${minutes}:${seconds.toString().padStart(2, "0")}`;
   };
 
+  const formatTimeLeft = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = time % 60;
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  };
+
+  const handleSubscriptionSuccess = () => {
+    setShowSubscriptionModal(false);
+    setPreviewTimeReached(false);
+    refreshSubscription();
+    // Allow continued playback
+    if (videoRef.current) {
+      videoRef.current.play();
+    }
+  };
+
   return (
     <div className="relative w-full">
       <video
@@ -208,6 +256,52 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       >
         <source src={src} type="video/mp4" />
       </video>
+
+      {/* Preview Time Indicator - Only show for non-premium users */}
+      {!hasPremiumSubscription && !premiumLoading && !previewTimeReached && isPlaying && (
+        <div className="absolute top-4 right-4 bg-black/80 text-white px-3 py-2 rounded-lg text-sm flex items-center space-x-2">
+          <Crown className="w-4 h-4 text-yellow-400" />
+          <span>Preview: {formatTimeLeft(timeLeft)} left</span>
+        </div>
+      )}
+
+      {/* Premium Badge - Show for premium users */}
+      {hasPremiumSubscription && (
+        <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-3 py-2 rounded-lg text-sm font-bold flex items-center space-x-2">
+          <Crown className="w-4 h-4" />
+          <span>PREMIUM</span>
+        </div>
+      )}
+
+      {/* Subscription Modal */}
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={() => setShowSubscriptionModal(false)}
+        onSubscriptionSuccess={handleSubscriptionSuccess}
+      />
+
+      {/* Preview Time Reached Overlay */}
+      {previewTimeReached && !hasPremiumSubscription && (
+        <div className="absolute inset-0 bg-black/90 flex items-center justify-center rounded-lg">
+          <div className="text-center text-white p-8 max-w-md">
+            <div className="mb-6">
+              <Lock className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold mb-2">Premium Content</h3>
+              <p className="text-gray-300">
+                You've watched the free preview ({formatTime(PREVIEW_TIME_LIMIT)}). 
+                Upgrade to Premium to continue watching this full video and access unlimited content.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowSubscriptionModal(true)}
+              className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-8 py-3 rounded-lg font-bold text-lg hover:from-yellow-600 hover:to-yellow-700 transition-all flex items-center space-x-2 mx-auto"
+            >
+              <Crown className="w-5 h-5" />
+              <span>Get Premium Access</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
