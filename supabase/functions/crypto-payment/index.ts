@@ -6,15 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface PaymentRequest {
-  price_amount: number;
-  price_currency: string;
-  pay_currency?: string;
-  order_id?: string;
-  order_description?: string;
-  success_url?: string;
-  cancel_url?: string;
-}
+const nowPaymentsApiKey = Deno.env.get('NOWPAYMENTS_API_KEY');
+const nowPaymentsApiUrl = Deno.env.get('NOWPAYMENTS_API_URL');
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -22,110 +15,140 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const { action, ...data } = await req.json();
+  console.log(`NOWPayments API action: ${action}`, data);
+
   try {
-    const nowPaymentsApiKey = Deno.env.get('NOWPAYMENTS_API_KEY');
-    const nowPaymentsApiUrl = Deno.env.get('NOWPAYMENTS_API_URL');
-
-    console.log('Environment check:', {
-      hasApiKey: !!nowPaymentsApiKey,
-      apiUrl: nowPaymentsApiUrl,
-      keyLength: nowPaymentsApiKey ? nowPaymentsApiKey.length : 0
-    });
-
-    if (!nowPaymentsApiKey || !nowPaymentsApiUrl) {
-      throw new Error('NowPayments API credentials not configured');
+    switch (action) {
+      case 'getAvailableCurrencies':
+        return await getAvailableCurrencies();
+        
+      case 'createPayment':
+        return await createPayment(data);
+        
+      case 'getPaymentStatus':
+        return await getPaymentStatus(data.paymentId);
+        
+      default:
+        return new Response(
+          JSON.stringify({ error: 'Invalid action' }), 
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
     }
-
-    console.log('Processing crypto payment request...');
-
-    if (req.method === 'POST') {
-      const paymentData: PaymentRequest = await req.json();
-      
-      console.log('Payment data received:', {
-        amount: paymentData.price_amount,
-        currency: paymentData.price_currency,
-        pay_currency: paymentData.pay_currency
-      });
-
-      // Create payment with NowPayments
-      console.log('Making payment request to:', `${nowPaymentsApiUrl}/v1/payment`);
-      const response = await fetch(`${nowPaymentsApiUrl}/v1/payment`, {
-        method: 'POST',
-        headers: {
-          'x-api-key': nowPaymentsApiKey,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          price_amount: paymentData.price_amount,
-          price_currency: paymentData.price_currency,
-          pay_currency: paymentData.pay_currency || 'btc',
-          order_id: paymentData.order_id || `order_${Date.now()}`,
-          order_description: paymentData.order_description || 'Crypto Payment',
-          ipn_callback_url: `${req.headers.get("origin")}/api/payment-callback`,
-        }),
-      });
-
-      console.log('Payment response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error('NowPayments API error:', errorData);
-        throw new Error(`Payment creation failed: ${response.status} ${errorData}`);
-      }
-
-      const paymentResult = await response.json();
-      console.log('Payment created successfully:', paymentResult.payment_id);
-
-      return new Response(JSON.stringify({
-        success: true,
-        payment: paymentResult
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // GET request - fetch available currencies
-    if (req.method === 'GET') {
-      console.log('Fetching available currencies...');
-      console.log('Making request to:', `${nowPaymentsApiUrl}/v1/currencies`);
-      
-      const response = await fetch(`${nowPaymentsApiUrl}/v1/currencies`, {
-        method: 'GET',
-        headers: {
-          'x-api-key': nowPaymentsApiKey,
-        },
-      });
-
-      console.log('Currencies response status:', response.status);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch currencies: ${response.status}`);
-      }
-
-      const currencies = await response.json();
-      console.log('Available currencies fetched successfully');
-
-      return new Response(JSON.stringify({
-        success: true,
-        currencies: currencies.currencies || []
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), {
-      status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
   } catch (error) {
     console.error('Error in crypto-payment function:', error);
-    return new Response(JSON.stringify({ 
-      success: false,
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return new Response(
+      JSON.stringify({ error: error.message }), 
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   }
 });
+
+async function getAvailableCurrencies() {
+  console.log('Fetching available currencies from NOWPayments');
+  
+  const response = await fetch(`${nowPaymentsApiUrl}/currencies`, {
+    method: 'GET',
+    headers: {
+      'x-api-key': nowPaymentsApiKey!,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+  console.log('Available currencies response:', data);
+
+  // Filter to show popular crypto currencies
+  const popularCryptos = ['btc', 'eth', 'usdt', 'usdc', 'bnb', 'ada', 'dot', 'ltc', 'xrp'];
+  const filteredCurrencies = data.currencies?.filter((currency: string) => 
+    popularCryptos.includes(currency.toLowerCase())
+  ) || [];
+
+  return new Response(
+    JSON.stringify({ 
+      currencies: filteredCurrencies,
+      success: true 
+    }), 
+    { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    }
+  );
+}
+
+async function createPayment(paymentData: any) {
+  console.log('Creating payment with NOWPayments:', paymentData);
+  
+  const { amount, currency, payoutCurrency = 'usd', description = 'Crypto Payment' } = paymentData;
+
+  const paymentRequest: any = {
+    price_amount: parseFloat(amount),
+    price_currency: payoutCurrency,
+    pay_currency: currency.toLowerCase(),
+    order_id: `order_${Date.now()}`,
+    order_description: description,
+    success_url: `${paymentData.returnUrl}?status=success`,
+    cancel_url: `${paymentData.returnUrl}?status=cancelled`,
+  };
+
+  // Only include ipn_callback_url if we have a valid webhook URL
+  // For now, we'll omit it since we don't have a webhook endpoint set up
+  
+  console.log('Payment request payload:', paymentRequest);
+
+  const response = await fetch(`${nowPaymentsApiUrl}/payment`, {
+    method: 'POST',
+    headers: {
+      'x-api-key': nowPaymentsApiKey!,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(paymentRequest),
+  });
+
+  const data = await response.json();
+  console.log('Create payment response:', data);
+
+  if (!response.ok) {
+    throw new Error(data.message || 'Failed to create payment');
+  }
+
+  return new Response(
+    JSON.stringify({ 
+      payment: data,
+      success: true 
+    }), 
+    { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    }
+  );
+}
+
+async function getPaymentStatus(paymentId: string) {
+  console.log('Getting payment status for:', paymentId);
+  
+  const response = await fetch(`${nowPaymentsApiUrl}/payment/${paymentId}`, {
+    method: 'GET',
+    headers: {
+      'x-api-key': nowPaymentsApiKey!,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  const data = await response.json();
+  console.log('Payment status response:', data);
+
+  return new Response(
+    JSON.stringify({ 
+      payment: data,
+      success: true 
+    }), 
+    { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    }
+  );
+}
