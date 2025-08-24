@@ -219,7 +219,6 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
         .upsert({
           user_id: user.id,
           plan_name: selectedPlanData?.title || selectedPlan,
-          plan_type: selectedPlan,
           payment_method: paymentMethod,
           amount: selectedPlanData?.amount || 0,
           currency: 'USD',
