@@ -311,7 +311,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           if (paypalWindow.closed && !captureAttempted) {
             clearInterval(checkClosed);
             captureAttempted = true;
-            
+
             try {
               // Small delay to ensure PayPal has processed
               await new Promise(resolve => setTimeout(resolve, 1000));
@@ -418,11 +418,26 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
     try {
       console.log('Processing crypto payment for user:', user.id, { email, selectedPlan });
 
-      // Verify Supabase connection
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      // Verify Supabase connection and get authenticated session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError || !session || !session.access_token) {
+        console.error('Session error:', sessionError);
         throw new Error('Authentication required. Please sign in again.');
       }
+
+      // Verify the user is actually authenticated
+      if (!session.user || session.user.aud !== 'authenticated') {
+        throw new Error('User not properly authenticated. Please sign in again.');
+      }
+
+      console.log('Creating crypto payment request:', {
+        action: 'createPayment',
+        amount: selectedPlanData?.amount?.toString() || '0',
+        currency: selectedCrypto,
+        payoutCurrency: 'usd',
+        description: `${selectedPlanData?.title} Subscription`,
+        returnUrl: window.location.origin,
+      });
 
       // Create crypto payment using Supabase function
       const response = await fetch(`${supabase.supabaseUrl}/functions/v1/crypto-payment`, {
@@ -441,16 +456,44 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
         }),
       });
 
-      const result = await response.json();
+      console.log('Crypto payment response status:', response.status);
+      console.log('Crypto payment response ok:', response.ok);
+
+      let result;
+      try {
+        const responseText = await response.text();
+        console.log('Raw response text:', responseText);
+
+        if (!response.ok) {
+          console.error('Crypto payment API error:', responseText);
+
+          // Parse error response if it's JSON
+          try {
+            const errorData = JSON.parse(responseText);
+            throw new Error(errorData.error || `API request failed: ${response.status} ${responseText}`);
+          } catch (parseError) {
+            throw new Error(`API request failed: ${response.status} ${responseText}`);
+          }
+        }
+
+        result = JSON.parse(responseText);
+      } catch (error) {
+        if (error.message.includes('API request failed')) {
+          throw error;
+        }
+        console.error('Failed to parse response:', error);
+        throw new Error('Invalid response from payment service. Please try again.');
+      }
+
+      console.log('Crypto payment result:', result);
 
       if (!result.success || !result.payment) {
+        console.error('Crypto payment failed:', result);
         throw new Error(result.error || 'Failed to create crypto payment');
       }
 
-      console.log('Crypto payment created:', result);
-
       const payment = result.payment;
-      
+
       // Validate payment URL exists
       if (!payment.pay_url) {
         throw new Error('Payment processor did not provide a payment URL. Please try a different cryptocurrency or contact support.');
@@ -479,10 +522,10 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           });
 
           const statusResult = await statusResponse.json();
-          
+
           if (statusResult.success && statusResult.payment) {
             const paymentStatus = statusResult.payment.payment_status;
-            
+
             if (paymentStatus === 'finished' || paymentStatus === 'confirmed') {
               clearInterval(pollInterval);
               cryptoWindow?.close();
@@ -530,7 +573,12 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       let errorMessage = error.message;
       if (errorMessage.includes('payment URL')) {
         errorMessage += ` Try selecting a different cryptocurrency like USDT or Bitcoin.`;
+      } else if (errorMessage.includes('Authentication required')) {
+        errorMessage = 'Authentication failed. Please sign in again to continue.';
+      } else if (errorMessage.includes('User not properly authenticated')) {
+        errorMessage = 'Authentication issue. Please sign in again to continue.';
       }
+
 
       alert(`Payment failed: ${errorMessage}`);
       setIsProcessing(false);
@@ -540,7 +588,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
   const handleGoogleAuth = async () => {
     setAuthError(null);
     setIsProcessing(true);
-    
+
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -552,7 +600,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           },
         },
       });
-      
+
       if (error) {
         setAuthError(error.message);
         setIsProcessing(false);
