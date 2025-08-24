@@ -61,8 +61,17 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       const video = videoRef.current;
       if (!hasPremiumSubscription && !premiumLoading) {
         setDuration(PREVIEW_TIME_LIMIT);
+        // Force video to show only preview duration in player controls
+        if (video.duration && video.duration > PREVIEW_TIME_LIMIT) {
+          Object.defineProperty(video, 'duration', {
+            get: () => PREVIEW_TIME_LIMIT,
+            configurable: true
+          });
+        }
       } else if (video.duration) {
-        setDuration(video.duration);
+        // Restore original duration for premium users
+        delete video.duration;
+        setDuration(video.duration || 0);
       }
     }
   }, [hasPremiumSubscription, premiumLoading, initialized]);
@@ -152,6 +161,13 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           // For non-premium users, show only preview duration (1:24)
           if (!hasPremiumSubscription && !premiumLoading) {
             setDuration(PREVIEW_TIME_LIMIT);
+            // Override the video duration property to show only preview time
+            if (video.duration > PREVIEW_TIME_LIMIT) {
+              Object.defineProperty(video, 'duration', {
+                get: () => PREVIEW_TIME_LIMIT,
+                configurable: true
+              });
+            }
           } else {
             setDuration(video.duration);
           }
@@ -204,6 +220,22 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             video.pause();
             setIsPlaying(false);
             setShowSubscriptionModal(true);
+          }
+        });
+
+        // Additional enforcement: prevent video from loading beyond preview time
+        video.addEventListener("loadstart", () => {
+          if (!hasPremiumSubscription && !premiumLoading) {
+            // Limit the video buffering to preview time only
+            video.addEventListener("progress", () => {
+              if (video.buffered.length > 0) {
+                const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                if (bufferedEnd > PREVIEW_TIME_LIMIT + 5) { // 5 second buffer
+                  video.pause();
+                  video.currentTime = Math.min(video.currentTime, PREVIEW_TIME_LIMIT);
+                }
+              }
+            });
           }
         });
 
