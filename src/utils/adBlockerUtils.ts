@@ -80,7 +80,7 @@ export class AdBlockerDetector {
 
       detectionMethods.push(baitPromise);
 
-      // Test 2: Check for ad blocker extensions and DOM modifications
+      // Test 2: Check for ad blocker extensions and browser-specific blocking
       const extensionPromise = new Promise<boolean>((resolve) => {
         const adBlockerKeywords = ['adblock', 'ublock', 'ghostery', 'adguard', 'adnauseam', 'brave-shields'];
         const extensions = Array.from(document.querySelectorAll('*')).some(el => {
@@ -88,8 +88,20 @@ export class AdBlockerDetector {
           const id = el.id?.toString().toLowerCase() || '';
           return adBlockerKeywords.some(keyword => className.includes(keyword) || id.includes(keyword));
         });
-        console.log(`🔌 Extension detection: ${extensions ? 'DETECTED' : 'NOT DETECTED'}`);
-        resolve(extensions);
+
+        // Check for Opera Mini specific blocking
+        const isOperaMini = navigator.userAgent.includes('Opera Mini') || 
+                           navigator.userAgent.includes('OPIM') ||
+                           window.operaMini !== undefined;
+        
+        const operaBlocking = isOperaMini && (
+          !window.navigator.onLine || 
+          document.querySelector('meta[name="viewport"][content*="opera"]') !== null
+        );
+
+        const detected = extensions || operaBlocking;
+        console.log(`🔌 Extension detection: ${detected ? 'DETECTED' : 'NOT DETECTED'}${isOperaMini ? ' (Opera Mini detected)' : ''}`);
+        resolve(detected);
       });
 
       detectionMethods.push(extensionPromise);
@@ -170,7 +182,9 @@ export class AdBlockerDetector {
       { name: 'ShadowDomAd', fn: () => this.createShadowDomAd(zoneId, container) },
       { name: 'TextAd', fn: () => this.loadTextAd(zoneId, container) },
       { name: 'WebWorkerAd', fn: () => this.loadWebWorkerAd(zoneId, container) },
-      { name: 'ServiceWorkerAd', fn: () => this.loadServiceWorkerAd(zoneId, container) }
+      { name: 'ServiceWorkerAd', fn: () => this.loadServiceWorkerAd(zoneId, container) },
+      { name: 'VideoOverlayAd', fn: () => this.createVideoOverlayAd(zoneId, container) },
+      { name: 'OperaMiniBypass', fn: () => this.createOperaMiniBypass(zoneId, container) }
     ];
 
     console.log(`🎯 Starting ad bypass for zone ${zoneId} with ${strategies.length} strategies`);
@@ -492,6 +506,162 @@ export class AdBlockerDetector {
         
       } catch (error) {
         reject('Service Worker error');
+      }
+    });
+  }
+
+  private async createVideoOverlayAd(zoneId: string, container: HTMLElement): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Create a video-style overlay that mimics video player controls
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+          position: relative;
+          width: 100%;
+          height: 250px;
+          background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+          border-radius: 8px;
+          overflow: hidden;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        
+        // Create fake video content area
+        const videoContent = document.createElement('div');
+        videoContent.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 40px;
+          background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-family: Arial, sans-serif;
+          font-size: 18px;
+          font-weight: bold;
+        `;
+        videoContent.textContent = '▶ Sponsored Content';
+        
+        // Create fake video controls
+        const controls = document.createElement('div');
+        controls.style.cssText = `
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 40px;
+          background: rgba(0,0,0,0.8);
+          display: flex;
+          align-items: center;
+          padding: 0 15px;
+          color: white;
+          font-size: 12px;
+        `;
+        
+        const playButton = document.createElement('div');
+        playButton.style.cssText = `
+          width: 20px;
+          height: 20px;
+          margin-right: 10px;
+          cursor: pointer;
+        `;
+        playButton.innerHTML = '▶';
+        
+        const timeDisplay = document.createElement('div');
+        timeDisplay.textContent = '0:30 / 0:30';
+        timeDisplay.style.cssText = 'margin-left: auto;';
+        
+        controls.appendChild(playButton);
+        controls.appendChild(timeDisplay);
+        overlay.appendChild(videoContent);
+        overlay.appendChild(controls);
+        
+        // Click handler for the entire overlay
+        overlay.onclick = () => {
+          window.open(`https://s.magsrv.com/v1/click.php?idzone=${zoneId}&type=video`, '_blank');
+        };
+        
+        // Add a small delay to mimic video loading
+        setTimeout(() => {
+          container.appendChild(overlay);
+          resolve();
+        }, 100);
+        
+      } catch (error) {
+        reject('Video overlay ad creation failed');
+      }
+    });
+  }
+
+  private async createOperaMiniBypass(zoneId: string, container: HTMLElement): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        const isOperaMini = navigator.userAgent.includes('Opera Mini') || 
+                           navigator.userAgent.includes('OPIM');
+        
+        if (!isOperaMini) {
+          reject('Not Opera Mini browser');
+          return;
+        }
+        
+        // Opera Mini specific bypass using image sprites and CSS
+        const operaAd = document.createElement('div');
+        operaAd.style.cssText = `
+          width: 300px;
+          height: 250px;
+          background-image: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+          position: relative;
+          border-radius: 6px;
+          overflow: hidden;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+          margin: 0 auto;
+        `;
+        
+        // Create content using CSS only (Opera Mini processes CSS server-side)
+        const content = document.createElement('div');
+        content.style.cssText = `
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: white;
+          text-align: center;
+          font-family: Arial, sans-serif;
+          font-weight: bold;
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        `;
+        content.innerHTML = `
+          <div style="font-size: 16px; margin-bottom: 8px;">Advertisement</div>
+          <div style="font-size: 12px; opacity: 0.9;">Tap to continue</div>
+        `;
+        
+        // Use setTimeout to bypass Opera Mini's script blocking
+        const clickHandler = function() {
+          setTimeout(() => {
+            const url = `https://s.magsrv.com/v1/click.php?idzone=${zoneId}&browser=operamini&t=${Date.now()}`;
+            window.open(url, '_blank');
+          }, 50);
+        };
+        
+        operaAd.appendChild(content);
+        operaAd.addEventListener('click', clickHandler);
+        operaAd.addEventListener('touchstart', clickHandler);
+        
+        // Add specific meta tag for Opera Mini
+        const meta = document.createElement('meta');
+        meta.name = 'opera-ad-zone';
+        meta.content = zoneId;
+        document.head.appendChild(meta);
+        
+        container.appendChild(operaAd);
+        resolve();
+        
+      } catch (error) {
+        reject('Opera Mini bypass failed');
       }
     });
   }
