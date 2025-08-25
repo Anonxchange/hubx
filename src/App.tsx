@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import AntiAdBlockModal from "./components/AntiAdBlockModal";
+import { useAdBlockDetection } from "./hooks/useAdBlockDetection";
 
 import AgeGateWrapper from "./components/AgeGateWrapper";
 import Index from "./pages/Index";
@@ -49,14 +51,22 @@ import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <LanguageProvider>
-        <AuthProvider>
-          <Toaster />
-          <Sonner />
-          <Router>
+const App = () => {
+  const { isAdBlockActive } = useAdBlockDetection();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <Toaster />
+            <Sonner />
+            {/* Anti-adblock modal is now invisible but still detects */}
+            <AntiAdBlockModal 
+              isOpen={false} 
+              onClose={() => {}} 
+            />
+            <Router>
             <AgeGateWrapper>
               <Routes>
                 <Route path="/" element={<Index />} />
@@ -138,6 +148,7 @@ const App = () => (
       </LanguageProvider>
     </TooltipProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
