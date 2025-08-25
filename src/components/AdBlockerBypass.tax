@@ -1,0 +1,164 @@
+
+import React, { useEffect, useState, useRef } from 'react';
+
+interface AdBlockerBypassProps {
+  zoneId: string;
+  className?: string;
+  fallbackContent?: React.ReactNode;
+}
+
+const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({ 
+  zoneId, 
+  className = "", 
+  fallbackContent 
+}) => {
+  const [adBlockDetected, setAdBlockDetected] = useState(false);
+  const [showFallback, setShowFallback] = useState(false);
+  const adRef = useRef<HTMLDivElement>(null);
+  const detectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const detectAdBlocker = async () => {
+      // Method 1: Test ad-related domains
+      try {
+        const testUrls = [
+          'https://googleads.g.doubleclick.net/favicon.ico',
+          'https://www.google-analytics.com/analytics.js',
+          'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'
+        ];
+
+        const promises = testUrls.map(url => 
+          fetch(url, { 
+            method: 'HEAD', 
+            mode: 'no-cors',
+            cache: 'no-cache'
+          }).catch(() => Promise.reject())
+        );
+
+        await Promise.all(promises);
+      } catch {
+        setAdBlockDetected(true);
+      }
+
+      // Method 2: Check for blocked elements
+      if (detectionRef.current) {
+        const rect = detectionRef.current.getBoundingClientRect();
+        if (rect.height === 0 || rect.width === 0) {
+          setAdBlockDetected(true);
+        }
+      }
+
+      // Method 3: Check for ad-blocking keywords in DOM
+      const bodyText = document.body.innerHTML.toLowerCase();
+      const adBlockKeywords = ['adblock', 'ublock', 'ghostery'];
+      if (adBlockKeywords.some(keyword => bodyText.includes(keyword))) {
+        setAdBlockDetected(true);
+      }
+    };
+
+    // Delay detection to allow page to load
+    const timer = setTimeout(detectAdBlocker, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (adBlockDetected) {
+      // Try alternative ad serving methods
+      const loadAlternativeAd = () => {
+        try {
+          // Method 1: Dynamic script injection with obfuscated names
+          const script = document.createElement('script');
+          script.src = `https://s.magsrv.com/v1/ads.php?idzone=${zoneId}&type=js&timestamp=${Date.now()}`;
+          script.async = true;
+          script.onerror = () => setShowFallback(true);
+          document.head.appendChild(script);
+
+          // Method 2: Direct iframe injection
+          const iframe = document.createElement('iframe');
+          iframe.src = `https://s.magsrv.com/v1/iframe.php?idzone=${zoneId}`;
+          iframe.style.width = '100%';
+          iframe.style.height = '250px';
+          iframe.style.border = 'none';
+          iframe.style.display = 'block';
+          
+          if (adRef.current) {
+            adRef.current.appendChild(iframe);
+          }
+
+          // Method 3: Image-based fallback
+          setTimeout(() => {
+            const img = document.createElement('img');
+            img.src = `https://s.magsrv.com/v1/banner.php?idzone=${zoneId}&type=image`;
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.onerror = () => setShowFallback(true);
+            
+            if (adRef.current && !adRef.current.hasChildNodes()) {
+              adRef.current.appendChild(img);
+            }
+          }, 1000);
+
+        } catch (error) {
+          console.error('Alternative ad loading failed:', error);
+          setShowFallback(true);
+        }
+      };
+
+      loadAlternativeAd();
+    }
+  }, [adBlockDetected, zoneId]);
+
+  // Anti-adblock message component
+  const AntiAdblockMessage = () => (
+    <div className="bg-gradient-to-r from-red-500 to-pink-500 text-white p-4 rounded-lg shadow-lg">
+      <div className="flex items-center space-x-3">
+        <div className="text-2xl">🚫</div>
+        <div>
+          <h3 className="font-bold text-lg">Ad Blocker Detected</h3>
+          <p className="text-sm opacity-90">
+            Please disable your ad blocker to support our content and enjoy the full experience.
+          </p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-2 bg-white text-red-500 px-4 py-2 rounded text-sm font-medium hover:bg-gray-100 transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className={`w-full ${className}`}>
+      {/* Hidden detection element */}
+      <div 
+        ref={detectionRef}
+        className="ads banner-ad google-ad"
+        style={{ 
+          height: '1px', 
+          width: '1px', 
+          position: 'absolute', 
+          left: '-9999px',
+          visibility: 'hidden'
+        }}
+      />
+      
+      {/* Main ad container */}
+      <div ref={adRef} className="ad-container">
+        {!adBlockDetected && (
+          <div>
+            <ins className="eas6a97888e10" data-zoneid={zoneId}></ins>
+          </div>
+        )}
+      </div>
+
+      {/* Fallback content */}
+      {(adBlockDetected && showFallback) && (
+        fallbackContent || <AntiAdblockMessage />
+      )}
+    </div>
+  );
+};
+
+export default AdBlockerBypass;
