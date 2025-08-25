@@ -42,13 +42,13 @@ import FeedPage from '@/pages/FeedPage.tsx';
 import NotificationsPage from '@/pages/NotificationsPage';
 import InboxPage from '@/pages/InboxPage';
 
-import ProtectedRoute from './components/ProtectedRoute'; // Your ProtectedRoute component
-
+import ProtectedRoute from './components/ProtectedRoute'; 
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const queryClient = new QueryClient();
 
+const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -57,87 +57,79 @@ const queryClient = new QueryClient();
             <Toaster />
             <Sonner />
             <Router>
-            <AgeGateWrapper>
-              <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/video/:id" element={<VideoPage />} />
-                <Route path="/category/:category" element={<CategoryPage />} />
-                <Route path="/categories" element={<AllCategoriesPage />} />
-                <Route path="/moments" element={<MomentsPage />} />
-                <Route path="/channel" element={<ChannelPage />} />
-                <Route path="/contact" element={<ContactUs />} />
-                <Route path="/report/:videoId" element={<ReportVideoPage />} />
-                <Route path="/faq" element={<FAQPage />} />
-                <Route path="/recommended" element={<RecommendedPage />} />
-                <Route path="/featured" element={<FeaturedPage />} />
-                <Route path="/most-liked" element={<MostLikedPage />} />
-                <Route path="/hottest" element={<HottestPage />} />
-                <Route path="/hottest/:country" element={<HottestPage />} />
-                <Route path="/trending" element={<TrendingPage />} />
-                <Route path="/premium" element={<PremiumPage />} />
-                <Route path="/premium/vr" element={<PremiumVRPage />} />
-                <Route path="/premium/category/:category" element={<PremiumCategoryPage />} />
-                <Route path="/premium/creators/studio" element={<PremiumStudioCreatorsPage />} />
-                <Route path="/premium/creators/individual" element={<PremiumIndividualCreatorsPage />} />
-                <Route path="/premium/video/:id" element={<PremiumVideoPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/profile/:username?" element={<ProfilePage />} />
-                <Route path="/auth" element={<AuthPage />} />
-                <Route path="/contact" element={<ContactUs />} />
-                <Route path="/report/:videoId" element={<ReportVideoPage />} />
-                <Route path="/become-model" element={<BecomeModelPage />} />
-                <Route path="/faq" element={<FAQPage />} />
-                <Route path="/playlists" element={<PlaylistsPage />} />
-                <Route path="/favorites" element={<FavoritesPage />} />
-                <Route path="/feed" element={<FeedPage />} />
+              <AgeGateWrapper>
+                <Routes>
+                  <Route path="/" element={<Index />} />
+                  <Route path="/video/:id" element={<VideoPage />} />
+                  <Route path="/category/:category" element={<CategoryPage />} />
+                  <Route path="/categories" element={<AllCategoriesPage />} />
+                  <Route path="/moments" element={<MomentsPage />} />
+                  <Route path="/channel" element={<ChannelPage />} />
+                  <Route path="/contact" element={<ContactUs />} />
+                  <Route path="/report/:videoId" element={<ReportVideoPage />} />
+                  <Route path="/faq" element={<FAQPage />} />
+                  <Route path="/recommended" element={<RecommendedPage />} />
+                  <Route path="/featured" element={<FeaturedPage />} />
+                  <Route path="/most-liked" element={<MostLikedPage />} />
+                  <Route path="/hottest" element={<HottestPage />} />
+                  <Route path="/hottest/:country" element={<HottestPage />} />
+                  <Route path="/trending" element={<TrendingPage />} />
+                  <Route path="/premium" element={<PremiumPage />} />
+                  <Route path="/premium/vr" element={<PremiumVRPage />} />
+                  <Route path="/premium/category/:category" element={<PremiumCategoryPage />} />
+                  <Route path="/premium/creators/studio" element={<PremiumStudioCreatorsPage />} />
+                  <Route path="/premium/creators/individual" element={<PremiumIndividualCreatorsPage />} />
+                  <Route path="/premium/video/:id" element={<PremiumVideoPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/profile/:username?" element={<ProfilePage />} />
+                  <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/become-model" element={<BecomeModelPage />} />
+                  <Route path="/playlists" element={<PlaylistsPage />} />
+                  <Route path="/favorites" element={<FavoritesPage />} />
+                  <Route path="/feed" element={<FeedPage />} />
 
-                {/* Protected Creator Dashboard */}
-                <Route
-                  path="/creator-dashboard"
-                  element={
-                    <ProtectedRoute allowedUserTypes={['individual_creator', 'studio_creator']}>
-                      <CreatorDashboard />
-                    </ProtectedRoute>
-                  }
-                />
- {/* Protected Studio Dashboard */}
-                <Route
-                  path="/studio-dashboard"
-                  element={
-                    <ProtectedRoute allowedUserTypes={['studio_creator']}>
-                      <StudioDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+                  {/* Protected Creator Dashboard */}
+                  <Route
+                    path="/creator-dashboard"
+                    element={
+                      <ProtectedRoute allowedUserTypes={['individual_creator', 'studio_creator']}>
+                        <CreatorDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Protected Studio Dashboard */}
+                  <Route
+                    path="/studio-dashboard"
+                    element={
+                      <ProtectedRoute allowedUserTypes={['studio_creator']}>
+                        <StudioDashboard />
+                      </ProtectedRoute>
+                    }
+                  />
+                  {/* Protected Upload Page */}
+                  <Route
+                    path="/upload"
+                    element={
+                      <ProtectedRoute allowedUserTypes={['individual_creator', 'studio_creator']}>
+                        <UploadPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Protected Upload Page */}
-                <Route
-                  path="/upload"
-                  element={
-                    <ProtectedRoute allowedUserTypes={['individual_creator', 'studio_creator']}>
-                      <UploadPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route path="/terms" element={<TermsOfService />} />
-                <Route path="/privacy" element={<PrivacyPolicy />} />
-
-                {/* Admin Panel with internal auth */}
-                <Route path="/admin-hubx-2024" element={<AdminPanel />} />
-
-                <Route path="/contact" element={<ContactUs />} />
-                <Route path="/debug-auth" element={<DebugAuth />} />
-                <Route path="/notifications" element={<NotificationsPage />} />
-                <Route path="/inbox" element={<InboxPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AgeGateWrapper>
-          </Router>
-        </AuthProvider>
-      </LanguageProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/admin-hubx-2024" element={<AdminPanel />} />
+                  <Route path="/debug-auth" element={<DebugAuth />} />
+                  <Route path="/notifications" element={<NotificationsPage />} />
+                  <Route path="/inbox" element={<InboxPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </AgeGateWrapper>
+            </Router>
+          </AuthProvider>
+        </LanguageProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 
