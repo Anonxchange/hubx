@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useMessaging } from '@/hooks/useMessaging';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMessaging } from '@/hooks/useMessaging';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -39,7 +38,7 @@ const InboxPage: React.FC = () => {
 
   const handleStartConversation = async (creatorId: string, creatorName: string) => {
     if (!user) return;
-    
+
     const conversationId = await startConversation(user.id, creatorId);
     if (conversationId) {
       setSelectedConversation(conversationId);
@@ -86,7 +85,7 @@ const InboxPage: React.FC = () => {
         receiver_id: receiverId,
         content: messageText.trim()
       });
-      
+
       if (result) {
         console.log('✅ Message sent successfully');
         setMessageText('');
@@ -151,7 +150,7 @@ const InboxPage: React.FC = () => {
                 </Button>
               </div>
             </div>
-            
+
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -192,7 +191,7 @@ const InboxPage: React.FC = () => {
                           {(conversation.participant?.full_name || conversation.participant?.username || 'U').charAt(0).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="font-semibold text-white truncate">
@@ -204,7 +203,7 @@ const InboxPage: React.FC = () => {
                             </span>
                           )}
                         </div>
-                        
+
                         <div className="flex items-center justify-between">
                           {conversation.last_message ? (
                             <p className="text-sm text-gray-300 truncate flex-1">
@@ -213,7 +212,7 @@ const InboxPage: React.FC = () => {
                           ) : (
                             <p className="text-sm text-gray-500 italic">No messages</p>
                           )}
-                          
+
                           {conversation.unread_count > 0 && (
                             <div className="ml-2 w-2 h-2 bg-blue-400 rounded-full flex-shrink-0"></div>
                           )}
@@ -361,7 +360,7 @@ const InboxPage: React.FC = () => {
                   <h1 className="text-lg font-semibold text-white">Messages</h1>
                 </div>
               </div>
-              
+
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center max-w-sm px-4">
                   <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-6">
