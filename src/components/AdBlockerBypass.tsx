@@ -22,8 +22,7 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
       try {
         // Use the enhanced detection from utils
         const { adBlockerDetector } = await import('../utils/adBlockerUtils');
-        const isBlocked = await adBlockerDetector.detectAdBlocker();
-        setAdBlockDetected(isBlocked);
+        let isBlocked = await adBlockerDetector.detectAdBlocker();
         
         // Additional local detection methods
         if (!isBlocked) {
@@ -31,23 +30,39 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
           if (detectionRef.current) {
             const rect = detectionRef.current.getBoundingClientRect();
             if (rect.height === 0 || rect.width === 0) {
-              setAdBlockDetected(true);
+              console.log('🔍 Local detection: Element blocked by dimensions');
+              isBlocked = true;
             }
           }
 
-          // Monitor for blocked network requests
-          const originalFetch = window.fetch;
-          let networkBlocked = false;
+          // Test ad script loading
+          const testScript = document.createElement('script');
+          testScript.src = `https://s.magsrv.com/v1/test.php?r=${Math.random()}`;
           
-          window.fetch = function(...args) {
-            const url = args[0];
-            if (typeof url === 'string' && (url.includes('ads') || url.includes('banner'))) {
-              networkBlocked = true;
-              setAdBlockDetected(true);
-            }
-            return originalFetch.apply(this, args);
-          };
+          const scriptBlocked = await new Promise<boolean>((resolve) => {
+            const timeout = setTimeout(() => resolve(true), 2000);
+            testScript.onload = () => {
+              clearTimeout(timeout);
+              resolve(false);
+            };
+            testScript.onerror = () => {
+              clearTimeout(timeout);
+              resolve(true);
+            };
+            document.head.appendChild(testScript);
+          });
+          
+          if (scriptBlocked) {
+            console.log('🔍 Local detection: Ad script blocked');
+            isBlocked = true;
+          }
+          
+          testScript.remove();
         }
+        
+        setAdBlockDetected(isBlocked);
+        console.log(`🔍 Final ad blocker detection result: ${isBlocked ? 'BLOCKED' : 'ALLOWED'}`);
+        
       } catch (error) {
         console.warn('Ad block detection failed:', error);
         // Assume blocked if detection fails
@@ -58,8 +73,8 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
     // Multiple detection attempts with different timings
     const timers = [
       setTimeout(detectAdBlocker, 500),
-      setTimeout(detectAdBlocker, 1500),
-      setTimeout(detectAdBlocker, 3000)
+      setTimeout(detectAdBlocker, 2000),
+      setTimeout(detectAdBlocker, 4000)
     ];
     
     return () => timers.forEach(timer => clearTimeout(timer));
@@ -204,6 +219,21 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
         {!adBlockDetected && (
           <div>
             <ins className="eas6a97888e10" data-zoneid={zoneId}></ins>
+            {/* Fallback detection - if ad doesn't load after 3 seconds, assume blocked */}
+            <div
+              ref={(el) => {
+                if (el && !adBlockDetected) {
+                  setTimeout(() => {
+                    const insElement = el.previousElementSibling as HTMLElement;
+                    if (insElement && (insElement.offsetHeight === 0 || insElement.offsetWidth === 0 || insElement.innerHTML.trim() === '')) {
+                      console.log('🔍 Fallback detection: Ad element is empty, assuming blocked');
+                      setAdBlockDetected(true);
+                    }
+                  }, 3000);
+                }
+              }}
+              style={{ display: 'none' }}
+            />
           </div>
         )}
       </div>
