@@ -39,42 +39,51 @@ export class AdBlockerDetector {
           { class: 'adsbygoogle adsystem ad-banner', id: 'main-ad' }
         ];
 
+        let completedTests = 0;
         let blockedCount = 0;
+        
         baits.forEach((baitConfig, index) => {
           const bait = document.createElement('div');
           bait.innerHTML = '&nbsp;';
           bait.className = baitConfig.class;
           bait.id = baitConfig.id;
-          bait.style.cssText = 'position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;visibility:hidden!important;';
+          bait.style.cssText = 'position:absolute!important;left:-10000px!important;width:100px!important;height:100px!important;visibility:visible!important;display:block!important;';
           
           document.body.appendChild(bait);
           
           setTimeout(() => {
-            if (document.body.contains(bait)) {
+            completedTests++;
+            
+            try {
               const rect = bait.getBoundingClientRect();
               const computedStyle = window.getComputedStyle(bait);
               
-              if (rect.height === 0 || rect.width === 0 || 
-                  computedStyle.display === 'none' || 
-                  computedStyle.visibility === 'hidden' ||
-                  bait.offsetHeight === 0 || 
-                  bait.offsetWidth === 0) {
+              // More comprehensive blocking detection
+              const isBlocked = rect.height === 0 || 
+                               rect.width === 0 || 
+                               computedStyle.display === 'none' || 
+                               computedStyle.visibility === 'hidden' ||
+                               bait.offsetHeight === 0 || 
+                               bait.offsetWidth === 0 ||
+                               computedStyle.opacity === '0' ||
+                               rect.top < -9000;
+              
+              if (isBlocked) {
                 blockedCount++;
               }
               
-              try {
-                document.body.removeChild(bait);
-              } catch (e) {
-                // Element might already be removed
-              }
+              document.body.removeChild(bait);
+            } catch (e) {
+              // Assume blocked if we can't test properly
+              blockedCount++;
             }
             
-            if (index === baits.length - 1) {
-              const blocked = blockedCount > baits.length / 2;
+            if (completedTests === baits.length) {
+              const blocked = blockedCount >= Math.ceil(baits.length * 0.6); // More lenient threshold
               console.log(`🎯 Bait test: ${blockedCount}/${baits.length} elements blocked - ${blocked ? 'BLOCKED' : 'ALLOWED'}`);
               resolve(blocked);
             }
-          }, 150 + (index * 50));
+          }, 200 + (index * 100)); // Longer delays for better detection
         });
       });
 
