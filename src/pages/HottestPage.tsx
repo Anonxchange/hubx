@@ -60,9 +60,9 @@ const HottestPage = () => {
       } catch (error) {
         console.error('Error getting user country:', error);
         // Fallback to a default country if detection fails
-        setActualCountry('Nigeria');
-        setSelectedLocation('Nigeria');
-        console.log('Error getting user country, using default: Nigeria');
+        setActualCountry('Global');
+        setSelectedLocation('Global');
+        console.log('Error getting user country, using default: Global');
       }
     };
 
