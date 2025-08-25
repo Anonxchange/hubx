@@ -21,10 +21,17 @@ export const LazyImage: React.FC<LazyImageProps> = ({
 }) => {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const { elementRef, hasIntersected } = useIntersectionObserver({ triggerOnce: true });
+  const { elementRef, hasIntersected } = useIntersectionObserver({ 
+    triggerOnce: true,
+    threshold: 0.1,
+    rootMargin: '50px'
+  });
   const { getOptimizedImageUrl } = useBandwidthOptimization();
 
-  const optimizedSrc = getOptimizedImageUrl(src, width, height);
+  const optimizedSrc = React.useMemo(() => 
+    getOptimizedImageUrl(src, width, height), 
+    [src, width, height, getOptimizedImageUrl]
+  );
 
   return (
     <div ref={elementRef} className={`relative overflow-hidden ${className}`}>
@@ -43,7 +50,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
         <img
           src={imageError ? placeholder : optimizedSrc}
           alt={alt}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-200 ${
             imageLoaded && !imageError ? 'opacity-100' : 'opacity-0'
           }`}
           onLoad={() => setImageLoaded(true)}
@@ -52,6 +59,7 @@ export const LazyImage: React.FC<LazyImageProps> = ({
             setImageLoaded(true);
           }}
           loading="lazy"
+          decoding="async"
         />
       )}
     </div>
