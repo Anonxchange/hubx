@@ -71,16 +71,13 @@ const AdComponent: React.FC<AdComponentProps> = ({ zoneId, className = "" }) => 
 
   }, [zoneId, hasLoaded]);
 
-  // Don't render anything when ad blocker is detected
-  if (adBlockDetected) {
-    return null;
-  }
-
   return (
     <div className={`w-full flex justify-center md:hidden ${className}`} ref={adRef}>
-      <div>
-        <ins className="eas6a97888e10" data-zoneid={zoneId}></ins>
-      </div>
+      {!adBlockDetected && (
+        <div>
+          <ins className="eas6a97888e10" data-zoneid={zoneId}></ins>
+        </div>
+      )}
     </div>
   );
 };
