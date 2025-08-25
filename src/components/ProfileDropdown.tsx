@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Settings, User, Heart, Bell, Upload, List, Rss, MessageCircle, ThumbsUp, Clock, HelpCircle, MessageSquare, Crown, Globe, DollarSign, Video, Users, ChevronDown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,10 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import SettingsModal from '@/components/SettingsModal';
+import { notificationService, type Notification } from '@/services/notificationService';
+import { formatDistanceToNow } from 'date-fns';
 
 const ProfileDropdown = () => {
   const { user, userType, signOut, loading } = useAuth();
@@ -21,6 +24,8 @@ const ProfileDropdown = () => {
   const { toast } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Show loading state instead of null to maintain layout
   if (loading) {
@@ -67,6 +72,61 @@ const ProfileDropdown = () => {
     return firstName && lastName ? `${firstName} ${lastName}` : user.email || 'User';
   };
 
+  // Load notifications
+  useEffect(() => {
+    if (user) {
+      loadNotifications();
+      loadUnreadCount();
+    }
+  }, [user]);
+
+  // Real-time notification updates
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribe = notificationService.subscribe({
+      onNewNotification: (notification) => {
+        setNotifications(prev => [notification, ...prev]);
+        setUnreadCount(prev => prev + 1);
+      }
+    });
+
+    notificationService.startListening();
+
+    return () => {
+      unsubscribe();
+      notificationService.stopListening();
+    };
+  }, [user]);
+
+  const loadNotifications = async () => {
+    const notifs = await notificationService.getNotifications();
+    setNotifications(notifs.slice(0, 5)); // Show only recent 5
+  };
+
+  const loadUnreadCount = async () => {
+    const count = await notificationService.getUnreadCount();
+    setUnreadCount(count);
+  };
+
+  const handleMarkAllRead = async () => {
+    await notificationService.markAllAsRead();
+    setUnreadCount(0);
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
+
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'like': return <Heart className="w-4 h-4 text-red-400" />;
+      case 'comment': return <MessageCircle className="w-4 h-4 text-blue-400" />;
+      case 'follow': return <User className="w-4 h-4 text-green-400" />;
+      case 'message': return <MessageSquare className="w-4 h-4 text-purple-400" />;
+      case 'upload': return <Upload className="w-4 h-4 text-orange-400" />;
+      case 'tip': return <DollarSign className="w-4 h-4 text-yellow-400" />;
+      default: return <Bell className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
   // Check if the current user is a creator and get the specific type
   const isCreator = userType === 'individual_creator' || userType === 'studio_creator';
   const isIndividualCreator = userType === 'individual_creator';
@@ -75,13 +135,18 @@ const ProfileDropdown = () => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center justify-center">
+        <button className="flex items-center justify-center relative">
           <Avatar className="h-8 w-8 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all">
             <AvatarImage src={user?.user_metadata?.avatar_url} />
             <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
               {getInitials()}
             </AvatarFallback>
           </Avatar>
+          {unreadCount > 0 && (
+            <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 bg-red-500 text-white text-xs flex items-center justify-center">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-80 bg-black/95 border-gray-800 text-white p-4 max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" align="start" forceMount>
@@ -96,6 +161,79 @@ const ProfileDropdown = () => {
         </DropdownMenuLabel>
 
         <DropdownMenuSeparator className="bg-gray-700" />
+
+        {/* Notifications Section */}
+        {notifications.length > 0 && (
+          <>
+            <div className="py-2">
+              <div className="flex items-center justify-between px-2 mb-2">
+                <span className="text-sm font-medium text-white">Recent Notifications</span>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={handleMarkAllRead}
+                    className="text-xs text-blue-400 hover:text-blue-300"
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className={`p-2 rounded-lg cursor-pointer transition-colors ${
+                      !notification.read 
+                        ? 'bg-blue-900/20 hover:bg-blue-900/30' 
+                        : 'hover:bg-gray-800'
+                    }`}
+                    onClick={() => {
+                      if (!notification.read) {
+                        notificationService.markAsRead(notification.id);
+                        setNotifications(prev => 
+                          prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
+                        );
+                        setUnreadCount(prev => Math.max(0, prev - 1));
+                      }
+                      // Navigate based on notification type
+                      if (notification.type === 'message') {
+                        navigate('/inbox');
+                      } else {
+                        navigate('/notifications');
+                      }
+                    }}
+                  >
+                    <div className="flex items-start space-x-2">
+                      {getNotificationIcon(notification.type)}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-medium text-white truncate">
+                          {notification.title}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                        </p>
+                      </div>
+                      {!notification.read && (
+                        <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0 mt-1"></div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="pt-2">
+                <button
+                  onClick={() => navigate('/notifications')}
+                  className="w-full text-center text-xs text-blue-400 hover:text-blue-300 py-2"
+                >
+                  View all notifications
+                </button>
+              </div>
+            </div>
+            <DropdownMenuSeparator className="bg-gray-700" />
+          </>
+        )}
 
         {/* Icon Grid Section */}
         <div className="py-4">
