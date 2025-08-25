@@ -3,7 +3,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import { useAdBlockDetection } from "./hooks/useAdBlockDetection";
 
 import AgeGateWrapper from "./components/AgeGateWrapper";
 import Index from "./pages/Index";
@@ -49,9 +48,6 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
 const queryClient = new QueryClient();
-
-const App = () => {
-  const { isAdBlockActive } = useAdBlockDetection();
 
   return (
     <QueryClientProvider client={queryClient}>
