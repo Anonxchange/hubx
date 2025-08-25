@@ -19,46 +19,50 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
 
   useEffect(() => {
     const detectAdBlocker = async () => {
-      // Method 1: Test ad-related domains
       try {
-        const testUrls = [
-          'https://googleads.g.doubleclick.net/favicon.ico',
-          'https://www.google-analytics.com/analytics.js',
-          'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'
-        ];
+        // Use the enhanced detection from utils
+        const { adBlockerDetector } = await import('../utils/adBlockerUtils');
+        const isBlocked = await adBlockerDetector.detectAdBlocker();
+        setAdBlockDetected(isBlocked);
+        
+        // Additional local detection methods
+        if (!isBlocked) {
+          // Check for blocked elements
+          if (detectionRef.current) {
+            const rect = detectionRef.current.getBoundingClientRect();
+            if (rect.height === 0 || rect.width === 0) {
+              setAdBlockDetected(true);
+            }
+          }
 
-        const promises = testUrls.map(url => 
-          fetch(url, { 
-            method: 'HEAD', 
-            mode: 'no-cors',
-            cache: 'no-cache'
-          }).catch(() => Promise.reject())
-        );
-
-        await Promise.all(promises);
-      } catch {
-        setAdBlockDetected(true);
-      }
-
-      // Method 2: Check for blocked elements
-      if (detectionRef.current) {
-        const rect = detectionRef.current.getBoundingClientRect();
-        if (rect.height === 0 || rect.width === 0) {
-          setAdBlockDetected(true);
+          // Monitor for blocked network requests
+          const originalFetch = window.fetch;
+          let networkBlocked = false;
+          
+          window.fetch = function(...args) {
+            const url = args[0];
+            if (typeof url === 'string' && (url.includes('ads') || url.includes('banner'))) {
+              networkBlocked = true;
+              setAdBlockDetected(true);
+            }
+            return originalFetch.apply(this, args);
+          };
         }
-      }
-
-      // Method 3: Check for ad-blocking keywords in DOM
-      const bodyText = document.body.innerHTML.toLowerCase();
-      const adBlockKeywords = ['adblock', 'ublock', 'ghostery'];
-      if (adBlockKeywords.some(keyword => bodyText.includes(keyword))) {
+      } catch (error) {
+        console.warn('Ad block detection failed:', error);
+        // Assume blocked if detection fails
         setAdBlockDetected(true);
       }
     };
 
-    // Delay detection to allow page to load
-    const timer = setTimeout(detectAdBlocker, 2000);
-    return () => clearTimeout(timer);
+    // Multiple detection attempts with different timings
+    const timers = [
+      setTimeout(detectAdBlocker, 500),
+      setTimeout(detectAdBlocker, 1500),
+      setTimeout(detectAdBlocker, 3000)
+    ];
+    
+    return () => timers.forEach(timer => clearTimeout(timer));
   }, []);
 
   useEffect(() => {
