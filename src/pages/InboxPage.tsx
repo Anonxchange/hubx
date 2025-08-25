@@ -1,253 +1,308 @@
-
 import React, { useState, useEffect } from 'react';
-import { MessageCircle, Send, Search, MoreVertical, Phone, Video, Info } from 'lucide-react';
+import { MessageCircle, Send, User, Search, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useAuth } from '@/contexts/AuthContext';
-import { useLocation } from 'react-router-dom';
+import { useMessaging } from '@/hooks/useMessaging';
 import { formatDistanceToNow } from 'date-fns';
-
-interface Message {
-  id: string;
-  sender_id: string;
-  receiver_id: string;
-  content: string;
-  created_at: string;
-  read: boolean;
-  media_url?: string;
-}
-
-interface Conversation {
-  id: string;
-  user: {
-    id: string;
-    username: string;
-    full_name: string;
-    avatar_url: string;
-    is_online: boolean;
-  };
-  last_message: Message;
-  unread_count: number;
-  messages: Message[];
-}
+import { toast } from 'sonner';
+import type { Conversation, Message } from '@/services/messagingService';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const InboxPage = () => {
   const { user } = useAuth();
   const location = useLocation();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const navigate = useNavigate();
+  const {
+    conversations,
+    currentMessages,
+    isLoading,
+    currentConversationId,
+    loadConversations, // Renamed from loadConversations
+    loadMessages,
+    sendMessage,
+    startConversation, // Added startConversation hook
+  } = useMessaging();
+
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
-  const [newMessage, setNewMessage] = useState('');
+  const [messageText, setMessageText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
+  // Check if mobile
   useEffect(() => {
-    // Mock conversations data
-    const mockConversations: Conversation[] = [
-      {
-        id: '1',
-        user: {
-          id: 'user-1',
-          username: 'sarah_model',
-          full_name: 'Sarah Johnson',
-          avatar_url: '/placeholder.svg',
-          is_online: true
-        },
-        last_message: {
-          id: 'msg-1',
-          sender_id: 'user-1',
-          receiver_id: user?.id || '',
-          content: 'Hey! Thanks for subscribing to my content! 💕',
-          created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-          read: false
-        },
-        unread_count: 2,
-        messages: [
-          {
-            id: 'msg-1',
-            sender_id: 'user-1',
-            receiver_id: user?.id || '',
-            content: 'Hey! Thanks for subscribing to my content! 💕',
-            created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-            read: false
-          },
-          {
-            id: 'msg-2',
-            sender_id: 'user-1',
-            receiver_id: user?.id || '',
-            content: 'Hope you enjoy what I have in store for you! 😘',
-            created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-            read: false
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Handle starting conversation from navigation state
+  useEffect(() => {
+    const handleStartConversation = async () => {
+      if (location.state?.startConversation && user) {
+        const { creatorId } = location.state.startConversation;
+
+        if (creatorId && creatorId !== user.id) {
+          const conversationId = await startConversation(user.id, creatorId);
+          if (conversationId) {
+            // Find the conversation in the list and select it
+            const conversation = conversations.find(conv => conv.id === conversationId);
+            if (conversation) {
+              setSelectedConversation(conversation);
+              await loadMessages(conversation.id); // Load messages for the newly selected conversation
+            }
           }
-        ]
-      },
-      {
-        id: '2',
-        user: {
-          id: 'user-2',
-          username: 'mike_creator',
-          full_name: 'Mike Anderson',
-          avatar_url: '/placeholder.svg',
-          is_online: false
-        },
-        last_message: {
-          id: 'msg-3',
-          sender_id: user?.id || '',
-          receiver_id: 'user-2',
-          content: 'Thanks for the great content!',
-          created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-          read: true
-        },
-        unread_count: 0,
-        messages: [
-          {
-            id: 'msg-3',
-            sender_id: user?.id || '',
-            receiver_id: 'user-2',
-            content: 'Thanks for the great content!',
-            created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-            read: true
-          }
-        ]
+        }
+
+        // Clear the navigation state
+        navigate(location.pathname, { replace: true });
       }
-    ];
-    
-    setConversations(mockConversations);
-    setLoading(false);
-
-    // Handle starting a new conversation from MessageButton
-    const startConversation = location.state?.startConversation;
-    if (startConversation) {
-      const existingConversation = mockConversations.find(
-        conv => conv.user.id === startConversation.creatorId
-      );
-      
-      if (existingConversation) {
-        setSelectedConversation(existingConversation);
-      } else {
-        // Create a new conversation
-        const newConversation: Conversation = {
-          id: `new-${Date.now()}`,
-          user: {
-            id: startConversation.creatorId,
-            username: startConversation.creatorName.toLowerCase().replace(' ', '_'),
-            full_name: startConversation.creatorName,
-            avatar_url: '/placeholder.svg',
-            is_online: false
-          },
-          last_message: {
-            id: '',
-            sender_id: '',
-            receiver_id: '',
-            content: 'Start a conversation...',
-            created_at: new Date().toISOString(),
-            read: true
-          },
-          unread_count: 0,
-          messages: []
-        };
-        
-        setConversations(prev => [newConversation, ...prev]);
-        setSelectedConversation(newConversation);
-      }
-    }
-  }, [user, location.state]);
-
-  const sendMessage = () => {
-    if (!newMessage.trim() || !selectedConversation) return;
-
-    const message: Message = {
-      id: `msg-${Date.now()}`,
-      sender_id: user?.id || '',
-      receiver_id: selectedConversation.user.id,
-      content: newMessage,
-      created_at: new Date().toISOString(),
-      read: false
     };
 
-    setConversations(prev =>
-      prev.map(conv =>
-        conv.id === selectedConversation.id
-          ? {
-              ...conv,
-              messages: [...conv.messages, message],
-              last_message: message
-            }
-          : conv
-      )
-    );
+    if (conversations.length > 0) {
+      handleStartConversation();
+    }
+  }, [location.state, user, conversations, startConversation, navigate, location.pathname, loadMessages]); // Added loadMessages dependency
 
-    setSelectedConversation(prev =>
-      prev ? {
-        ...prev,
-        messages: [...prev.messages, message],
-        last_message: message
-      } : null
-    );
+  // Load conversations on mount
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]); // Added loadConversations dependency
 
-    setNewMessage('');
+  // Filter conversations based on search
+  const filteredConversations = conversations.filter(conv => {
+    const otherParticipant = conv.participant_one_id === user?.id
+      ? conv.participant_two_username
+      : conv.participant_one_username;
+    return otherParticipant?.toLowerCase().includes(searchQuery.toLowerCase()) || false;
+  });
+
+  // Handle conversation selection
+  const handleConversationSelect = async (conversation: Conversation) => {
+    setSelectedConversation(conversation);
+    await loadMessages(conversation.id);
   };
 
-  const filteredConversations = conversations.filter(conv =>
-    conv.user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    conv.user.full_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Handle sending message
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-  const totalUnread = conversations.reduce((sum, conv) => sum + conv.unread_count, 0);
+    if (!messageText.trim() || !selectedConversation || !user) {
+      return;
+    }
 
-  if (loading) {
+    const otherParticipantId = selectedConversation.participant_one_id === user.id
+      ? selectedConversation.participant_two_id
+      : selectedConversation.participant_one_id;
+
+    try {
+      await sendMessage({
+        conversation_id: selectedConversation.id,
+        receiver_id: otherParticipantId,
+        content: messageText.trim(),
+        message_type: 'text'
+      });
+
+      setMessageText('');
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('Failed to send message');
+    }
+  };
+
+  // Get other participant info
+  const getOtherParticipant = (conversation: Conversation) => {
+    if (!user) return { username: 'Unknown', id: '' };
+
+    const isParticipantOne = conversation.participant_one_id === user.id;
+    return {
+      username: isParticipantOne ? conversation.participant_two_username : conversation.participant_one_username,
+      id: isParticipantOne ? conversation.participant_two_id : conversation.participant_one_id
+    };
+  };
+
+  // Mobile conversation list view
+  if (isMobile && !selectedConversation) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="container mx-auto px-4 py-8">
-          <div className="animate-pulse">
-            <div className="h-8 bg-muted rounded w-48 mb-6"></div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="h-96 bg-muted rounded"></div>
-              <div className="lg:col-span-2 h-96 bg-muted rounded"></div>
-            </div>
+
+        <div className="container mx-auto px-4 py-8 max-w-md">
+          <div className="flex items-center gap-3 mb-6">
+            <MessageCircle className="w-8 h-8 text-orange-500" />
+            <h1 className="text-2xl font-bold text-foreground">Messages</h1>
+          </div>
+
+          {/* Search */}
+          <div className="relative mb-6">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search conversations..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
+          {/* Conversations List */}
+          <div className="space-y-2">
+            {filteredConversations.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-8">
+                  <MessageCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No conversations</h3>
+                  <p className="text-muted-foreground">Start messaging with creators to see conversations here.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              filteredConversations.map((conversation) => {
+                const otherParticipant = getOtherParticipant(conversation);
+                return (
+                  <Card
+                    key={conversation.id}
+                    className="cursor-pointer transition-colors hover:bg-muted/50"
+                    onClick={() => handleConversationSelect(conversation)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center space-x-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarFallback>
+                            <User className="h-6 w-6" />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {otherParticipant.username || 'Unknown User'}
+                            </p>
+                            <span className="text-xs text-muted-foreground">
+                              {conversation.last_message_at && formatDistanceToNow(
+                                new Date(conversation.last_message_at),
+                                { addSuffix: true }
+                              )}
+                            </span>
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {typeof conversation.last_message === 'string' ? conversation.last_message : conversation.last_message?.content || 'No messages yet'}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
           </div>
         </div>
+
         <Footer />
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      
-      <div className="container mx-auto px-4 py-8 max-w-7xl">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
-              <MessageCircle className="w-8 h-8 text-orange-500" />
-              Inbox
-              {totalUnread > 0 && (
-                <Badge variant="secondary" className="bg-red-500 text-white">
-                  {totalUnread}
-                </Badge>
-              )}
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Connect with your fans and other creators
-            </p>
+  // Mobile conversation view
+  if (isMobile && selectedConversation) {
+    const otherParticipant = getOtherParticipant(selectedConversation);
+
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+
+        {/* Chat Header */}
+        <div className="border-b bg-card p-4">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedConversation(null)}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <Avatar className="h-8 w-8">
+              <AvatarFallback>
+                <User className="h-4 w-4" />
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h2 className="font-semibold text-foreground">
+                {otherParticipant.username || 'Unknown User'}
+              </h2>
+            </div>
           </div>
         </div>
 
-        {/* Main Content */}
+        {/* Messages */}
+        <ScrollArea className="flex-1 p-4">
+          <div className="space-y-4">
+            {currentMessages.map((message) => {
+              const isOwn = message.sender_id === user?.id;
+              return (
+                <div
+                  key={message.id}
+                  className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                      isOwn
+                        ? 'bg-orange-500 text-white'
+                        : 'bg-muted text-foreground'
+                    }`}
+                  >
+                    <p className="text-sm">{message.content}</p>
+                    <p className={`text-xs mt-1 ${isOwn ? 'text-orange-100' : 'text-muted-foreground'}`}>
+                      {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </ScrollArea>
+
+        {/* Message Input */}
+        <form onSubmit={handleSendMessage} className="border-t bg-card p-4">
+          <div className="flex gap-2">
+            <Input
+              value={messageText}
+              onChange={(e) => setMessageText(e.target.value)}
+              placeholder="Type a message..."
+              className="flex-1"
+            />
+            <Button type="submit" disabled={!messageText.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
+  // Desktop view
+  return (
+    <div className="min-h-screen bg-background">
+      <Header />
+
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="flex items-center gap-3 mb-8">
+          <MessageCircle className="w-8 h-8 text-orange-500" />
+          <h1 className="text-3xl font-bold text-foreground">Messages</h1>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-[600px]">
           {/* Conversations List */}
-          <Card className="overflow-hidden">
+          <Card className="lg:col-span-1">
             <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Conversations</CardTitle>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search conversations..."
                   value={searchQuery}
@@ -257,185 +312,139 @@ const InboxPage = () => {
               </div>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="overflow-y-auto h-[500px] scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
+              <ScrollArea className="h-[480px]">
                 {filteredConversations.length === 0 ? (
-                  <div className="text-center py-8">
+                  <div className="text-center py-8 px-4">
                     <MessageCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <p className="text-muted-foreground">No conversations found</p>
                   </div>
                 ) : (
-                  filteredConversations.map((conversation) => (
-                    <div
-                      key={conversation.id}
-                      className={`p-4 cursor-pointer transition-colors border-b border-border hover:bg-muted/50 ${
-                        selectedConversation?.id === conversation.id ? 'bg-muted' : ''
-                      }`}
-                      onClick={() => setSelectedConversation(conversation)}
-                    >
-                      <div className="flex items-center space-x-3">
-                        <div className="relative">
-                          <img
-                            src={conversation.user.avatar_url}
-                            alt={conversation.user.username}
-                            className="w-12 h-12 rounded-full"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = '/placeholder.svg';
-                            }}
-                          />
-                          {conversation.user.is_online && (
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background"></div>
-                          )}
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <h4 className="text-sm font-semibold text-foreground truncate">
-                              {conversation.user.full_name}
-                            </h4>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDistanceToNow(new Date(conversation.last_message.created_at), { addSuffix: true })}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs text-muted-foreground truncate">
-                              {conversation.last_message.content}
-                            </p>
-                            {conversation.unread_count > 0 && (
-                              <Badge variant="secondary" className="bg-blue-500 text-white text-xs">
-                                {conversation.unread_count}
-                              </Badge>
-                            )}
+                  <div className="space-y-1">
+                    {filteredConversations.map((conversation) => {
+                      const otherParticipant = getOtherParticipant(conversation);
+                      const isSelected = selectedConversation?.id === conversation.id;
+
+                      return (
+                        <div
+                          key={conversation.id}
+                          className={`p-4 cursor-pointer transition-colors hover:bg-muted/50 ${
+                            isSelected ? 'bg-muted' : ''
+                          }`}
+                          onClick={() => handleConversationSelect(conversation)}
+                        >
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback>
+                                <User className="h-5 w-5" />
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-foreground truncate">
+                                  {otherParticipant.username || 'Unknown User'}
+                                </p>
+                                <span className="text-xs text-muted-foreground">
+                                  {conversation.last_message_at && formatDistanceToNow(
+                                    new Date(conversation.last_message_at),
+                                    { addSuffix: true }
+                                  )}
+                                </span>
+                              </div>
+                              <p className="text-sm text-muted-foreground truncate">
+                                {typeof conversation.last_message === 'string' ? conversation.last_message : conversation.last_message?.content || 'No messages yet'}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  ))
+                      );
+                    })}
+                  </div>
                 )}
-              </div>
+              </ScrollArea>
             </CardContent>
           </Card>
 
           {/* Chat Area */}
-          <Card className="lg:col-span-2 overflow-hidden">
+          <Card className="lg:col-span-2">
             {selectedConversation ? (
               <>
                 {/* Chat Header */}
-                <CardHeader className="pb-3 border-b border-border">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="relative">
-                        <img
-                          src={selectedConversation.user.avatar_url}
-                          alt={selectedConversation.user.username}
-                          className="w-10 h-10 rounded-full"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            target.src = '/placeholder.svg';
-                          }}
-                        />
-                        {selectedConversation.user.is_online && (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-background"></div>
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {selectedConversation.user.full_name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                          @{selectedConversation.user.username}
-                          {selectedConversation.user.is_online && (
-                            <span className="ml-2 text-green-500">● Online</span>
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Button variant="ghost" size="sm">
-                        <Phone className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Video className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <Info className="w-4 h-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </div>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback>
+                        <User className="h-4 w-4" />
+                      </AvatarFallback>
+                    </Avatar>
+                    <CardTitle className="text-lg">
+                      {getOtherParticipant(selectedConversation).username || 'Unknown User'}
+                    </CardTitle>
                   </div>
                 </CardHeader>
 
-                {/* Messages */}
-                <CardContent className="p-0 flex flex-col h-[440px]">
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800">
-                    {selectedConversation.messages.map((message) => (
-                      <div
-                        key={message.id}
-                        className={`flex ${message.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-[70%] p-3 rounded-lg ${
-                            message.sender_id === user?.id
-                              ? 'bg-orange-500 text-white'
-                              : 'bg-muted text-foreground'
-                          }`}
-                        >
-                          <p className="text-sm">{message.content}</p>
-                          <p className={`text-xs mt-1 ${
-                            message.sender_id === user?.id ? 'text-orange-100' : 'text-muted-foreground'
-                          }`}>
-                            {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                <Separator />
 
-                  {/* Message Input */}
-                  <div className="p-4 border-t border-border">
-                    <div className="flex space-x-2">
-                      <Textarea
-                        placeholder="Type your message..."
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        className="resize-none"
-                        rows={2}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            sendMessage();
-                          }
-                        }}
-                      />
-                      <Button
-                        onClick={sendMessage}
-                        disabled={!newMessage.trim()}
-                        className="self-end"
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
+                {/* Messages */}
+                <CardContent className="p-0 flex-1">
+                  <ScrollArea className="h-[400px] p-4">
+                    <div className="space-y-4">
+                      {currentMessages.map((message) => {
+                        const isOwn = message.sender_id === user?.id;
+                        return (
+                          <div
+                            key={message.id}
+                            className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div
+                              className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                                isOwn
+                                  ? 'bg-orange-500 text-white'
+                                  : 'bg-muted text-foreground'
+                              }`}
+                            >
+                              <p className="text-sm">{message.content}</p>
+                              <p className={`text-xs mt-1 ${isOwn ? 'text-orange-100' : 'text-muted-foreground'}`}>
+                                {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </div>
+                  </ScrollArea>
                 </CardContent>
+
+                <Separator />
+
+                {/* Message Input */}
+                <div className="p-4">
+                  <form onSubmit={handleSendMessage} className="flex gap-2">
+                    <Input
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      placeholder="Type a message..."
+                      className="flex-1"
+                    />
+                    <Button type="submit" disabled={!messageText.trim()}>
+                      <Send className="h-4 w-4 mr-2" />
+                      Send
+                    </Button>
+                  </form>
+                </div>
               </>
             ) : (
               <CardContent className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <MessageCircle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-foreground mb-2">Select a conversation</h3>
-                  <p className="text-muted-foreground">
-                    Choose a conversation from the list to start messaging
-                  </p>
+                  <h3 className="text-lg font-semibold text-foreground mb-2">No conversation selected</h3>
+                  <p className="text-muted-foreground">Choose a conversation to start messaging</p>
                 </div>
               </CardContent>
             )}
           </Card>
         </div>
       </div>
-      
+
       <Footer />
     </div>
   );
