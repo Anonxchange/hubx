@@ -102,17 +102,7 @@ export const getUserConversations = async (): Promise<Conversation[]> => {
     // Get conversations where user is a participant
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select(`
-        *,
-        messages!inner (
-          id,
-          sender_id,
-          receiver_id, 
-          content,
-          created_at,
-          read
-        )
-      `)
+      .select('*')
       .or(`participant_one_id.eq.${user.id},participant_two_id.eq.${user.id}`)
       .order('updated_at', { ascending: false });
 
