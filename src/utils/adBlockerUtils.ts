@@ -1,488 +1,669 @@
-// adblocker.ts
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 declare global {
-  interface Window { __adBlockTest?: boolean; }
+  interface Window {
+    __adBlockTest?: boolean;
+  }
 }
-
-type StrategyResult = { success: boolean; name: string; duration: number; error?: string };
-
-export type AdBypassOptions = {
-  stopOnFirstSuccess?: boolean;    // default: true
-  maxParallel?: number;            // default: 2
-  detectCacheKey?: string;         // default: 'adblock_detection'
-  detectionTTLms?: number;         // default: 5 * 60_000
-  timeoutMs?: number;              // per test/strategy timeout, default: 3_000
-  logger?: Pick<Console, 'log' | 'warn' | 'error'> | null; // default: console
-};
 
 export class AdBlockerDetector {
   private static instance: AdBlockerDetector;
-  private memCache = new Map<string, { value: boolean; at: number }>();
-  private log: NonNullable<AdBypassOptions['logger']>;
+  private detectionResults: Map<string, boolean> = new Map();
 
-  static getInstance(opts: AdBypassOptions = {}): AdBlockerDetector {
+  static getInstance(): AdBlockerDetector {
     if (!AdBlockerDetector.instance) {
-      AdBlockerDetector.instance = new AdBlockerDetector(opts);
-    } else if (opts.logger !== undefined) {
-      AdBlockerDetector.instance.log = opts.logger ?? console;
+      AdBlockerDetector.instance = new AdBlockerDetector();
     }
     return AdBlockerDetector.instance;
   }
 
-  private constructor(private opts: AdBypassOptions) {
-    this.log = opts.logger ?? console;
-  }
-
-  // ---------- DETECTION ----------
   async detectAdBlocker(): Promise<boolean> {
-    const {
-      detectCacheKey = 'adblock_detection',
-      detectionTTLms = 5 * 60_000,
-      timeoutMs = 3_000,
-    } = this.opts;
-
-    // in-memory cache (fast)
-    const cached = this.memCache.get(detectCacheKey);
-    if (cached && Date.now() - cached.at < detectionTTLms) {
-      this.log.log('🔍 Using cached ad blocker detection result');
-      return cached.value;
+    const cacheKey = 'adblock_detection';
+    
+    if (this.detectionResults.has(cacheKey)) {
+      console.log('🔍 Using cached ad blocker detection result');
+      return this.detectionResults.get(cacheKey)!;
     }
 
-    // sessionStorage cache (survives SPA reloads)
+    console.log('🔍 Starting comprehensive ad blocker detection...');
+    let isBlocked = false;
+    const detectionMethods = [];
+
     try {
-      const raw = sessionStorage.getItem(detectCacheKey);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { v: boolean; at: number };
-        if (Date.now() - parsed.at < detectionTTLms) {
-          this.memCache.set(detectCacheKey, { value: parsed.v, at: parsed.at });
-          this.log.log('🔍 Using session cached ad blocker detection result');
-          return parsed.v;
-        }
-      }
-    } catch {}
+      // Test 1: Enhanced bait elements with better detection
+      const baitPromise = new Promise<boolean>((resolve) => {
+        const baits = [
+          { class: 'adsbox banner-ads google-ads doubleclick-ads', id: 'ads-top-banner' },
+          { class: 'ad advertisement sponsor sponsored-content', id: 'sidebar-ad' },
+          { class: 'pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text_ads text-ads text-ad-links', id: 'content-ad' },
+          { class: 'google-ad googlesyndication adnxs-ads', id: 'google-ads' },
+          { class: 'adsbygoogle adsystem ad-banner', id: 'main-ad' }
+        ];
 
-    this.log.log('🔍 Starting staged ad blocker detection…');
-
-    // Stage A (cheap, fast)
-    const stageA = await this.withTimeout(this.domBaitTest(), timeoutMs).catch(() => false);
-    if (stageA) return this.finishDetect(detectCacheKey, true);
-
-    // Stage B (still light)
-    const [ua, script] = await Promise.all([
-      this.withTimeout(this.uaHeuristicsTest(), timeoutMs).catch(() => false),
-      this.withTimeout(this.scriptDataUrlTest(), timeoutMs).catch(() => false),
-    ]);
-    if (ua || script) return this.finishDetect(detectCacheKey, true);
-
-    // Stage C (network probing – slower, last resort)
-    const net = await this.withTimeout(this.networkProbeTest(), timeoutMs).catch(() => false);
-    return this.finishDetect(detectCacheKey, net);
-  }
-
-  private finishDetect(key: string, value: boolean): boolean {
-    this.memCache.set(key, { value, at: Date.now() });
-    try {
-      sessionStorage.setItem(key, JSON.stringify({ v: value, at: Date.now() }));
-    } catch {}
-    this.log.log(`📊 Final detection: ${value ? 'AD BLOCKER DETECTED' : 'NO AD BLOCKER'}`);
-    return value;
-  }
-
-  // --- Tests ---
-  private domBaitTest(): Promise<boolean> {
-    return new Promise((resolve) => {
-      const markers = [
-        { class: 'adsbox banner-ads google-ads doubleclick-ads', id: 'ads-top-banner' },
-        { class: 'ad advertisement sponsor sponsored-content', id: 'sidebar-ad' },
-        { class: 'pub_300x250 pub_728x90 text-ad textAd text_ad', id: 'content-ad' },
-        { class: 'adsbygoogle adsystem ad-banner', id: 'main-ad' },
-      ];
-      let blocked = 0;
-      let done = 0;
-      const baits: HTMLDivElement[] = [];
-
-      for (const m of markers) {
-        const bait = document.createElement('div');
-        bait.innerHTML = '&nbsp;';
-        bait.className = m.class;
-        bait.id = m.id;
-        bait.style.cssText = 'position:absolute!important;left:-99999px!important;width:1px!important;height:1px!important;visibility:hidden!important;';
-        document.body.appendChild(bait);
-        baits.push(bait);
-      }
-
-      setTimeout(() => {
-        for (const el of baits) {
-          if (!document.body.contains(el)) {
-            blocked++;
-          } else {
-            const rect = el.getBoundingClientRect();
-            const cs = getComputedStyle(el);
-            if (
-              rect.width === 0 || rect.height === 0 ||
-              cs.display === 'none' || cs.visibility === 'hidden' ||
-              el.offsetWidth === 0 || el.offsetHeight === 0
-            ) blocked++;
-            try { el.remove(); } catch {}
-          }
-          done++;
-          if (done === markers.length) {
-            const isBlocked = blocked > markers.length / 2;
-            this.log.log(`🎯 Bait test: ${blocked}/${markers.length} blocked -> ${isBlocked}`);
-            resolve(isBlocked);
-          }
-        }
-      }, 180);
-    });
-  }
-
-  private uaHeuristicsTest(): Promise<boolean> {
-    return new Promise((resolve) => {
-      const adKeywords = ['adblock', 'ublock', 'ghostery', 'adguard', 'adnauseam', 'brave'];
-      const hasSuspiciousNode = Array.from(document.querySelectorAll('*')).some(el => {
-        const c = (el as HTMLElement).className?.toString().toLowerCase() || '';
-        const i = (el as HTMLElement).id?.toString().toLowerCase() || '';
-        return adKeywords.some(k => c.includes(k) || i.includes(k));
+        let blockedCount = 0;
+        baits.forEach((baitConfig, index) => {
+          const bait = document.createElement('div');
+          bait.innerHTML = '&nbsp;';
+          bait.className = baitConfig.class;
+          bait.id = baitConfig.id;
+          bait.style.cssText = 'position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;visibility:hidden!important;';
+          
+          document.body.appendChild(bait);
+          
+          setTimeout(() => {
+            if (document.body.contains(bait)) {
+              const rect = bait.getBoundingClientRect();
+              const computedStyle = window.getComputedStyle(bait);
+              
+              if (rect.height === 0 || rect.width === 0 || 
+                  computedStyle.display === 'none' || 
+                  computedStyle.visibility === 'hidden' ||
+                  bait.offsetHeight === 0 || 
+                  bait.offsetWidth === 0) {
+                blockedCount++;
+              }
+              
+              try {
+                document.body.removeChild(bait);
+              } catch (e) {
+                // Element might already be removed
+              }
+            }
+            
+            if (index === baits.length - 1) {
+              const blocked = blockedCount > baits.length / 2;
+              console.log(`🎯 Bait test: ${blockedCount}/${baits.length} elements blocked - ${blocked ? 'BLOCKED' : 'ALLOWED'}`);
+              resolve(blocked);
+            }
+          }, 150 + (index * 50));
+        });
       });
 
-      const ua = navigator.userAgent || '';
-      const isOperaMini = /Opera Mini|OPIM/i.test(ua) || (window as any).operaMini !== undefined;
+      detectionMethods.push(baitPromise);
 
-      const detected = hasSuspiciousNode || isOperaMini;
-      this.log.log(`🔌 Extension/UA heuristics: ${detected} ${isOperaMini ? '(Opera Mini)' : ''}`);
-      resolve(detected);
-    });
-  }
+      // Test 2: Check for ad blocker extensions and browser-specific blocking
+      const extensionPromise = new Promise<boolean>((resolve) => {
+        const adBlockerKeywords = ['adblock', 'ublock', 'ghostery', 'adguard', 'adnauseam', 'brave-shields'];
+        const extensions = Array.from(document.querySelectorAll('*')).some(el => {
+          const className = el.className?.toString().toLowerCase() || '';
+          const id = el.id?.toString().toLowerCase() || '';
+          return adBlockerKeywords.some(keyword => className.includes(keyword) || id.includes(keyword));
+        });
 
-  private scriptDataUrlTest(): Promise<boolean> {
-    return new Promise((resolve) => {
-      try {
-        const s = document.createElement('script');
-        s.src = 'data:text/javascript;base64,' + btoa('window.__adBlockTest = true;');
-        const timer = setTimeout(() => {
-          const blocked = !window.__adBlockTest;
-          this.log.log(`📜 Script data: ${blocked ? 'BLOCKED' : 'ALLOWED'} (timeout)`);
-          resolve(blocked);
-        }, 200);
-        s.onload = () => {
-          clearTimeout(timer);
-          const blocked = !window.__adBlockTest;
-          this.log.log(`📜 Script data: ${blocked ? 'BLOCKED' : 'ALLOWED'}`);
+        // Check for Opera Mini specific blocking
+        const isOperaMini = navigator.userAgent.includes('Opera Mini') || 
+                           navigator.userAgent.includes('OPIM') ||
+                           window.operaMini !== undefined;
+        
+        const operaBlocking = isOperaMini && (
+          !window.navigator.onLine || 
+          document.querySelector('meta[name="viewport"][content*="opera"]') !== null
+        );
+
+        const detected = extensions || operaBlocking;
+        console.log(`🔌 Extension detection: ${detected ? 'DETECTED' : 'NOT DETECTED'}${isOperaMini ? ' (Opera Mini detected)' : ''}`);
+        resolve(detected);
+      });
+
+      detectionMethods.push(extensionPromise);
+
+      // Test 3: Network request blocking test
+      const networkPromise = new Promise<boolean>((resolve) => {
+        const testUrls = [
+          'https://googleads.g.doubleclick.net/favicon.ico',
+          'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
+          'https://www.google-analytics.com/analytics.js'
+        ];
+
+        const fetchPromises = testUrls.map(url => 
+          fetch(url, { 
+            method: 'HEAD', 
+            mode: 'no-cors',
+            cache: 'no-cache'
+          }).then(() => false).catch(() => true)
+        );
+
+        Promise.all(fetchPromises).then(results => {
+          const blockedCount = results.filter(blocked => blocked).length;
+          const networkBlocked = blockedCount >= testUrls.length / 2;
+          console.log(`🌐 Network test: ${blockedCount}/${testUrls.length} requests blocked - ${networkBlocked ? 'BLOCKED' : 'ALLOWED'}`);
+          resolve(networkBlocked);
+        });
+      });
+
+      detectionMethods.push(networkPromise);
+
+      // Test 4: Script injection blocking test
+      const scriptPromise = new Promise<boolean>((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'data:text/javascript;base64,' + btoa('window.__adBlockTest = true;');
+        script.onload = () => {
+          const blocked = !(window as any).__adBlockTest;
+          console.log(`📜 Script injection test: ${blocked ? 'BLOCKED' : 'ALLOWED'}`);
           resolve(blocked);
         };
-        s.onerror = () => {
-          this.log.log('📜 Script data: BLOCKED (onerror)');
+        script.onerror = () => {
+          console.log(`📜 Script injection test: BLOCKED`);
           resolve(true);
         };
-        document.head.appendChild(s);
-      } catch {
-        // CSP can block data: scripts entirely
-        this.log.log('📜 Script data: BLOCKED (CSP/exception)');
-        resolve(true);
-      }
-    });
-  }
-
-  private networkProbeTest(): Promise<boolean> {
-    const testUrls = [
-      // keep small, ad-related hosts frequently blocked
-      'https://googleads.g.doubleclick.net/favicon.ico',
-      'https://pagead2.googlesyndication.com/pagead/id',
-      'https://www.google-analytics.com/collect' // analytics often blocked
-    ];
-    return new Promise((resolve) => {
-      const tries = testUrls.map(u =>
-        fetch(u, { method: 'HEAD', mode: 'no-cors', cache: 'no-cache' })
-          .then(() => false)
-          .catch(() => true)
-      );
-      Promise.allSettled(tries).then(res => {
-        const blockedCount = res.reduce((acc, r) => acc + ((r.status === 'fulfilled' && r.value) ? 1 : 0), 0);
-        const networkBlocked = blockedCount >= Math.ceil(testUrls.length / 2);
-        this.log.log(`🌐 Network test: ${blockedCount}/${testUrls.length} blocked -> ${networkBlocked}`);
-        resolve(networkBlocked);
+        document.head.appendChild(script);
+        
+        setTimeout(() => {
+          const blocked = !(window as any).__adBlockTest;
+          console.log(`📜 Script injection test (timeout): ${blocked ? 'BLOCKED' : 'ALLOWED'}`);
+          resolve(blocked);
+        }, 200);
       });
-    });
+
+      detectionMethods.push(scriptPromise);
+
+      // Wait for all detection methods
+      const results = await Promise.all(detectionMethods);
+      const blockedCount = results.filter(blocked => blocked).length;
+      isBlocked = blockedCount >= Math.ceil(detectionMethods.length / 2);
+
+      console.log(`📊 Detection Summary: ${blockedCount}/${detectionMethods.length} methods detected blocking - Final result: ${isBlocked ? 'AD BLOCKER DETECTED' : 'NO AD BLOCKER'}`);
+
+      this.detectionResults.set(cacheKey, isBlocked);
+      return isBlocked;
+
+    } catch (error) {
+      this.detectionResults.set(cacheKey, true);
+      return true;
+    }
   }
 
-  // ---------- BYPASS ----------
-  async bypassAdBlocker(zoneId: string, container: HTMLElement): Promise<StrategyResult[]> {
-    const {
-      stopOnFirstSuccess = true,
-      maxParallel = 2,
-      timeoutMs = 3_000,
-    } = this.opts;
-
-    if (!container) throw new Error('No container provided');
-
-    // Priority order: cheapest/highest survival first
-    const strategies: Array<{ name: string; fn: () => Promise<void>; supported?: boolean }> = [
-      { name: 'TextAd', fn: () => this.loadTextAd(zoneId, container) },
-      { name: 'ImageAd', fn: () => this.loadImageAd(zoneId, container) },
-      { name: 'Base64Ad', fn: () => this.loadBase64Ad(zoneId, container) },
+  async bypassAdBlocker(zoneId: string, container: HTMLElement): Promise<void> {
+    const strategies = [
+      { name: 'ObfuscatedScript', fn: () => this.injectObfuscatedScript(zoneId, container) },
       { name: 'DynamicIframe', fn: () => this.createDynamicIframe(zoneId, container) },
       { name: 'StealthIframe', fn: () => this.createStealthIframe(zoneId, container) },
-      { name: 'ShadowDomAd', fn: () => this.createShadowDomAd(zoneId, container), supported: !!HTMLElement.prototype.attachShadow },
-      { name: 'ObfuscatedScript', fn: () => this.injectObfuscatedScript(zoneId, container) },
+      { name: 'ImageAd', fn: () => this.loadImageAd(zoneId, container) },
+      { name: 'Base64Ad', fn: () => this.loadBase64Ad(zoneId, container) },
+      { name: 'ShadowDomAd', fn: () => this.createShadowDomAd(zoneId, container) },
+      { name: 'TextAd', fn: () => this.loadTextAd(zoneId, container) },
+      { name: 'WebWorkerAd', fn: () => this.loadWebWorkerAd(zoneId, container) },
+      { name: 'ServiceWorkerAd', fn: () => this.loadServiceWorkerAd(zoneId, container) },
       { name: 'VideoOverlayAd', fn: () => this.createVideoOverlayAd(zoneId, container) },
-      { name: 'WebWorkerAd', fn: () => this.loadWebWorkerAd(zoneId, container), supported: 'Worker' in window },
-      { name: 'ServiceWorkerAd', fn: () => this.loadServiceWorkerAd(zoneId, container), supported: 'serviceWorker' in navigator },
-      { name: 'OperaMiniBypass', fn: () => this.createOperaMiniBypass(zoneId, container) },
-    ].filter(s => s.supported !== false);
+      { name: 'OperaMiniBypass', fn: () => this.createOperaMiniBypass(zoneId, container) }
+    ];
 
-    this.log.log(`🎯 Starting bypass for zone ${zoneId} with ${strategies.length} strategies (maxParallel=${maxParallel})`);
-
-    const results: StrategyResult[] = [];
-    let success = false;
-
-    // limited-concurrency runner with early stop
-    let idx = 0;
-    const runOne = async (): Promise<void> => {
-      if (success && stopOnFirstSuccess) return;
-      const myIdx = idx++;
-      if (myIdx >= strategies.length) return;
-
-      const strat = strategies[myIdx];
-      const started = performance.now();
+    console.log(`🎯 Starting ad bypass for zone ${zoneId} with ${strategies.length} strategies`);
+    
+    // Try multiple strategies simultaneously for better success rate
+    const promises = strategies.map(async (strategy, index) => {
       try {
-        await this.withTimeout(strat.fn(), timeoutMs);
-        const duration = Math.round(performance.now() - started);
-        results.push({ success: true, name: strat.name, duration });
-        this.log.log(`✅ ${strat.name} succeeded in ${duration}ms`);
-        if (stopOnFirstSuccess) success = true;
-      } catch (e: any) {
-        const duration = Math.round(performance.now() - started);
-        results.push({ success: false, name: strat.name, duration, error: e?.message ?? String(e) });
-        this.log.warn(`❌ ${strat.name} failed: ${e?.message ?? e}`);
-        // try next
-        if (!success || !stopOnFirstSuccess) await runOne();
+        const startTime = Date.now();
+        await strategy.fn();
+        const duration = Date.now() - startTime;
+        console.log(`✅ Strategy ${index + 1} (${strategy.name}) succeeded in ${duration}ms`);
+        return { success: true, strategy: strategy.name, duration };
+      } catch (error) {
+        console.warn(`❌ Strategy ${index + 1} (${strategy.name}) failed:`, error);
+        return { success: false, strategy: strategy.name, error: error instanceof Error ? error.message : String(error) };
       }
-    };
-
-    // kick off up to maxParallel
-    const lanes = Array.from({ length: Math.min(maxParallel, strategies.length) }, () => runOne());
-    await Promise.all(lanes);
-
-    if (!results.some(r => r.success)) {
-      this.log.error(`🚨 All bypass strategies failed for zone ${zoneId}`);
-    }
-
-    return results;
-  }
-
-  // ---------- Helpers ----------
-  private withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
-    let t: any;
-    return new Promise<T>((resolve, reject) => {
-      t = setTimeout(() => reject(new Error('timeout')), ms);
-      p.then(v => { clearTimeout(t); resolve(v); }, e => { clearTimeout(t); reject(e); });
     });
+
+    const results = await Promise.all(promises);
+    const successful = results.filter(r => r.success);
+    const failed = results.filter(r => !r.success);
+    
+    console.log(`📊 Bypass Results for zone ${zoneId}:`, {
+      total: strategies.length,
+      successful: successful.length,
+      failed: failed.length,
+      successfulStrategies: successful.map(r => r.strategy),
+      failedStrategies: failed.map(r => ({ name: r.strategy, error: r.error }))
+    });
+
+    if (successful.length === 0) {
+      console.error(`🚨 All bypass strategies failed for zone ${zoneId}`);
+    }
   }
 
-  // ---------- Strategies (mostly your originals, trimmed & guarded) ----------
   private async injectObfuscatedScript(zoneId: string, container: HTMLElement): Promise<void> {
     return new Promise((resolve, reject) => {
-      try {
-        const script = document.createElement('script');
-        const r = Math.random().toString(36).slice(2);
-        const ts = Date.now();
-        script.textContent = `
-          (function(){
-            try{
-              var s=document.createElement('script');
-              s.src='https://s.magsrv.com/v1/ads.php?idzone=${zoneId}&r=${r}&t=${ts}';
-              s.async=true;
-              s.onload=function(){ try{console.log('Ad loaded ${zoneId}');}catch(e){} };
-              (document.head||document.documentElement).appendChild(s);
-            }catch(e){}
-          })();
-        `;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error('script inject error'));
-        // prefer head (less selector-based blocking)
-        (document.head || container || document.documentElement).appendChild(script);
-        // resolve soon (actual network may be blocked but DOM path succeeded)
-        setTimeout(resolve, 100);
-      } catch (e) {
-        reject(e);
-      }
+      const script = document.createElement('script');
+      const randomParam = Math.random().toString(36).substring(7);
+      const timestamp = Date.now();
+      
+      // Obfuscate the script injection
+      const scriptContent = `
+        (function() {
+          var s = document.createElement('script');
+          s.src = 'https://s.magsrv.com/v1/ads.php?idzone=${zoneId}&r=${randomParam}&t=${timestamp}';
+          s.async = true;
+          s.onload = function() { console.log('Ad loaded for zone ${zoneId}'); };
+          document.head.appendChild(s);
+        })();
+      `;
+      
+      script.textContent = scriptContent;
+      script.onload = () => resolve();
+      script.onerror = () => reject();
+      
+      // Use different injection methods
+      setTimeout(() => {
+        try {
+          container.appendChild(script);
+        } catch {
+          document.head.appendChild(script);
+        }
+      }, Math.random() * 1000);
     });
   }
 
   private async createStealthIframe(zoneId: string, container: HTMLElement): Promise<void> {
-    const html = `
-      <!doctype html><html><head><meta charset="utf-8">
-      <style>html,body{margin:0;height:100%} .c{width:100%;height:100%}</style>
-      </head><body>
-      <div class="c" id="z-${zoneId}">
-        <script src="https://s.magsrv.com/v1/ads.php?idzone=${zoneId}&type=iframe&t=${Date.now()}"></script>
-      </div></body></html>`;
     const iframe = document.createElement('iframe');
-    iframe.src = `data:text/html;base64,${btoa(html)}`;
-    iframe.style.cssText = 'width:100%;height:250px;border:0;display:block;';
+    const randomId = Math.random().toString(36).substring(7);
+    
+    iframe.id = `content-${randomId}`;
+    iframe.src = `data:text/html;base64,${btoa(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { margin: 0; padding: 0; }
+            .content-area { width: 100%; height: 100%; }
+          </style>
+        </head>
+        <body>
+          <div class="content-area" id="zone-${zoneId}">
+            <script src="https://s.magsrv.com/v1/ads.php?idzone=${zoneId}&type=iframe&t=${Date.now()}"></script>
+          </div>
+        </body>
+      </html>
+    `)}`;
+    
+    iframe.style.cssText = 'width:100%;height:250px;border:none;display:block;';
     iframe.loading = 'lazy';
     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+    
     container.appendChild(iframe);
+  }
+
+  private async loadBase64Ad(zoneId: string, container: HTMLElement): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const img = document.createElement('img');
+      
+      // Create a canvas to generate a base64 ad placeholder
+      const canvas = document.createElement('canvas');
+      canvas.width = 300;
+      canvas.height = 250;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.fillStyle = '#f0f0f0';
+        ctx.fillRect(0, 0, 300, 250);
+        ctx.fillStyle = '#666';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('Advertisement', 150, 125);
+        
+        img.src = canvas.toDataURL();
+        img.style.cssText = 'max-width:100%;height:auto;display:block;cursor:pointer;';
+        img.onclick = () => {
+          window.open(`https://s.magsrv.com/v1/click.php?idzone=${zoneId}`, '_blank');
+        };
+        
+        container.appendChild(img);
+        resolve();
+      } else {
+        reject('Canvas not supported');
+      }
+    });
+  }
+
+  private async createShadowDomAd(zoneId: string, container: HTMLElement): Promise<void> {
+    try {
+      const host = document.createElement('div');
+      host.style.cssText = 'width:100%;height:250px;display:block;';
+      
+      if (host.attachShadow) {
+        const shadow = host.attachShadow({ mode: 'closed' });
+        const adContent = document.createElement('div');
+        adContent.innerHTML = `
+          <style>
+            .shadow-ad {
+              width: 100%;
+              height: 250px;
+              background: linear-gradient(45deg, #f0f0f0, #e0e0e0);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-family: Arial, sans-serif;
+              cursor: pointer;
+              border: 1px solid #ddd;
+            }
+          </style>
+          <div class="shadow-ad" onclick="window.open('https://s.magsrv.com/v1/click.php?idzone=${zoneId}', '_blank')">
+            <span>Advertisement</span>
+          </div>
+        `;
+        
+        shadow.appendChild(adContent);
+        container.appendChild(host);
+        
+        // Also try to inject script into shadow DOM
+        const script = document.createElement('script');
+        script.src = `https://s.magsrv.com/v1/ads.php?idzone=${zoneId}&shadow=1`;
+        shadow.appendChild(script);
+      }
+    } catch (error) {
+      throw new Error('Shadow DOM not supported');
+    }
   }
 
   private async createDynamicIframe(zoneId: string, container: HTMLElement): Promise<void> {
     const iframe = document.createElement('iframe');
     iframe.src = `https://s.magsrv.com/v1/iframe.php?idzone=${zoneId}`;
-    iframe.style.cssText = 'width:100%;height:250px;border:0;display:block;';
+    iframe.style.cssText = 'width:100%;height:250px;border:none;display:block;';
     iframe.loading = 'lazy';
+    
     container.appendChild(iframe);
   }
 
   private async loadImageAd(zoneId: string, container: HTMLElement): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
+    return new Promise((resolve, reject) => {
       const img = document.createElement('img');
       img.src = `https://s.magsrv.com/v1/banner.php?idzone=${zoneId}&type=image`;
       img.style.cssText = 'max-width:100%;height:auto;display:block;';
       img.onload = () => resolve();
-      img.onerror = () => reject(new Error('img load failed'));
+      img.onerror = () => reject();
+      
       container.appendChild(img);
     });
   }
 
-  private async loadBase64Ad(zoneId: string, container: HTMLElement): Promise<void> {
-    const canvas = document.createElement('canvas');
-    canvas.width = 300; canvas.height = 250;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('canvas unsupported');
-    ctx.fillStyle = '#f0f0f0'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#666'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Advertisement', 150, 125);
-    const img = document.createElement('img');
-    img.src = canvas.toDataURL();
-    img.style.cssText = 'max-width:100%;height:auto;display:block;cursor:pointer;';
-    img.onclick = () => window.open(`https://s.magsrv.com/v1/click.php?idzone=${zoneId}`, '_blank');
-    container.appendChild(img);
-  }
-
-  private async createShadowDomAd(zoneId: string, container: HTMLElement): Promise<void> {
-    const host = document.createElement('div');
-    host.style.cssText = 'width:100%;height:250px;display:block;';
-    const shadow = (host as any).attachShadow?.({ mode: 'closed' });
-    if (!shadow) throw new Error('shadow unsupported');
-    const wrap = document.createElement('div');
-    wrap.innerHTML = `
-      <style>
-        .shadow-ad{width:100%;height:250px;background:linear-gradient(45deg,#f0f0f0,#e0e0e0);
-        display:flex;align-items:center;justify-content:center;font-family:sans-serif;border:1px solid #ddd;cursor:pointer}
-      </style>
-      <div class="shadow-ad">Advertisement</div>`;
-    shadow.appendChild(wrap);
-    (wrap.querySelector('.shadow-ad') as HTMLDivElement).onclick = () =>
-      window.open(`https://s.magsrv.com/v1/click.php?idzone=${zoneId}`, '_blank');
-    container.appendChild(host);
-  }
-
   private async loadTextAd(zoneId: string, container: HTMLElement): Promise<void> {
-    const box = document.createElement('div');
-    box.innerHTML = `
-      <div style="padding:16px;background:#f7f7f7;border:1px solid #ddd;text-align:center;">
-        <p style="margin:0 0 6px;color:#666;font:14px/1.3 sans-serif">Advertisement</p>
-        <a href="https://s.magsrv.com/v1/click.php?idzone=${zoneId}" target="_blank" rel="nofollow noopener" style="text-decoration:none;">Support our content</a>
-      </div>`;
-    container.appendChild(box);
+    const textAd = document.createElement('div');
+    textAd.innerHTML = `
+      <div style="padding:20px;background:#f0f0f0;border:1px solid #ddd;text-align:center;">
+        <p style="margin:0;color:#666;">Advertisement</p>
+        <a href="https://s.magsrv.com/v1/click.php?idzone=${zoneId}" 
+           target="_blank" 
+           style="color:#007bff;text-decoration:none;">
+          Support our content - Click here
+        </a>
+      </div>
+    `;
+    
+    container.appendChild(textAd);
   }
 
   private async loadWebWorkerAd(zoneId: string, container: HTMLElement): Promise<void> {
-    if (!('Worker' in window)) throw new Error('worker unsupported');
-    await new Promise<void>((resolve, reject) => {
-      const workerScript = `
-        self.onmessage = e => {
-          const z = e.data.zoneId;
-          const content = '<div style="width:300px;height:250px;background:linear-gradient(45deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;cursor:pointer;" onclick="window.open(\\\\'https://s.magsrv.com/v1/click.php?idzone=' + z + '\\\\', \\\\'_blank\\\\')">Advertisement</div>';
-          self.postMessage({ content });
-        };`;
-      const blob = new Blob([workerScript], { type: 'application/javascript' });
-      const worker = new Worker(URL.createObjectURL(blob));
-      const timeout = setTimeout(() => { worker.terminate(); reject(new Error('worker timeout')); }, 3000);
-      worker.onmessage = (e) => {
-        clearTimeout(timeout);
-        const div = document.createElement('div');
-        div.innerHTML = e.data.content;
-        container.appendChild(div);
-        worker.terminate();
-        resolve();
-      };
-      worker.onerror = () => { clearTimeout(timeout); worker.terminate(); reject(new Error('worker error')); };
-      worker.postMessage({ zoneId });
+    return new Promise((resolve, reject) => {
+      try {
+        // Create a web worker with ad loading script
+        const workerScript = `
+          self.onmessage = function(e) {
+            const { zoneId } = e.data;
+            
+            // Simulate ad loading in worker
+            const adData = {
+              type: 'ad',
+              content: '<div style="width:300px;height:250px;background:linear-gradient(45deg, #6366f1, #8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-family:Arial,sans-serif;cursor:pointer;" onclick="window.open(\\'https://s.magsrv.com/v1/click.php?idzone=' + zoneId + '\\', \\'_blank\\')">Advertisement</div>',
+              zoneId: zoneId
+            };
+            
+            self.postMessage(adData);
+          };
+        `;
+        
+        const blob = new Blob([workerScript], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(blob));
+        
+        worker.onmessage = (e) => {
+          const { content } = e.data;
+          const adDiv = document.createElement('div');
+          adDiv.innerHTML = content;
+          container.appendChild(adDiv);
+          worker.terminate();
+          resolve();
+        };
+        
+        worker.onerror = () => {
+          worker.terminate();
+          reject('Web Worker failed');
+        };
+        
+        worker.postMessage({ zoneId });
+        
+        // Timeout after 5 seconds
+        setTimeout(() => {
+          worker.terminate();
+          reject('Web Worker timeout');
+        }, 5000);
+        
+      } catch (error) {
+        reject('Web Worker not supported');
+      }
     });
   }
 
   private async loadServiceWorkerAd(zoneId: string, container: HTMLElement): Promise<void> {
-    if (!('serviceWorker' in navigator)) throw new Error('sw unsupported');
+    return new Promise((resolve, reject) => {
+      if (!('serviceWorker' in navigator)) {
+        reject('Service Worker not supported');
+        return;
+      }
 
-    // NOTE: Many browsers restrict blob SW registration. Expect failures.
-    await new Promise<void>((resolve, reject) => {
-      const swScript = `
-        self.addEventListener('message', e => {
-          if (e.data?.type === 'AD_REQUEST') {
-            const z = e.data.zoneId;
-            e.ports[0].postMessage({
-              type:'AD_RESPONSE',
-              content:'<div style="width:300px;height:250px;background:linear-gradient(45deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-family:sans-serif;cursor:pointer;" onclick="window.open(\\\\'https://s.magsrv.com/v1/click.php?idzone=' + z + '\\\\', \\\\'_blank\\\\')">SW Advertisement</div>'
-            });
+      try {
+        // Create service worker script dynamically
+        const swScript = `
+          self.addEventListener('message', function(event) {
+            if (event.data.type === 'AD_REQUEST') {
+              const zoneId = event.data.zoneId;
+              
+              // Send ad data back
+              event.ports[0].postMessage({
+                type: 'AD_RESPONSE',
+                content: '<div style="width:300px;height:250px;background:linear-gradient(45deg, #10b981, #059669);display:flex;align-items:center;justify-content:center;color:white;font-family:Arial,sans-serif;cursor:pointer;" onclick="window.open(\\'https://s.magsrv.com/v1/click.php?idzone=' + zoneId + '\\', \\'_blank\\')">SW Advertisement</div>',
+                zoneId: zoneId
+              });
+            }
+          });
+        `;
+        
+        const blob = new Blob([swScript], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        
+        navigator.serviceWorker.register(swUrl).then(registration => {
+          const channel = new MessageChannel();
+          
+          channel.port1.onmessage = (event) => {
+            if (event.data.type === 'AD_RESPONSE') {
+              const adDiv = document.createElement('div');
+              adDiv.innerHTML = event.data.content;
+              container.appendChild(adDiv);
+              
+              // Clean up
+              registration.unregister();
+              URL.revokeObjectURL(swUrl);
+              resolve();
+            }
+          };
+          
+          // Send message to service worker
+          if (registration.active) {
+            registration.active.postMessage(
+              { type: 'AD_REQUEST', zoneId },
+              [channel.port2]
+            );
+          } else {
+            reject('Service Worker not active');
           }
-        });`;
-      const blob = new Blob([swScript], { type: 'application/javascript' });
-      const url = URL.createObjectURL(blob);
-      navigator.serviceWorker.register(url).then(reg => {
-        const ch = new MessageChannel();
-        ch.port1.onmessage = (ev) => {
-          if (ev.data?.type === 'AD_RESPONSE') {
-            const d = document.createElement('div');
-            d.innerHTML = ev.data.content;
-            container.appendChild(d);
-            reg.unregister().finally(() => URL.revokeObjectURL(url));
-            resolve();
-          }
-        };
-        const send = () => reg.active?.postMessage({ type: 'AD_REQUEST', zoneId }, [ch.port2]);
-        if (reg.active) send();
-        else {
-          const t = setTimeout(() => { reg.unregister().finally(() => URL.revokeObjectURL(url)); reject(new Error('sw inactive')); }, 1500);
-          const int = setInterval(() => {
-            if (reg.active) { clearInterval(int); clearTimeout(t); send(); }
-          }, 100);
-        }
-      }).catch(() => reject(new Error('sw register failed')));
+          
+          // Timeout after 5 seconds
+          setTimeout(() => {
+            registration.unregister();
+            URL.revokeObjectURL(swUrl);
+            reject('Service Worker timeout');
+          }, 5000);
+          
+        }).catch(() => {
+          reject('Service Worker registration failed');
+        });
+        
+      } catch (error) {
+        reject('Service Worker error');
+      }
     });
   }
 
   private async createVideoOverlayAd(zoneId: string, container: HTMLElement): Promise<void> {
-    const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position:relative;width:100%;height:250px;background:linear-gradient(135deg,#1a1a1a,#2d2d2d);
-      border-radius:8px;overflow:hidden;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.3)`;
-    const content = document.createElement('div');
-    content.style.cssText = `position:absolute;inset:0 0 40px 0;display:flex;align-items:center;justify-content:center;color:#fff;font:700 18px/1.2 sans-serif;background:linear-gradient(45deg,#667eea,#764ba2)`;
-    content.textContent = '▶ Sponsored Content';
-    const controls = document.createElement('div');
-    controls.style.cssText = `position:absolute;left:0;right:0;bottom:0;height:40px;background:rgba(0,0,0,.8);display:flex;align-items:center;padding:0 12px;color:#fff;font:12px sans-serif`;
-    controls.innerHTML = `<div style="width:20px;height:20px;margin-right:8px">▶</div><div style="margin-left:auto">0:30 / 0:30</div>`;
-    overlay.append(content, controls);
-    overlay.onclick = () => window.open(`https://s.magsrv.com/v1/click.php?idzone=${zoneId}&type=video`, '_blank');
-    container.appendChild(overlay);
+    return new Promise((resolve, reject) => {
+      try {
+        // Create a video-style overlay that mimics video player controls
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+          position: relative;
+          width: 100%;
+          height: 250px;
+          background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+          border-radius: 8px;
+          overflow: hidden;
+          cursor: pointer;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        
+        // Create fake video content area
+        const videoContent = document.createElement('div');
+        videoContent.style.cssText = `
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 40px;
+          background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-family: Arial, sans-serif;
+          font-size: 18px;
+          font-weight: bold;
+        `;
+        videoContent.textContent = '▶ Sponsored Content';
+        
+        // Create fake video controls
+        const controls = document.createElement('div');
+        controls.style.cssText = `
+          position: absolute;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          height: 40px;
+          background: rgba(0,0,0,0.8);
+          display: flex;
+          align-items: center;
+          padding: 0 15px;
+          color: white;
+          font-size: 12px;
+        `;
+        
+        const playButton = document.createElement('div');
+        playButton.style.cssText = `
+          width: 20px;
+          height: 20px;
+          margin-right: 10px;
+          cursor: pointer;
+        `;
+        playButton.innerHTML = '▶';
+        
+        const timeDisplay = document.createElement('div');
+        timeDisplay.textContent = '0:30 / 0:30';
+        timeDisplay.style.cssText = 'margin-left: auto;';
+        
+        controls.appendChild(playButton);
+        controls.appendChild(timeDisplay);
+        overlay.appendChild(videoContent);
+        overlay.appendChild(controls);
+        
+        // Click handler for the entire overlay
+        overlay.onclick = () => {
+          window.open(`https://s.magsrv.com/v1/click.php?idzone=${zoneId}&type=video`, '_blank');
+        };
+        
+        // Add a small delay to mimic video loading
+        setTimeout(() => {
+          container.appendChild(overlay);
+          resolve();
+        }, 100);
+        
+      } catch (error) {
+        reject('Video overlay ad creation failed');
+      }
+    });
   }
 
   private async createOperaMiniBypass(zoneId: string, container: HTMLElement): Promise<void> {
-    const isOperaMini = /Opera Mini|OPIM/i.test(navigator.userAgent);
-    if (!isOperaMini) throw new Error('not opera mini');
-    const el = document.createElement('div');
-    el.style.cssText = `width:300px;height:250px;background-image:linear-gradient(45deg,#ff6b6b,#4ecdc4);position:relative;border-radius:6px;overflow:hidden;cursor:pointer;margin:0 auto`;
-    const inner = document.createElement('div');
-    inner.style.cssText = `position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;text-align:center;font:bold 16px sans-serif;text-shadow:1px 1px 2px rgba(0,0,0,.5)`;
-    inner.innerHTML = `<div style="margin-bottom:6px">Advertisement</div><div style="font-size:12px;opacity:.9">Tap to continue</div>`;
-    el.appendChild(inner);
-    const click = () => setTimeout(() => {
-      window.open(`https://s.magsrv.com/v1/click.php?idzone=${zoneId}&browser=operamini&t=${Date.now()}`, '_blank');
-    }, 50);
-    el.addEventListener('click', click);
-    el.addEventListener('touchstart', click);
-    container.appendChild(el);
+    return new Promise((resolve, reject) => {
+      try {
+        const isOperaMini = navigator.userAgent.includes('Opera Mini') || 
+                           navigator.userAgent.includes('OPIM');
+        
+        if (!isOperaMini) {
+          reject('Not Opera Mini browser');
+          return;
+        }
+        
+        // Opera Mini specific bypass using image sprites and CSS
+        const operaAd = document.createElement('div');
+        operaAd.style.cssText = `
+          width: 300px;
+          height: 250px;
+          background-image: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+          position: relative;
+          border-radius: 6px;
+          overflow: hidden;
+          cursor: pointer;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+          margin: 0 auto;
+        `;
+        
+        // Create content using CSS only (Opera Mini processes CSS server-side)
+        const content = document.createElement('div');
+        content.style.cssText = `
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          color: white;
+          text-align: center;
+          font-family: Arial, sans-serif;
+          font-weight: bold;
+          text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        `;
+        content.innerHTML = `
+          <div style="font-size: 16px; margin-bottom: 8px;">Advertisement</div>
+          <div style="font-size: 12px; opacity: 0.9;">Tap to continue</div>
+        `;
+        
+        // Use setTimeout to bypass Opera Mini's script blocking
+        const clickHandler = function() {
+          setTimeout(() => {
+            const url = `https://s.magsrv.com/v1/click.php?idzone=${zoneId}&browser=operamini&t=${Date.now()}`;
+            window.open(url, '_blank');
+          }, 50);
+        };
+        
+        operaAd.appendChild(content);
+        operaAd.addEventListener('click', clickHandler);
+        operaAd.addEventListener('touchstart', clickHandler);
+        
+        // Add specific meta tag for Opera Mini
+        const meta = document.createElement('meta');
+        meta.name = 'opera-ad-zone';
+        meta.content = zoneId;
+        document.head.appendChild(meta);
+        
+        container.appendChild(operaAd);
+        resolve();
+        
+      } catch (error) {
+        reject('Opera Mini bypass failed');
+      }
+    });
   }
 }
 
