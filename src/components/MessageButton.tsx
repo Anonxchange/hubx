@@ -1,8 +1,7 @@
-
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
@@ -27,28 +26,20 @@ const MessageButton: React.FC<MessageButtonProps> = ({
 
   const handleMessage = () => {
     if (!user) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to send messages.",
-        variant: "destructive",
-      });
+      toast.error("Please sign in to send messages");
       navigate('/auth');
       return;
     }
 
     // Check if user is trying to message themselves
     if (user.id === creatorId) {
-      toast({
-        title: "Cannot Message Yourself",
-        description: "You cannot send messages to yourself.",
-        variant: "destructive",
-      });
+      toast.error("Cannot message yourself");
       return;
     }
 
     // Navigate to inbox with the conversation
-    navigate('/inbox', { 
-      state: { 
+    navigate('/inbox', {
+      state: {
         startConversation: {
           creatorId,
           creatorName
@@ -61,8 +52,13 @@ const MessageButton: React.FC<MessageButtonProps> = ({
     <Button
       variant={variant}
       size={size}
-      onClick={handleMessage}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        handleMessage();
+      }}
       className={`flex items-center gap-2 ${className}`}
+      type="button"
     >
       <MessageCircle className="w-4 h-4" />
       <span>Message</span>
