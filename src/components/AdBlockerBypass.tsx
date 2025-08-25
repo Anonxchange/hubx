@@ -117,6 +117,11 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
     <div className="w-0 h-0 overflow-hidden opacity-0"></div>
   );
 
+  // Don't render anything when ad blocker is detected and no fallback content
+  if (adBlockDetected && !fallbackContent) {
+    return null;
+  }
+
   return (
     <div className={`w-full ${className}`}>
       {/* Hidden detection element */}
@@ -132,19 +137,17 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
         }}
       />
       
-      {/* Main ad container */}
-      <div ref={adRef} className="ad-container">
-        {!adBlockDetected && (
+      {/* Main ad container - only show when not blocked */}
+      {!adBlockDetected && (
+        <div ref={adRef} className="ad-container">
           <div>
             <ins className="eas6a97888e10" data-zoneid={zoneId}></ins>
           </div>
-        )}
-      </div>
-
-      {/* Invisible fallback content */}
-      {(adBlockDetected && showFallback) && (
-        fallbackContent || <InvisibleFallback />
+        </div>
       )}
+
+      {/* Fallback content only if provided */}
+      {(adBlockDetected && showFallback && fallbackContent) && fallbackContent}
     </div>
   );
 };
