@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { User } from '@supabase/supabase-js';
 import { profileService } from '@/services/profileService';
 
 export type UserType = 'user' | 'individual_creator' | 'studio_creator';
 
-interface User {
+interface UserProfileData {
   id: string;
   email: string;
   user_metadata?: {
@@ -24,70 +25,95 @@ interface AuthError {
 }
 
 interface AuthContextType {
-  user: User | null;
+  user: UserProfileData | null;
   userType: UserType | null;
   loading: boolean;
-  signUp: (
-    email: string,
-    password: string,
-    userType: UserType,
-    fullName?: string
-  ) => Promise<{ error: AuthError | null }>;
-  signIn: (
-    email: string,
-    password: string,
-    userType?: UserType
-  ) => Promise<{ error: AuthError | null }>;
+  signUp: (email: string, password: string, fullName: string, userType: UserType) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
-  forgotPassword: (email: string) => Promise<{ error: AuthError | null }>;
-  isEmailConfirmed: boolean;
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+  refreshUserData: () => Promise<void>;
 }
+
+// Cache keys
+const USER_CACHE_KEY = 'hubx_user_cache';
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Cache the session to avoid repeated requests
+let sessionCache: { user: UserProfileData | null; timestamp: number } | null = null;
+const SESSION_CACHE_DURATION = 30000; // 30 seconds
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+// Cache utilities
+const getCachedUser = (): { user: UserProfileData | null; userType: UserType | null; timestamp: number } | null => {
+  try {
+    const cached = localStorage.getItem(USER_CACHE_KEY);
+    if (cached) {
+      const data = JSON.parse(cached);
+      if (Date.now() - data.timestamp < CACHE_DURATION) {
+        return data;
+      }
+    }
+  } catch (error) {
+    console.error('Error reading user cache:', error);
+  }
+  return null;
+};
+
+const setCachedUser = (user: UserProfileData | null, userType: UserType | null) => {
+  try {
+    localStorage.setItem(USER_CACHE_KEY, JSON.stringify({
+      user,
+      userType,
+      timestamp: Date.now()
+    }));
+  } catch (error) {
+    console.error('Error setting user cache:', error);
+  }
+};
+
+const clearCachedUser = () => {
+  try {
+    localStorage.removeItem(USER_CACHE_KEY);
+  } catch (error) {
+    console.error('Error clearing user cache:', error);
+  }
+};
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<UserProfileData | null>(null);
   const [userType, setUserType] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isEmailConfirmed, setIsEmailConfirmed] = useState(false);
-
-  // Restore user info from localStorage immediately to prevent UI flash
-  useEffect(() => {
-    const cachedUser = localStorage.getItem('auth_user');
-    const cachedUserType = localStorage.getItem('auth_user_type') as UserType | null;
-
-    if (cachedUser && cachedUserType) {
-      try {
-        const parsedUser = JSON.parse(cachedUser) as User;
-        setUser(parsedUser);
-        setUserType(cachedUserType);
-        setIsEmailConfirmed(Boolean(parsedUser.email_confirmed_at));
-        // Keep loading true until session is verified by getSession
-      } catch (err) {
-        console.error('Error parsing cached user:', err);
-        localStorage.removeItem('auth_user');
-        localStorage.removeItem('auth_user_type');
-        setLoading(false); // Set loading to false if cache is invalid
-      }
-    } else {
-      // No cached data, we'll wait for getSession to complete
-      setLoading(true);
-    }
-  }, []);
 
   // Helper to update user state and cache in localStorage
-  const setUserAndCache = (currentUser: User, type: UserType) => {
-    setUser(currentUser);
-    setUserType(type);
-    setIsEmailConfirmed(Boolean(currentUser.email_confirmed_at));
+  const setUserAndCache = useCallback((userData: UserProfileData, userType: UserType) => {
+    setUser(userData);
+    setUserType(userType);
+    setCachedUser(userData, userType);
 
-    localStorage.setItem('auth_user', JSON.stringify(currentUser));
-    localStorage.setItem('auth_user_type', type);
-  };
+    // Legacy cache support
+    try {
+      localStorage.setItem('userType', userType);
+    } catch (error) {
+      console.error('Error caching user type:', error);
+    }
+  }, []);
 
   // Fetch user profile to get user_type, then set in state and localStorage
   const fetchUserAndSetType = async (currentUser: User) => {
     console.log('fetchUserAndSetType called for user:', currentUser.id);
+
+    // Check if we have a very recent cache (within 5 minutes) to avoid unnecessary DB calls
+    const cachedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
+    const lastFetchTime = localStorage.getItem(`last_fetch_${currentUser.id}`);
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+
+    if (cachedUserType && lastFetchTime && parseInt(lastFetchTime) > fiveMinutesAgo) {
+      console.log('Using recent cached user type:', cachedUserType);
+      setUserAndCache(currentUser as UserProfileData, cachedUserType);
+      return;
+    }
 
     try {
       const { data: profile, error } = await supabase
@@ -100,19 +126,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (!error && profile?.user_type) {
         console.log('Setting user type from profile:', profile.user_type);
-        setUserAndCache(currentUser, profile.user_type as UserType);
+        localStorage.setItem(`last_fetch_${currentUser.id}`, Date.now().toString());
+        setUserAndCache(currentUser as UserProfileData, profile.user_type as UserType);
       } else {
         // Try multiple sources for user type in order of preference
         let metadataUserType = currentUser.user_metadata?.user_type as UserType | undefined;
         console.log('User metadata type:', metadataUserType);
 
         // Check localStorage for this specific user
-        if (!metadataUserType) {
-          const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
-          console.log('Stored user type:', storedUserType);
-          if (storedUserType) {
-            metadataUserType = storedUserType;
-          }
+        if (!metadataUserType && cachedUserType) {
+          metadataUserType = cachedUserType;
         }
 
         // Check for temp signup data (for users who just signed up)
@@ -136,15 +159,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         const finalUserType = metadataUserType || 'user';
         console.log('Setting final user type:', finalUserType);
 
-        // Create or update profile if we have a non-default user type
-        if (finalUserType !== 'user') {
+        // Only create/update profile if we don't have a cached type or it's different
+        if (finalUserType !== 'user' && finalUserType !== cachedUserType) {
           console.log('Creating/updating profile with user type:', finalUserType);
           try {
             await profileService.createProfile({
               id: currentUser.id,
               email: currentUser.email || '',
               userType: finalUserType,
-              fullName: currentUser.user_metadata?.first_name && currentUser.user_metadata?.last_name 
+              fullName: currentUser.user_metadata?.first_name && currentUser.user_metadata?.last_name
                 ? `${currentUser.user_metadata.first_name} ${currentUser.user_metadata.last_name}`
                 : currentUser.user_metadata?.first_name || ''
             });
@@ -154,84 +177,88 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           }
         }
 
-        setUserAndCache(currentUser, finalUserType);
+        localStorage.setItem(`last_fetch_${currentUser.id}`, Date.now().toString());
+        setUserAndCache(currentUser as UserProfileData, finalUserType);
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
       // Try to get from localStorage as last resort
-      const storedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType;
-      const fallbackUserType = storedUserType || 'user';
+      const fallbackUserType = cachedUserType || 'user';
       console.log('Using fallback user type:', fallbackUserType);
-      setUserAndCache(currentUser, fallbackUserType);
+      setUserAndCache(currentUser as UserProfileData, fallbackUserType);
     }
   };
 
-  // On component mount, get session and subscribe to auth state changes
+  const fetchUserProfile = useCallback(async (currentUser: User) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', currentUser.id)
+        .single();
+
+      if (!error && profile?.user_type) {
+        setUserAndCache(currentUser as UserProfileData, profile.user_type as UserType);
+      } else {
+        // Fallback to metadata or default if profile fails
+        const metadataUserType = currentUser.user_metadata?.user_type as UserType || currentUser.app_metadata?.user_type as UserType || 'user';
+        setUserAndCache(currentUser as UserProfileData, metadataUserType);
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+      // Fallback to metadata or default if fetch fails
+      const metadataUserType = currentUser.user_metadata?.user_type as UserType || currentUser.app_metadata?.user_type as UserType || 'user';
+      setUserAndCache(currentUser as UserProfileData, metadataUserType);
+    }
+  }, [setUserAndCache]);
+
+  const refreshUserData = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await fetchUserProfile(session.user);
+      }
+    } catch (error) {
+      console.error('Error refreshing user data:', error);
+    }
+  }, [fetchUserProfile]);
+
   useEffect(() => {
-    let isInitialLoad = true;
-
-    const getSession = async () => {
+    const getInitialSession = async () => {
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
+        // Check cache first
+        if (sessionCache && Date.now() - sessionCache.timestamp < SESSION_CACHE_DURATION) {
+          setUser(sessionCache.user);
+          setUserType(sessionCache.userType); // Also set userType from cache
+          setLoading(false);
+          return;
+        }
 
+        const { data: { session }, error } = await supabase.auth.getSession();
         if (error) {
-          console.error('Session error:', error);
-          setUser(null);
-          setUserType(null);
-          setIsEmailConfirmed(false);
-          localStorage.removeItem('auth_user');
-          localStorage.removeItem('auth_user_type');
-        } else if (session?.user) {
-          // If we have cached data and it matches the session user, don't refetch
-          const cachedUser = localStorage.getItem('auth_user');
-          const cachedUserType = localStorage.getItem('auth_user_type');
-
-          if (cachedUser && cachedUserType && isInitialLoad) {
-            try {
-              const parsedUser = JSON.parse(cachedUser) as User;
-              if (parsedUser.id === session.user.id) {
-                // User data is already set from cache, just verify it's still valid
-                console.log('Using cached user data for session verification');
-                // Ensure email confirmation status is up to date
-                setIsEmailConfirmed(Boolean(session.user.email_confirmed_at));
-                setLoading(false);
-                return;
-              }
-            } catch (err) {
-              console.error('Error parsing cached user during session check:', err);
-              // Clear invalid cache
-              localStorage.removeItem('auth_user');
-              localStorage.removeItem('auth_user_type');
-            }
-          }
-
-          await fetchUserAndSetType(session.user as User);
+          console.error('Error getting session:', error);
         } else {
-          // No session, clear everything
-          setUser(null);
-          setUserType(null);
-          setIsEmailConfirmed(false);
-          localStorage.removeItem('auth_user');
-          localStorage.removeItem('auth_user_type');
+          const sessionUser = session?.user ?? null;
+          setUser(sessionUser as UserProfileData);
+
+          // Cache the session
+          sessionCache = {
+            user: sessionUser as UserProfileData,
+            timestamp: Date.now()
+          };
         }
       } catch (error) {
-        console.error('Session error:', error);
-        setUser(null);
-        setUserType(null);
-        setIsEmailConfirmed(false);
-        localStorage.removeItem('auth_user');
-        localStorage.removeItem('auth_user_type');
+        console.error('Error in getInitialSession:', error);
       } finally {
         setLoading(false);
-        isInitialLoad = false;
       }
     };
 
-    getSession();
+    getInitialSession();
+  }, []); // Removed dependencies as getInitialSession is self-contained for initial load
 
+  // Subscribe to auth state changes
+  useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -239,28 +266,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setLoading(true);
 
       if (session?.user) {
-        // Always fetch user type on auth state changes (login, token refresh, etc.)
-        await fetchUserAndSetType(session.user as User);
-        
-        // Check if this is a Google OAuth return and redirect to subscription modal
-        if (event === 'SIGNED_IN' && window.location.hash.includes('subscription-modal')) {
-          // Clear the hash and trigger subscription modal if needed
-          window.location.hash = '';
-          // You can dispatch a custom event here to open the subscription modal
-          window.dispatchEvent(new CustomEvent('google-auth-success'));
+        const newUser = session.user as UserProfileData;
+        // Only fetch user type if not already cached or if user has changed
+        const cached = getCachedUser();
+        if (!cached || cached.user?.id !== newUser.id || !cached.userType) {
+          await fetchUserAndSetType(session.user);
+        } else {
+          // If cached data is fresh and valid, use it directly
+          setUser(cached.user);
+          setUserType(cached.userType);
         }
+
+        // Update session cache regardless
+        sessionCache = {
+          user: newUser,
+          timestamp: Date.now()
+        };
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setUserType(null);
-        setIsEmailConfirmed(false);
-        localStorage.removeItem('auth_user');
-        localStorage.removeItem('auth_user_type');
+        clearCachedUser();
+        sessionCache = null; // Clear session cache on sign out
       }
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []); // Remove dependencies to prevent infinite loops
+  }, [fetchUserAndSetType]); // fetchUserAndSetType is now correctly depended on
 
   // Signup function
   const signUp = async (
@@ -299,7 +331,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Store user type with user ID for future reference
         localStorage.setItem(`user_type_${data.user.id}`, userType);
-        
+
         // Try to create profile immediately
         try {
           const profileCreated = await profileService.createProfile({
@@ -338,7 +370,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // If user is immediately logged in (rare but possible), set the context
         if (data.session) {
           console.log('User is immediately logged in, setting user type in context');
-          setUserAndCache(data.user as User, userType);
+          setUserAndCache(data.user as UserProfileData, userType);
         }
       }
 
@@ -409,7 +441,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Use the profile user_type (from database) as the source of truth
         const correctUserType = profile.user_type as UserType;
         localStorage.setItem(`user_type_${data.user.id}`, correctUserType);
-        setUserAndCache(data.user as User, correctUserType);
+        setUserAndCache(data.user as UserProfileData, correctUserType);
+
+        // Update session cache on successful sign-in
+        sessionCache = {
+          user: data.user as UserProfileData,
+          timestamp: Date.now()
+        };
       }
 
       return { error: null };
@@ -421,16 +459,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Signout function
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setUserType(null);
-    setIsEmailConfirmed(false);
-    localStorage.removeItem('auth_user');
-    localStorage.removeItem('auth_user_type');
+    try {
+      setLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+      setUserType(null);
+      clearCachedUser();
+      sessionCache = null; // Clear session cache on sign out
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Forgot password function
-  const forgotPassword = async (email: string): Promise<{ error: AuthError | null }> => {
+  const resetPassword = async (email: string): Promise<{ error: AuthError | null }> => {
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/auth?reset=true`,
@@ -448,9 +492,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, userType, loading, signUp, signIn, signOut, forgotPassword, isEmailConfirmed }}
-    >
+    <AuthContext.Provider value={{
+      user,
+      userType,
+      loading,
+      signUp,
+      signIn,
+      signOut,
+      resetPassword,
+      refreshUserData
+    }}>
       {children}
     </AuthContext.Provider>
   );
