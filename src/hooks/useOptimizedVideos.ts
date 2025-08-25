@@ -16,7 +16,9 @@ export const useOptimizedVideos = (page = 1, limit = 60, category?: string, sear
       // Use regular optimized service for specific categories or searches
       return getOptimizedVideos(page, limit, category, searchQuery);
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    cacheTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes (renamed from cacheTime)
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
   });
 };
