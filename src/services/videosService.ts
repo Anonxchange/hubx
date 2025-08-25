@@ -1208,10 +1208,10 @@ export const searchVideos = async (searchTerm: string) => {
 export const getUserCountry = async (): Promise<string> => {
   try {
     const locationData = await getUserLocationData();
-    return locationData.country_name || locationData.country || 'Nigeria';
+    return locationData.country_name || locationData.country || 'Global';
   } catch (error) {
     console.log('Error getting user country, using default');
-    return 'Nigeria';
+    return 'Global';
   }
 };
 
