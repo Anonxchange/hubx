@@ -1,4 +1,10 @@
 
+declare global {
+  interface Window {
+    __adBlockTest?: boolean;
+  }
+}
+
 export class AdBlockerDetector {
   private static instance: AdBlockerDetector;
   private detectionResults: Map<string, boolean> = new Map();
@@ -14,62 +20,86 @@ export class AdBlockerDetector {
     const cacheKey = 'adblock_detection';
     
     if (this.detectionResults.has(cacheKey)) {
+      console.log('🔍 Using cached ad blocker detection result');
       return this.detectionResults.get(cacheKey)!;
     }
 
+    console.log('🔍 Starting comprehensive ad blocker detection...');
     let isBlocked = false;
+    const detectionMethods = [];
 
     try {
-      // Test 1: Multiple bait elements with different detection methods
-      const baits = [
-        { class: 'adsbox banner-ads google-ads', id: 'ads-top-banner' },
-        { class: 'ad advertisement', id: 'sidebar-ad' },
-        { class: 'pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text_ads text-ads text-ad-links', id: 'content-ad' },
-        { class: 'google-ad', id: 'google-ads' }
-      ];
+      // Test 1: Enhanced bait elements with better detection
+      const baitPromise = new Promise<boolean>((resolve) => {
+        const baits = [
+          { class: 'adsbox banner-ads google-ads doubleclick-ads', id: 'ads-top-banner' },
+          { class: 'ad advertisement sponsor sponsored-content', id: 'sidebar-ad' },
+          { class: 'pub_300x250 pub_300x250m pub_728x90 text-ad textAd text_ad text_ads text-ads text-ad-links', id: 'content-ad' },
+          { class: 'google-ad googlesyndication adnxs-ads', id: 'google-ads' },
+          { class: 'adsbygoogle adsystem ad-banner', id: 'main-ad' }
+        ];
 
-      for (const baitConfig of baits) {
-        const bait = document.createElement('div');
-        bait.innerHTML = '&nbsp;';
-        bait.className = baitConfig.class;
-        bait.id = baitConfig.id;
-        bait.style.cssText = 'position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;visibility:hidden!important;';
-        
-        document.body.appendChild(bait);
-        
-        // Check if element is blocked
-        setTimeout(() => {
-          if (document.body.contains(bait)) {
-            const rect = bait.getBoundingClientRect();
-            const computedStyle = window.getComputedStyle(bait);
-            
-            if (rect.height === 0 || rect.width === 0 || 
-                computedStyle.display === 'none' || 
-                computedStyle.visibility === 'hidden' ||
-                bait.offsetHeight === 0 || 
-                bait.offsetWidth === 0) {
-              isBlocked = true;
+        let blockedCount = 0;
+        baits.forEach((baitConfig, index) => {
+          const bait = document.createElement('div');
+          bait.innerHTML = '&nbsp;';
+          bait.className = baitConfig.class;
+          bait.id = baitConfig.id;
+          bait.style.cssText = 'position:absolute!important;left:-10000px!important;width:1px!important;height:1px!important;visibility:hidden!important;';
+          
+          document.body.appendChild(bait);
+          
+          setTimeout(() => {
+            if (document.body.contains(bait)) {
+              const rect = bait.getBoundingClientRect();
+              const computedStyle = window.getComputedStyle(bait);
+              
+              if (rect.height === 0 || rect.width === 0 || 
+                  computedStyle.display === 'none' || 
+                  computedStyle.visibility === 'hidden' ||
+                  bait.offsetHeight === 0 || 
+                  bait.offsetWidth === 0) {
+                blockedCount++;
+              }
+              
+              try {
+                document.body.removeChild(bait);
+              } catch (e) {
+                // Element might already be removed
+              }
             }
             
-            document.body.removeChild(bait);
-          }
-        }, 100);
-      }
-
-      // Test 2: Check for ad blocker extensions
-      const adBlockerKeywords = ['adblock', 'ublock', 'ghostery', 'adguard', 'adnauseam'];
-      const extensions = Array.from(document.querySelectorAll('*')).some(el => {
-        const className = el.className?.toString().toLowerCase() || '';
-        return adBlockerKeywords.some(keyword => className.includes(keyword));
+            if (index === baits.length - 1) {
+              const blocked = blockedCount > baits.length / 2;
+              console.log(`🎯 Bait test: ${blockedCount}/${baits.length} elements blocked - ${blocked ? 'BLOCKED' : 'ALLOWED'}`);
+              resolve(blocked);
+            }
+          }, 150 + (index * 50));
+        });
       });
 
-      if (extensions) isBlocked = true;
+      detectionMethods.push(baitPromise);
 
-      // Test 3: Try fetching known ad-serving resources
-      try {
+      // Test 2: Check for ad blocker extensions and DOM modifications
+      const extensionPromise = new Promise<boolean>((resolve) => {
+        const adBlockerKeywords = ['adblock', 'ublock', 'ghostery', 'adguard', 'adnauseam', 'brave-shields'];
+        const extensions = Array.from(document.querySelectorAll('*')).some(el => {
+          const className = el.className?.toString().toLowerCase() || '';
+          const id = el.id?.toString().toLowerCase() || '';
+          return adBlockerKeywords.some(keyword => className.includes(keyword) || id.includes(keyword));
+        });
+        console.log(`🔌 Extension detection: ${extensions ? 'DETECTED' : 'NOT DETECTED'}`);
+        resolve(extensions);
+      });
+
+      detectionMethods.push(extensionPromise);
+
+      // Test 3: Network request blocking test
+      const networkPromise = new Promise<boolean>((resolve) => {
         const testUrls = [
           'https://googleads.g.doubleclick.net/favicon.ico',
-          'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js'
+          'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js',
+          'https://www.google-analytics.com/analytics.js'
         ];
 
         const fetchPromises = testUrls.map(url => 
@@ -77,26 +107,49 @@ export class AdBlockerDetector {
             method: 'HEAD', 
             mode: 'no-cors',
             cache: 'no-cache'
-          }).catch(() => Promise.reject('blocked'))
+          }).then(() => false).catch(() => true)
         );
 
-        await Promise.any(fetchPromises);
-      } catch {
-        isBlocked = true;
-      }
+        Promise.all(fetchPromises).then(results => {
+          const blockedCount = results.filter(blocked => blocked).length;
+          const networkBlocked = blockedCount >= testUrls.length / 2;
+          console.log(`🌐 Network test: ${blockedCount}/${testUrls.length} requests blocked - ${networkBlocked ? 'BLOCKED' : 'ALLOWED'}`);
+          resolve(networkBlocked);
+        });
+      });
 
-      // Test 4: Check for blocked network requests
-      const originalFetch = window.fetch;
-      let fetchBlocked = false;
-      
-      window.fetch = function(...args) {
-        if (args[0] && typeof args[0] === 'string' && args[0].includes('ads')) {
-          fetchBlocked = true;
-        }
-        return originalFetch.apply(this, args);
-      };
+      detectionMethods.push(networkPromise);
 
-      if (fetchBlocked) isBlocked = true;
+      // Test 4: Script injection blocking test
+      const scriptPromise = new Promise<boolean>((resolve) => {
+        const script = document.createElement('script');
+        script.src = 'data:text/javascript;base64,' + btoa('window.__adBlockTest = true;');
+        script.onload = () => {
+          const blocked = !(window as any).__adBlockTest;
+          console.log(`📜 Script injection test: ${blocked ? 'BLOCKED' : 'ALLOWED'}`);
+          resolve(blocked);
+        };
+        script.onerror = () => {
+          console.log(`📜 Script injection test: BLOCKED`);
+          resolve(true);
+        };
+        document.head.appendChild(script);
+        
+        setTimeout(() => {
+          const blocked = !(window as any).__adBlockTest;
+          console.log(`📜 Script injection test (timeout): ${blocked ? 'BLOCKED' : 'ALLOWED'}`);
+          resolve(blocked);
+        }, 200);
+      });
+
+      detectionMethods.push(scriptPromise);
+
+      // Wait for all detection methods
+      const results = await Promise.all(detectionMethods);
+      const blockedCount = results.filter(blocked => blocked).length;
+      isBlocked = blockedCount >= Math.ceil(detectionMethods.length / 2);
+
+      console.log(`📊 Detection Summary: ${blockedCount}/${detectionMethods.length} methods detected blocking - Final result: ${isBlocked ? 'AD BLOCKER DETECTED' : 'NO AD BLOCKER'}`);
 
       this.detectionResults.set(cacheKey, isBlocked);
       return isBlocked;
@@ -109,24 +162,48 @@ export class AdBlockerDetector {
 
   async bypassAdBlocker(zoneId: string, container: HTMLElement): Promise<void> {
     const strategies = [
-      () => this.injectObfuscatedScript(zoneId, container),
-      () => this.createDynamicIframe(zoneId, container),
-      () => this.createStealthIframe(zoneId, container),
-      () => this.loadImageAd(zoneId, container),
-      () => this.loadBase64Ad(zoneId, container),
-      () => this.createShadowDomAd(zoneId, container),
-      () => this.loadTextAd(zoneId, container)
+      { name: 'ObfuscatedScript', fn: () => this.injectObfuscatedScript(zoneId, container) },
+      { name: 'DynamicIframe', fn: () => this.createDynamicIframe(zoneId, container) },
+      { name: 'StealthIframe', fn: () => this.createStealthIframe(zoneId, container) },
+      { name: 'ImageAd', fn: () => this.loadImageAd(zoneId, container) },
+      { name: 'Base64Ad', fn: () => this.loadBase64Ad(zoneId, container) },
+      { name: 'ShadowDomAd', fn: () => this.createShadowDomAd(zoneId, container) },
+      { name: 'TextAd', fn: () => this.loadTextAd(zoneId, container) },
+      { name: 'WebWorkerAd', fn: () => this.loadWebWorkerAd(zoneId, container) },
+      { name: 'ServiceWorkerAd', fn: () => this.loadServiceWorkerAd(zoneId, container) }
     ];
 
+    console.log(`🎯 Starting ad bypass for zone ${zoneId} with ${strategies.length} strategies`);
+    
     // Try multiple strategies simultaneously for better success rate
-    const promises = strategies.map(strategy => 
-      strategy().catch(error => {
-        console.warn('Ad loading strategy failed:', error);
-        return null;
-      })
-    );
+    const promises = strategies.map(async (strategy, index) => {
+      try {
+        const startTime = Date.now();
+        await strategy.fn();
+        const duration = Date.now() - startTime;
+        console.log(`✅ Strategy ${index + 1} (${strategy.name}) succeeded in ${duration}ms`);
+        return { success: true, strategy: strategy.name, duration };
+      } catch (error) {
+        console.warn(`❌ Strategy ${index + 1} (${strategy.name}) failed:`, error);
+        return { success: false, strategy: strategy.name, error: error instanceof Error ? error.message : String(error) };
+      }
+    });
 
-    await Promise.allSettled(promises);
+    const results = await Promise.all(promises);
+    const successful = results.filter(r => r.success);
+    const failed = results.filter(r => !r.success);
+    
+    console.log(`📊 Bypass Results for zone ${zoneId}:`, {
+      total: strategies.length,
+      successful: successful.length,
+      failed: failed.length,
+      successfulStrategies: successful.map(r => r.strategy),
+      failedStrategies: failed.map(r => ({ name: r.strategy, error: r.error }))
+    });
+
+    if (successful.length === 0) {
+      console.error(`🚨 All bypass strategies failed for zone ${zoneId}`);
+    }
   }
 
   private async injectObfuscatedScript(zoneId: string, container: HTMLElement): Promise<void> {
@@ -185,7 +262,7 @@ export class AdBlockerDetector {
     
     iframe.style.cssText = 'width:100%;height:250px;border:none;display:block;';
     iframe.loading = 'lazy';
-    iframe.sandbox = 'allow-scripts allow-same-origin';
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
     
     container.appendChild(iframe);
   }
@@ -297,6 +374,126 @@ export class AdBlockerDetector {
     `;
     
     container.appendChild(textAd);
+  }
+
+  private async loadWebWorkerAd(zoneId: string, container: HTMLElement): Promise<void> {
+    return new Promise((resolve, reject) => {
+      try {
+        // Create a web worker with ad loading script
+        const workerScript = `
+          self.onmessage = function(e) {
+            const { zoneId } = e.data;
+            
+            // Simulate ad loading in worker
+            const adData = {
+              type: 'ad',
+              content: '<div style="width:300px;height:250px;background:linear-gradient(45deg, #6366f1, #8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-family:Arial,sans-serif;cursor:pointer;" onclick="window.open(\\'https://s.magsrv.com/v1/click.php?idzone=' + zoneId + '\\', \\'_blank\\')">Advertisement</div>',
+              zoneId: zoneId
+            };
+            
+            self.postMessage(adData);
+          };
+        `;
+        
+        const blob = new Blob([workerScript], { type: 'application/javascript' });
+        const worker = new Worker(URL.createObjectURL(blob));
+        
+        worker.onmessage = (e) => {
+          const { content } = e.data;
+          const adDiv = document.createElement('div');
+          adDiv.innerHTML = content;
+          container.appendChild(adDiv);
+          worker.terminate();
+          resolve();
+        };
+        
+        worker.onerror = () => {
+          worker.terminate();
+          reject('Web Worker failed');
+        };
+        
+        worker.postMessage({ zoneId });
+        
+        // Timeout after 5 seconds
+        setTimeout(() => {
+          worker.terminate();
+          reject('Web Worker timeout');
+        }, 5000);
+        
+      } catch (error) {
+        reject('Web Worker not supported');
+      }
+    });
+  }
+
+  private async loadServiceWorkerAd(zoneId: string, container: HTMLElement): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (!('serviceWorker' in navigator)) {
+        reject('Service Worker not supported');
+        return;
+      }
+
+      try {
+        // Create service worker script dynamically
+        const swScript = `
+          self.addEventListener('message', function(event) {
+            if (event.data.type === 'AD_REQUEST') {
+              const zoneId = event.data.zoneId;
+              
+              // Send ad data back
+              event.ports[0].postMessage({
+                type: 'AD_RESPONSE',
+                content: '<div style="width:300px;height:250px;background:linear-gradient(45deg, #10b981, #059669);display:flex;align-items:center;justify-content:center;color:white;font-family:Arial,sans-serif;cursor:pointer;" onclick="window.open(\\'https://s.magsrv.com/v1/click.php?idzone=' + zoneId + '\\', \\'_blank\\')">SW Advertisement</div>',
+                zoneId: zoneId
+              });
+            }
+          });
+        `;
+        
+        const blob = new Blob([swScript], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        
+        navigator.serviceWorker.register(swUrl).then(registration => {
+          const channel = new MessageChannel();
+          
+          channel.port1.onmessage = (event) => {
+            if (event.data.type === 'AD_RESPONSE') {
+              const adDiv = document.createElement('div');
+              adDiv.innerHTML = event.data.content;
+              container.appendChild(adDiv);
+              
+              // Clean up
+              registration.unregister();
+              URL.revokeObjectURL(swUrl);
+              resolve();
+            }
+          };
+          
+          // Send message to service worker
+          if (registration.active) {
+            registration.active.postMessage(
+              { type: 'AD_REQUEST', zoneId },
+              [channel.port2]
+            );
+          } else {
+            reject('Service Worker not active');
+          }
+          
+          // Timeout after 5 seconds
+          setTimeout(() => {
+            registration.unregister();
+            URL.revokeObjectURL(swUrl);
+            reject('Service Worker timeout');
+          }, 5000);
+          
+        }).catch(() => {
+          reject('Service Worker registration failed');
+        });
+        
+      } catch (error) {
+        reject('Service Worker error');
+      }
+    });
   }
 }
 
