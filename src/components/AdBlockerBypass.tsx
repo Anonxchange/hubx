@@ -68,47 +68,114 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
   useEffect(() => {
     if (adBlockDetected) {
       // Try alternative ad serving methods
-      const loadAlternativeAd = () => {
+      const loadAlternativeAd = async () => {
         try {
-          // Method 1: Dynamic script injection with obfuscated names
-          const script = document.createElement('script');
-          script.src = `https://s.magsrv.com/v1/ads.php?idzone=${zoneId}&type=js&timestamp=${Date.now()}`;
-          script.async = true;
-          script.onerror = () => setShowFallback(true);
-          document.head.appendChild(script);
+          if (!adRef.current) return;
 
-          // Method 2: Direct iframe injection
-          const iframe = document.createElement('iframe');
-          iframe.src = `https://s.magsrv.com/v1/iframe.php?idzone=${zoneId}`;
-          iframe.style.width = '100%';
-          iframe.style.height = '250px';
-          iframe.style.border = 'none';
-          iframe.style.display = 'block';
-          
-          if (adRef.current) {
-            adRef.current.appendChild(iframe);
+          // Clear any existing content
+          adRef.current.innerHTML = '';
+
+          // Method 1: Try multiple iframe sources with random parameters
+          const iframeSources = [
+            `https://s.magsrv.com/v1/iframe.php?idzone=${zoneId}&r=${Math.random()}&t=${Date.now()}`,
+            `https://s.magsrv.com/v1/ads.php?idzone=${zoneId}&type=iframe&r=${Math.random()}`,
+            `data:text/html;charset=utf-8,<html><body><script>document.write('<iframe src="https://s.magsrv.com/v1/iframe.php?idzone=${zoneId}" width="100%" height="250" frameborder="0"></iframe>');</script></body></html>`
+          ];
+
+          let loaded = false;
+          for (const src of iframeSources) {
+            if (loaded) break;
+            
+            try {
+              const iframe = document.createElement('iframe');
+              iframe.src = src;
+              iframe.style.cssText = 'width:100%;height:250px;border:none;display:block;';
+              iframe.loading = 'lazy';
+              iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups');
+              
+              await new Promise((resolve, reject) => {
+                iframe.onload = () => {
+                  loaded = true;
+                  resolve(true);
+                };
+                iframe.onerror = reject;
+                
+                adRef.current?.appendChild(iframe);
+                
+                // Timeout after 3 seconds
+                setTimeout(() => {
+                  if (!loaded) {
+                    iframe.remove();
+                    reject('Timeout');
+                  }
+                }, 3000);
+              });
+              
+              if (loaded) break;
+            } catch (e) {
+              console.warn('Iframe method failed:', e);
+            }
           }
 
-          // Method 3: Image-based fallback
-          setTimeout(() => {
-            const img = document.createElement('img');
-            img.src = `https://s.magsrv.com/v1/banner.php?idzone=${zoneId}&type=image`;
-            img.style.maxWidth = '100%';
-            img.style.height = 'auto';
-            img.onerror = () => setShowFallback(true);
-            
-            if (adRef.current && !adRef.current.hasChildNodes()) {
-              adRef.current.appendChild(img);
+          // Method 2: Fallback to image ad if iframe fails
+          if (!loaded && adRef.current) {
+            try {
+              const img = document.createElement('img');
+              img.src = `https://s.magsrv.com/v1/banner.php?idzone=${zoneId}&type=image&r=${Math.random()}`;
+              img.style.cssText = 'max-width:100%;height:auto;display:block;cursor:pointer;';
+              img.onclick = () => {
+                window.open(`https://s.magsrv.com/v1/click.php?idzone=${zoneId}`, '_blank');
+              };
+              
+              await new Promise((resolve, reject) => {
+                img.onload = () => {
+                  loaded = true;
+                  resolve(true);
+                };
+                img.onerror = reject;
+                
+                adRef.current?.appendChild(img);
+                
+                setTimeout(() => {
+                  if (!loaded) {
+                    img.remove();
+                    reject('Image timeout');
+                  }
+                }, 3000);
+              });
+            } catch (e) {
+              console.warn('Image ad failed:', e);
             }
-          }, 1000);
+          }
+
+          // Method 3: Text-based fallback
+          if (!loaded && adRef.current) {
+            const textAd = document.createElement('div');
+            textAd.innerHTML = `
+              <div style="width:100%;height:250px;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);display:flex;align-items:center;justify-content:center;color:white;font-family:Arial,sans-serif;cursor:pointer;border-radius:8px;" onclick="window.open('https://s.magsrv.com/v1/click.php?idzone=${zoneId}', '_blank')">
+                <div style="text-align:center;">
+                  <div style="font-size:18px;margin-bottom:10px;">Advertisement</div>
+                  <div style="font-size:14px;opacity:0.9;">Click to support our content</div>
+                </div>
+              </div>
+            `;
+            adRef.current.appendChild(textAd);
+            loaded = true;
+          }
+
+          if (!loaded) {
+            setShowFallback(true);
+          }
 
         } catch (error) {
-          console.error('Alternative ad loading failed:', error);
+          console.error('All alternative ad loading methods failed:', error);
           setShowFallback(true);
         }
       };
 
-      loadAlternativeAd();
+      // Add a small delay to ensure proper detection
+      const timer = setTimeout(loadAlternativeAd, 500);
+      return () => clearTimeout(timer);
     }
   }, [adBlockDetected, zoneId]);
 
@@ -116,11 +183,6 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
   const InvisibleFallback = () => (
     <div className="w-0 h-0 overflow-hidden opacity-0"></div>
   );
-
-  // Don't render anything when ad blocker is detected and no fallback content
-  if (adBlockDetected && !fallbackContent) {
-    return null;
-  }
 
   return (
     <div className={`w-full ${className}`}>
@@ -137,16 +199,16 @@ const AdBlockerBypass: React.FC<AdBlockerBypassProps> = ({
         }}
       />
       
-      {/* Main ad container - only show when not blocked */}
-      {!adBlockDetected && (
-        <div ref={adRef} className="ad-container">
+      {/* Main ad container - always render, but content changes based on ad blocker */}
+      <div ref={adRef} className="ad-container">
+        {!adBlockDetected && (
           <div>
             <ins className="eas6a97888e10" data-zoneid={zoneId}></ins>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {/* Fallback content only if provided */}
+      {/* Fallback content only if provided and needed */}
       {(adBlockDetected && showFallback && fallbackContent) && fallbackContent}
     </div>
   );
