@@ -211,22 +211,12 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   const handleMouseEnter = () => {
     if (isMobile) return; // Don't handle mouse events on mobile
-    console.log('DEBUG: Mouse enter - video data analysis:', {
-      id: video.id,
-      title: video.title,
-      preview_url: video.preview_url,
-      video_url: video.video_url,
-      thumbnail_url: video.thumbnail_url,
-      hasPreviewUrl: !!video.preview_url,
-      hasVideoUrl: !!video.video_url,
-      hasThumbnail: !!video.thumbnail_url,
-      isImagePreview: video.preview_url ? isImagePreview(video.preview_url) : false,
-      isVideoPreview: video.preview_url ? isVideoPreview(video.preview_url) : false
-    });
     setIsHovered(true);
     
-    // Always start preview process - let startPreview handle the logic
-    startPreview();
+    // Only start preview if we have a valid image preview URL
+    if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
+      startPreview();
+    }
   };
 
   const handleMouseLeave = () => {
@@ -236,11 +226,6 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartTime(Date.now());
-    console.log('DEBUG: Touch start - checking for WebP/image preview only:', {
-      preview_url: video.preview_url,
-      isValidUrl: video.preview_url ? isValidUrl(video.preview_url) : false,
-      isImagePreview: video.preview_url ? isImagePreview(video.preview_url) : false
-    });
 
     // Stop any other active previews first
     if (activePreviewCard && activePreviewCard !== cardId) {
@@ -249,20 +234,16 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
     // ONLY show WebP/image previews on touch
     if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
-      console.log('DEBUG: Showing WebP/image preview immediately on touch');
       setActivePreviewCard(cardId);
       setIsHovered(true);
       setShowPreview(true);
 
-      // Auto-hide after 10 seconds to allow clicking
+      // Auto-hide after 8 seconds to allow clicking
       setTimeout(() => {
         if (activePreviewCard === cardId) {
           stopPreview();
         }
-      }, 10000);
-    } else {
-      console.log('DEBUG: No WebP/image preview available for touch');
-      // No preview to show
+      }, 8000);
     }
   };
 
@@ -303,8 +284,8 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       day: 'numeric'
     });
 
-  // Function to generate preview URL from video URL if preview_url is missing
-  const getPreviewUrl = () => {
+  // Cache preview URL computation
+  const computedPreviewUrl = React.useMemo(() => {
     if (video.preview_url && video.preview_url.trim() !== '') {
       return video.preview_url;
     }
@@ -315,51 +296,35 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       const match = video.video_url.match(/vz-a3bd9097-45c\.b-cdn\.net\/([a-f0-9\-]+)/i);
       if (match && match[1]) {
         const videoId = match[1];
-        const previewUrl = `https://vz-a3bd9097-45c.b-cdn.net/${videoId}/preview.webp`;
-        console.log('DEBUG: Generated preview URL:', previewUrl);
-        return previewUrl;
+        return `https://vz-a3bd9097-45c.b-cdn.net/${videoId}/preview.webp`;
       }
     }
     
     return null;
-  };
-  
-  const computedPreviewUrl = getPreviewUrl();
+  }, [video.preview_url, video.video_url]);
 
   const renderPreview = () => {
-    console.log('DEBUG: renderPreview called:', {
-      showPreview,
-      isHovered,
-      original_preview_url: video.preview_url,
-      computed_preview_url: computedPreviewUrl,
-      hasValidUrl: computedPreviewUrl ? isValidUrl(computedPreviewUrl) : false,
-      isImagePreview: computedPreviewUrl ? isImagePreview(computedPreviewUrl) : false
-    });
-
     // ONLY show WebP/image/gif previews - NO video previews
     if ((isHovered || showPreview) && computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
-      console.log('DEBUG: Rendering WebP/image preview:', computedPreviewUrl);
       return (
         <img
           src={computedPreviewUrl}
           alt={`${video.title} preview`}
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 z-10"
-          loading="eager"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200 z-10"
+          loading="lazy"
+          decoding="async"
           style={{ 
             imageRendering: 'auto',
             opacity: 1
           }}
-          onLoad={() => {
-            console.log('DEBUG: WebP/Image preview loaded successfully:', computedPreviewUrl);
-          }}
-          onError={(e) => {
-            console.error('DEBUG: Preview image failed to load:', computedPreviewUrl, e);
+          onError={() => {
+            // Silently fail if preview doesn't exist
+            setShowPreview(false);
           }}
         />
       );
     }
 
-    // NO video previews - return null if not an image preview
     return null;
   };
 
