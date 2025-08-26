@@ -46,34 +46,40 @@ const FeedPage: React.FC = () => {
   const [newPostPrivacy, setNewPostPrivacy] = useState('public');
   const [isPostingLoading, setIsPostingLoading] = useState(false);
   const [feedLoading, setFeedLoading] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [commentTexts, setCommentTexts] = useState<{[key: string]: string}>({});
   const [showComments, setShowComments] = useState<{[key: string]: boolean}>({});
   const [postComments, setPostComments] = useState<{[key: string]: any[]}>({});
+  const [hasScrolledToTarget, setHasScrolledToTarget] = useState(false);
 
   // Check if user can post (only creators)
   const canPost = userProfile?.user_type === 'individual_creator' || userProfile?.user_type === 'studio_creator';
 
   useEffect(() => {
-    if (user) {
+    if (user && !initialLoadComplete) {
       loadFeedPosts();
     }
-  }, [user]);
+  }, [user, initialLoadComplete]);
 
   // Effect to handle scrolling to a specific post if targetPostId is present
   useEffect(() => {
-    if (targetPostId && feedPosts.length > 0) {
-      const postElement = document.getElementById(`post-${targetPostId}`);
-      if (postElement) {
-        postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Optionally, highlight the post
-        postElement.classList.add('border-blue-500', 'border-2');
-      }
+    if (targetPostId && feedPosts.length > 0 && !hasScrolledToTarget && !feedLoading) {
+      setTimeout(() => {
+        const postElement = document.getElementById(`post-${targetPostId}`);
+        if (postElement) {
+          postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          // Optionally, highlight the post
+          postElement.classList.add('border-blue-500', 'border-2');
+          setHasScrolledToTarget(true);
+        }
+      }, 100);
     }
-  }, [targetPostId, feedPosts]);
+  }, [targetPostId, feedPosts, hasScrolledToTarget, feedLoading]);
 
 
   const loadFeedPosts = async () => {
-    setFeedLoading(true);
+    if (!user) return;
+    
     try {
       // Get both subscribed creators' posts and all public posts
       const subscribedPosts = await getFeedPosts(25);
@@ -133,11 +139,14 @@ const FeedPage: React.FC = () => {
         );
       }
 
+      // Update all states in a single batch to prevent flashing
       setFeedPosts(allPosts);
+      setFeedLoading(false);
+      setInitialLoadComplete(true);
     } catch (error) {
       console.error('Error loading feed:', error);
-    } finally {
       setFeedLoading(false);
+      setInitialLoadComplete(true);
     }
   };
 
@@ -318,7 +327,26 @@ const FeedPage: React.FC = () => {
         {/* Feed Posts */}
         <div className="space-y-6">
           {feedLoading ? (
-            <div className="text-center text-gray-400">Loading feed...</div>
+            <div className="space-y-6">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="bg-gray-800 border-gray-700 animate-pulse">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3 mb-4">
+                      <div className="h-12 w-12 bg-gray-700 rounded-full"></div>
+                      <div className="flex-1 space-y-2">
+                        <div className="h-4 bg-gray-700 rounded w-24"></div>
+                        <div className="h-3 bg-gray-700 rounded w-32"></div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="h-4 bg-gray-700 rounded"></div>
+                      <div className="h-4 bg-gray-700 rounded w-3/4"></div>
+                      <div className="h-48 bg-gray-700 rounded-lg"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           ) : feedPosts.length === 0 ? (
             <Card className="bg-gray-800 border-gray-700">
               <CardContent className="text-center py-8">
