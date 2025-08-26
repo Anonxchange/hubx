@@ -24,6 +24,7 @@ import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { useAuth } from '@/contexts/AuthContext';
 import { useComments } from '@/hooks/useComments';
 import { trackVideoView } from '@/services/userStatsService';
+import ShareModal from '@/components/ShareModal';
 
 interface MomentVideo {
   id: string;
@@ -52,6 +53,7 @@ const MomentsPage = () => {
   const [isMuted, setIsMuted] = useState(true);
   const [trackedViews, setTrackedViews] = useState<Set<string>>(new Set());
   const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [newComment, setNewComment] = useState({ name: '', text: '' });
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -205,6 +207,10 @@ const MomentsPage = () => {
 
   const handleOpenComments = () => {
     setIsCommentsModalOpen(true);
+  };
+
+  const handleOpenShare = () => {
+    setIsShareModalOpen(true);
   };
 
   const handleCommentSubmit = async (e: React.FormEvent) => {
@@ -415,7 +421,12 @@ const MomentsPage = () => {
 
                 {/* Share */}
                 <div className="flex flex-col items-center space-y-1">
-                  <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full text-white hover:bg-white/20">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="w-12 h-12 rounded-full text-white hover:bg-white/20"
+                    onClick={handleOpenShare}
+                  >
                     <Share className="w-7 h-7" />
                   </Button>
                   <span className="text-white text-xs font-medium">Share</span>
@@ -572,6 +583,16 @@ const MomentsPage = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Share Modal */}
+      <ShareModal
+        videoId={videos[currentIndex]?.id || ''}
+        videoTitle={videos[currentIndex]?.title || ''}
+        open={isShareModalOpen}
+        onOpenChange={setIsShareModalOpen}
+      >
+        <div />
+      </ShareModal>
       
     </div>
   );
