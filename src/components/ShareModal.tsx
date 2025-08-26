@@ -7,28 +7,51 @@ import { shareVideo, copyToClipboard, generateShareUrls } from '@/services/share
 import { toast } from 'sonner';
 
 interface ShareModalProps {
-  videoId: string;
-  videoTitle: string;
+  videoId?: string;
+  videoTitle?: string;
+  postId?: string;
+  postTitle?: string;
   children: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   isMoment?: boolean; // Add this prop to identify if it's a moment
+  isPost?: boolean; // Add this prop to identify if it's a post
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({ videoId, videoTitle, children, open, onOpenChange, isMoment = false }) => {
+const ShareModal: React.FC<ShareModalProps> = ({ 
+  videoId, 
+  videoTitle, 
+  postId, 
+  postTitle, 
+  children, 
+  open, 
+  onOpenChange, 
+  isMoment = false, 
+  isPost = false 
+}) => {
   const [copied, setCopied] = useState(false);
 
-  // Generate the appropriate URL based on whether it's a moment or regular video
-  const videoUrl = isMoment
-    ? `${window.location.origin}/moments?start=${videoId}`
-    : `${window.location.origin}/video/${videoId}`;
-  const shareUrls = generateShareUrls(videoUrl, videoTitle);
+  // Generate the appropriate URL based on type
+  const getShareUrl = () => {
+    if (isPost && postId) {
+      return `${window.location.origin}/feed?post=${postId}`;
+    } else if (isMoment && videoId) {
+      return `${window.location.origin}/moments?start=${videoId}`;
+    } else if (videoId) {
+      return `${window.location.origin}/video/${videoId}`;
+    }
+    return window.location.href;
+  };
+
+  const shareUrl = getShareUrl();
+  const title = isPost ? postTitle : videoTitle;
+  const shareUrls = generateShareUrls(shareUrl, title || '');
 
   const handleNativeShare = async () => {
     const shared = await shareVideo({
-      title: videoTitle,
-      url: videoUrl,
-      text: `Check out this video: ${videoTitle}`,
+      title: title || '',
+      url: shareUrl,
+      text: isPost ? `Check out this post: ${title}` : `Check out this video: ${title}`,
     });
 
     if (shared) {
@@ -38,7 +61,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ videoId, videoTitle, children, 
   };
 
   const handleCopyLink = async () => {
-    const success = await copyToClipboard(videoUrl);
+    const success = await copyToClipboard(shareUrl);
     if (success) {
       setCopied(true);
       toast.success('Link copied to clipboard!');
@@ -62,7 +85,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ videoId, videoTitle, children, 
       )}
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Share {isMoment ? 'Moment' : 'Video'}</DialogTitle>
+          <DialogTitle>Share {isPost ? 'Post' : isMoment ? 'Moment' : 'Video'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -76,9 +99,9 @@ const ShareModal: React.FC<ShareModalProps> = ({ videoId, videoTitle, children, 
 
           {/* Copy Link */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">{isMoment ? 'Moment' : 'Video'} Link</label>
+            <label className="text-sm font-medium">{isPost ? 'Post' : isMoment ? 'Moment' : 'Video'} Link</label>
             <div className="flex space-x-2">
-              <Input value={videoUrl} readOnly className="flex-1" />
+              <Input value={shareUrl} readOnly className="flex-1" />
               <Button
                 variant="outline"
                 size="sm"
