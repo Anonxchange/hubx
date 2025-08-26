@@ -590,6 +590,7 @@ const MomentsPage = () => {
         videoTitle={videos[currentIndex]?.title || ''}
         open={isShareModalOpen}
         onOpenChange={setIsShareModalOpen}
+        isMoment={true}
       >
         <div />
       </ShareModal>
