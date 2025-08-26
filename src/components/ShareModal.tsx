@@ -12,12 +12,16 @@ interface ShareModalProps {
   children: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  isMoment?: boolean; // Add this prop to identify if it's a moment
 }
 
-const ShareModal: React.FC<ShareModalProps> = ({ videoId, videoTitle, children, open, onOpenChange }) => {
+const ShareModal: React.FC<ShareModalProps> = ({ videoId, videoTitle, children, open, onOpenChange, isMoment = false }) => {
   const [copied, setCopied] = useState(false);
 
-  const videoUrl = `${window.location.origin}/video/${videoId}`;
+  // Generate the appropriate URL based on whether it's a moment or regular video
+  const videoUrl = isMoment
+    ? `${window.location.origin}/moments?start=${videoId}`
+    : `${window.location.origin}/video/${videoId}`;
   const shareUrls = generateShareUrls(videoUrl, videoTitle);
 
   const handleNativeShare = async () => {
@@ -58,7 +62,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ videoId, videoTitle, children, 
       )}
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Share Video</DialogTitle>
+          <DialogTitle>Share {isMoment ? 'Moment' : 'Video'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -72,7 +76,7 @@ const ShareModal: React.FC<ShareModalProps> = ({ videoId, videoTitle, children, 
 
           {/* Copy Link */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Share link</label>
+            <label className="text-sm font-medium">{isMoment ? 'Moment' : 'Video'} Link</label>
             <div className="flex space-x-2">
               <Input value={videoUrl} readOnly className="flex-1" />
               <Button
