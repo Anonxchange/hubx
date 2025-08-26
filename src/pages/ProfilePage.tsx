@@ -117,6 +117,7 @@ const ProfilePage = () => {
   const [feedLoading, setFeedLoading] = useState(true);
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
   const [profileData, setProfileData] = useState<any>(null); // State to store fetched profile data
+  const [initialSocialLoadComplete, setInitialSocialLoadComplete] = useState(false);
 
   // First useEffect to get current user's username
   useEffect(() => {
@@ -303,6 +304,8 @@ const ProfilePage = () => {
     };
 
     const fetchSocialData = async () => {
+      if (initialSocialLoadComplete) return;
+
       let targetUserId = user?.id;
 
       if (username && (currentUserUsername !== username || !currentUserUsername)) {
@@ -326,33 +329,109 @@ const ProfilePage = () => {
         } catch (error) {
           console.error('Error fetching user ID for posts:', error);
           setPostsLoading(false);
+          setFeedLoading(false);
+          setInitialSocialLoadComplete(true);
           return;
         }
       }
 
+      // Batch all async operations to prevent multiple state updates
+      const promises = [];
+
       if (targetUserId) {
-        setPostsLoading(true);
-        const creatorPosts = await getCreatorPosts(targetUserId);
-        setPosts(creatorPosts);
-        setPostsLoading(false);
-
-        const subCount = await getSubscriberCount(targetUserId);
-        setSubscriberCount(subCount);
-
+        promises.push(getCreatorPosts(targetUserId));
+        promises.push(getSubscriberCount(targetUserId));
         if (targetUserId !== user?.id && user?.id) {
-          const subscribed = await isSubscribedToCreator(targetUserId);
-          setIsSubscribed(subscribed);
+          promises.push(isSubscribedToCreator(targetUserId));
         }
       }
 
       if (user?.id && (!username || (currentUserUsername && username === currentUserUsername))) {
-        setFeedLoading(true);
-        const feed = await getFeedPosts(50);
-        setFeedPosts(feed);
-        setFeedLoading(false);
-      } else {
-        setFeedLoading(false);
+        // For own profile, fetch both feed posts and additional public posts
+        promises.push(getFeedPosts(50));
+        promises.push(
+          supabase
+            .from('posts')
+            .select(`
+              *,
+              creator:profiles!posts_creator_id_fkey(
+                id,
+                username,
+                full_name,
+                avatar_url,
+                user_type
+              ),
+              post_likes!left(user_id),
+              post_comments!left(id)
+            `)
+            .eq('privacy', 'public')
+            .order('created_at', { ascending: false })
+            .limit(25)
+        );
       }
+
+      try {
+        const results = await Promise.all(promises);
+        let resultIndex = 0;
+
+        if (targetUserId) {
+          setPosts(results[resultIndex++] || []);
+          setSubscriberCount(results[resultIndex++] || 0);
+          if (targetUserId !== user?.id && user?.id) {
+            setIsSubscribed(results[resultIndex++] || false);
+          }
+        }
+
+        if (user?.id && (!username || (currentUserUsername && username === currentUserUsername))) {
+          const subscribedPosts = results[resultIndex++] || [];
+          const publicPostsResult = results[resultIndex++];
+
+          let allPosts = subscribedPosts;
+
+          // Process public posts if available
+          if (publicPostsResult && !publicPostsResult.error && publicPostsResult.data) {
+            const publicPosts = publicPostsResult.data;
+
+            // Check if current user liked each post
+            const postIds = publicPosts.map(post => post.id);
+            const { data: likes } = await supabase
+              .from('post_likes')
+              .select('post_id')
+              .eq('user_id', user?.id || '')
+              .in('post_id', postIds);
+
+            const likedPostIds = new Set(likes?.map(like => like.post_id) || []);
+
+            const formattedPublicPosts = publicPosts.map(post => ({
+              ...post,
+              isLiked: likedPostIds.has(post.id),
+              likes_count: post.post_likes?.length || 0,
+              comments_count: post.post_comments?.length || 0,
+              creator: {
+                ...post.creator,
+                profile_picture_url: post.creator?.avatar_url
+              }
+            }));
+
+            // Combine and deduplicate posts
+            const combinedPosts = [...subscribedPosts, ...formattedPublicPosts];
+            allPosts = combinedPosts.filter((post, index, self) => 
+              index === self.findIndex(p => p.id === post.id)
+            ).sort((a, b) => 
+              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+          }
+
+          setFeedPosts(allPosts);
+        }
+      } catch (error) {
+        console.error('Error fetching social data:', error);
+      }
+
+      // Update all loading states together to prevent flashing
+      setPostsLoading(false);
+      setFeedLoading(false);
+      setInitialSocialLoadComplete(true);
     };
 
     fetchUserData();
@@ -753,8 +832,9 @@ const ProfilePage = () => {
                   <span>{post.comments_count}</span>
                 </Button>
                 <ShareModal
-                  videoId={post.id}
-                  videoTitle={post.content?.substring(0, 50) + '...' || 'Social Post'}
+                  postId={post.id}
+                  postTitle={post.content?.substring(0, 50) + '...' || 'Social Post'}
+                  isPost={true}
                 >
                   <Button variant="ghost" size="sm" className="flex items-center space-x-1 hover:text-green-400">
                     <Send className="w-4 h-4" />
