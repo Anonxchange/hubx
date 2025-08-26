@@ -1,9 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, Heart, MessageCircle, Share, Bookmark, MoreVertical, Volume2, VolumeX } from 'lucide-react';
+import { ChevronLeft, Heart, MessageCircle, Share, Bookmark, MoreVertical, Volume2, VolumeX, Flag } from 'lucide-react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { getMoments } from '@/services/videosService';
 import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { useAuth } from '@/contexts/AuthContext';
@@ -21,7 +27,9 @@ interface MomentVideo {
   tags: string[];
   created_at: string;
   description?: string;
-  is_moment?: boolean;  // Make sure this is included if using TypeScript
+  is_moment?: boolean;
+  uploader_username?: string;
+  uploader_avatar?: string;
 }
 
 const MomentsPage = () => {
@@ -176,6 +184,12 @@ const MomentsPage = () => {
     }
   };
 
+  const handleReport = () => {
+    if (videos[currentIndex]?.id) {
+      navigate(`/report/${videos[currentIndex].id}`);
+    }
+  };
+
   const formatCount = (count: number) => {
     if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
     if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
@@ -222,9 +236,22 @@ const MomentsPage = () => {
             </Badge>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
-          <MoreVertical className="w-5 h-5" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="text-white hover:bg-white/20">
+              <MoreVertical className="w-5 h-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-black/90 border-gray-700">
+            <DropdownMenuItem 
+              onClick={handleReport}
+              className="text-white hover:bg-gray-800 cursor-pointer"
+            >
+              <Flag className="w-4 h-4 mr-2" />
+              Report
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Video Container */}
@@ -275,7 +302,9 @@ const MomentsPage = () => {
                 {/* Profile */}
                 <div className="relative">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-purple-600 flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">{video.title.charAt(0).toUpperCase()}</span>
+                    <span className="text-white font-bold text-sm">
+                      {video.uploader_username ? video.uploader_username.charAt(0).toUpperCase() : 'U'}
+                    </span>
                   </div>
                   <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
                     <span className="text-white text-xs font-bold">+</span>
@@ -294,15 +323,22 @@ const MomentsPage = () => {
                   >
                     <Heart className={`w-7 h-7 ${userReaction === 'like' ? 'fill-current' : ''}`} />
                   </Button>
-                  <span className="text-white text-xs font-medium">{formatCount(video.likes)}</span>
+                  <span className="text-white text-xs font-medium">
+                    {formatCount(userReaction === 'like' ? video.likes + 1 : video.likes)}
+                  </span>
                 </div>
 
                 {/* Comment */}
                 <div className="flex flex-col items-center space-y-1">
-                  <Button variant="ghost" size="icon" className="w-12 h-12 rounded-full text-white hover:bg-white/20">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="w-12 h-12 rounded-full text-white hover:bg-white/20"
+                    onClick={() => navigate(`/video/${video.id}?tab=comments`)}
+                  >
                     <MessageCircle className="w-7 h-7" />
                   </Button>
-                  <span className="text-white text-xs font-medium">0</span>
+                  <span className="text-white text-xs font-medium">Comment</span>
                 </div>
 
                 {/* Share */}
@@ -339,7 +375,7 @@ const MomentsPage = () => {
                   {/* Username */}
                   <div className="flex items-center space-x-2">
                     <span className="text-white font-semibold">
-                      @{video.title.replace(/\s+/g, '').toLowerCase().slice(0, 12)}
+                      @{video.uploader_username || 'unknown'}
                     </span>
                     <div className="w-1 h-1 bg-white/60 rounded-full" />
                     <span className="text-white/80 text-sm">{formatCount(video.views)} views</span>
