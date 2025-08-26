@@ -18,10 +18,12 @@ const NotificationsPage = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [loading, setLoading] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   // Load notifications
   const loadNotifications = async () => {
-    setLoading(true);
+    if (initialLoadComplete) return;
+    
     try {
       const data = await notificationService.getNotifications();
       setNotifications(data);
@@ -33,11 +35,12 @@ const NotificationsPage = () => {
       toast.error('Failed to load notifications');
     } finally {
       setLoading(false);
+      setInitialLoadComplete(true);
     }
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && !initialLoadComplete) {
       loadNotifications();
       
       // Request notification permission
@@ -59,7 +62,7 @@ const NotificationsPage = () => {
         notificationService.stopListening();
       };
     }
-  }, [user]);
+  }, [user, initialLoadComplete]);
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -120,12 +123,32 @@ const NotificationsPage = () => {
     return (
       <div className="min-h-screen bg-background">
         <Header />
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 max-w-4xl">
           <div className="animate-pulse">
-            <div className="h-8 bg-muted rounded w-48 mb-6"></div>
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <div className="h-8 bg-muted rounded w-48 mb-2"></div>
+                <div className="h-4 bg-muted rounded w-64"></div>
+              </div>
+            </div>
+            <div className="mb-6">
+              <div className="h-10 bg-muted rounded"></div>
+            </div>
             <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-muted rounded"></div>
+              {[...Array(8)].map((_, i) => (
+                <div key={i} className="bg-card rounded-lg p-4 border">
+                  <div className="flex items-start space-x-4">
+                    <div className="w-5 h-5 bg-muted rounded-full flex-shrink-0"></div>
+                    <div className="flex-1 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="h-4 bg-muted rounded w-32"></div>
+                        <div className="h-3 bg-muted rounded w-16"></div>
+                      </div>
+                      <div className="h-4 bg-muted rounded w-full"></div>
+                    </div>
+                    <div className="w-2 h-2 bg-muted rounded-full flex-shrink-0"></div>
+                  </div>
+                </div>
               ))}
             </div>
           </div>
