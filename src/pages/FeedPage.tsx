@@ -79,7 +79,7 @@ const FeedPage: React.FC = () => {
 
   const loadFeedPosts = async () => {
     if (!user) return;
-    
+
     try {
       // Get both subscribed creators' posts and all public posts
       const subscribedPosts = await getFeedPosts(25);
@@ -437,8 +437,9 @@ const FeedPage: React.FC = () => {
                     </Button>
 
                     <ShareModal
-                      videoId={post.id}
-                      videoTitle={post.content?.substring(0, 50) + '...' || 'Social Post'}
+                      postId={post.id}
+                      postTitle={post.content?.substring(0, 50) + '...' || 'Social Post'}
+                      isPost={true}
                     >
                       <Button variant="ghost" size="sm" className="text-gray-400 hover:text-green-500">
                         <Send className="h-4 w-4 mr-2" />
