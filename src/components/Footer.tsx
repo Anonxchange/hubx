@@ -110,6 +110,29 @@ const Footer = () => {
 
         <Separator className="mb-6" />
 
+        {/* RTA Compliance Section */}
+        <div className="flex flex-col items-center space-y-4 mb-6">
+          <div className="flex items-center justify-center">
+            <img 
+              src="https://www.rtalabel.org/images/rta_label.gif" 
+              alt="RTA-5042-1996-1400-1577-RTA" 
+              className="h-12 w-auto"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+                target.nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+            <div className="hidden bg-primary/10 border border-primary/20 px-4 py-2 rounded">
+              <span className="text-primary font-semibold text-sm">RTA</span>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground text-center max-w-2xl leading-relaxed">
+            This website is rated with RTA label. Parents, you can easily block access to this site. 
+            Please read this <a href="https://www.rtalabel.org/index.php?content=parents" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">page</a> for more information.
+          </p>
+        </div>
+
         {/* Bottom Section */}
         <div className="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0">
           <div className="text-sm text-muted-foreground">
