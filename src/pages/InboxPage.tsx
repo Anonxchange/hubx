@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageCircle, Send, User, Search, MoreHorizontal, Menu, X, ArrowLeft } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
+import AdComponent from '@/components/AdComponent';
 
 const InboxPage: React.FC = () => {
   const location = useLocation();
@@ -120,18 +124,28 @@ const InboxPage: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <MessageCircle className="w-16 h-16 mx-auto text-gray-600 mb-4" />
-          <h2 className="text-xl font-semibold text-white mb-2">Sign in to access messages</h2>
-          <p className="text-gray-400">Connect with others through direct messages</p>
+      <div className="min-h-screen bg-gray-900">
+        <Header />
+        <AdComponent zoneId="5660534" className="mt-4" />
+        
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <MessageCircle className="w-16 h-16 mx-auto text-gray-600 mb-4" />
+            <h2 className="text-xl font-semibold text-white mb-2">Sign in to access messages</h2>
+            <p className="text-gray-400">Connect with others through direct messages</p>
+          </div>
         </div>
+        
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 relative">
+    <div className="min-h-screen bg-gray-900">
+      <Header />
+      <AdComponent zoneId="5660534" className="mt-4" />
+      
       <div className="flex h-screen">
         {/* Conversations Sidebar - Mobile Drawer */}
         <div className={`fixed inset-y-0 left-0 z-50 w-80 bg-gray-800 border-r border-gray-700 transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0 lg:z-auto ${
@@ -382,6 +396,8 @@ const InboxPage: React.FC = () => {
           )}
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 };
