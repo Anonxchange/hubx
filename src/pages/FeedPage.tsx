@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { 
@@ -36,6 +38,8 @@ import MessageButton from '@/components/MessageButton';
 
 const FeedPage: React.FC = () => {
   const { user, userProfile } = useAuth();
+  const [searchParams] = useSearchParams();
+  const targetPostId = searchParams.get('post');
   const [feedPosts, setFeedPosts] = useState<Post[]>([]);
   const [newPostContent, setNewPostContent] = useState('');
   const [newPostMedia, setNewPostMedia] = useState<File | null>(null);
@@ -55,12 +59,25 @@ const FeedPage: React.FC = () => {
     }
   }, [user]);
 
+  // Effect to handle scrolling to a specific post if targetPostId is present
+  useEffect(() => {
+    if (targetPostId && feedPosts.length > 0) {
+      const postElement = document.getElementById(`post-${targetPostId}`);
+      if (postElement) {
+        postElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Optionally, highlight the post
+        postElement.classList.add('border-blue-500', 'border-2');
+      }
+    }
+  }, [targetPostId, feedPosts]);
+
+
   const loadFeedPosts = async () => {
     setFeedLoading(true);
     try {
       // Get both subscribed creators' posts and all public posts
       const subscribedPosts = await getFeedPosts(25);
-      
+
       // Also get all public posts from all users
       const { data: allPublicPosts, error } = await supabase
         .from('posts')
@@ -81,7 +98,7 @@ const FeedPage: React.FC = () => {
         .limit(25);
 
       let allPosts = subscribedPosts;
-      
+
       if (!error && allPublicPosts) {
         // Check if current user liked each post
         const postIds = allPublicPosts.map(post => post.id);
@@ -109,13 +126,13 @@ const FeedPage: React.FC = () => {
         const uniquePosts = combinedPosts.filter((post, index, self) => 
           index === self.findIndex(p => p.id === post.id)
         );
-        
+
         // Sort by creation date
         allPosts = uniquePosts.sort((a, b) => 
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
       }
-      
+
       setFeedPosts(allPosts);
     } catch (error) {
       console.error('Error loading feed:', error);
@@ -313,7 +330,7 @@ const FeedPage: React.FC = () => {
             </Card>
           ) : (
             feedPosts.map((post) => (
-              <Card key={post.id} className="bg-gray-800 border-gray-700">
+              <Card key={post.id} className="bg-gray-800 border-gray-700" id={`post-${post.id}`}>
                 <CardContent className="pt-6">
                   <div className="flex items-start gap-3 mb-4">
                     <Link to={`/profile/${post.creator?.username}`}>
