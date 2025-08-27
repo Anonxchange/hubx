@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Clock, Eye, ThumbsUp, Crown, Star, Shield, Play } from 'lucide-react';
@@ -81,7 +80,7 @@ const PremiumVideoCard: React.FC<PremiumVideoCardProps> = ({ video, viewMode = '
         >
           {/* Premium Overlay */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-purple-900/30 z-10"></div>
-          
+
           {/* Premium Badge */}
           <div className="absolute top-3 left-3 z-20">
             <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold px-3 py-1 text-xs">
@@ -102,7 +101,7 @@ const PremiumVideoCard: React.FC<PremiumVideoCardProps> = ({ video, viewMode = '
             alt={video.title}
             className={`w-full h-full object-cover group-hover:scale-110 transition-all duration-500 ${showPreview ? 'opacity-0' : 'opacity-100'}`}
           />
-          
+
           {video.preview_url && (
             <video
               ref={videoRef}
@@ -114,7 +113,7 @@ const PremiumVideoCard: React.FC<PremiumVideoCardProps> = ({ video, viewMode = '
               preload="metadata"
             />
           )}
-          
+
           {/* Duration */}
           <div className="absolute bottom-3 right-3 bg-black/80 text-white text-xs px-2 py-1 rounded z-20">
             {video.duration}
@@ -145,12 +144,12 @@ const PremiumVideoCard: React.FC<PremiumVideoCardProps> = ({ video, viewMode = '
           {/* Premium Glow Effect */}
           <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-purple-500/10 to-orange-500/0 group-hover:via-purple-500/20 transition-all duration-300 z-5"></div>
         </div>
-        
+
         <CardContent className="p-4 space-y-3 bg-gradient-to-br from-black/90 to-purple-900/20">
           <h3 className="font-bold line-clamp-2 leading-tight group-hover:text-yellow-400 transition-colors text-white">
             {video.title}
           </h3>
-          
+
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center space-x-4 text-gray-300">
               <span className="flex items-center">
@@ -167,7 +166,7 @@ const PremiumVideoCard: React.FC<PremiumVideoCardProps> = ({ video, viewMode = '
               <span className="text-xs text-gray-400">{formatDate(video.created_at)}</span>
             </div>
           </div>
-          
+
           <div className="flex flex-wrap gap-1">
             {video.tags.slice(0, 2).map((tag) => (
               <Badge key={tag} className="bg-purple-600/50 text-purple-100 border-purple-500/30 text-xs">
