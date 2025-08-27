@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, ThumbsUp } from 'lucide-react';
 import { LazyImage } from '@/components/LazyImage';
 import VerificationBadge from './VerificationBadge';
@@ -28,6 +28,7 @@ interface Video {
   };
   preview_url?: string;
   video_url?: string;
+  is_premium?: boolean; // Added to check for premium videos
 }
 
 interface OptimizedRelatedVideoCardProps {
@@ -53,6 +54,8 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { shouldLoadPreview } = useBandwidthOptimization();
   const isMobile = useIsMobile();
+  const navigate = useNavigate(); // Hook to enable navigation
+
   // Fetch creator profile information
   useEffect(() => {
     const fetchCreatorProfile = async () => {
@@ -246,8 +249,18 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
     return views.toString();
   };
 
+  // Define the click handler for navigation
+  const handleClick = () => {
+    // Route to premium video page if it's a premium video
+    if (video.is_premium) {
+      navigate(`/premium/video/${video.id}`);
+    } else {
+      navigate(`/video/${video.id}`);
+    }
+  };
+
   return (
-    <Link to={`/video/${video.id}`} className="block w-full">
+    <div onClick={handleClick} className="block w-full cursor-pointer"> {/* Changed Link to div and added onClick handler */}
       <div className="group hover:bg-muted/5 transition-all duration-200 w-full">
         <div 
             className="relative bg-muted overflow-hidden rounded-xl w-full" 
@@ -383,7 +396,7 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 };
 
