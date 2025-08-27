@@ -25,10 +25,10 @@ export const useVideosByCategory = (category: string, page = 1, limit = 60, sear
   });
 };
 
-export const useRelatedVideos = (videoId: string, tags: string[], limit = 15) => {
+export const useRelatedVideos = (videoId: string, tags: string[], limit = 15, isPremiumContext = false) => {
   return useQuery({
-    queryKey: ['videos', 'related', videoId, tags],
-    queryFn: () => getRelatedVideos(videoId, tags, limit),
+    queryKey: ['videos', 'related', videoId, tags, isPremiumContext],
+    queryFn: () => getRelatedVideos(videoId, tags, limit, isPremiumContext),
     enabled: !!videoId && tags.length > 0,
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
