@@ -10,6 +10,7 @@ import {
   Maximize,
   Settings,
   Lock,
+  Eye,
 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
@@ -28,6 +29,8 @@ interface PremiumVideoPlayerProps {
   title?: string;
   isPremium?: boolean;
   quality?: "4K" | "8K" | "HD";
+  tags?: string[];
+  isVR?: boolean;
 }
 
 const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
@@ -36,8 +39,11 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   title,
   isPremium = true,
   quality = "4K",
+  tags,
+  isVR,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const vrSceneRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const { isPremium: hasPremiumSubscription, isLoading: premiumLoading, refreshSubscription } = usePremiumSubscription();
   const [initialized, setInitialized] = useState(false);
@@ -47,6 +53,17 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   
+  // VR states
+  const [vrMode, setVrMode] = useState(false);
+  const [vrSupported, setVrSupported] = useState(false);
+
+  // Detect VR content
+  const isVRContent = isVR || (tags && tags.some(tag => 
+    tag.toLowerCase().includes('vr') || 
+    tag.toLowerCase().includes('virtual reality') || 
+    tag.toLowerCase().includes('360')
+  ));
+  
   // Premium access control states
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [previewTimeReached, setPreviewTimeReached] = useState(false);
@@ -54,6 +71,118 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
   
   const PREVIEW_TIME_LIMIT = 84; // 1 minute 24 seconds in seconds
+
+  // Check VR support
+  useEffect(() => {
+    if (isVRContent) {
+      if ('xr' in navigator || 'getVRDisplays' in navigator || /Mobi|Android/i.test(navigator.userAgent)) {
+        setVrSupported(true);
+      }
+    }
+  }, [isVRContent]);
+
+  // Load A-Frame for Premium VR
+  const loadAFrame = () => {
+    return new Promise((resolve) => {
+      if (document.querySelector('script[src*="aframe"]')) {
+        resolve(true);
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = 'https://aframe.io/releases/1.4.0/aframe.min.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  };
+
+  // Initialize Premium VR Scene with enhanced features
+  const initializePremiumVRScene = async () => {
+    if (!vrSceneRef.current) return;
+    
+    await loadAFrame();
+    
+    vrSceneRef.current.innerHTML = `
+      <a-scene embedded style="height: 100%; width: 100%;" vr-mode-ui="enabled: true">
+        <a-assets>
+          <video id="premiumVrVideo" crossorigin="anonymous" playsinline webkit-playsinline>
+            <source src="${src}" type="video/mp4">
+          </video>
+        </a-assets>
+        
+        <a-videosphere src="#premiumVrVideo" rotation="0 180 0"></a-videosphere>
+        
+        <a-entity id="cameraWrapper" position="0 1.6 0">
+          <a-camera look-controls wasd-controls fov="90">
+            <a-cursor
+              animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+              animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
+              raycaster="objects: .clickable"
+              geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+              material="color: #f59e0b; shader: flat">
+            </a-cursor>
+          </a-camera>
+        </a-entity>
+        
+        <!-- Premium VR Controls Panel -->
+        <a-entity id="premiumVrControls" position="0 1.2 -2">
+          <a-box class="clickable" id="vrPlayPause" position="-0.8 0 0" width="0.3" height="0.1" depth="0.1" 
+                 color="#f59e0b" text="value: PLAY; color: white; align: center; position: 0 0 0.06"></a-box>
+          <a-box class="clickable" id="vrQuality" position="0 0 0" width="0.4" height="0.1" depth="0.1" 
+                 color="#8B5CF6" text="value: ${quality}; color: white; align: center; position: 0 0 0.06"></a-box>
+          <a-box class="clickable" id="vrVolume" position="0.8 0 0" width="0.3" height="0.1" depth="0.1" 
+                 color="#10B981" text="value: VOL; color: white; align: center; position: 0 0 0.06"></a-box>
+        </a-entity>
+        
+        <!-- Premium Badge in VR -->
+        <a-text value="👑 PREMIUM VR" position="-1 2.5 -1.5" color="#f59e0b" 
+                geometry="primitive: plane; width: 2; height: 0.5" 
+                material="color: rgba(0,0,0,0.7)"></a-text>
+        
+        <a-sky color="#1a1a1a"></a-sky>
+      </a-scene>
+    `;
+
+    // Setup Premium VR controls
+    setTimeout(() => {
+      const vrVideo = document.getElementById('premiumVrVideo') as HTMLVideoElement;
+      const playPauseBtn = document.getElementById('vrPlayPause');
+      
+      if (vrVideo && playPauseBtn) {
+        playPauseBtn.addEventListener('click', () => {
+          if (vrVideo.paused) {
+            vrVideo.play();
+            playPauseBtn.setAttribute('text', 'value: PAUSE; color: white; align: center; position: 0 0 0.06');
+          } else {
+            vrVideo.pause();
+            playPauseBtn.setAttribute('text', 'value: PLAY; color: white; align: center; position: 0 0 0.06');
+          }
+        });
+
+        // Apply preview restrictions in VR mode too
+        if (!hasPremiumSubscription && !premiumLoading) {
+          vrVideo.addEventListener('timeupdate', () => {
+            if (vrVideo.currentTime >= PREVIEW_TIME_LIMIT) {
+              vrVideo.pause();
+              vrVideo.currentTime = PREVIEW_TIME_LIMIT;
+              setVrMode(false);
+              setShowSubscriptionModal(true);
+            }
+          });
+        }
+      }
+    }, 1000);
+  };
+
+  const toggleVRMode = async () => {
+    if (!vrMode) {
+      setVrMode(true);
+      await initializePremiumVRScene();
+    } else {
+      setVrMode(false);
+    }
+  };
 
   // Update duration display when premium status changes
   useEffect(() => {
@@ -300,9 +429,40 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
   return (
     <div className="relative w-full">
+      {/* Premium VR Controls */}
+      {isVRContent && vrSupported && (
+        <div className="mb-3 p-3 bg-gradient-to-r from-purple-900/20 to-gold-900/20 rounded-lg border border-yellow-400/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Crown className="w-5 h-5 text-yellow-400" />
+              <div>
+                <span className="text-sm font-bold text-yellow-400">Premium VR Experience</span>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">🥽 VR</span>
+                  <span className="text-xs bg-gold-100 text-gold-800 px-2 py-1 rounded">{quality}</span>
+                  {tags?.includes('360') && <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">360°</span>}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={toggleVRMode}
+              className={`px-4 py-2 rounded-lg font-bold transition-all flex items-center space-x-2 ${
+                vrMode 
+                  ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                  : 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-black hover:from-yellow-600 hover:to-yellow-700'
+              }`}
+            >
+              <Eye className="w-4 h-4" />
+              <span>{vrMode ? 'Exit VR' : 'Enter VR'}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Regular Premium Video Player */}
       <video
         ref={videoRef}
-        className="w-full aspect-video rounded-lg"
+        className={`w-full aspect-video rounded-lg ${vrMode ? 'hidden' : 'block'}`}
         poster={poster}
         preload="metadata"
         playsInline
@@ -319,14 +479,37 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         style={{
           objectFit: "cover",
           backgroundColor: "#000",
-          display: "block",
+          display: vrMode ? "none" : "block",
           width: "100%",
           height: "auto",
-          borderRadius: "0.5rem", // keep rounded clean
+          borderRadius: "0.5rem",
         }}
       >
         <source src={src} type="video/mp4" />
       </video>
+
+      {/* Premium VR Scene Container */}
+      {vrMode && (
+        <div className="relative w-full aspect-video rounded-lg overflow-hidden bg-black">
+          <div 
+            ref={vrSceneRef}
+            className="w-full h-full"
+          />
+          
+          {/* Premium VR Mode Overlay */}
+          <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-black p-3 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Crown className="w-4 h-4" />
+              <div>
+                <p className="font-bold text-sm">Premium VR Active</p>
+                <p className="text-xs opacity-80">
+                  {quality} Quality • Use mouse/touch to look around
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Preview Time Indicator removed as requested */}
 
