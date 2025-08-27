@@ -153,6 +153,7 @@ const ProfilePage = () => {
   useEffect(() => {
     if (!profileLoadComplete) return;
 
+    let isMounted = true;
     const fetchUserData = async () => {
       let targetUserId = user?.id;
       let fetchedProfileData: any = null;
@@ -300,15 +301,19 @@ const ProfilePage = () => {
         } catch (error) {
           console.error('Error fetching user data:', error);
         } finally {
-          setStatsLoading(false);
+          if (isMounted) {
+            setStatsLoading(false);
+          }
         }
       } else {
-        setStatsLoading(false);
+        if (isMounted) {
+          setStatsLoading(false);
+        }
       }
     };
 
     const fetchSocialData = async () => {
-      if (initialSocialLoadComplete) return;
+      if (initialSocialLoadComplete || !isMounted) return;
 
       let targetUserId = user?.id;
 
@@ -322,124 +327,100 @@ const ProfilePage = () => {
 
           if (data) {
             targetUserId = data.id;
-            setDisplayName(data.full_name || data.username || username);
-            setProfilePhoto(data.avatar_url || '');
-            setBio(data.bio || 'Welcome to my profile! 🌟');
-            setProfileUserType(data.user_type || 'user');
+            // Batch profile updates to prevent flashing
+            const profileUpdates = {
+              displayName: data.full_name || data.username || username,
+              profilePhoto: data.avatar_url || '',
+              bio: data.bio || 'Welcome to my profile! 🌟',
+              userType: data.user_type || 'user'
+            };
+            
+            // Update all profile data at once
+            setDisplayName(profileUpdates.displayName);
+            setProfilePhoto(profileUpdates.profilePhoto);
+            setBio(profileUpdates.bio);
+            setProfileUserType(profileUpdates.userType);
           } else {
             console.log('Profile not found for username:', username);
             targetUserId = null;
           }
         } catch (error) {
           console.error('Error fetching user ID for posts:', error);
-          setPostsLoading(false);
-          setFeedLoading(false);
-          setInitialSocialLoadComplete(true);
+          // Set loading states to false together
+          setTimeout(() => {
+            setPostsLoading(false);
+            setFeedLoading(false);
+            setInitialSocialLoadComplete(true);
+          }, 0);
           return;
         }
       }
 
-      // Batch all async operations to prevent multiple state updates
-      const promises = [];
-
-      if (targetUserId) {
-        promises.push(getCreatorPosts(targetUserId));
-        promises.push(getSubscriberCount(targetUserId));
-        if (targetUserId !== user?.id && user?.id) {
-          promises.push(isSubscribedToCreator(targetUserId));
-        }
-      }
-
-      if (user?.id && (!username || (currentUserUsername && username === currentUserUsername))) {
-        // For own profile, fetch both feed posts and additional public posts
-        promises.push(getFeedPosts(50));
-        promises.push(
-          supabase
-            .from('posts')
-            .select(`
-              *,
-              creator:profiles!posts_creator_id_fkey(
-                id,
-                username,
-                full_name,
-                avatar_url,
-                user_type
-              ),
-              post_likes!left(user_id),
-              post_comments!left(id)
-            `)
-            .eq('privacy', 'public')
-            .order('created_at', { ascending: false })
-            .limit(25)
-        );
-      }
-
       try {
-        const results = await Promise.all(promises);
-        let resultIndex = 0;
+        // Collect all promises without starting them yet
+        const dataPromises = [];
 
         if (targetUserId) {
-          setPosts(results[resultIndex++] || []);
-          setSubscriberCount(results[resultIndex++] || 0);
+          dataPromises.push(['posts', getCreatorPosts(targetUserId)]);
+          dataPromises.push(['subscriberCount', getSubscriberCount(targetUserId)]);
           if (targetUserId !== user?.id && user?.id) {
-            setIsSubscribed(results[resultIndex++] || false);
+            dataPromises.push(['isSubscribed', isSubscribedToCreator(targetUserId)]);
           }
         }
 
         if (user?.id && (!username || (currentUserUsername && username === currentUserUsername))) {
-          const subscribedPosts = results[resultIndex++] || [];
-          const publicPostsResult = results[resultIndex++];
-
-          let allPosts = subscribedPosts;
-
-          // Process public posts if available
-          if (publicPostsResult && !publicPostsResult.error && publicPostsResult.data) {
-            const publicPosts = publicPostsResult.data;
-
-            // Check if current user liked each post
-            const postIds = publicPosts.map(post => post.id);
-            const { data: likes } = await supabase
-              .from('post_likes')
-              .select('post_id')
-              .eq('user_id', user?.id || '')
-              .in('post_id', postIds);
-
-            const likedPostIds = new Set(likes?.map(like => like.post_id) || []);
-
-            const formattedPublicPosts = publicPosts.map(post => ({
-              ...post,
-              isLiked: likedPostIds.has(post.id),
-              likes_count: post.post_likes?.length || 0,
-              comments_count: post.post_comments?.length || 0,
-              creator: {
-                ...post.creator,
-                profile_picture_url: post.creator?.avatar_url
-              }
-            }));
-
-            // Combine and deduplicate posts
-            const combinedPosts = [...subscribedPosts, ...formattedPublicPosts];
-            allPosts = combinedPosts.filter((post, index, self) => 
-              index === self.findIndex(p => p.id === post.id)
-            ).sort((a, b) => 
-              new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-            );
-          }
-
-          setFeedPosts(allPosts);
+          // For own profile, get feed posts that include only subscribed content
+          dataPromises.push(['feedPosts', getFeedPosts(50)]);
         }
+
+        // Execute all promises concurrently
+        const results = await Promise.allSettled(dataPromises.map(([_, promise]) => promise));
+        
+        // Process results without causing multiple re-renders
+        const updates = {};
+        
+        results.forEach((result, index) => {
+          const [key] = dataPromises[index];
+          if (result.status === 'fulfilled') {
+            updates[key] = result.value;
+          } else {
+            console.error(`Error fetching ${key}:`, result.reason);
+            updates[key] = key === 'posts' || key === 'feedPosts' ? [] : 
+                          key === 'subscriberCount' ? 0 : false;
+          }
+        });
+
+        // Apply all updates at once to prevent flashing
+        if (updates.posts) setPosts(updates.posts);
+        if (updates.subscriberCount !== undefined) setSubscriberCount(updates.subscriberCount);
+        if (updates.isSubscribed !== undefined) setIsSubscribed(updates.isSubscribed);
+        if (updates.feedPosts) setFeedPosts(updates.feedPosts);
+
       } catch (error) {
         console.error('Error fetching social data:', error);
+        // Ensure we have default values on error
+        setPosts([]);
+        setFeedPosts([]);
+        setSubscriberCount(0);
+        setIsSubscribed(false);
       }
 
-      // Update all loading states together to prevent flashing
-      setPostsLoading(false);
-      setFeedLoading(false);
-      setInitialSocialLoadComplete(true);
+      // Update loading states together after all data is processed
+      if (isMounted) {
+        setTimeout(() => {
+          setPostsLoading(false);
+          setFeedLoading(false);
+          setInitialSocialLoadComplete(true);
+        }, 0);
+      }
     };
 
     fetchUserData();
     fetchSocialData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id, userType, username, currentUserUsername, profileLoadComplete]);
 
   if (loading) {
@@ -2246,7 +2227,7 @@ const ProfilePage = () => {
                               className="bg-purple-500 hover:bg-purple-600 text-white rounded-full px-6 py-1 text-sm"
                             >
                               {isPostingLoading ? (
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white" />
                               ) : (
                                 'Post'
                               )}
@@ -2310,15 +2291,17 @@ const ProfilePage = () => {
                       </DialogContent>
                     </Dialog>
                   )}
-                  {isOwnProfile ? (
+                  
+                  {/* Show loading state consistently */}
+                  {(feedLoading || postsLoading || !initialSocialLoadComplete) ? (
+                    <div className="text-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                      <p className="text-gray-400 mt-4">Loading feed...</p>
+                    </div>
+                  ) : isOwnProfile ? (
                     <div>
                       <h2 className="text-xl font-bold text-white mb-4">Your Feed</h2>
-                      {feedLoading ? (
-                        <div className="text-center py-12">
-                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-                          <p className="text-gray-400 mt-4">Loading feed...</p>
-                        </div>
-                      ) : feedPosts.length > 0 ? (
+                      {feedPosts.length > 0 ? (
                         <div className="space-y-4 max-w-full">
                           {feedPosts.map(post => (
                             <div key={post.id} className="max-w-full overflow-hidden">
@@ -2339,12 +2322,7 @@ const ProfilePage = () => {
                   ) : (
                     <div>
                       <h2 className="text-xl font-bold text-white mb-4">{displayedName}'s Posts</h2>
-                      {postsLoading ? (
-                        <div className="text-center py-12">
-                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-                          <p className="text-gray-400 mt-4">Loading posts...</p>
-                        </div>
-                      ) : posts.length > 0 ? (
+                      {posts.length > 0 ? (
                         <div className="space-y-4 max-w-full">
                           {posts.map(post => (
                             <div key={post.id} className="max-w-full overflow-hidden">
