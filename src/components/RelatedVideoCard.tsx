@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom'; // Import useNavigate
 import { ThumbsUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { LazyImage } from '@/components/LazyImage';
@@ -27,6 +27,7 @@ interface Video {
   };
   preview_url?: string;
   video_url?: string;
+  is_premium?: boolean; // Added is_premium property
 }
 
 interface RelatedVideoCardProps {
@@ -59,6 +60,7 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { shouldLoadPreview } = useBandwidthOptimization();
   const isMobile = useIsMobile();
+  const navigate = useNavigate(); // Initialize navigate
 
   // Generate computed preview URL based on video properties
   const computedPreviewUrl = React.useMemo(() => {
@@ -267,8 +269,20 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
     return views.toString();
   };
 
+  // Define the click handler with the new logic
+  const handleClick = () => {
+    // Route to premium video page if it's a premium video
+    if (video.is_premium) {
+      navigate(`/premium/video/${video.id}`);
+    } else {
+      navigate(`/video/${video.id}`);
+    }
+  };
+
+
   return (
-    <Link to={`/video/${video.id}`} className="block">
+    // Use the handleClick function for the Link's onClick event
+    <Link to={`/video/${video.id}`} onClick={handleClick} className="block"> 
       <Card className="hover:bg-muted/5 transition-colors">
         <CardContent className={`p-3 ${viewMode === 'list' ? 'flex space-x-3' : ''}`}>
           <div 
