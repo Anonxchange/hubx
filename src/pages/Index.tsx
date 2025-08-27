@@ -25,6 +25,7 @@ const Index = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showLoading, setShowLoading] = useState(true); // Added for optimized loading state
 
   // Get search query from URL params
   const searchQuery = searchParams.get('search') || undefined;
@@ -48,6 +49,14 @@ const Index = () => {
   );
 
   const { videos = [], totalPages = 0, totalCount = 0 } = data || {};
+
+  // Effect to manage the showLoading state
+  useEffect(() => {
+    if (!isLoading) {
+      setShowLoading(false);
+    }
+  }, [isLoading]);
+
 
   const handleCategoryChange = (category: string) => {
     setSelectedCategory(category);
@@ -183,7 +192,7 @@ const Index = () => {
 
 
         {/* Videos */}
-        {isLoading ? (
+        {showLoading ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {[...Array(12)].map((_, i) => (
               <Card key={i} className="animate-pulse">
