@@ -815,10 +815,10 @@ export const getVideosByCategory = async (
 };
 
 // Get related videos based on tags excluding the current video
-export const getRelatedVideos = async (videoId: string, tags: string[], limit = 15) => {
+export const getRelatedVideos = async (videoId: string, tags: string[], limit = 15, isPremiumContext = false) => {
   if (!tags || tags.length === 0) {
     // If no tags provided, get random recent videos
-    const { data: fallbackData } = await supabase
+    let fallbackQuery = supabase
       .from('videos')
       .select(
         `
@@ -827,8 +827,15 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
         `
       )
       .neq('id', videoId)
-      .eq('is_moment', false)
-      .eq('is_premium', false)
+      .eq('is_moment', false);
+
+    if (isPremiumContext) {
+      fallbackQuery = fallbackQuery.eq('is_premium', true);
+    } else {
+      fallbackQuery = fallbackQuery.eq('is_premium', false);
+    }
+
+    const { data: fallbackData } = await fallbackQuery
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -848,7 +855,7 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
   }
 
   // Try to get videos with overlapping tags
-  const { data, error } = await supabase
+  let mainQuery = supabase
     .from('videos')
     .select(
       `
@@ -857,8 +864,15 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
       `
     )
     .neq('id', videoId)
-    .eq('is_moment', false)
-    .eq('is_premium', false)
+    .eq('is_moment', false);
+
+  if (isPremiumContext) {
+    mainQuery = mainQuery.eq('is_premium', true);
+  } else {
+    mainQuery = mainQuery.eq('is_premium', false);
+  }
+
+  const { data, error } = await mainQuery
     .overlaps('tags', tags)
     .order('views', { ascending: false })
     .limit(limit * 2); // Get more initially for better sorting
@@ -866,7 +880,7 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
   if (error) {
     console.error('Error fetching related videos:', error);
     // Fallback to recent videos if tag search fails
-    const { data: fallbackData } = await supabase
+    let fallbackQuery = supabase
       .from('videos')
       .select(
         `
@@ -875,8 +889,15 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
         `
       )
       .neq('id', videoId)
-      .eq('is_moment', false)
-      .eq('is_premium', false)
+      .eq('is_moment', false);
+
+    if (isPremiumContext) {
+      fallbackQuery = fallbackQuery.eq('is_premium', true);
+    } else {
+      fallbackQuery = fallbackQuery.eq('is_premium', false);
+    }
+
+    const { data: fallbackData } = await fallbackQuery
       .order('views', { ascending: false })
       .limit(limit);
 
@@ -899,7 +920,7 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
 
   if (relatedVideos.length === 0) {
     // If no related videos found, get popular videos as fallback
-    const { data: fallbackData } = await supabase
+    let finalFallbackQuery = supabase
       .from('videos')
       .select(
         `
@@ -908,8 +929,15 @@ export const getRelatedVideos = async (videoId: string, tags: string[], limit = 
         `
       )
       .neq('id', videoId)
-      .eq('is_moment', false)
-      .eq('is_premium', false)
+      .eq('is_moment', false);
+
+    if (isPremiumContext) {
+      finalFallbackQuery = finalFallbackQuery.eq('is_premium', true);
+    } else {
+      finalFallbackQuery = finalFallbackQuery.eq('is_premium', false);
+    }
+
+    const { data: fallbackData } = await finalFallbackQuery
       .order('views', { ascending: false })
       .limit(limit);
 
