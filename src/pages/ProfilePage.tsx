@@ -49,7 +49,11 @@ import {
   ImageIcon,
   X,
   UserPlus,
-  UserMinus
+  UserMinus,
+  Rss,
+  List,
+  Home,
+  Music
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -1439,197 +1443,56 @@ const ProfilePage = () => {
             </div>
           </div>
           <div className="mt-8">
-            <Tabs defaultValue="stream" className="w-full">
-              <TabsList className={`grid w-full ${userType === 'user' ? 'grid-cols-4' : 'grid-cols-4'} bg-gray-800 border-gray-700`}>
-                <TabsTrigger value="stream" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Stream</TabsTrigger>
-                <TabsTrigger value="favorites" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Videos</TabsTrigger>
-                <TabsTrigger value="watchlist" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">Photos</TabsTrigger>
-                {userType === 'user' ? (
-                  <TabsTrigger value="upgrade" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">More</TabsTrigger>
-                ) : (
-                  <TabsTrigger value="uploads" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300">More</TabsTrigger>
-                )}
+            <Tabs defaultValue="home" className="w-full">
+              <TabsList className="grid w-full grid-cols-6 bg-gray-800 border-gray-700">
+                <TabsTrigger 
+                  value="home" 
+                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
+                >
+                  <Home className="w-5 h-5" />
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="videos" 
+                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
+                >
+                  <Video className="w-5 h-5" />
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="photos" 
+                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
+                >
+                  <Camera className="w-5 h-5" />
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="feed" 
+                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
+                >
+                  <Rss className="w-5 h-5" />
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="playlists" 
+                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
+                >
+                  <Music className="w-5 h-5" />
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="settings" 
+                  className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
+                >
+                  <Settings className="w-5 h-5" />
+                </TabsTrigger>
               </TabsList>
-              <TabsContent value="stream" className="mt-6 relative">
-                <div className="space-y-6 max-w-full overflow-x-hidden">
-                  {isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator') && (
-                    <Dialog open={isCreatePostModalOpen} onOpenChange={setIsCreatePostModalOpen}>
-                      <DialogTrigger asChild>
-                        <Button className="fixed bottom-20 right-6 h-14 w-14 rounded-full bg-purple-500 hover:bg-purple-600 shadow-lg border-0 z-50">
-                          <Send className="h-6 w-6 text-white" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="bg-gray-900 border-gray-700 max-w-lg">
-                        <DialogHeader className="border-b border-gray-700 pb-4">
-                          <div className="flex items-center justify-between">
-                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => setIsCreatePostModalOpen(false)}>
-                              Cancel
-                            </Button>
-                            <DialogTitle className="text-white text-lg font-normal">
-                              What's happening?
-                            </DialogTitle>
-                            <Button
-                              onClick={handleCreatePost}
-                              disabled={(!newPostContent.trim() && !newPostMedia) || isPostingLoading}
-                              className="bg-purple-500 hover:bg-purple-600 text-white rounded-full px-6 py-1 text-sm"
-                            >
-                              {isPostingLoading ? (
-                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
-                              ) : (
-                                'Post'
-                              )}
-                            </Button>
-                          </div>
-                        </DialogHeader>
-                        <div className="pt-4">
-                          <div className="flex items-start space-x-3">
-                            <Avatar className="h-12 w-12">
-                              <AvatarImage src={profilePhoto} />
-                              <AvatarFallback className="bg-orange-500 text-white">
-                                {currentUsername.charAt(0).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <Textarea
-                                placeholder="What's happening?"
-                                value={newPostContent}
-                                onChange={(e) => setNewPostContent(e.target.value)}
-                                className="bg-transparent border-0 resize-none text-lg placeholder-gray-500 focus:ring-0 focus:border-0 min-h-[120px] text-white"
-                                rows={4}
-                              />
-                              {newPostMediaPreview && (
-                                <div className="mt-3 relative inline-block">
-                                  {newPostMedia?.type.startsWith('image/') ? (
-                                    <img src={newPostMediaPreview} alt="Preview" className="max-h-40 rounded-lg" />
-                                  ) : (
-                                    <video src={newPostMediaPreview} className="max-h-40 rounded-lg" controls />
-                                  )}
-                                  <Button
-                                    onClick={() => {
-                                      setNewPostMedia(null);
-                                      setNewPostMediaPreview('');
-                                    }}
-                                    className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 hover:bg-red-600 h-6 w-6"
-                                  >
-                                    <X className="h-3 w-3 text-white" />
-                                  </Button>
-                                </div>
-                              )}
-                              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
-                                <div className="flex items-center space-x-4">
-                                  <Label htmlFor="modal-media-upload" className="cursor-pointer">
-                                    <ImageIcon className="w-5 h-5 text-purple-500 hover:text-purple-400" />
-                                    <Input
-                                      id="modal-media-upload"
-                                      type="file"
-                                      accept="image/*,video/*"
-                                      className="hidden"
-                                      onChange={handleMediaUpload}
-                                    />
-                                  </Label>
-                                </div>
-                                <div className="text-sm text-gray-500">
-                                  Everyone can reply
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  )}
-                  {isOwnProfile ? (
-                    <div>
-                      <h2 className="text-xl font-bold text-white mb-4">Your Feed</h2>
-                      {feedLoading ? (
-                        <div className="text-center py-12">
-                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-                          <p className="text-gray-400 mt-4">Loading feed...</p>
-                        </div>
-                      ) : feedPosts.length > 0 ? (
-                        <div className="space-y-4 max-w-full">
-                          {feedPosts.map(post => (
-                            <div key={post.id} className="max-w-full overflow-hidden">
-                              <PostCard post={post} showDelete={post.creator_id === user?.id} />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                          <h3 className="text-lg font-semibold mb-2 text-white">Your feed is empty</h3>
-                          <p className="text-gray-400">
-                            Subscribe to creators to see their posts in your feed!
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      <h2 className="text-xl font-bold text-white mb-4">{displayedName}'s Posts</h2>
-                      {postsLoading ? (
-                        <div className="text-center py-12">
-                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-                          <p className="text-gray-400 mt-4">Loading posts...</p>
-                        </div>
-                      ) : posts.length > 0 ? (
-                        <div className="space-y-4 max-w-full">
-                          {posts.map(post => (
-                            <div key={post.id} className="max-w-full overflow-hidden">
-                              <PostCard post={post} showDelete={false} />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <MessageCircle className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                          <h3 className="text-lg font-semibold mb-2 text-white">No posts yet</h3>
-                          <p className="text-gray-400">
-                            {displayedName} hasn't shared anything yet.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator') && (
-                    <div className="border-t border-gray-800 pt-6">
-                      <h2 className="text-xl font-bold text-white mb-4">Your Posts ({posts.length})</h2>
-                      {postsLoading ? (
-                        <div className="text-center py-12">
-                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
-                          <p className="text-gray-400 mt-4">Loading your posts...</p>
-                        </div>
-                      ) : posts.length > 0 ? (
-                        <div className="space-y-4 max-w-full">
-                          {posts.map(post => (
-                            <div key={post.id} className="max-w-full overflow-hidden">
-                              <PostCard post={post} showDelete={isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator')} />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <MessageCircle className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                          <h3 className="text-lg font-semibold mb-2 text-white">No posts yet</h3>
-                          <p className="text-gray-400">
-                            Share your first post with your subscribers!
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </TabsContent>
-              <TabsContent value="favorites" className="mt-6">
-                <div className="w-full">
-                  {((isOwnProfile ? userType : profileUserType) === 'individual_creator' || (isOwnProfile ? userType : profileUserType) === 'studio_creator') && (
+              <TabsContent value="home" className="mt-6 relative">
+                <div className="w-full space-y-8">
+                  {/* Uploaded Videos Section */}
+                  {((isOwnProfile ? userType : profileUserType) === 'individual_creator' || (isOwnProfile ? userType : profileUserType) === 'studio_creator') && uploadedVideos.length > 0 && (
                     <div className="mb-8">
-                      <div className="mb-4">
+                      <div className="mb-4 flex items-center justify-between">
                         <h2 className="text-xl font-bold text-white">
-                          {isOwnProfile ? 'My Uploads' : `${displayedName}'s Uploads`} ({uploadedVideos.length})
+                          {isOwnProfile ? 'My Uploads' : `${displayedName}'s Uploads`} ({uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length})
                         </h2>
                       </div>
-                      {uploadedVideos.length > 0 ? (
+                      {uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length > 0 ? (
                         <div
                           className="w-full max-w-none"
                           style={{
@@ -1642,11 +1505,11 @@ const ProfilePage = () => {
                             padding: '0 16px'
                           }}
                         >
-                          {uploadedVideos.map((video) => (
+                          {uploadedVideos.filter(v => !v.is_moment && !v.is_premium).slice(0, 12).map((video) => (
                             <div
                               key={video.id}
                               className="group cursor-pointer w-full"
-                              onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`)}
+                              onClick={() => navigate(`/video/${video.id}`)}
                             >
                               <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
                                 {video.thumbnail_url && (
@@ -1657,20 +1520,9 @@ const ProfilePage = () => {
                                     loading="lazy"
                                   />
                                 )}
-                                {video.is_premium && (
-                                  <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
-                                    <Crown className="w-3 h-3 mr-1 inline" />
-                                    PREMIUM
-                                  </div>
-                                )}
-                                {isOwnProfile && !video.is_premium && !video.is_moment && (
+                                {isOwnProfile && (
                                   <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
                                     MY VIDEO
-                                  </div>
-                                )}
-                                {video.is_moment && (
-                                  <div className="absolute top-2 left-2 bg-blue-500/90 text-white text-xs px-2 py-1 rounded">
-                                    MOMENT
                                   </div>
                                 )}
                                 <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
@@ -1695,162 +1547,405 @@ const ProfilePage = () => {
                         <div className="text-center py-8">
                           <Video className="w-8 h-8 mx-auto text-gray-600 mb-2" />
                           <p className="text-gray-400 text-sm">
-                            {isOwnProfile ? 'No uploads yet' : 'No uploads yet'}
+                            {isOwnProfile ? 'No regular uploads yet' : 'No regular uploads yet'}
                           </p>
                         </div>
                       )}
                     </div>
                   )}
-                  {isOwnProfile && (
-                    <div className={`mb-8 ${((userType === 'individual_creator' || userType === 'studio_creator') ? 'border-t border-gray-800 pt-8' : '')}`}>
-                      <div className="mb-4">
-                        <h2 className="text-xl font-bold text-white">Liked Videos ({favorites.length})</h2>
+
+                  {/* Moments Section - Horizontal Scroll */}
+                  {uploadedVideos.filter(v => v.is_moment).length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4 flex items-center justify-between px-4">
+                        <h2 className="text-xl font-bold text-white">
+                          {isOwnProfile ? 'My Moments' : `${displayedName}'s Moments`} ({uploadedVideos.filter(v => v.is_moment).length})
+                        </h2>
                       </div>
-                      {favorites.length > 0 ? (
-                        <>
+                      <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4 px-4">
+                        {uploadedVideos.filter(v => v.is_moment).map((moment) => (
                           <div
-                            className="w-full max-w-none"
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                              gap: '16px',
-                              width: '100vw',
-                              maxWidth: '100vw',
-                              margin: '0 -16px',
-                              padding: '0 16px'
-                            }}
+                            key={moment.id}
+                            className="flex-shrink-0 w-48 group cursor-pointer"
+                            onClick={() => navigate(`/moments?start=${moment.id}`)}
                           >
-                            {(showMoreFavorites ? favorites : favorites.slice(0, 15)).map((video) => (
-                              <div
-                                key={video.id}
-                                className="group cursor-pointer w-full"
-                                onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
-                              >
-                                <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
-                                  {video.thumbnail_url && (
-                                    <img
-                                      src={video.thumbnail_url}
-                                      alt={video.title}
-                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                      loading="lazy"
-                                    />
-                                  )}
-                                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                                    {video.duration}
-                                  </div>
-                                </div>
-                                <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
-                                <div className="flex items-center space-x-3 text-xs text-gray-400">
-                                  <span className="flex items-center space-x-1">
-                                    <Eye className="w-3 h-3" />
-                                    <span>{video.views?.toLocaleString() || 0}</span>
-                                  </span>
+                            <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-800">
+                              {moment.thumbnail_url && (
+                                <img
+                                  src={moment.thumbnail_url}
+                                  alt={moment.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  loading="lazy"
+                                />
+                              )}
+                              
+                              {/* Play overlay */}
+                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                                  <Play className="w-6 h-6 text-white ml-1" fill="currentColor" />
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                          {favorites.length > 15 && (
-                            <div className="text-center mt-6">
-                              <Button
-                                variant="outline"
-                                className="rounded-full border-gray-600 text-white hover:bg-gray-800 px-8"
-                                onClick={() => setShowMoreFavorites(!showMoreFavorites)}
-                              >
-                                {showMoreFavorites ? 'Show Less' : `Show More (${favorites.length - 15} more)`}
-                              </Button>
+
+                              {/* Moments badge */}
+                              <div className="absolute top-2 left-2">
+                                <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold">
+                                  Moment
+                                </Badge>
+                              </div>
                             </div>
-                          )}
+                            
+                            <div className="p-3 space-y-2">
+                              <h3 className="font-medium text-sm line-clamp-2 leading-tight text-white">
+                                {moment.title}
+                              </h3>
+                              
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <span>{moment.views?.toLocaleString() || 0} views</span>
+                                <span>{moment.likes?.toLocaleString() || 0} likes</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Premium Videos Section */}
+                  {uploadedVideos.filter(v => v.is_premium).length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-white flex items-center">
+                          <Crown className="w-5 h-5 mr-2 text-yellow-400" />
+                          {isOwnProfile ? 'My Premium Content' : `${displayedName}'s Premium Content`} ({uploadedVideos.filter(v => v.is_premium).length})
+                        </h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {uploadedVideos.filter(v => v.is_premium).slice(0, 8).map((video) => (
+                          <div
+                            key={video.id}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(`/premium/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-purple-900/50 to-black mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
+                                <Crown className="w-3 h-3 mr-1 inline" />
+                                PREMIUM
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration || '00:00'}
+                              </div>
+                              {/* Premium glow effect */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-purple-500/10 to-orange-500/0 group-hover:via-purple-500/20 transition-all duration-300"></div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Heart className="w-3 h-3" />
+                                <span>{video.likes?.toLocaleString() || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Liked Videos Section (for own profile only) */}
+                  {isOwnProfile && favorites.length > 0 && (
+                    <div className="mb-8 border-t border-gray-800 pt-8">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-bold text-white">Recently Liked ({favorites.length})</h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {favorites.slice(0, 8).map((video) => (
+                          <div
+                            key={video.id}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute top-2 left-2 bg-red-500/90 text-white text-xs px-2 py-1 rounded">
+                                <Heart className="w-3 h-3 mr-1 inline" />
+                                LIKED
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {uploadedVideos.length === 0 && favorites.length === 0 && (
+                    <div className="text-center py-12">
+                      {!isOwnProfile ? (
+                        <>
+                          <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">No content available</h3>
+                          <p className="text-gray-400">
+                            {displayedName} hasn't shared any content yet.
+                          </p>
                         </>
                       ) : (
-                        <div className="text-center py-12">
-                          <Heart className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                          <h3 className="text-lg font-semibold mb-2 text-white">No liked videos yet</h3>
+                        <>
+                          <Video className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">Start your journey</h3>
                           <p className="text-gray-400">
-                            Videos you like will appear here. Start exploring to build your collection!
+                            Upload videos, create moments, and like content to see them here!
                           </p>
-                        </div>
+                        </>
                       )}
-                    </div>
-                  )}
-                  {isOwnProfile && (
-                    <div className={`${((userType === 'individual_creator' || userType === 'studio_creator') || favorites.length > 0) ? 'border-t border-gray-800 pt-8' : ''}`}>
-                      <div className="mb-4">
-                        <h2 className="text-xl font-bold text-white">Watch History ({watchHistory.length})</h2>
-                      </div>
-                      {watchHistory.length > 0 ? (
-                        <div
-                          className="w-full max-w-none"
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                            gap: '16px',
-                            width: '100vw',
-                            maxWidth: '100vw',
-                            margin: '0 -16px',
-                            padding: '0 16px'
-                          }}
-                        >
-                          {watchHistory.slice(0, 30).map((video) => (
-                            <div
-                              key={`${video.id}-${video.watched_at || video.created_at}`}
-                              className="group cursor-pointer w-full"
-                              onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
-                            >
-                              <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
-                                {video.thumbnail_url && (
-                                  <img
-                                    src={video.thumbnail_url}
-                                    alt={video.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                    loading="lazy"
-                                  />
-                                )}
-                                <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded">
-                                  WATCHED
-                                </div>
-                                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                                  {video.duration}
-                                </div>
-                              </div>
-                              <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
-                              <div className="flex items-center space-x-3 text-xs text-gray-400">
-                                <span className="flex items-center space-x-1">
-                                  <Eye className="w-3 h-3" />
-                                  <span>{video.views?.toLocaleString() || 0}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Calendar className="w-3 h-3" />
-                                  <span>{new Date(video.watched_at).toLocaleDateString()}</span>
-                                </span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-12">
-                          <Play className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                          <h3 className="text-lg font-semibold mb-2 text-white">No viewing history</h3>
-                          <p className="text-gray-400">
-                            Your recently watched videos will appear here.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {!isOwnProfile && (
-                    <div className={`${((profileUserType === 'individual_creator' || profileUserType === 'studio_creator') ? 'border-t border-gray-800 pt-8' : '')}`}>
-                      <div className="text-center py-12">
-                        <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                        <h3 className="text-lg font-semibold mb-2 text-white">That's all for now</h3>
-                        <p className="text-gray-400">
-                          {displayedName}'s uploaded content is shown above.
-                        </p>
-                      </div>
                     </div>
                   )}
                 </div>
               </TabsContent>
-              <TabsContent value="watchlist" className="mt-6">
+              <TabsContent value="videos" className="mt-6">
+                <div className="w-full space-y-8">
+                  {/* Regular Videos Section */}
+                  {((isOwnProfile ? userType : profileUserType) === 'individual_creator' || (isOwnProfile ? userType : profileUserType) === 'studio_creator') && uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-bold text-white">
+                          {isOwnProfile ? 'My Videos' : `${displayedName}'s Videos`} ({uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length})
+                        </h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {uploadedVideos.filter(v => !v.is_moment && !v.is_premium).slice(0, 12).map((video) => (
+                          <div
+                            key={video.id}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(`/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              {isOwnProfile && (
+                                <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
+                                  MY VIDEO
+                                </div>
+                              )}
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration || '00:00'}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Heart className="w-3 h-3" />
+                                <span>{video.likes?.toLocaleString() || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Moments Section - Horizontal Scroll */}
+                  {uploadedVideos.filter(v => v.is_moment).length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4 flex items-center justify-between px-4">
+                        <h2 className="text-xl font-bold text-white">
+                          {isOwnProfile ? 'My Moments' : `${displayedName}'s Moments`} ({uploadedVideos.filter(v => v.is_moment).length})
+                        </h2>
+                      </div>
+                      <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4 px-4">
+                        {uploadedVideos.filter(v => v.is_moment).map((moment) => (
+                          <div
+                            key={moment.id}
+                            className="flex-shrink-0 w-48 group cursor-pointer"
+                            onClick={() => navigate(`/moments?start=${moment.id}`)}
+                          >
+                            <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-800">
+                              {moment.thumbnail_url && (
+                                <img
+                                  src={moment.thumbnail_url}
+                                  alt={moment.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  loading="lazy"
+                                />
+                              )}
+                              
+                              {/* Play overlay */}
+                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                                  <Play className="w-6 h-6 text-white ml-1" fill="currentColor" />
+                                </div>
+                              </div>
+
+                              {/* Moments badge */}
+                              <div className="absolute top-2 left-2">
+                                <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold">
+                                  Moment
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="p-3 space-y-2">
+                              <h3 className="font-medium text-sm line-clamp-2 leading-tight text-white">
+                                {moment.title}
+                              </h3>
+                              
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <span>{moment.views?.toLocaleString() || 0} views</span>
+                                <span>{moment.likes?.toLocaleString() || 0} likes</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Premium Videos Section */}
+                  {uploadedVideos.filter(v => v.is_premium).length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-white flex items-center">
+                          <Crown className="w-5 h-5 mr-2 text-yellow-400" />
+                          {isOwnProfile ? 'My Premium Content' : `${displayedName}'s Premium Content`} ({uploadedVideos.filter(v => v.is_premium).length})
+                        </h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {uploadedVideos.filter(v => v.is_premium).slice(0, 8).map((video) => (
+                          <div
+                            key={video.id}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(`/premium/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-purple-900/50 to-black mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
+                                <Crown className="w-3 h-3 mr-1 inline" />
+                                PREMIUM
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration || '00:00'}
+                              </div>
+                              {/* Premium glow effect */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-purple-500/10 to-orange-500/0 group-hover:via-purple-500/20 transition-all duration-300"></div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Heart className="w-3 h-3" />
+                                <span>{video.likes?.toLocaleString() || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Empty state for no uploads */}
+                  {uploadedVideos.length === 0 && (
+                    <div className="text-center py-12">
+                      <Video className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                      <h3 className="text-lg font-semibold mb-2 text-white">No videos uploaded</h3>
+                      <p className="text-gray-400">
+                        {isOwnProfile ? 'Upload your first video to get started!' : `${displayedName} hasn't uploaded any videos yet.`}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              <TabsContent value="photos" className="mt-6">
                 <Card>
                   <CardContent className="p-6">
                     <div className="text-center py-12">
@@ -2011,58 +2106,270 @@ const ProfilePage = () => {
                   </div>
                 </TabsContent>
               )}
-              {userType === 'user' && (
-                <TabsContent value="upgrade" className="mt-6">
-                  <Card>
+              <TabsContent value="feed" className="mt-6 relative">
+                <div className="space-y-6 max-w-full overflow-x-hidden">
+                  {isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator') && (
+                    <Dialog open={isCreatePostModalOpen} onOpenChange={setIsCreatePostModalOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="fixed bottom-20 right-6 h-14 w-14 rounded-full bg-purple-500 hover:bg-purple-600 shadow-lg border-0 z-50">
+                          <Send className="h-6 w-6 text-white" />
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="bg-gray-900 border-gray-700 max-w-lg">
+                        <DialogHeader className="border-b border-gray-700 pb-4">
+                          <div className="flex items-center justify-between">
+                            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white" onClick={() => setIsCreatePostModalOpen(false)}>
+                              Cancel
+                            </Button>
+                            <DialogTitle className="text-white text-lg font-normal">
+                              What's happening?
+                            </DialogTitle>
+                            <Button
+                              onClick={handleCreatePost}
+                              disabled={(!newPostContent.trim() && !newPostMedia) || isPostingLoading}
+                              className="bg-purple-500 hover:bg-purple-600 text-white rounded-full px-6 py-1 text-sm"
+                            >
+                              {isPostingLoading ? (
+                                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white" />
+                              ) : (
+                                'Post'
+                              )}
+                            </Button>
+                          </div>
+                        </DialogHeader>
+                        <div className="pt-4">
+                          <div className="flex items-start space-x-3">
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={profilePhoto} />
+                              <AvatarFallback className="bg-orange-500 text-white">
+                                {currentUsername.charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <Textarea
+                                placeholder="What's happening?"
+                                value={newPostContent}
+                                onChange={(e) => setNewPostContent(e.target.value)}
+                                className="bg-transparent border-0 resize-none text-lg placeholder-gray-500 focus:ring-0 focus:border-0 min-h-[120px] text-white"
+                                rows={4}
+                              />
+                              {newPostMediaPreview && (
+                                <div className="mt-3 relative inline-block">
+                                  {newPostMedia?.type.startsWith('image/') ? (
+                                    <img src={newPostMediaPreview} alt="Preview" className="max-h-40 rounded-lg" />
+                                  ) : (
+                                    <video src={newPostMediaPreview} className="max-h-40 rounded-lg" controls />
+                                  )}
+                                  <Button
+                                    onClick={() => {
+                                      setNewPostMedia(null);
+                                      setNewPostMediaPreview('');
+                                    }}
+                                    className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 hover:bg-red-600 h-6 w-6"
+                                  >
+                                    <X className="h-3 w-3 text-white" />
+                                  </Button>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                                <div className="flex items-center space-x-4">
+                                  <Label htmlFor="modal-media-upload" className="cursor-pointer">
+                                    <ImageIcon className="w-5 h-5 text-purple-500 hover:text-purple-400" />
+                                    <Input
+                                      id="modal-media-upload"
+                                      type="file"
+                                      accept="image/*,video/*"
+                                      className="hidden"
+                                      onChange={handleMediaUpload}
+                                    />
+                                  </Label>
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                  Everyone can reply
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                  )}
+                  {isOwnProfile ? (
+                    <div>
+                      <h2 className="text-xl font-bold text-white mb-4">Your Feed</h2>
+                      {feedLoading ? (
+                        <div className="text-center py-12">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                          <p className="text-gray-400 mt-4">Loading feed...</p>
+                        </div>
+                      ) : feedPosts.length > 0 ? (
+                        <div className="space-y-4 max-w-full">
+                          {feedPosts.map(post => (
+                            <div key={post.id} className="max-w-full overflow-hidden">
+                              <PostCard post={post} showDelete={post.creator_id === user?.id} />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">Your feed is empty</h3>
+                          <p className="text-gray-400">
+                            Subscribe to creators to see their posts in your feed!
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <h2 className="text-xl font-bold text-white mb-4">{displayedName}'s Posts</h2>
+                      {postsLoading ? (
+                        <div className="text-center py-12">
+                          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+                          <p className="text-gray-400 mt-4">Loading posts...</p>
+                        </div>
+                      ) : posts.length > 0 ? (
+                        <div className="space-y-4 max-w-full">
+                          {posts.map(post => (
+                            <div key={post.id} className="max-w-full overflow-hidden">
+                              <PostCard post={post} showDelete={false} />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-12">
+                          <MessageCircle className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">No posts yet</h3>
+                          <p className="text-gray-400">
+                            {displayedName} hasn't shared anything yet.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="playlists" className="mt-6">
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center py-12">
+                      <Music className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-semibold mb-2">Playlists</h3>
+                      <p className="text-muted-foreground">
+                        Create and manage your custom video playlists to organize your favorite content.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="settings" className="mt-6">
+                {isOwnProfile && (userType === 'individual_creator' || userType === 'studio_creator') ? (
+                  <div className="space-y-6">
+                    <div className="bg-gray-900 border border-gray-800 rounded-lg">
+                      <UploadPage />
+                    </div>
+                    <Card className="bg-gray-900 border-gray-800">
+                      <CardHeader>
+                        <CardTitle className="text-white">My Uploads ({uploadedVideos.length})</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        {statsLoading ? (
+                          <div className="text-center py-12">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                            <p className="text-muted-foreground mt-4">Loading uploads...</p>
+                          </div>
+                        ) : uploadedVideos.length > 0 ? (
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {uploadedVideos.map((video) => (
+                              <div key={video.id} className="group cursor-pointer" onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`)}>
+                                <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                                  {video.thumbnail_url && (
+                                    <img
+                                      src={video.thumbnail_url}
+                                      alt={video.title}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                      loading="lazy"
+                                    />
+                                  )}
+                                  {video.is_premium && (
+                                    <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
+                                      <Crown className="w-3 h-3 mr-1 inline" />
+                                      PREMIUM
+                                    </div>
+                                  )}
+                                  {video.is_moment && (
+                                    <div className="absolute top-2 left-2 bg-blue-500/90 text-white text-xs px-2 py-1 rounded">
+                                      MOMENT
+                                    </div>
+                                  )}
+                                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                    {video.duration || '00:00'}
+                                  </div>
+                                </div>
+                                <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                                <div className="flex items-center space-x-3 text-xs text-gray-400">
+                                  <span className="flex items-center space-x-1">
+                                    <Eye className="w-3 h-3" />
+                                    <span>{video.views?.toLocaleString() || 0}</span>
+                                  </span>
+                                  <span className="flex items-center space-x-1">
+                                    <Heart className="w-3 h-3" />
+                                    <span>{video.likes?.toLocaleString() || 0}</span>
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <Video className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                            <h3 className="text-lg font-semibold mb-2 text-white">No uploads yet</h3>
+                            <p className="text-gray-400 mb-4">
+                              {userType === 'individual_creator'
+                                ? "Use the upload form above to start sharing your content!"
+                                : "Use the upload form above to manage your studio's content!"
+                              }
+                            </p>
+                            <div className="mt-8 p-4 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 rounded-lg border max-w-md mx-auto">
+                              <h4 className="font-semibold text-sm mb-2 flex items-center justify-center">
+                                <Crown className="w-4 h-4 mr-2 text-purple-500" />
+                                {userType === 'studio_creator' ? 'Pro Studio Benefits' : 'Creator Benefits'}
+                              </h4>
+                              <ul className="text-xs text-muted-foreground space-y-1 text-left">
+                                <li>• Monetize your content</li>
+                                <li>• Earn from views & subscriptions</li>
+                                <li>• Build your fanbase</li>
+                                <li>• Analytics & insights</li>
+                                {userType === 'studio_creator' && (
+                                  <>
+                                    <li>• Team collaboration tools</li>
+                                    <li>• Advanced revenue sharing</li>
+                                    <li>• Priority support</li>
+                                  </>
+                                )}
+                              </ul>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <Card className="bg-gray-900 border-gray-800">
                     <CardContent className="p-6">
                       <div className="text-center py-12">
-                        <Video className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                        <h3 className="text-lg font-semibold mb-2">Want to create content?</h3>
-                        <p className="text-muted-foreground mb-6">
-                          Become a creator to upload videos, build your audience, and earn revenue from your content.
-                        </p>
-                        <div className="grid md:grid-cols-2 gap-4 max-w-2xl mx-auto mb-6">
-                          <Card className="p-4 border-2 hover:border-orange-500 transition-colors cursor-pointer">
-                            <div className="text-center">
-                              <Video className="w-8 h-8 mx-auto mb-3 text-orange-500" />
-                              <h4 className="font-semibold mb-2">Individual Creator</h4>
-                              <p className="text-sm text-muted-foreground mb-3">Perfect for solo content creators</p>
-                              <ul className="text-xs text-muted-foreground space-y-1 mb-4">
-                                <li>• Upload & monetize content</li>
-                                <li>• Build your audience</li>
-                                <li>• Analytics & insights</li>
-                                <li>• Revenue from views</li>
-                              </ul>
-                              <Button variant="outline" className="w-full">
-                                Become Individual Creator
-                              </Button>
-                            </div>
-                          </Card>
-                          <Card className="p-4 border-2 hover:border-purple-500 transition-colors cursor-pointer">
-                            <div className="text-center">
-                              <Crown className="w-8 h-8 mx-auto mb-3 text-purple-500" />
-                              <h4 className="font-semibold mb-2">Pro Studio</h4>
-                              <p className="text-sm text-muted-foreground mb-3">For teams and agencies</p>
-                              <ul className="text-xs text-muted-foreground space-y-1 mb-4">
-                                <li>• Team management</li>
-                                <li>• Advanced revenue sharing</li>
-                                <li>• Priority support</li>
-                                <li>• Studio branding</li>
-                              </ul>
-                              <Button variant="outline" className="w-full">
-                                Upgrade to Pro Studio
-                              </Button>
-                            </div>
-                          </Card>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          Ready to start your creator journey? Choose the plan that fits your needs.
+                        <Settings className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                        <h3 className="text-lg font-semibold mb-2 text-white">Profile Settings</h3>
+                        <p className="text-gray-400">
+                          {isOwnProfile ? 'Manage your account preferences, privacy settings, and profile customization options.' : 'Settings are not available for this profile.'}
                         </p>
                       </div>
                     </CardContent>
                   </Card>
-                </TabsContent>
-              )}
+                )}
+              </TabsContent>
             </Tabs>
           </div>
         </div>
