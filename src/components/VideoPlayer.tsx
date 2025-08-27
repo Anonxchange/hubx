@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { VideoIcon } from "lucide-react";
+import { VideoIcon, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
 
@@ -13,12 +13,114 @@ interface VideoPlayerProps {
   src: string;
   poster?: string;
   title?: string;
+  tags?: string[];
+  isVR?: boolean;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, tags, isVR }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const vrSceneRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
   const [initialized, setInitialized] = useState(false);
+  const [vrMode, setVrMode] = useState(false);
+  const [vrSupported, setVrSupported] = useState(false);
+
+  // Detect VR content
+  const isVRContent = isVR || (tags && tags.some(tag => 
+    tag.toLowerCase().includes('vr') || 
+    tag.toLowerCase().includes('virtual reality') || 
+    tag.toLowerCase().includes('360')
+  ));
+
+  // Check VR support
+  useEffect(() => {
+    if (isVRContent) {
+      // Check for WebXR or basic VR support
+      if ('xr' in navigator || 'getVRDisplays' in navigator || /Mobi|Android/i.test(navigator.userAgent)) {
+        setVrSupported(true);
+      }
+    }
+  }, [isVRContent]);
+
+  // Load A-Frame for VR mode
+  const loadAFrame = () => {
+    return new Promise((resolve) => {
+      if (document.querySelector('script[src*="aframe"]')) {
+        resolve(true);
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = 'https://aframe.io/releases/1.4.0/aframe.min.js';
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.head.appendChild(script);
+    });
+  };
+
+  // Initialize VR Scene
+  const initializeVRScene = async () => {
+    if (!vrSceneRef.current) return;
+    
+    await loadAFrame();
+    
+    vrSceneRef.current.innerHTML = `
+      <a-scene embedded style="height: 100%; width: 100%;" vr-mode-ui="enabled: true">
+        <a-assets>
+          <video id="vrVideo" crossorigin="anonymous" playsinline webkit-playsinline>
+            <source src="${src}" type="video/mp4">
+          </video>
+        </a-assets>
+        
+        <a-videosphere src="#vrVideo" rotation="0 180 0"></a-videosphere>
+        
+        <a-entity id="cameraWrapper" position="0 1.6 0">
+          <a-camera look-controls wasd-controls>
+            <a-cursor
+              animation__click="property: scale; startEvents: click; from: 0.1 0.1 0.1; to: 1 1 1; dur: 150"
+              animation__fusing="property: scale; startEvents: fusing; from: 1 1 1; to: 0.1 0.1 0.1; dur: 1500"
+              raycaster="objects: .clickable"
+              geometry="primitive: ring; radiusInner: 0.02; radiusOuter: 0.03"
+              material="color: white; shader: flat">
+            </a-cursor>
+          </a-camera>
+        </a-entity>
+        
+        <!-- VR Controls -->
+        <a-entity id="vrControls" position="0 1.2 -1.5">
+          <a-box class="clickable" id="playPause" position="0 0 0" width="0.3" height="0.1" depth="0.1" 
+                 color="#4CAF50" text="value: PLAY/PAUSE; color: white; align: center; position: 0 0 0.06"></a-box>
+        </a-entity>
+        
+        <a-sky color="#000000"></a-sky>
+      </a-scene>
+    `;
+
+    // Setup VR video controls
+    setTimeout(() => {
+      const vrVideo = document.getElementById('vrVideo') as HTMLVideoElement;
+      const playPauseBtn = document.getElementById('playPause');
+      
+      if (vrVideo && playPauseBtn) {
+        playPauseBtn.addEventListener('click', () => {
+          if (vrVideo.paused) {
+            vrVideo.play();
+          } else {
+            vrVideo.pause();
+          }
+        });
+      }
+    }, 1000);
+  };
+
+  const toggleVRMode = async () => {
+    if (!vrMode) {
+      setVrMode(true);
+      await initializeVRScene();
+    } else {
+      setVrMode(false);
+    }
+  };
 
   useEffect(() => {
     const initializeVideo = () => {
@@ -153,14 +255,36 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
+      {/* VR Controls */}
+      {isVRContent && vrSupported && (
+        <div className="mb-2 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-purple-600">🥽 VR Content</span>
+            {tags?.includes('360') && <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">360°</span>}
+          </div>
+          <button
+            onClick={toggleVRMode}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              vrMode 
+                ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                : 'bg-gray-200 text-gray-800 hover:bg-gray-300'
+            }`}
+          >
+            <Eye className="w-4 h-4 inline mr-2" />
+            {vrMode ? 'Exit VR' : 'VR Mode'}
+          </button>
+        </div>
+      )}
+
       {/* Responsive container */}
       <div
         className="relative w-full bg-black rounded-lg overflow-hidden"
         style={{ aspectRatio: "16/9" }}
       >
+        {/* Regular Video Player */}
         <video
           ref={videoRef}
-          className="w-full h-full"
+          className={`w-full h-full ${vrMode ? 'hidden' : 'block'}`}
           poster={poster}
           preload="none"
           playsInline
@@ -174,13 +298,32 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           style={{
             objectFit: "contain",
             backgroundColor: "#000",
-            display: "block",
+            display: vrMode ? "none" : "block",
             maxWidth: "100%",
             maxHeight: "100%",
           }}
         >
           <source src={src} type="video/mp4" />
         </video>
+
+        {/* VR Scene Container */}
+        {vrMode && (
+          <div 
+            ref={vrSceneRef}
+            className="w-full h-full"
+            style={{ aspectRatio: "16/9" }}
+          />
+        )}
+
+        {/* VR Mode Instructions */}
+        {vrMode && (
+          <div className="absolute top-4 left-4 bg-black/70 text-white p-2 rounded text-sm">
+            <p>🥽 VR Mode Active</p>
+            <p className="text-xs text-gray-300 mt-1">
+              Use mouse/touch to look around • Click controls to interact
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Video info */}
@@ -189,6 +332,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           <div className="flex items-center gap-2">
             <VideoIcon className="w-5 h-5 text-red-500" />
             <span className="font-medium text-foreground">{title}</span>
+            {isVRContent && (
+              <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded ml-2">
+                VR Compatible
+              </span>
+            )}
           </div>
         </div>
       )}
