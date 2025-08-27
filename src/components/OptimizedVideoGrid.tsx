@@ -539,13 +539,28 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   showAds = false,
   showMoments = false
 }) => {
-  const { loading: authLoading } = useAuth();
+  // Remove auth loading dependency to speed up initial render
 
-  if (authLoading) {
+  // Skeleton loading component
+  const SkeletonCard = () => (
+    <div className="animate-pulse">
+      <div className="bg-muted rounded-xl w-full" style={{ aspectRatio: '16/9' }}></div>
+      <div className="pt-3 space-y-2">
+        <div className="h-4 bg-muted rounded w-3/4"></div>
+        <div className="flex items-center space-x-2">
+          <div className="w-5 h-5 bg-muted rounded-full"></div>
+          <div className="h-3 bg-muted rounded w-1/3"></div>
+        </div>
+        <div className="h-3 bg-muted rounded w-1/2"></div>
+      </div>
+    </div>
+  );
+
+  // Show videos immediately, auth loading doesn't block video display
+  if (!videos || videos.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="w-8 h-8 mx-auto border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-        <p className="text-muted-foreground">Loading...</p>
+        <p className="text-muted-foreground">No videos available</p>
       </div>
     );
   }
