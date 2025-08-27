@@ -1727,8 +1727,66 @@ const ProfilePage = () => {
                     </div>
                   )}
 
+                  {/* Watch History Section (for own profile only) */}
+                  {isOwnProfile && watchHistory.length > 0 && (
+                    <div className="mb-8 border-t border-gray-800 pt-8">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-bold text-white">Recently Watched ({watchHistory.length})</h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {watchHistory.slice(0, 8).map((video) => (
+                          <div
+                            key={`${video.id}-${video.watched_at}`}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded">
+                                <Eye className="w-3 h-3 mr-1 inline" />
+                                WATCHED
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Calendar className="w-3 h-3" />
+                                <span>{new Date(video.watched_at).toLocaleDateString()}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Empty state */}
-                  {uploadedVideos.length === 0 && favorites.length === 0 && (
+                  {uploadedVideos.length === 0 && favorites.length === 0 && watchHistory.length === 0 && (
                     <div className="text-center py-12">
                       {!isOwnProfile ? (
                         <>
@@ -1933,8 +1991,66 @@ const ProfilePage = () => {
                     </div>
                   )}
 
+                  {/* Watch History Section (for own profile only) */}
+                  {isOwnProfile && watchHistory.length > 0 && (
+                    <div className="mb-8 border-t border-gray-800 pt-8">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-bold text-white">Recently Watched ({watchHistory.length})</h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {watchHistory.slice(0, 12).map((video) => (
+                          <div
+                            key={`${video.id}-${video.watched_at}`}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded">
+                                <Eye className="w-3 h-3 mr-1 inline" />
+                                WATCHED
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Calendar className="w-3 h-3" />
+                                <span>{new Date(video.watched_at).toLocaleDateString()}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Empty state for no uploads */}
-                  {uploadedVideos.length === 0 && (
+                  {uploadedVideos.length === 0 && (!isOwnProfile || watchHistory.length === 0) && (
                     <div className="text-center py-12">
                       <Video className="w-12 h-12 mx-auto text-gray-600 mb-4" />
                       <h3 className="text-lg font-semibold mb-2 text-white">No videos uploaded</h3>
