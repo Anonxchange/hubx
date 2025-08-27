@@ -25,7 +25,17 @@ export const getOptimizedVideos = async (page = 1, limit = 60, category?: string
   let query = supabase
     .from('videos')
     .select(`
-      *,
+      id,
+      title,
+      description,
+      thumbnail_url,
+      duration,
+      views,
+      likes,
+      tags,
+      created_at,
+      is_premium,
+      owner_id,
       profiles:owner_id (
         id,
         username,
