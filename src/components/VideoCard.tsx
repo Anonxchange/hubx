@@ -633,6 +633,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
     );
   }
 
+  // This is the grid view of the VideoCard
   return (
     <Link to={video.is_moment ? `/moments?start=${video.id}` : video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="group block w-full">
       <Card className="group hover:shadow-xl hover:shadow-primary/10 hover:scale-[1.02] transition-all duration-200 overflow-hidden w-full border-2 border-primary/10">
