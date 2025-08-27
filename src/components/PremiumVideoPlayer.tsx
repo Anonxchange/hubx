@@ -57,11 +57,21 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const [vrMode, setVrMode] = useState(false);
   const [vrSupported, setVrSupported] = useState(false);
 
-  // Detect VR content
-  const isVRContent = isVR || (tags && tags.some(tag => 
-    tag.toLowerCase().includes('vr') || 
-    tag.toLowerCase().includes('virtual reality') || 
-    tag.toLowerCase().includes('360')
+  // Detect VR content - more comprehensive detection
+  const isVRContent = isVR || (tags && tags.some(tag => {
+    const tagLower = tag.toLowerCase();
+    return tagLower.includes('vr') || 
+           tagLower.includes('virtual reality') || 
+           tagLower.includes('360') ||
+           tagLower.includes('virtual') ||
+           tagLower.includes('vr porn') ||
+           tagLower.includes('vr bangers') ||
+           tagLower.includes('oculus') ||
+           tagLower.includes('headset');
+  })) || (title && (
+    title.toLowerCase().includes('vr') ||
+    title.toLowerCase().includes('virtual reality') ||
+    title.toLowerCase().includes('360')
   ));
   
   // Premium access control states
@@ -75,7 +85,14 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   // Check VR support
   useEffect(() => {
     if (isVRContent) {
-      if ('xr' in navigator || 'getVRDisplays' in navigator || /Mobi|Android/i.test(navigator.userAgent)) {
+      // Check for WebXR, basic VR support, or mobile device
+      if ('xr' in navigator || 
+          'getVRDisplays' in navigator || 
+          /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+          window.DeviceOrientationEvent) {
+        setVrSupported(true);
+      } else {
+        // Always enable VR for VR content even without specific VR hardware
         setVrSupported(true);
       }
     }
