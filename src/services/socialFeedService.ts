@@ -205,21 +205,42 @@ export const getCreatorPosts = async (creatorId: string): Promise<Post[]> => {
   }
 };
 
+// Request cache to prevent duplicate calls
+const feedRequestCache = new Map<string, Promise<Post[]>>();
+
 // Get feed posts for subscribed creators
 export const getFeedPosts = async (limit: number = 20): Promise<Post[]> => {
   try {
     const { data: user } = await supabase.auth.getUser();
     if (!user.user) return [];
 
-    // Get subscribed creators
-    const { data: subscriptions } = await supabase
-      .from('subscriptions')
-      .select('creator_id')
-      .eq('subscriber_id', user.user.id);
+    const cacheKey = `${user.user.id}-${limit}`;
+    
+    // Return cached promise if request is already in progress
+    if (feedRequestCache.has(cacheKey)) {
+      return await feedRequestCache.get(cacheKey)!;
+    }
 
-    if (!subscriptions || subscriptions.length === 0) return [];
+    // Create the actual request promise
+    const requestPromise = (async (): Promise<Post[]> => {
+      // Get subscribed creators with a more robust query
+      const { data: subscriptions, error: subError } = await supabase
+        .from('subscriptions')
+        .select('creator_id')
+        .eq('subscriber_id', user.user.id);
+
+    if (subError) {
+      console.error('Error fetching subscriptions:', subError);
+      return [];
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log('No subscriptions found for user');
+      return [];
+    }
 
     const creatorIds = subscriptions.map(sub => sub.creator_id);
+    console.log('Fetching posts for creators:', creatorIds);
 
     // Try to fetch posts with profile data, handle potential FK relationship issues
     let data, error;
@@ -278,22 +299,40 @@ export const getFeedPosts = async (limit: number = 20): Promise<Post[]> => {
       }
     }
 
-    if (error) throw error;
+    if (error) {
+      console.error('Error fetching posts:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      console.log('No posts found for subscribed creators');
+      return [];
+    }
 
     // Check if current user liked each post
-    if (data) {
-      const postIds = data.map(post => post.id);
-      const { data: likes } = await supabase
+    const postIds = data.map(post => post.id);
+    let likes = [];
+    
+    try {
+      const { data: likesData } = await supabase
         .from('post_likes')
         .select('post_id')
         .eq('user_id', user.user.id)
         .in('post_id', postIds);
+      likes = likesData || [];
+    } catch (likesError) {
+      console.error('Error fetching likes:', likesError);
+    }
 
-      const likedPostIds = new Set(likes?.map(like => like.post_id) || []);
+    const likedPostIds = new Set(likes.map(like => like.post_id));
 
-      return data.map(post => ({
+    return data
+      .filter(post => post.creator) // Only include posts with valid creator data
+      .map(post => ({
         ...post,
-        isLiked: post.post_likes.some((like: any) => like.user_id === user.user.id),
+        isLiked: post.post_likes ? 
+          post.post_likes.some((like: any) => like.user_id === user.user.id) :
+          likedPostIds.has(post.id),
         likes_count: post.post_likes?.length || 0,
         comments_count: post.post_comments?.length || 0,
         creator: {
@@ -301,11 +340,20 @@ export const getFeedPosts = async (limit: number = 20): Promise<Post[]> => {
           profile_picture_url: post.creator?.avatar_url
         }
       }));
-    }
+    })();
 
-    return [];
+    // Cache the promise
+    feedRequestCache.set(cacheKey, requestPromise);
+    
+    // Clean up cache after request completes
+    requestPromise.finally(() => {
+      setTimeout(() => feedRequestCache.delete(cacheKey), 1000);
+    });
+
+    return await requestPromise;
   } catch (error) {
     console.error('Error fetching feed posts:', error);
+    feedRequestCache.delete(`${user.user.id}-${limit}`);
     return [];
   }
 };
