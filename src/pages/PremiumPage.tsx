@@ -56,23 +56,51 @@ const PremiumPage = () => {
   };
 
   const loadFeedPosts = async () => {
-    if (!user) return;
+    if (!user) {
+      setFeedLoading(false);
+      return;
+    }
+    
     setFeedLoading(true);
     try {
-      const posts = await getFeedPosts(20);
-      setFeedPosts(posts);
+      // Get only premium creator subscriptions for premium feed
+      const posts = await getFeedPosts(30);
+      
+      // Filter posts to only show those from premium creators
+      const premiumPosts = posts.filter(post => 
+        post.creator?.user_type === 'individual_creator' || 
+        post.creator?.user_type === 'studio_creator'
+      );
+      
+      setFeedPosts(premiumPosts);
     } catch (error) {
-      console.error('Error loading feed posts:', error);
+      console.error('Error loading premium feed posts:', error);
+      setFeedPosts([]);
     } finally {
       setFeedLoading(false);
     }
   };
 
   React.useEffect(() => {
+    let mounted = true;
+    
     if (user && activeTab === 'community') {
-      loadFeedPosts();
+      // Only load if we haven't loaded yet or user changed
+      if (feedPosts.length === 0 && !feedLoading) {
+        loadFeedPosts().then(() => {
+          if (!mounted) return;
+          // Feed loaded successfully
+        });
+      }
+    } else if (!user && activeTab === 'community') {
+      setFeedPosts([]);
+      setFeedLoading(false);
     }
-  }, [user, activeTab]);
+    
+    return () => {
+      mounted = false;
+    };
+  }, [user?.id, activeTab]);
 
   const filters = [
     { id: 'all', icon: Play, label: 'All' },
@@ -400,6 +428,10 @@ const PremiumPage = () => {
               </div>
             ) : feedLoading ? (
               <div className="space-y-4 p-4">
+                <div className="text-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-yellow-400 mx-auto"></div>
+                  <p className="text-yellow-400 text-sm mt-2">Loading premium feed...</p>
+                </div>
                 {[...Array(3)].map((_, i) => (
                   <div key={i} className="animate-pulse bg-gray-900 rounded-lg p-4 h-32"></div>
                 ))}
@@ -407,22 +439,42 @@ const PremiumPage = () => {
             ) : feedPosts.length === 0 ? (
               <div className="text-center py-12 px-4">
                 <Crown className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2 text-white">No Posts Yet</h3>
-                <p className="text-gray-400 text-sm">
-                  Follow some creators to see their posts in your premium feed
+                <h3 className="text-lg font-semibold mb-2 text-white">No Premium Posts Yet</h3>
+                <p className="text-gray-400 text-sm mb-4">
+                  Subscribe to premium creators to see their posts in your feed
                 </p>
+                <div className="flex gap-2 justify-center">
+                  <Button
+                    onClick={() => window.location.href = '/premium/creators/individual'}
+                    className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold text-sm"
+                  >
+                    Browse Creators
+                  </Button>
+                  <Button
+                    onClick={() => window.location.href = '/premium/creators/studio'}
+                    variant="outline"
+                    className="border-yellow-500 text-yellow-500 hover:bg-yellow-500 hover:text-black text-sm"
+                  >
+                    Browse Studios
+                  </Button>
+                </div>
               </div>
             ) : (
               <div className="space-y-4 p-4">
+                <div className="text-center pb-4">
+                  <p className="text-yellow-400 text-sm">
+                    Showing {feedPosts.length} premium post{feedPosts.length !== 1 ? 's' : ''} from your subscriptions
+                  </p>
+                </div>
                 {feedPosts.map((post) => (
-                  <div key={post.id} className="bg-gradient-to-br from-gray-900 to-black border border-yellow-500/20 rounded-lg overflow-hidden">
+                  <div key={post.id} className="relative bg-gradient-to-br from-gray-900 to-black border border-yellow-500/20 rounded-lg overflow-hidden">
                     <CreatorPostCard
                       post={post}
                       onPostUpdate={loadFeedPosts}
                       className="border-none bg-transparent"
                     />
                     {/* Premium Badge Overlay */}
-                    <div className="absolute top-3 right-3">
+                    <div className="absolute top-3 right-3 z-10">
                       <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black font-bold px-2 py-1 text-xs">
                         <Crown className="w-3 h-3 mr-1" />
                         PREMIUM
