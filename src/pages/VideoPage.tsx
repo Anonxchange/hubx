@@ -38,6 +38,13 @@ const VideoPage = () => {
     retry: false,
   });
 
+  // Redirect to premium video page if this is a premium video
+  useEffect(() => {
+    if (video && video.is_premium) {
+      navigate(`/premium/video/${id}`, { replace: true });
+    }
+  }, [video, id, navigate]);
+
   const { data: relatedVideos = [] } = useRelatedVideos(
     video?.id || '',
     video?.tags || [],
