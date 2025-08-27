@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import PremiumVideoCard from '@/components/PremiumVideoCard';
 import SubscriptionModal from '@/components/SubscriptionModal';
+import TipModal from '@/components/TipModal';
 import { supabase } from '@/integrations/supabase/client';
 
 const PremiumVideoPage = () => {
@@ -33,6 +34,7 @@ const PremiumVideoPage = () => {
   const [selectedCrypto, setSelectedCrypto] = useState('btc');
   const [isSignIn, setIsSignIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [isTipModalOpen, setIsTipModalOpen] = useState(false);
 
   const { data: video, isLoading, error } = useQuery({
     queryKey: ['premium-video', id],
@@ -44,7 +46,8 @@ const PremiumVideoPage = () => {
   const { data: relatedVideos = [] } = useRelatedVideos(
     video?.id || '',
     video?.tags || [],
-    12
+    12,
+    true // isPremiumContext = true
   );
 
   const { userReaction, reactToVideo, isLoading: reactionMutationPending } =
@@ -523,6 +526,7 @@ const PremiumVideoPage = () => {
             </div>
 
             <Button
+              onClick={() => setIsTipModalOpen(true)}
               className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm px-4 py-2 rounded-full"
             >
               <Star className="w-4 h-4 mr-1" />
@@ -790,78 +794,98 @@ const PremiumVideoPage = () => {
 
           {/* Tags */}
           <div className="flex flex-wrap gap-2">
-            {['Amateur', 'Blowjob', 'Brunette', '18 Year Old', 'Colombian', 'Eating Pussy', 'Latina'].map((tag) => (
-              <Badge key={tag} className="bg-gray-800 text-gray-300 border-gray-600 text-xs">
-                {tag}
+            {video.tags && video.tags.length > 0 ? (
+              <>
+                {video.tags.slice(0, 7).map((tag) => (
+                  <Badge key={tag} className="bg-gray-800 text-gray-300 border-gray-600 text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+                {video.tags.length > 7 && (
+                  <button className="bg-gray-800 text-gray-300 border border-gray-600 rounded px-2 py-1 text-xs">
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                )}
+              </>
+            ) : (
+              <Badge className="bg-gray-800 text-gray-300 border-gray-600 text-xs">
+                Premium Content
               </Badge>
-            ))}
-            <button className="bg-gray-800 text-gray-300 border border-gray-600 rounded px-2 py-1 text-xs">
-              <ChevronDown className="w-3 h-3" />
-            </button>
+            )}
           </div>
         </div>
 
         {/* More Premium Videos Section */}
-        {relatedVideos.length > 0 && (
-          <div className="bg-black px-4 py-6">
-            <h3 className="text-white text-lg font-bold mb-4 flex items-center">
-              <Crown className="w-5 h-5 text-yellow-400 mr-2" />
-              More Premium Content
-            </h3>
+        {relatedVideos.filter(v => v.is_premium).length > 0 && (
+          <div className="bg-black">
+            <div className="px-4 py-3">
+              <h3 className="text-white text-lg font-bold flex items-center">
+                <Crown className="w-5 h-5 text-yellow-400 mr-2" />
+                More Premium Content
+              </h3>
+            </div>
 
+            {/* Video Cards - Full Width No Container */}
             <div className="space-y-0">
-              {relatedVideos.slice(0, 6).map((relatedVideo) => (
-                <div key={relatedVideo.id} className="relative">
-                  <div className="relative aspect-video bg-black">
-                    <img
-                      src={relatedVideo.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
-                      alt={relatedVideo.title}
-                      className="w-full h-full object-cover"
-                    />
+              {relatedVideos.filter(v => v.is_premium).slice(0, 6).map((relatedVideo) => (
+                <Link key={relatedVideo.id} to={`/premium/video/${relatedVideo.id}`} className="block">
+                  <div className="bg-black">
+                    {/* Video Thumbnail */}
+                    <div className="relative aspect-video">
+                      <img
+                        src={relatedVideo.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
+                        alt={relatedVideo.title}
+                        className="w-full h-full object-cover"
+                      />
 
-                    {/* Gradient overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
-
-                    {/* Premium badge */}
-                    <div className="absolute top-3 left-3">
-                      <Badge className="bg-yellow-500 text-black text-xs font-bold px-2 py-1">
-                        <Crown className="w-3 h-3 mr-1" />
-                        PREMIUM
-                      </Badge>
-                    </div>
-
-                    {/* Play button */}
-                    <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                      <div className="bg-black/50 text-white p-3 rounded-full">
-                        <Play className="w-6 h-6" fill="currentColor" />
+                      {/* Duration */}
+                      <div className="absolute bottom-3 right-3">
+                        <span className="bg-black/80 text-white text-xs px-2 py-1 rounded">
+                          {relatedVideo.duration || '15:30'}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Video info */}
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                    {/* Video Info Card */}
+                    <div className="p-4">
                       <div className="flex items-start space-x-3">
-                        <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <Crown className="w-4 h-4 text-black" />
+                        {/* Creator Avatar */}
+                        <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
+                          {(relatedVideo.profiles?.avatar_url || relatedVideo.uploader_avatar) ? (
+                            <img
+                              src={relatedVideo.profiles?.avatar_url || relatedVideo.uploader_avatar}
+                              alt={relatedVideo.uploader_username || "Creator"}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                                const parent = target.parentElement;
+                                if (parent) {
+                                  const username = relatedVideo.uploader_username || relatedVideo.profiles?.username || relatedVideo.uploader_name || "User";
+                                  parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">${username.charAt(0).toUpperCase()}</div>`;
+                                }
+                              }}
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">
+                              {(relatedVideo.uploader_username || relatedVideo.profiles?.username || relatedVideo.uploader_name || "U").charAt(0).toUpperCase()}
+                            </div>
+                          )}
                         </div>
+
+                        {/* Video Details */}
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
+                          <h3 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
                             {relatedVideo.title}
-                          </h4>
+                          </h3>
                           <p className="text-gray-300 text-xs">
                             {relatedVideo.uploader_username || relatedVideo.uploader_name || "Premium Creator"}
                           </p>
                         </div>
                       </div>
                     </div>
-
-                    {/* Duration */}
-                    <div className="absolute bottom-3 right-3">
-                      <span className="bg-black/80 text-white text-xs px-2 py-1 rounded">
-                        {relatedVideo.duration || '15:30'}
-                      </span>
-                    </div>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>
@@ -872,6 +896,14 @@ const PremiumVideoPage = () => {
           isOpen={showSubscriptionModal}
           onClose={() => setShowSubscriptionModal(false)}
           onSubscriptionSuccess={handleSubscriptionSuccess}
+        />
+
+        {/* Tip Modal */}
+        <TipModal
+          isOpen={isTipModalOpen}
+          onClose={() => setIsTipModalOpen(false)}
+          creatorId={video.owner_id}
+          creatorName={video.uploader_username || video.uploader_name || "Creator"}
         />
       </div>
     </div>
