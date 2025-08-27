@@ -4,10 +4,36 @@ import { getOptimizedVideos } from '@/services/optimizedVideosService';
 import { getHomepageVideos } from '@/services/videosService';
 
 export const useInfiniteVideos = (category?: string, searchQuery?: string) => {
-  const userId = localStorage.getItem('user_id') || 
-                localStorage.getItem('supabase.auth.token')?.includes('user_id') ? 
-                JSON.parse(localStorage.getItem('supabase.auth.token') || '{}')?.user?.id : 
-                undefined;
+  const getUserId = () => {
+    try {
+      const userIdCache = localStorage.getItem('user_id_cache');
+      if (userIdCache) {
+        const parsed = JSON.parse(userIdCache);
+        if (Date.now() - parsed.timestamp < 5 * 60 * 1000) { // 5 minutes
+          return parsed.userId;
+        }
+      }
+    } catch (error) {
+      console.error('Error reading user ID cache:', error);
+    }
+    
+    const userId = localStorage.getItem('user_id') || 
+                  localStorage.getItem('supabase.auth.token')?.includes('user_id') ? 
+                  JSON.parse(localStorage.getItem('supabase.auth.token') || '{}')?.user?.id : 
+                  undefined;
+    
+    // Cache the user ID with timestamp
+    if (userId) {
+      localStorage.setItem('user_id_cache', JSON.stringify({
+        userId,
+        timestamp: Date.now()
+      }));
+    }
+    
+    return userId;
+  };
+  
+  const userId = getUserId();
 
   return useInfiniteQuery({
     queryKey: ['infinite-videos', category, searchQuery, userId],
