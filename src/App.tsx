@@ -42,7 +42,7 @@ import FeedPage from '@/pages/FeedPage.tsx';
 import NotificationsPage from '@/pages/NotificationsPage';
 import InboxPage from '@/pages/InboxPage';
 
-import ProtectedRoute from './components/ProtectedRoute'; 
+import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from '@/contexts/LanguageContext';
 
@@ -75,11 +75,11 @@ const App = () => {
                   <Route path="/hottest/:country" element={<HottestPage />} />
                   <Route path="/trending" element={<TrendingPage />} />
                   <Route path="/premium" element={<PremiumPage />} />
-                  <Route path="/premium/vr" element={<PremiumVRPage />} />
-                  <Route path="/premium/category/:category" element={<PremiumCategoryPage />} />
-                  <Route path="/premium/creators/studio" element={<PremiumStudioCreatorsPage />} />
-                  <Route path="/premium/creators/individual" element={<PremiumIndividualCreatorsPage />} />
                   <Route path="/premium/video/:id" element={<PremiumVideoPage />} />
+                  <Route path="/premium/categories/:category" element={<PremiumCategoryPage />} />
+                  <Route path="/premium/vr" element={<PremiumVRPage />} />
+                  <Route path="/premium/creators/individual" element={<PremiumIndividualCreatorsPage />} />
+                  <Route path="/premium/creators/studio" element={<PremiumStudioCreatorsPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/profile/:username?" element={<ProfilePage />} />
                   <Route path="/auth" element={<AuthPage />} />
