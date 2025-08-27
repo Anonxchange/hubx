@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { profileService } from '@/services/profileService';
@@ -40,7 +40,7 @@ const USER_CACHE_KEY = 'hubx_user_cache';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 // Cache the session to avoid repeated requests
-let sessionCache: { user: UserProfileData | null; timestamp: number } | null = null;
+let sessionCache: { user: UserProfileData | null; userType: UserType | null; timestamp: number } | null = null;
 const SESSION_CACHE_DURATION = 30000; // 30 seconds
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -81,35 +81,54 @@ const clearCachedUser = () => {
   }
 };
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [userType, setUserType] = useState<UserType | null>(null);
   const [loading, setLoading] = useState(true);
+  const userRef = useRef<UserProfileData | null>(null);
+
+  // Update userRef when user changes
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
 
   // Helper to update user state and cache in localStorage
-  const setUserAndCache = useCallback((userData: UserProfileData, userType: UserType) => {
+  const setUserAndCache = useCallback((userData: UserProfileData | null, userType: UserType | null) => {
     setUser(userData);
     setUserType(userType);
     setCachedUser(userData, userType);
 
+    // Update session cache immediately
+    sessionCache = {
+      user: userData,
+      userType: userType,
+      timestamp: Date.now()
+    };
+
     // Legacy cache support
     try {
-      localStorage.setItem('userType', userType);
+      if (userType) {
+        localStorage.setItem('userType', userType);
+      }
     } catch (error) {
       console.error('Error caching user type:', error);
     }
   }, []);
 
-  // Fetch user profile to get user_type, then set in state and localStorage
-  const fetchUserAndSetType = async (currentUser: User) => {
+  const fetchUserAndSetType = useCallback(async (currentUser: User) => {
+    // Prevent multiple calls for the same user
+    if (userRef.current?.id === currentUser.id && userRef.current?.email === currentUser.email) {
+      return;
+    }
+
     console.log('fetchUserAndSetType called for user:', currentUser.id);
 
-    // Check if we have a very recent cache (within 5 minutes) to avoid unnecessary DB calls
+    // Check if we have a very recent cache (within 1 minute) to avoid unnecessary DB calls
     const cachedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
     const lastFetchTime = localStorage.getItem(`last_fetch_${currentUser.id}`);
-    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+    const oneMinuteAgo = Date.now() - (60 * 1000);
 
-    if (cachedUserType && lastFetchTime && parseInt(lastFetchTime) > fiveMinutesAgo) {
+    if (cachedUserType && lastFetchTime && parseInt(lastFetchTime) > oneMinuteAgo) {
       console.log('Using recent cached user type:', cachedUserType);
       setUserAndCache(currentUser as UserProfileData, cachedUserType);
       return;
@@ -186,8 +205,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const fallbackUserType = cachedUserType || 'user';
       console.log('Using fallback user type:', fallbackUserType);
       setUserAndCache(currentUser as UserProfileData, fallbackUserType);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [setUserAndCache]);
 
   const fetchUserProfile = useCallback(async (currentUser: User) => {
     try {
@@ -224,75 +245,116 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchUserProfile]);
 
   useEffect(() => {
-    const getInitialSession = async () => {
+    let mounted = true;
+    let initialized = false;
+    let isProcessingAuth = false;
+
+    const initializeAuth = async () => {
+      if (isProcessingAuth) return;
+      isProcessingAuth = true;
+
       try {
-        // Check cache first
-        if (sessionCache && Date.now() - sessionCache.timestamp < SESSION_CACHE_DURATION) {
-          setUser(sessionCache.user);
-          setUserType(sessionCache.userType); // Also set userType from cache
+        // Check localStorage cache first
+        const cachedData = getCachedUser();
+        if (cachedData?.user && cachedData?.userType) {
+          console.log('Using localStorage cached user');
+          setUser(cachedData.user);
+          setUserType(cachedData.userType);
           setLoading(false);
+          initialized = true;
+          isProcessingAuth = false;
+          
+          // Update session cache
+          sessionCache = {
+            user: cachedData.user,
+            userType: cachedData.userType,
+            timestamp: Date.now()
+          };
           return;
         }
 
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Error getting session:', error);
-        } else {
-          const sessionUser = session?.user ?? null;
-          setUser(sessionUser as UserProfileData);
+        const { data: { session } } = await supabase.auth.getSession();
 
-          // Cache the session
-          sessionCache = {
-            user: sessionUser as UserProfileData,
-            timestamp: Date.now()
-          };
+        if (mounted && session?.user) {
+          console.log('Initial session found, fetching user type');
+          await fetchUserAndSetType(session.user);
+          initialized = true;
+        } else if (mounted) {
+          setUser(null);
+          setUserType(null);
+          setLoading(false);
+          initialized = true;
         }
       } catch (error) {
-        console.error('Error in getInitialSession:', error);
+        console.error('Error initializing auth:', error);
+        if (mounted) {
+          setUser(null);
+          setUserType(null);
+          setLoading(false);
+          initialized = true;
+        }
       } finally {
-        setLoading(false);
+        isProcessingAuth = false;
       }
     };
 
-    getInitialSession();
-  }, []); // Removed dependencies as getInitialSession is self-contained for initial load
+    initializeAuth();
 
-  // Subscribe to auth state changes
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state change:', event, session?.user?.id);
-      setLoading(true);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (!mounted || isProcessingAuth) return;
 
-      if (session?.user) {
-        const newUser = session.user as UserProfileData;
-        // Only fetch user type if not already cached or if user has changed
-        const cached = getCachedUser();
-        if (!cached || cached.user?.id !== newUser.id || !cached.userType) {
-          await fetchUserAndSetType(session.user);
-        } else {
-          // If cached data is fresh and valid, use it directly
-          setUser(cached.user);
-          setUserType(cached.userType);
+      // Skip ALL INITIAL_SESSION events after we've initialized to prevent loops
+      if (event === 'INITIAL_SESSION') {
+        if (initialized) {
+          console.log('Skipping duplicate INITIAL_SESSION - already initialized');
+          return;
         }
+        
+        // Only process the first INITIAL_SESSION
+        initialized = true;
+        isProcessingAuth = true;
+        
+        try {
+          if (session?.user) {
+            console.log('Processing first INITIAL_SESSION');
+            await fetchUserAndSetType(session.user);
+          } else {
+            setUser(null);
+            setUserType(null);
+            setLoading(false);
+          }
+        } finally {
+          isProcessingAuth = false;
+        }
+        return;
+      }
 
-        // Update session cache regardless
-        sessionCache = {
-          user: newUser,
-          timestamp: Date.now()
-        };
+      console.log('Auth state change:', event, session?.user?.id);
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (session?.user && !isProcessingAuth) {
+          isProcessingAuth = true;
+          try {
+            await fetchUserAndSetType(session.user);
+          } finally {
+            isProcessingAuth = false;
+          }
+        }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setUserType(null);
         clearCachedUser();
-        sessionCache = null; // Clear session cache on sign out
+        sessionCache = null;
+        setLoading(false);
+        initialized = false;
       }
-      setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
-  }, [fetchUserAndSetType]); // fetchUserAndSetType is now correctly depended on
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
 
   // Signup function
   const signUp = async (
@@ -334,18 +396,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Try to create profile immediately
         try {
-          const profileCreated = await profileService.createProfile({
+          await profileService.createProfile({
             id: data.user.id,
             email: data.user.email || '',
             userType: userType,
             fullName: fullName
           });
+          console.log('Profile created successfully with userType:', userType);
 
-          if (profileCreated) {
-            console.log('Profile created successfully with userType:', userType);
-          } else {
-            console.error('Failed to create user profile - will retry later');
-          }
         } catch (profileError) {
           console.error('Profile creation error:', profileError);
           // If profile creation fails, try direct database insert
@@ -371,6 +429,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.session) {
           console.log('User is immediately logged in, setting user type in context');
           setUserAndCache(data.user as UserProfileData, userType);
+          sessionCache = { // Update session cache
+            user: data.user as UserProfileData,
+            userType: userType,
+            timestamp: Date.now()
+          };
         }
       }
 
@@ -446,6 +509,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Update session cache on successful sign-in
         sessionCache = {
           user: data.user as UserProfileData,
+          userType: correctUserType,
           timestamp: Date.now()
         };
       }
