@@ -116,21 +116,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchUserAndSetType = useCallback(async (currentUser: User) => {
-    // Prevent multiple calls for the same user
-    if (userRef.current?.id === currentUser.id && userRef.current?.email === currentUser.email) {
+    // Prevent multiple calls for the same user with stronger validation
+    if (userRef.current?.id === currentUser.id && userRef.current?.email === currentUser.email && userType) {
+      console.log('Skipping fetchUserAndSetType - user already loaded');
       return;
     }
 
     console.log('fetchUserAndSetType called for user:', currentUser.id);
 
-    // Check if we have a very recent cache (within 1 minute) to avoid unnecessary DB calls
+    // Check if we have a very recent cache (within 5 minutes) to avoid unnecessary DB calls
     const cachedUserType = localStorage.getItem(`user_type_${currentUser.id}`) as UserType | null;
     const lastFetchTime = localStorage.getItem(`last_fetch_${currentUser.id}`);
-    const oneMinuteAgo = Date.now() - (60 * 1000);
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
 
-    if (cachedUserType && lastFetchTime && parseInt(lastFetchTime) > oneMinuteAgo) {
+    if (cachedUserType && lastFetchTime && parseInt(lastFetchTime) > fiveMinutesAgo) {
       console.log('Using recent cached user type:', cachedUserType);
       setUserAndCache(currentUser as UserProfileData, cachedUserType);
+      setLoading(false);
       return;
     }
 
@@ -254,15 +256,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       isProcessingAuth = true;
 
       try {
-        // Check localStorage cache first
+        // Check localStorage cache first - this should be instant
         const cachedData = getCachedUser();
         if (cachedData?.user && cachedData?.userType) {
-          console.log('Using localStorage cached user');
           setUser(cachedData.user);
           setUserType(cachedData.userType);
           setLoading(false);
           initialized = true;
-          isProcessingAuth = false;
           
           // Update session cache
           sessionCache = {
@@ -270,13 +270,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             userType: cachedData.userType,
             timestamp: Date.now()
           };
+          
+          // Silently verify session in background without blocking UI
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session?.user && session.user.id === cachedData.user?.id) {
+              // Session is valid, no need to update
+            } else {
+              // Session invalid, re-authenticate silently
+              if (mounted) {
+                setUser(null);
+                setUserType(null);
+                clearCachedUser();
+                sessionCache = null;
+              }
+            }
+          }).catch(() => {
+            // Ignore background verification errors
+          });
+          
+          isProcessingAuth = false;
           return;
         }
 
+        // No cache available, get session
         const { data: { session } } = await supabase.auth.getSession();
 
         if (mounted && session?.user) {
-          console.log('Initial session found, fetching user type');
           await fetchUserAndSetType(session.user);
           initialized = true;
         } else if (mounted) {
@@ -331,14 +350,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('Auth state change:', event, session?.user?.id);
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        if (session?.user && !isProcessingAuth) {
+      if (event === 'SIGNED_IN') {
+        // Only process SIGNED_IN if we don't already have the user loaded
+        if (session?.user && !isProcessingAuth && (!user || user.id !== session.user.id)) {
           isProcessingAuth = true;
           try {
             await fetchUserAndSetType(session.user);
           } finally {
             isProcessingAuth = false;
           }
+        }
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Skip TOKEN_REFRESHED if user is already loaded - no need to refetch
+        if (!user || !session?.user) {
+          console.log('Processing TOKEN_REFRESHED - user not loaded');
+          if (session?.user && !isProcessingAuth) {
+            isProcessingAuth = true;
+            try {
+              await fetchUserAndSetType(session.user);
+            } finally {
+              isProcessingAuth = false;
+            }
+          }
+        } else {
+          console.log('Skipping TOKEN_REFRESHED - user already loaded');
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
