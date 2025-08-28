@@ -133,7 +133,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             videoRef.current.play().catch(console.error);
             setIsPlaying(true);
           }
-        }, 1500);
+        }, 2000);
       } else {
         // No more segments, end trailer
         setTrailerEnded(true);
@@ -296,12 +296,24 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           setCurrentTrailerSegment(0);
           setTrailerEnded(false);
 
-          // Wait for video to load before setting time
+          // Wait for video to load before setting time and auto-playing
           if (video.readyState >= 1) {
             video.currentTime = TRAILER_SEGMENTS[0].start;
+            // Auto-play the first trailer segment
+            setTimeout(() => {
+              if (!hasPremiumSubscription) {
+                video.play().catch(console.error);
+              }
+            }, 500);
           } else {
             video.addEventListener('loadedmetadata', () => {
               video.currentTime = TRAILER_SEGMENTS[0].start;
+              // Auto-play the first trailer segment after metadata loads
+              setTimeout(() => {
+                if (!hasPremiumSubscription) {
+                  video.play().catch(console.error);
+                }
+              }, 500);
             }, { once: true });
           }
 
@@ -616,30 +628,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
               <span>Get Premium Access</span>
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Non-Premium Control Overlay with Play Button */}
-      {!hasPremiumSubscription && !trailerEnded && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <button
-            onClick={() => {
-              if (videoRef.current) {
-                if (videoRef.current.paused) {
-                  videoRef.current.play().catch(console.error);
-                } else {
-                  videoRef.current.pause();
-                }
-              }
-            }}
-            className="bg-yellow-500/90 hover:bg-yellow-600/90 text-black p-4 rounded-full transition-all transform hover:scale-110 shadow-lg"
-          >
-            {isPlaying ? (
-              <Pause className="w-8 h-8" />
-            ) : (
-              <Play className="w-8 h-8" />
-            )}
-          </button>
         </div>
       )}
 
