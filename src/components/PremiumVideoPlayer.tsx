@@ -341,7 +341,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           setCurrentTime(currentTime);
           
           // Handle trailer segments for non-premium users
-          if (!hasPremiumSubscription && !premiumLoading) {
+          if (!hasPremiumSubscription && !premiumLoading && !trailerEnded) {
             const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
             
             if (currentSegment) {
@@ -352,23 +352,32 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                 
                 // Move to next trailer segment
                 if (currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
-                  const nextSegment = currentTrailerSegment + 1;
-                  setCurrentTrailerSegment(nextSegment);
-                  
-                  // Jump to next segment start
-                  video.currentTime = TRAILER_SEGMENTS[nextSegment].start;
+                  const nextSegmentIndex = currentTrailerSegment + 1;
+                  setCurrentTrailerSegment(nextSegmentIndex);
                   
                   // Show overlay indicating next segment
                   setShowPreviewOverlay(true);
+                  
+                  // Jump to next segment start after a delay
                   setTimeout(() => {
-                    setShowPreviewOverlay(false);
-                    video.play();
+                    if (videoRef.current && !trailerEnded) {
+                      videoRef.current.currentTime = TRAILER_SEGMENTS[nextSegmentIndex].start;
+                      setShowPreviewOverlay(false);
+                      videoRef.current.play();
+                    }
                   }, 2000);
                 } else {
                   // All trailer segments watched
                   setTrailerEnded(true);
                   setShowSubscriptionModal(true);
                 }
+                return; // Exit early to prevent further processing
+              }
+              
+              // Ensure we're within the allowed segment bounds
+              if (currentTime < currentSegment.start) {
+                video.currentTime = currentSegment.start;
+                return;
               }
               
               // Calculate time left in current segment
@@ -386,8 +395,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         video.addEventListener("play", () => {
           // Check trailer segments for non-premium users
           if (!hasPremiumSubscription && !premiumLoading) {
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            
             if (trailerEnded) {
               video.pause();
               setIsPlaying(false);
@@ -395,6 +402,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
               return;
             }
             
+            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
             if (currentSegment) {
               // Ensure we're playing within allowed segment
               if (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end) {
@@ -408,7 +416,17 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
         // Prevent seeking outside trailer segments for non-premium users
         video.addEventListener("seeking", () => {
-          if (!hasPremiumSubscription && !premiumLoading) {
+          if (!hasPremiumSubscription && !premiumLoading && !trailerEnded) {
+            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
+            
+            if (currentSegment && (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end)) {
+              video.currentTime = currentSegment.start;
+            }
+          }
+        });
+
+        video.addEventListener("seeked", () => {
+          if (!hasPremiumSubscription && !premiumLoading && !trailerEnded) {
             const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
             
             if (currentSegment && (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end)) {
