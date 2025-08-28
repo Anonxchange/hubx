@@ -91,8 +91,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
   // Trailer enforcement system for non-premium users
   const enforceTrailerRestrictions = (video: HTMLVideoElement) => {
-    // Skip enforcement completely if user has premium OR if still loading subscription status
-    if (hasPremiumSubscription || premiumLoading) {
+    // Only skip enforcement if user has confirmed premium subscription
+    if (hasPremiumSubscription) {
       return;
     }
 
@@ -278,10 +278,19 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         const video = videoRef.current;
 
         // For non-premium users, set up trailer restrictions
-        if (!hasPremiumSubscription && !premiumLoading) {
+        // Allow trailer setup even while premium loading to prevent blocking
+        if (!hasPremiumSubscription) {
           // Remove default controls but allow video to load
           video.controls = false;
-          video.controlsList.add('nodownload', 'nofullscreen', 'noremoteplayback');
+          
+          // Safely add controlsList restrictions if supported
+          if (video.controlsList && typeof video.controlsList.add === 'function') {
+            try {
+              video.controlsList.add('nodownload', 'nofullscreen', 'noremoteplayback');
+            } catch (e) {
+              console.log('controlsList not supported:', e);
+            }
+          }
 
           // Set initial state
           setCurrentTrailerSegment(0);
@@ -313,7 +322,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
           // Store cleanup references
           (video as any).enforceInterval = enforceInterval;
-        } else if (hasPremiumSubscription) {
+        } else if (hasPremiumSubscription && !premiumLoading) {
           // Premium user - load full FluidPlayer
           const existingScript = document.querySelector<HTMLScriptElement>(
             "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
@@ -496,6 +505,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       {/* Regular Premium Video Player */}
       <video
         ref={videoRef}
+        src={src}
         className={`w-full aspect-video rounded-lg ${vrMode ? 'hidden' : 'block'}`}
         poster={poster}
         preload="metadata"
@@ -609,7 +619,31 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Non-Premium Control Overlay */}
+      {/* Non-Premium Control Overlay with Play Button */}
+      {!hasPremiumSubscription && !trailerEnded && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <button
+            onClick={() => {
+              if (videoRef.current) {
+                if (videoRef.current.paused) {
+                  videoRef.current.play().catch(console.error);
+                } else {
+                  videoRef.current.pause();
+                }
+              }
+            }}
+            className="bg-yellow-500/90 hover:bg-yellow-600/90 text-black p-4 rounded-full transition-all transform hover:scale-110 shadow-lg"
+          >
+            {isPlaying ? (
+              <Pause className="w-8 h-8" />
+            ) : (
+              <Play className="w-8 h-8" />
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Non-Premium Status Bar */}
       {!hasPremiumSubscription && !trailerEnded && (
         <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-sm text-white p-3 rounded-lg border border-yellow-400/30">
           <div className="flex items-center justify-between">
