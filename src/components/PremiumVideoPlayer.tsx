@@ -91,8 +91,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
   // BULLETPROOF enforcement system for non-premium users
   const enforceTrailerRestrictions = (video: HTMLVideoElement) => {
-    // Only skip enforcement if user actually has premium subscription (not during loading)
-    if (hasPremiumSubscription && !premiumLoading) return;
+    // Skip enforcement if user has premium OR if still loading subscription status
+    if (hasPremiumSubscription || premiumLoading) return;
 
     const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
     const currentTime = video.currentTime;
