@@ -570,49 +570,41 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         onClose={() => setShowSubscriptionModal(false)}
       />
 
-      {/* Preview Time Left Display - shows when 5 seconds or less remain */}
-      {!hasPremiumSubscription && !trailerEnded && isPlaying && previewTimeLeft <= 5 && (
-        <div className="absolute top-4 right-4 bg-red-600/90 text-white px-4 py-2 rounded-lg flex items-center space-x-2 z-10 animate-pulse">
-          <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
-          <span className="text-sm font-bold">
-            Preview ends in {formatTimeLeft(previewTimeLeft)}
+      {/* Countdown Overlay - Shows during last 10 seconds */}
+      {!hasPremiumSubscription && !trailerEnded && isPlaying && previewTimeLeft <= 10 && previewTimeLeft > 0 && (
+        <div className="absolute top-4 right-4 bg-black/90 text-white px-3 py-2 rounded-lg flex items-center space-x-2 z-10">
+          <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-black text-sm font-bold">
+            {previewTimeLeft}
+          </div>
+          <span className="text-sm font-medium">
+            Preview ends
           </span>
         </div>
       )}
 
       {/* Total Preview Time Left Warning */}
-      {!hasPremiumSubscription && !trailerEnded && (getTotalPreviewUsed() + Math.floor((Date.now() - previewStartTime) / 1000)) >= (TOTAL_PREVIEW_LIMIT - 30) && (
+      {!hasPremiumSubscription && !trailerEnded && (getTotalPreviewUsed() + Math.floor((Date.now() - previewStartTime) / 1000)) >= (TOTAL_PREVIEW_LIMIT - 60) && (
         <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-red-600/95 text-white px-6 py-3 rounded-lg text-center z-10">
           <div className="flex items-center space-x-2 mb-1">
             <Crown className="w-4 h-4 text-yellow-400" />
             <span className="text-sm font-bold">Total Preview Limit Almost Reached</span>
           </div>
           <p className="text-xs">
-            {Math.max(0, TOTAL_PREVIEW_LIMIT - getTotalPreviewUsed() - Math.floor((Date.now() - previewStartTime) / 1000))} seconds remaining across all videos
+            {Math.max(0, Math.floor((TOTAL_PREVIEW_LIMIT - getTotalPreviewUsed() - Math.floor((Date.now() - previewStartTime) / 1000)) / 60))} minutes remaining across all videos
           </p>
         </div>
       )}
 
-      {/* Trailer Ended Overlay */}
+      {/* Simple overlay when preview ends - just shows upgrade button */}
       {trailerEnded && !hasPremiumSubscription && (
-        <div className="absolute inset-0 bg-black/90 flex items-center justify-center rounded-lg">
-          <div className="text-center text-white p-8 max-w-md">
-            <div className="mb-6">
-              <Lock className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold mb-2">Preview Completed</h3>
-              <p className="text-gray-300">
-                You've watched the {PREVIEW_DURATION}-second preview. 
-                Click upgrade to watch the full video and access unlimited content.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowSubscriptionModal(true)}
-              className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-8 py-3 rounded-lg font-bold text-lg hover:from-yellow-600 hover:to-yellow-700 transition-all flex items-center space-x-2 mx-auto"
-            >
-              <Crown className="w-5 h-5" />
-              <span>Upgrade to Premium</span>
-            </button>
-          </div>
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg">
+          <button
+            onClick={() => setShowSubscriptionModal(true)}
+            className="bg-yellow-500 hover:bg-yellow-600 text-black px-6 py-3 rounded-lg font-bold text-base transition-all flex items-center space-x-2"
+          >
+            <Crown className="w-5 h-5" />
+            <span>Upgrade to Premium</span>
+          </button>
         </div>
       )}
 
