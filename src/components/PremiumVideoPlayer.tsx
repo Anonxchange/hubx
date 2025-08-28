@@ -80,7 +80,19 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const [timeLeft, setTimeLeft] = useState(84); // 1 minute 24 seconds
   const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
   
+  // Trailer mode states
+  const [currentTrailerSegment, setCurrentTrailerSegment] = useState(0);
+  const [trailerEnded, setTrailerEnded] = useState(false);
+  
   const PREVIEW_TIME_LIMIT = 84; // 1 minute 24 seconds in seconds
+  
+  // Define trailer segments (start and end times in seconds)
+  const TRAILER_SEGMENTS = [
+    { start: 0, end: 20 },      // 0:00-0:20
+    { start: 300, end: 320 },   // 5:00-5:20  
+    { start: 720, end: 740 },   // 12:00-12:20
+    { start: 1080, end: 1100 }  // 18:00-18:20
+  ];
 
   // Check VR support
   useEffect(() => {
@@ -177,14 +189,24 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           }
         });
 
-        // Apply preview restrictions in VR mode too
+        // Apply trailer restrictions in VR mode too
         if (!hasPremiumSubscription && !premiumLoading) {
           vrVideo.addEventListener('timeupdate', () => {
-            if (vrVideo.currentTime >= PREVIEW_TIME_LIMIT) {
+            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
+            
+            if (currentSegment && vrVideo.currentTime >= currentSegment.end) {
               vrVideo.pause();
-              vrVideo.currentTime = PREVIEW_TIME_LIMIT;
-              setVrMode(false);
-              setShowSubscriptionModal(true);
+              
+              if (currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
+                const nextSegment = currentTrailerSegment + 1;
+                setCurrentTrailerSegment(nextSegment);
+                vrVideo.currentTime = TRAILER_SEGMENTS[nextSegment].start;
+                setTimeout(() => vrVideo.play(), 2000);
+              } else {
+                setTrailerEnded(true);
+                setVrMode(false);
+                setShowSubscriptionModal(true);
+              }
             }
           });
         }
@@ -206,17 +228,13 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     if (videoRef.current && initialized) {
       const video = videoRef.current;
       if (!hasPremiumSubscription && !premiumLoading) {
-        setDuration(PREVIEW_TIME_LIMIT);
-        // Force video to show only preview duration in player controls
-        if (video.duration && video.duration > PREVIEW_TIME_LIMIT) {
-          Object.defineProperty(video, 'duration', {
-            get: () => PREVIEW_TIME_LIMIT,
-            configurable: true
-          });
-        }
+        // Calculate total trailer duration
+        const totalTrailerDuration = TRAILER_SEGMENTS.reduce((total, segment) => {
+          return total + (segment.end - segment.start);
+        }, 0);
+        setDuration(totalTrailerDuration);
       } else if (video.duration) {
         // Restore original duration for premium users
-        delete video.duration;
         setDuration(video.duration || 0);
       }
     }
@@ -304,16 +322,15 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
         // Add event listeners for premium features
         video.addEventListener("loadedmetadata", () => {
-          // For non-premium users, show only preview duration (1:24)
           if (!hasPremiumSubscription && !premiumLoading) {
-            setDuration(PREVIEW_TIME_LIMIT);
-            // Override the video duration property to show only preview time
-            if (video.duration > PREVIEW_TIME_LIMIT) {
-              Object.defineProperty(video, 'duration', {
-                get: () => PREVIEW_TIME_LIMIT,
-                configurable: true
-              });
-            }
+            // Calculate total trailer duration
+            const totalTrailerDuration = TRAILER_SEGMENTS.reduce((total, segment) => {
+              return total + (segment.end - segment.start);
+            }, 0);
+            setDuration(totalTrailerDuration);
+            
+            // Start at first trailer segment
+            video.currentTime = TRAILER_SEGMENTS[0].start;
           } else {
             setDuration(video.duration);
           }
@@ -323,65 +340,92 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           const currentTime = video.currentTime;
           setCurrentTime(currentTime);
           
-          // Check preview time limit for non-premium users
+          // Handle trailer segments for non-premium users
           if (!hasPremiumSubscription && !premiumLoading) {
-            const remaining = Math.max(0, PREVIEW_TIME_LIMIT - currentTime);
-            setTimeLeft(Math.ceil(remaining));
+            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
             
-            // Show preview overlay when 10 seconds left
-            if (remaining <= 10 && remaining > 0 && !showPreviewOverlay) {
-              setShowPreviewOverlay(true);
-            }
-            
-            // Enforce strict time limit - pause and show modal
-            if (currentTime >= PREVIEW_TIME_LIMIT) {
-              video.pause();
-              video.currentTime = PREVIEW_TIME_LIMIT; // Force video back to limit
-              setIsPlaying(false);
-              setPreviewTimeReached(true);
-              setShowPreviewOverlay(false);
-              setShowSubscriptionModal(true);
+            if (currentSegment) {
+              // Check if we've reached the end of current trailer segment
+              if (currentTime >= currentSegment.end) {
+                video.pause();
+                setIsPlaying(false);
+                
+                // Move to next trailer segment
+                if (currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
+                  const nextSegment = currentTrailerSegment + 1;
+                  setCurrentTrailerSegment(nextSegment);
+                  
+                  // Jump to next segment start
+                  video.currentTime = TRAILER_SEGMENTS[nextSegment].start;
+                  
+                  // Show overlay indicating next segment
+                  setShowPreviewOverlay(true);
+                  setTimeout(() => {
+                    setShowPreviewOverlay(false);
+                    video.play();
+                  }, 2000);
+                } else {
+                  // All trailer segments watched
+                  setTrailerEnded(true);
+                  setShowSubscriptionModal(true);
+                }
+              }
+              
+              // Calculate time left in current segment
+              const segmentTimeLeft = Math.max(0, currentSegment.end - currentTime);
+              setTimeLeft(Math.ceil(segmentTimeLeft));
+              
+              // Show preview overlay when 5 seconds left in segment
+              if (segmentTimeLeft <= 5 && segmentTimeLeft > 0 && !showPreviewOverlay && currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
+                setShowPreviewOverlay(true);
+              }
             }
           }
         });
 
         video.addEventListener("play", () => {
-          // Check if non-premium user is trying to play beyond preview time
-          if (!hasPremiumSubscription && !premiumLoading && video.currentTime >= PREVIEW_TIME_LIMIT) {
-            video.pause();
-            video.currentTime = PREVIEW_TIME_LIMIT; // Reset to limit
-            setIsPlaying(false);
-            setPreviewTimeReached(true);
-            setShowSubscriptionModal(true);
-            return;
+          // Check trailer segments for non-premium users
+          if (!hasPremiumSubscription && !premiumLoading) {
+            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
+            
+            if (trailerEnded) {
+              video.pause();
+              setIsPlaying(false);
+              setShowSubscriptionModal(true);
+              return;
+            }
+            
+            if (currentSegment) {
+              // Ensure we're playing within allowed segment
+              if (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end) {
+                video.currentTime = currentSegment.start;
+              }
+            }
           }
           
           setIsPlaying(true);
         });
 
-        // Prevent seeking beyond preview limit for non-premium users
+        // Prevent seeking outside trailer segments for non-premium users
         video.addEventListener("seeking", () => {
-          if (!hasPremiumSubscription && !premiumLoading && video.currentTime >= PREVIEW_TIME_LIMIT) {
-            video.currentTime = PREVIEW_TIME_LIMIT - 1;
-            video.pause();
-            setIsPlaying(false);
-            setShowSubscriptionModal(true);
+          if (!hasPremiumSubscription && !premiumLoading) {
+            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
+            
+            if (currentSegment && (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end)) {
+              video.currentTime = currentSegment.start;
+              video.pause();
+              setIsPlaying(false);
+            }
           }
         });
 
-        // Additional enforcement: prevent video from loading beyond preview time
+        // Set initial trailer segment for non-premium users
         video.addEventListener("loadstart", () => {
           if (!hasPremiumSubscription && !premiumLoading) {
-            // Limit the video buffering to preview time only
-            video.addEventListener("progress", () => {
-              if (video.buffered.length > 0) {
-                const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-                if (bufferedEnd > PREVIEW_TIME_LIMIT + 5) { // 5 second buffer
-                  video.pause();
-                  video.currentTime = Math.min(video.currentTime, PREVIEW_TIME_LIMIT);
-                }
-              }
-            });
+            // Start at first trailer segment
+            setCurrentTrailerSegment(0);
+            setTrailerEnded(false);
+            video.currentTime = TRAILER_SEGMENTS[0].start;
           }
         });
 
@@ -437,6 +481,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const handleSubscriptionSuccess = () => {
     setShowSubscriptionModal(false);
     setPreviewTimeReached(false);
+    setTrailerEnded(false);
+    setCurrentTrailerSegment(0);
     refreshSubscription();
     // Allow continued playback
     if (videoRef.current) {
@@ -532,17 +578,28 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
       {/* Premium Badge removed as requested */}
 
-      {/* Preview Warning Overlay */}
-      {showPreviewOverlay && !hasPremiumSubscription && !previewTimeReached && (
-        <div className="absolute bottom-20 left-4 right-4 bg-gradient-to-r from-red-600/90 to-purple-600/90 backdrop-blur-sm text-white p-4 rounded-lg border border-yellow-400/50 shadow-2xl">
+      {/* Trailer Segment Overlay */}
+      {showPreviewOverlay && !hasPremiumSubscription && !trailerEnded && (
+        <div className="absolute bottom-20 left-4 right-4 bg-gradient-to-r from-blue-600/90 to-purple-600/90 backdrop-blur-sm text-white p-4 rounded-lg border border-yellow-400/50 shadow-2xl">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Crown className="w-6 h-6 text-yellow-400 animate-pulse" />
               <div>
-                <h4 className="font-bold text-sm">Preview ending soon!</h4>
-                <p className="text-xs text-gray-200">
-                  {timeLeft} seconds left - Subscribe for unlimited access
-                </p>
+                {currentTrailerSegment < TRAILER_SEGMENTS.length - 1 ? (
+                  <>
+                    <h4 className="font-bold text-sm">Trailer segment ending!</h4>
+                    <p className="text-xs text-gray-200">
+                      Next preview starts in {timeLeft} seconds
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h4 className="font-bold text-sm">Final trailer segment!</h4>
+                    <p className="text-xs text-gray-200">
+                      {timeLeft} seconds left - Subscribe for full video
+                    </p>
+                  </>
+                )}
               </div>
             </div>
             <button
@@ -562,17 +619,20 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         onSubscriptionSuccess={handleSubscriptionSuccess}
       />
 
-      {/* Preview Time Reached Overlay */}
-      {previewTimeReached && !hasPremiumSubscription && (
+      {/* Trailer Ended Overlay */}
+      {trailerEnded && !hasPremiumSubscription && (
         <div className="absolute inset-0 bg-black/90 flex items-center justify-center rounded-lg">
           <div className="text-center text-white p-8 max-w-md">
             <div className="mb-6">
               <Lock className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold mb-2">Premium Content</h3>
+              <h3 className="text-2xl font-bold mb-2">Trailer Completed</h3>
               <p className="text-gray-300">
-                You've watched the free preview ({formatTime(PREVIEW_TIME_LIMIT)}). 
-                Upgrade to Premium to continue watching this full video and access unlimited content.
+                You've watched all trailer segments ({TRAILER_SEGMENTS.length} clips). 
+                Upgrade to Premium to watch the full video and access unlimited content.
               </p>
+              <div className="mt-4 text-sm text-gray-400">
+                Trailer segments: 0:00-0:20, 5:00-5:20, 12:00-12:20, 18:00-18:20
+              </div>
             </div>
             <button
               onClick={() => setShowSubscriptionModal(true)}
