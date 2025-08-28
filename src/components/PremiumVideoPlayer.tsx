@@ -253,49 +253,56 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         const loadFluidPlayer = () => {
           if (window.fluidPlayer && videoRef.current) {
             try {
-              const fluidPlayerInstance = window.fluidPlayer(video, {
-                layoutControls: {
-                  autoPlay: false,
-                  mute: false,
-                  fillToContainer: true,
-                  playButtonShowing: true,
-                  posterImage: poster || "",
-                  allowDownload: false,
-                  keyboardControl: true,
-                  playbackRates: [
-                    "x0.25",
-                    "x0.5",
-                    "x0.75",
-                    "x1",
-                    "x1.25",
-                    "x1.5",
-                    "x1.75",
-                    "x2",
-                    "x2.25",
-                    "x2.5",
-                  ],
-                  controlBar: {
-                    autoHide: true,
-                    autoHideTimeout: 5,
-                    animated: true,
+              // Only use FluidPlayer for premium users
+              if (hasPremiumSubscription) {
+                const fluidPlayerInstance = window.fluidPlayer(video, {
+                  layoutControls: {
+                    autoPlay: false,
+                    mute: false,
+                    fillToContainer: true,
+                    playButtonShowing: true,
+                    posterImage: poster || "",
+                    allowDownload: false,
+                    keyboardControl: true,
+                    playbackRates: [
+                      "x0.25",
+                      "x0.5",
+                      "x0.75",
+                      "x1",
+                      "x1.25",
+                      "x1.5",
+                      "x1.75",
+                      "x2",
+                      "x2.25",
+                      "x2.5",
+                    ],
+                    controlBar: {
+                      autoHide: true,
+                      autoHideTimeout: 5,
+                      animated: true,
+                    },
+                    theatre: true,
+                    captions: true,
+                    primaryColor: "#f59e0b", // Premium gold color
+                    responsive: true,
+                    logo: {
+                      imageUrl: null,
+                      position: "top right",
+                      clickUrl: null,
+                      opacity: 0.8,
+                    },
                   },
-                  theatre: true,
-                  captions: true,
-                  primaryColor: "#f59e0b", // Premium gold color
-                  responsive: true,
-                  logo: {
-                    imageUrl: null,
-                    position: "top right",
-                    clickUrl: null,
-                    opacity: 0.8,
-                  },
-                },
-                // Premium = ad-free experience
-              });
+                  // Premium = ad-free experience
+                });
 
-              // Save instance for cleanup
-              (video as any).fluidPlayerInstance = fluidPlayerInstance;
-              console.log("Premium FluidPlayer initialized successfully");
+                // Save instance for cleanup
+                (video as any).fluidPlayerInstance = fluidPlayerInstance;
+                console.log("Premium FluidPlayer initialized successfully");
+              } else {
+                // For non-premium users, use basic controls with restrictions
+                video.controls = true;
+                console.log("Using basic controls for non-premium user");
+              }
             } catch (error) {
               console.error("Error initializing Premium FluidPlayer:", error);
               video.controls = true;
@@ -345,7 +352,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
             
             if (currentSegment) {
-              // Force user back to segment bounds if they're outside
+              // Immediate enforcement - pause if outside segment
               if (currentTime < currentSegment.start || currentTime >= currentSegment.end) {
                 video.pause();
                 setIsPlaying(false);
@@ -357,9 +364,11 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                     setCurrentTrailerSegment(nextSegmentIndex);
                     setShowPreviewOverlay(true);
                     
+                    // Immediately jump to next segment
+                    video.currentTime = TRAILER_SEGMENTS[nextSegmentIndex].start;
+                    
                     setTimeout(() => {
                       if (videoRef.current && !trailerEnded) {
-                        videoRef.current.currentTime = TRAILER_SEGMENTS[nextSegmentIndex].start;
                         setShowPreviewOverlay(false);
                         videoRef.current.play();
                         setIsPlaying(true);
@@ -369,10 +378,17 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                     // All segments watched
                     setTrailerEnded(true);
                     setShowSubscriptionModal(true);
+                    video.currentTime = TRAILER_SEGMENTS[0].start; // Reset to beginning
                   }
                 } else {
                   // User went backwards, jump to current segment start
                   video.currentTime = currentSegment.start;
+                  setTimeout(() => {
+                    if (videoRef.current && !trailerEnded) {
+                      videoRef.current.play();
+                      setIsPlaying(true);
+                    }
+                  }, 100);
                 }
                 return;
               }
@@ -388,6 +404,23 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             }
           }
         });
+
+        // Add continuous monitoring to prevent any bypassing
+        const monitoringInterval = setInterval(() => {
+          if (!hasPremiumSubscription && !premiumLoading && !trailerEnded && videoRef.current) {
+            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
+            const currentTime = videoRef.current.currentTime;
+            
+            if (currentSegment && (currentTime < currentSegment.start || currentTime >= currentSegment.end)) {
+              videoRef.current.pause();
+              videoRef.current.currentTime = currentSegment.start;
+              setIsPlaying(false);
+            }
+          }
+        }, 500); // Check every 500ms
+
+        // Store interval for cleanup
+        (video as any).monitoringInterval = monitoringInterval;
 
         video.addEventListener("play", () => {
           // Check trailer segments for non-premium users
@@ -457,6 +490,23 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           }
         });
 
+        // Disable context menu for non-premium users
+        if (!hasPremiumSubscription && !premiumLoading) {
+          video.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            return false;
+          });
+
+          // Disable keyboard shortcuts that could bypass restrictions
+          video.addEventListener("keydown", (e) => {
+            // Disable arrow keys, spacebar, and other controls
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Home', 'End'].includes(e.key)) {
+              e.preventDefault();
+              return false;
+            }
+          });
+        }
+
         // Set initial trailer segment for non-premium users
         video.addEventListener("loadstart", () => {
           if (!hasPremiumSubscription && !premiumLoading) {
@@ -494,6 +544,9 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           const player = videoRef.current as any;
           if (player.fluidPlayerInstance) {
             player.fluidPlayerInstance.destroy();
+          }
+          if (player.monitoringInterval) {
+            clearInterval(player.monitoringInterval);
           }
         } catch (error) {
           console.log("Error cleaning up Premium FluidPlayer:", error);
