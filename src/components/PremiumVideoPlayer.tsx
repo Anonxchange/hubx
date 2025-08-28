@@ -121,8 +121,9 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         
         setCurrentTrailerSegment(nextSegmentIndex);
         
-        // Jump to next segment start and immediately play
+        // Jump to next segment start and reset time left
         video.currentTime = nextSegment.start;
+        setTimeLeft(nextSegment.end - nextSegment.start);
         
         // Small delay to let video seek, then auto-play next segment
         setTimeout(() => {
@@ -402,7 +403,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           setCurrentTime(video.currentTime);
 
           // Only apply trailer logic for non-premium users
-          if (!hasPremiumSubscription && !premiumLoading) {
+          if (!hasPremiumSubscription) {
             const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
             if (currentSegment) {
               const segmentTimeLeft = Math.max(0, currentSegment.end - video.currentTime);
@@ -590,8 +591,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Non-Premium Status Bar */}
-      {!hasPremiumSubscription && !trailerEnded && (
+      {/* Non-Premium Status Bar - Only show when 5 seconds or less left */}
+      {!hasPremiumSubscription && !trailerEnded && timeLeft <= 5 && (
         <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-sm text-white p-3 rounded-lg border border-yellow-400/30">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
