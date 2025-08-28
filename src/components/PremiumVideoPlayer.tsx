@@ -74,16 +74,39 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     title.toLowerCase().includes('360')
   ));
 
-  // Simple 60-second preview from the beginning
-  const PREVIEW_DURATION = 60; // 60 seconds total preview
+  // 1-minute preview per video, 4-minute total limit
+  const PREVIEW_DURATION = 60; // 60 seconds (1 minute) per video preview
+  const TOTAL_PREVIEW_LIMIT = 240; // 4 minutes total across all premium videos
 
   // Premium access control states
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [trailerEnded, setTrailerEnded] = useState(false);
   const [previewTimeLeft, setPreviewTimeLeft] = useState(PREVIEW_DURATION);
   const [previewStartTime, setPreviewStartTime] = useState(Date.now());
+  const [totalPreviewUsed, setTotalPreviewUsed] = useState(0);
+  const [modalShown, setModalShown] = useState(false);
 
-  // Simple 60-second preview timer
+  // Get total preview time used across all videos
+  const getTotalPreviewUsed = (): number => {
+    try {
+      const stored = localStorage.getItem('totalPreviewUsed');
+      return stored ? parseInt(stored, 10) : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  // Save total preview time used
+  const saveTotalPreviewUsed = (seconds: number) => {
+    try {
+      localStorage.setItem('totalPreviewUsed', seconds.toString());
+      setTotalPreviewUsed(seconds);
+    } catch {
+      // Continue silently if localStorage fails
+    }
+  };
+
+  // 1-minute preview timer with 5-second warning and global 4-minute limit
   const enforcePreviewLimit = () => {
     if (hasPremiumSubscription || trailerEnded) {
       return;
@@ -91,11 +114,26 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
     const now = Date.now();
     const elapsed = Math.floor((now - previewStartTime) / 1000);
+    const currentTotalUsed = getTotalPreviewUsed();
     const timeLeft = Math.max(0, PREVIEW_DURATION - elapsed);
+    const totalTimeLeft = Math.max(0, TOTAL_PREVIEW_LIMIT - currentTotalUsed - elapsed);
     
     setPreviewTimeLeft(timeLeft);
 
-    // If preview time is up, show subscription modal
+    // Check if total 4-minute limit is reached
+    if (currentTotalUsed + elapsed >= TOTAL_PREVIEW_LIMIT) {
+      const video = videoRef.current;
+      if (video) {
+        video.pause();
+        setIsPlaying(false);
+      }
+      setTrailerEnded(true);
+      saveTotalPreviewUsed(TOTAL_PREVIEW_LIMIT);
+      console.log('4-minute total preview limit reached, video paused');
+      return;
+    }
+
+    // If preview time is up for this video, pause and save progress
     if (elapsed >= PREVIEW_DURATION) {
       const video = videoRef.current;
       if (video) {
@@ -103,8 +141,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         setIsPlaying(false);
       }
       setTrailerEnded(true);
-      setShowSubscriptionModal(true);
-      console.log('60-second preview completed, showing subscription modal');
+      saveTotalPreviewUsed(currentTotalUsed + elapsed);
+      console.log('1-minute preview completed, video paused');
     }
   };
 
@@ -121,6 +159,20 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       }
     }
   }, [isVRContent]);
+
+  // Initialize total preview tracking
+  useEffect(() => {
+    // Reset localStorage for testing - remove this line in production
+    localStorage.removeItem('totalPreviewUsed');
+    
+    const currentTotal = getTotalPreviewUsed();
+    setTotalPreviewUsed(currentTotal);
+    
+    // If user has already used 4 minutes, just end the trailer (no auto-modal)
+    if (!hasPremiumSubscription && currentTotal >= TOTAL_PREVIEW_LIMIT) {
+      setTrailerEnded(true);
+    }
+  }, []);
 
   // Load A-Frame for Premium VR
   const loadAFrame = () => {
@@ -266,7 +318,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           const startPreview = () => {
             video.currentTime = 0; // Always start from beginning
             setPreviewStartTime(Date.now());
-            console.log('Starting 60-second preview from beginning');
+            console.log('Starting 1-minute preview from beginning');
             setTimeout(() => {
               if (!hasPremiumSubscription && !trailerEnded) {
                 video.play().catch(console.error);
@@ -431,6 +483,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
   return (
     <div className="relative w-full">
+      
       {/* Premium VR Controls */}
       {isVRContent && vrSupported && (
         <div className="mb-3 p-3 bg-gradient-to-r from-purple-900/20 to-gold-900/20 rounded-lg border border-yellow-400/30">
@@ -461,7 +514,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Regular Premium Video Player */}
+      {/* YouTube-Style Premium Video Player */}
       <video
         ref={videoRef}
         src={src}
@@ -482,7 +535,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           display: vrMode ? "none" : "block",
           width: "100%",
           height: "auto",
-          borderRadius: "0.5rem",
         }}
       >
         <source src={src} type="video/mp4" />
@@ -518,16 +570,39 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         onClose={() => setShowSubscriptionModal(false)}
       />
 
+      {/* Preview Time Left Display - shows when 5 seconds or less remain */}
+      {!hasPremiumSubscription && !trailerEnded && isPlaying && previewTimeLeft <= 5 && (
+        <div className="absolute top-4 right-4 bg-red-600/90 text-white px-4 py-2 rounded-lg flex items-center space-x-2 z-10 animate-pulse">
+          <div className="w-2 h-2 bg-white rounded-full animate-ping"></div>
+          <span className="text-sm font-bold">
+            Preview ends in {formatTimeLeft(previewTimeLeft)}
+          </span>
+        </div>
+      )}
+
+      {/* Total Preview Time Left Warning */}
+      {!hasPremiumSubscription && !trailerEnded && (getTotalPreviewUsed() + Math.floor((Date.now() - previewStartTime) / 1000)) >= (TOTAL_PREVIEW_LIMIT - 30) && (
+        <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2 bg-red-600/95 text-white px-6 py-3 rounded-lg text-center z-10">
+          <div className="flex items-center space-x-2 mb-1">
+            <Crown className="w-4 h-4 text-yellow-400" />
+            <span className="text-sm font-bold">Total Preview Limit Almost Reached</span>
+          </div>
+          <p className="text-xs">
+            {Math.max(0, TOTAL_PREVIEW_LIMIT - getTotalPreviewUsed() - Math.floor((Date.now() - previewStartTime) / 1000))} seconds remaining across all videos
+          </p>
+        </div>
+      )}
+
       {/* Trailer Ended Overlay */}
       {trailerEnded && !hasPremiumSubscription && (
         <div className="absolute inset-0 bg-black/90 flex items-center justify-center rounded-lg">
           <div className="text-center text-white p-8 max-w-md">
             <div className="mb-6">
               <Lock className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-              <h3 className="text-2xl font-bold mb-2">Trailer Completed</h3>
+              <h3 className="text-2xl font-bold mb-2">Preview Completed</h3>
               <p className="text-gray-300">
                 You've watched the {PREVIEW_DURATION}-second preview. 
-                Upgrade to Premium to watch the full video and access unlimited content.
+                Click upgrade to watch the full video and access unlimited content.
               </p>
             </div>
             <button
@@ -535,36 +610,13 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
               className="bg-gradient-to-r from-yellow-500 to-yellow-600 text-black px-8 py-3 rounded-lg font-bold text-lg hover:from-yellow-600 hover:to-yellow-700 transition-all flex items-center space-x-2 mx-auto"
             >
               <Crown className="w-5 h-5" />
-              <span>Get Premium Access</span>
+              <span>Upgrade to Premium</span>
             </button>
           </div>
         </div>
       )}
 
-      {/* Non-Premium Status Bar - Show scene info and time left */}
-      {!hasPremiumSubscription && !trailerEnded && (
-        <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-sm text-white p-3 rounded-lg border border-yellow-400/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Lock className="w-5 h-5 text-yellow-400" />
-              <div>
-                <p className="font-semibold text-sm">
-                  Preview • {formatTimeLeft(previewTimeLeft)} left
-                </p>
-                <p className="text-xs text-gray-400">
-                  60-second preview from beginning
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowSubscriptionModal(true)}
-              className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1.5 rounded font-bold text-xs transition-all"
-            >
-              Upgrade
-            </button>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };
