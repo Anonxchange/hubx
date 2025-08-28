@@ -109,8 +109,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     // Only enforce if we have a valid current segment
     if (!currentSegment) return;
 
-    // If we've exceeded the current segment end time
-    if (currentTime >= currentSegment.end) {
+    // If we've exceeded the current segment end time by more than 0.5 seconds (to prevent micro-loops)
+    if (currentTime > currentSegment.end + 0.5) {
       video.pause();
       setIsPlaying(false);
 
@@ -125,13 +125,13 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         video.currentTime = nextSegment.start;
         setTimeLeft(nextSegment.end - nextSegment.start);
         
-        // Small delay to let video seek, then auto-play next segment
+        // Fast transition to next segment
         setTimeout(() => {
-          if (!trailerEnded && videoRef.current && !hasPremiumSubscription) {
+          if (!trailerEnded && videoRef.current && !hasPremiumSubscription && videoRef.current.currentTime >= nextSegment.start) {
             videoRef.current.play().catch(console.error);
             setIsPlaying(true);
           }
-        }, 200);
+        }, 50);
       } else {
         // No more segments, end trailer
         setTrailerEnded(true);
@@ -139,7 +139,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       }
     } 
     // If user seeks before segment start, force back to start
-    else if (currentTime < currentSegment.start) {
+    else if (currentTime < currentSegment.start - 0.5) {
       video.currentTime = currentSegment.start;
     }
   };
@@ -297,12 +297,12 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           // Wait for video to load before setting time and auto-playing
           if (video.readyState >= 1) {
             video.currentTime = TRAILER_SEGMENTS[0].start;
-            // Auto-play the first trailer segment quickly
+            // Auto-play the first trailer segment immediately
             setTimeout(() => {
               if (!hasPremiumSubscription) {
                 video.play().catch(console.error);
               }
-            }, 100);
+            }, 50);
           } else {
             video.addEventListener('loadedmetadata', () => {
               video.currentTime = TRAILER_SEGMENTS[0].start;
@@ -311,7 +311,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                 if (!hasPremiumSubscription) {
                   video.play().catch(console.error);
                 }
-              }, 100);
+              }, 50);
             }, { once: true });
           }
 
@@ -598,10 +598,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             <div className="flex items-center space-x-3">
               <Lock className="w-5 h-5 text-yellow-400" />
               <div>
-                <p className="font-semibold text-sm">Trailer Mode</p>
-                <p className="text-xs text-gray-300">
-                  Segment {currentTrailerSegment + 1} of {TRAILER_SEGMENTS.length} • {formatTimeLeft(timeLeft)} left
-                </p>
+                <p className="font-semibold text-sm">Preview ends in {formatTimeLeft(timeLeft)}</p>
               </div>
             </div>
             <button
