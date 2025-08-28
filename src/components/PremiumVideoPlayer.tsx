@@ -52,12 +52,12 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
-  
+
   // VR states
   const [vrMode, setVrMode] = useState(false);
   const [vrSupported, setVrSupported] = useState(false);
 
-  // Detect VR content - more comprehensive detection
+  // Detect VR content
   const isVRContent = isVR || (tags && tags.some(tag => {
     const tagLower = tag.toLowerCase();
     return tagLower.includes('vr') || 
@@ -73,19 +73,14 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     title.toLowerCase().includes('virtual reality') ||
     title.toLowerCase().includes('360')
   ));
-  
+
   // Premium access control states
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [previewTimeReached, setPreviewTimeReached] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(84); // 1 minute 24 seconds
-  const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
-  
-  // Trailer mode states
   const [currentTrailerSegment, setCurrentTrailerSegment] = useState(0);
   const [trailerEnded, setTrailerEnded] = useState(false);
-  
-  const PREVIEW_TIME_LIMIT = 84; // 1 minute 24 seconds in seconds
-  
+  const [timeLeft, setTimeLeft] = useState(20);
+  const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
+
   // Define trailer segments (start and end times in seconds)
   const TRAILER_SEGMENTS = [
     { start: 0, end: 20 },      // 0:00-0:20
@@ -94,17 +89,64 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     { start: 1080, end: 1100 }  // 18:00-18:20
   ];
 
+  // BULLETPROOF enforcement system for non-premium users
+  const enforceTrailerRestrictions = (video: HTMLVideoElement) => {
+    // Only skip enforcement if user actually has premium subscription (not during loading)
+    if (hasPremiumSubscription && !premiumLoading) return;
+
+    const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
+    const currentTime = video.currentTime;
+
+    // If trailer ended, completely block everything
+    if (trailerEnded) {
+      video.pause();
+      video.currentTime = TRAILER_SEGMENTS[0].start;
+      video.src = ''; // Remove source completely
+      setIsPlaying(false);
+      setShowSubscriptionModal(true);
+      return;
+    }
+
+    // If outside current segment, force correction
+    if (!currentSegment || currentTime < currentSegment.start || currentTime >= currentSegment.end) {
+      video.pause();
+      setIsPlaying(false);
+
+      if (currentSegment && currentTime >= currentSegment.end) {
+        // Move to next segment or end
+        if (currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
+          const nextSegment = currentTrailerSegment + 1;
+          setCurrentTrailerSegment(nextSegment);
+          video.currentTime = TRAILER_SEGMENTS[nextSegment].start;
+          setShowPreviewOverlay(true);
+
+          setTimeout(() => {
+            if (!trailerEnded && videoRef.current) {
+              setShowPreviewOverlay(false);
+              videoRef.current.play();
+              setIsPlaying(true);
+            }
+          }, 2000);
+        } else {
+          setTrailerEnded(true);
+          setShowSubscriptionModal(true);
+        }
+      } else {
+        // Force back to segment start
+        video.currentTime = currentSegment ? currentSegment.start : TRAILER_SEGMENTS[0].start;
+      }
+    }
+  };
+
   // Check VR support
   useEffect(() => {
     if (isVRContent) {
-      // Check for WebXR, basic VR support, or mobile device
       if ('xr' in navigator || 
           'getVRDisplays' in navigator || 
           /Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
           window.DeviceOrientationEvent) {
         setVrSupported(true);
       } else {
-        // Always enable VR for VR content even without specific VR hardware
         setVrSupported(true);
       }
     }
@@ -117,7 +159,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         resolve(true);
         return;
       }
-      
+
       const script = document.createElement('script');
       script.src = 'https://aframe.io/releases/1.4.0/aframe.min.js';
       script.onload = () => resolve(true);
@@ -126,12 +168,12 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     });
   };
 
-  // Initialize Premium VR Scene with enhanced features
+  // Initialize Premium VR Scene
   const initializePremiumVRScene = async () => {
     if (!vrSceneRef.current) return;
-    
+
     await loadAFrame();
-    
+
     vrSceneRef.current.innerHTML = `
       <a-scene embedded style="height: 100%; width: 100%;" vr-mode-ui="enabled: true">
         <a-assets>
@@ -139,9 +181,9 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             <source src="${src}" type="video/mp4">
           </video>
         </a-assets>
-        
+
         <a-videosphere src="#premiumVrVideo" rotation="0 180 0"></a-videosphere>
-        
+
         <a-entity id="cameraWrapper" position="0 1.6 0">
           <a-camera look-controls wasd-controls fov="90">
             <a-cursor
@@ -153,7 +195,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             </a-cursor>
           </a-camera>
         </a-entity>
-        
+
         <!-- Premium VR Controls Panel -->
         <a-entity id="premiumVrControls" position="0 1.2 -2">
           <a-box class="clickable" id="vrPlayPause" position="-0.8 0 0" width="0.3" height="0.1" depth="0.1" 
@@ -163,23 +205,28 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           <a-box class="clickable" id="vrVolume" position="0.8 0 0" width="0.3" height="0.1" depth="0.1" 
                  color="#10B981" text="value: VOL; color: white; align: center; position: 0 0 0.06"></a-box>
         </a-entity>
-        
+
         <!-- Premium Badge in VR -->
         <a-text value="👑 PREMIUM VR" position="-1 2.5 -1.5" color="#f59e0b" 
                 geometry="primitive: plane; width: 2; height: 0.5" 
                 material="color: rgba(0,0,0,0.7)"></a-text>
-        
+
         <a-sky color="#1a1a1a"></a-sky>
       </a-scene>
     `;
 
-    // Setup Premium VR controls
+    // Setup Premium VR controls with trailer restrictions
     setTimeout(() => {
       const vrVideo = document.getElementById('premiumVrVideo') as HTMLVideoElement;
       const playPauseBtn = document.getElementById('vrPlayPause');
-      
+
       if (vrVideo && playPauseBtn) {
         playPauseBtn.addEventListener('click', () => {
+          if (!hasPremiumSubscription) {
+            enforceTrailerRestrictions(vrVideo);
+            if (trailerEnded) return;
+          }
+
           if (vrVideo.paused) {
             vrVideo.play();
             playPauseBtn.setAttribute('text', 'value: PAUSE; color: white; align: center; position: 0 0 0.06');
@@ -189,26 +236,13 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           }
         });
 
-        // Apply trailer restrictions in VR mode too
-        if (!hasPremiumSubscription && !premiumLoading) {
-          vrVideo.addEventListener('timeupdate', () => {
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            
-            if (currentSegment && vrVideo.currentTime >= currentSegment.end) {
-              vrVideo.pause();
-              
-              if (currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
-                const nextSegment = currentTrailerSegment + 1;
-                setCurrentTrailerSegment(nextSegment);
-                vrVideo.currentTime = TRAILER_SEGMENTS[nextSegment].start;
-                setTimeout(() => vrVideo.play(), 2000);
-              } else {
-                setTrailerEnded(true);
-                setVrMode(false);
-                setShowSubscriptionModal(true);
-              }
-            }
-          });
+        // Apply trailer restrictions in VR mode
+        if (!hasPremiumSubscription) {
+          const vrEnforceInterval = setInterval(() => {
+            enforceTrailerRestrictions(vrVideo);
+          }, 100);
+
+          (vrVideo as any).vrEnforceInterval = vrEnforceInterval;
         }
       }
     }, 1000);
@@ -223,38 +257,106 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     }
   };
 
-  // Update duration display when premium status changes
-  useEffect(() => {
-    if (videoRef.current && initialized) {
-      const video = videoRef.current;
-      if (!hasPremiumSubscription && !premiumLoading) {
-        // Calculate total trailer duration
-        const totalTrailerDuration = TRAILER_SEGMENTS.reduce((total, segment) => {
-          return total + (segment.end - segment.start);
-        }, 0);
-        setDuration(totalTrailerDuration);
-      } else if (video.duration) {
-        // Restore original duration for premium users
-        setDuration(video.duration || 0);
-      }
-    }
-  }, [hasPremiumSubscription, premiumLoading, initialized]);
-
   useEffect(() => {
     const initializePremiumPlayer = () => {
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
 
-        // Load FluidPlayer script if not already loaded
-        const existingScript = document.querySelector<HTMLScriptElement>(
-          "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
-        );
+        // For non-premium users, completely override video behavior
+        if (!hasPremiumSubscription) {
+          // Remove all default controls
+          video.controls = false;
+          video.controlsList.add('nodownload', 'nofullscreen', 'noremoteplayback');
 
-        const loadFluidPlayer = () => {
-          if (window.fluidPlayer && videoRef.current) {
-            try {
-              // Only use FluidPlayer for premium users
-              if (hasPremiumSubscription) {
+          // Set initial state
+          setCurrentTrailerSegment(0);
+          setTrailerEnded(false);
+
+          // Override ALL video methods and properties
+          const originalPlay = video.play.bind(video);
+          const originalPause = video.pause.bind(video);
+          const originalLoad = video.load.bind(video);
+
+          // Hijack play method
+          video.play = function() {
+            if (trailerEnded) {
+              setShowSubscriptionModal(true);
+              return Promise.reject(new Error('Premium required'));
+            }
+
+            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
+            if (!currentSegment || video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end) {
+              video.currentTime = currentSegment ? currentSegment.start : TRAILER_SEGMENTS[0].start;
+            }
+
+            return originalPlay();
+          };
+
+          // Block seeking completely
+          Object.defineProperty(video, 'currentTime', {
+            get: function() {
+              return this._restrictedCurrentTime || TRAILER_SEGMENTS[0].start;
+            },
+            set: function(value) {
+              if (trailerEnded) {
+                this._restrictedCurrentTime = TRAILER_SEGMENTS[0].start;
+                return;
+              }
+
+              const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
+              if (currentSegment) {
+                if (value >= currentSegment.start && value < currentSegment.end) {
+                  this._restrictedCurrentTime = value;
+                  Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').set.call(this, value);
+                } else {
+                  this._restrictedCurrentTime = currentSegment.start;
+                  Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').set.call(this, currentSegment.start);
+                }
+              } else {
+                this._restrictedCurrentTime = TRAILER_SEGMENTS[0].start;
+                Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').set.call(this, TRAILER_SEGMENTS[0].start);
+              }
+            }
+          });
+
+          // Ultra-aggressive monitoring
+          const enforceInterval = setInterval(() => {
+            enforceTrailerRestrictions(video);
+          }, 50);
+
+          // Block all events that could bypass restrictions
+          const blockingEvents = [
+            'loadstart', 'loadeddata', 'loadedmetadata', 'canplay', 'canplaythrough',
+            'playing', 'timeupdate', 'seeking', 'seeked', 'progress', 'durationchange'
+          ];
+
+          blockingEvents.forEach(eventType => {
+            video.addEventListener(eventType, () => {
+              if (!hasPremiumSubscription) {
+                enforceTrailerRestrictions(video);
+              }
+            });
+          });
+
+          // Disable context menu and keyboard shortcuts
+          video.addEventListener('contextmenu', (e) => e.preventDefault());
+          video.addEventListener('keydown', (e) => {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Home', 'End', 'f', 'F'].includes(e.key)) {
+              e.preventDefault();
+            }
+          });
+
+          // Store cleanup references
+          (video as any).enforceInterval = enforceInterval;
+        } else {
+          // Premium user - load full FluidPlayer
+          const existingScript = document.querySelector<HTMLScriptElement>(
+            "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
+          );
+
+          const loadFluidPlayer = () => {
+            if (window.fluidPlayer && videoRef.current) {
+              try {
                 const fluidPlayerInstance = window.fluidPlayer(video, {
                   layoutControls: {
                     autoPlay: false,
@@ -264,18 +366,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                     posterImage: poster || "",
                     allowDownload: false,
                     keyboardControl: true,
-                    playbackRates: [
-                      "x0.25",
-                      "x0.5",
-                      "x0.75",
-                      "x1",
-                      "x1.25",
-                      "x1.5",
-                      "x1.75",
-                      "x2",
-                      "x2.25",
-                      "x2.5",
-                    ],
+                    playbackRates: ["x0.25", "x0.5", "x0.75", "x1", "x1.25", "x1.5", "x1.75", "x2", "x2.25", "x2.5"],
                     controlBar: {
                       autoHide: true,
                       autoHideTimeout: 5,
@@ -283,60 +374,40 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                     },
                     theatre: true,
                     captions: true,
-                    primaryColor: "#f59e0b", // Premium gold color
+                    primaryColor: "#f59e0b",
                     responsive: true,
-                    logo: {
-                      imageUrl: null,
-                      position: "top right",
-                      clickUrl: null,
-                      opacity: 0.8,
-                    },
                   },
-                  // Premium = ad-free experience
                 });
 
-                // Save instance for cleanup
                 (video as any).fluidPlayerInstance = fluidPlayerInstance;
-                console.log("Premium FluidPlayer initialized successfully");
-              } else {
-                // For non-premium users, use basic controls with restrictions
+              } catch (error) {
+                console.error("Error initializing Premium FluidPlayer:", error);
                 video.controls = true;
-                console.log("Using basic controls for non-premium user");
               }
-            } catch (error) {
-              console.error("Error initializing Premium FluidPlayer:", error);
-              video.controls = true;
             }
-          }
-        };
-
-        if (!existingScript) {
-          const script = document.createElement("script");
-          script.src =
-            "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
-          script.async = true;
-          script.onload = () => setTimeout(loadFluidPlayer, 300);
-          script.onerror = () => {
-            console.error(
-              "Failed to load Premium FluidPlayer script, using native player"
-            );
-            if (videoRef.current) videoRef.current.controls = true;
           };
-          document.body.appendChild(script);
-        } else if (window.fluidPlayer) {
-          setTimeout(loadFluidPlayer, 300);
+
+          if (!existingScript) {
+            const script = document.createElement("script");
+            script.src = "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
+            script.async = true;
+            script.onload = () => setTimeout(loadFluidPlayer, 300);
+            script.onerror = () => {
+              if (videoRef.current) videoRef.current.controls = true;
+            };
+            document.body.appendChild(script);
+          } else if (window.fluidPlayer) {
+            setTimeout(loadFluidPlayer, 300);
+          }
         }
 
-        // Add event listeners for premium features
+        // Common event listeners
         video.addEventListener("loadedmetadata", () => {
-          if (!hasPremiumSubscription && !premiumLoading) {
-            // Calculate total trailer duration
+          if (!hasPremiumSubscription) {
             const totalTrailerDuration = TRAILER_SEGMENTS.reduce((total, segment) => {
               return total + (segment.end - segment.start);
             }, 0);
             setDuration(totalTrailerDuration);
-            
-            // Start at first trailer segment
             video.currentTime = TRAILER_SEGMENTS[0].start;
           } else {
             setDuration(video.duration);
@@ -344,354 +415,25 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         });
 
         video.addEventListener("timeupdate", () => {
-          const currentTime = video.currentTime;
-          setCurrentTime(currentTime);
-          
-          // Strict trailer enforcement for non-premium users
-          if (!hasPremiumSubscription && !premiumLoading) {
-            if (trailerEnded) {
-              video.pause();
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              setIsPlaying(false);
-              setShowSubscriptionModal(true);
-              return;
-            }
+          setCurrentTime(video.currentTime);
 
+          if (!hasPremiumSubscription) {
             const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            
             if (currentSegment) {
-              // IMMEDIATE enforcement - stop any playback outside segments
-              if (currentTime < currentSegment.start || currentTime >= currentSegment.end) {
-                video.pause();
-                setIsPlaying(false);
-                
-                // Handle segment transitions
-                if (currentTime >= currentSegment.end) {
-                  if (currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
-                    // Move to next segment
-                    const nextSegmentIndex = currentTrailerSegment + 1;
-                    setCurrentTrailerSegment(nextSegmentIndex);
-                    video.currentTime = TRAILER_SEGMENTS[nextSegmentIndex].start;
-                    setShowPreviewOverlay(true);
-                    
-                    setTimeout(() => {
-                      if (videoRef.current && !trailerEnded) {
-                        setShowPreviewOverlay(false);
-                        videoRef.current.play();
-                        setIsPlaying(true);
-                      }
-                    }, 2000);
-                  } else {
-                    // All segments completed
-                    setTrailerEnded(true);
-                    setShowSubscriptionModal(true);
-                  }
-                } else {
-                  // Force back to segment start
-                  video.currentTime = currentSegment.start;
-                }
-                return;
-              }
-              
-              // Calculate time left in current segment
-              const segmentTimeLeft = Math.max(0, currentSegment.end - currentTime);
+              const segmentTimeLeft = Math.max(0, currentSegment.end - video.currentTime);
               setTimeLeft(Math.ceil(segmentTimeLeft));
-              
-              // Show preview overlay when approaching end
+
               if (segmentTimeLeft <= 5 && segmentTimeLeft > 0 && !showPreviewOverlay && currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
                 setShowPreviewOverlay(true);
               }
             }
+
+            enforceTrailerRestrictions(video);
           }
         });
 
-        // ULTRA-AGGRESSIVE monitoring to prevent any bypassing attempts
-        const monitoringInterval = setInterval(() => {
-          if (!hasPremiumSubscription && !premiumLoading && videoRef.current) {
-            const video = videoRef.current;
-            const currentTime = video.currentTime;
-            
-            if (trailerEnded) {
-              if (!video.paused) {
-                video.pause();
-                video.currentTime = TRAILER_SEGMENTS[0].start;
-                setIsPlaying(false);
-                setShowSubscriptionModal(true);
-              }
-              return;
-            }
-            
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            
-            if (currentSegment) {
-              // IMMEDIATE blocking - no tolerance
-              if (currentTime < currentSegment.start - 0.1 || currentTime >= currentSegment.end + 0.1) {
-                video.pause();
-                video.currentTime = currentSegment.start;
-                setIsPlaying(false);
-                
-                // Force video to stop loading
-                video.load();
-                video.currentTime = currentSegment.start;
-              }
-              
-              // ABSOLUTE blocking of any play attempts outside segment
-              if (!video.paused && (currentTime < currentSegment.start || currentTime >= currentSegment.end)) {
-                video.pause();
-                video.currentTime = currentSegment.start;
-                setIsPlaying(false);
-                
-                // Force reload to prevent buffering ahead
-                video.load();
-                video.currentTime = currentSegment.start;
-              }
-            } else {
-              // No valid segment - completely block
-              video.pause();
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              setIsPlaying(false);
-              video.load();
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-            }
-          }
-        }, 50); // Check every 50ms for maximum security
-
-        // Store interval for cleanup
-        (video as any).monitoringInterval = monitoringInterval;
-
-        video.addEventListener("play", () => {
-          // ABSOLUTE blocking for non-premium users
-          if (!hasPremiumSubscription && !premiumLoading) {
-            if (trailerEnded) {
-              video.pause();
-              video.load();
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              setIsPlaying(false);
-              setShowSubscriptionModal(true);
-              return;
-            }
-            
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            if (currentSegment) {
-              // ZERO tolerance blocking if outside segment
-              if (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end) {
-                video.pause();
-                video.load();
-                video.currentTime = currentSegment.start;
-                setIsPlaying(false);
-                return;
-              }
-            } else {
-              // No valid segment - completely block playback
-              video.pause();
-              video.load();
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              setIsPlaying(false);
-              return;
-            }
-          }
-          
-          setIsPlaying(true);
-        });
-
-        // Block ALL possible playback events for non-premium users
-        const blockPlaybackEvents = ['loadstart', 'loadeddata', 'loadedmetadata', 'canplay', 'canplaythrough', 'progress'];
-        
-        blockPlaybackEvents.forEach(eventType => {
-          video.addEventListener(eventType, () => {
-            if (!hasPremiumSubscription && !premiumLoading) {
-              if (trailerEnded) {
-                video.currentTime = TRAILER_SEGMENTS[0].start;
-                return;
-              }
-              
-              const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-              if (currentSegment) {
-                if (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end) {
-                  video.currentTime = currentSegment.start;
-                }
-              } else {
-                video.currentTime = TRAILER_SEGMENTS[0].start;
-              }
-            }
-          });
-        });
-
-        // BLOCK all seeking attempts for non-premium users
-        video.addEventListener("seeking", () => {
-          if (!hasPremiumSubscription && !premiumLoading) {
-            if (trailerEnded) {
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              return;
-            }
-            
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            if (currentSegment) {
-              // FORCE back to current segment start
-              if (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end) {
-                video.currentTime = currentSegment.start;
-              }
-            } else {
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-            }
-          }
-        });
-
-        video.addEventListener("seeked", () => {
-          if (!hasPremiumSubscription && !premiumLoading) {
-            if (trailerEnded) {
-              video.pause();
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              setIsPlaying(false);
-              setShowSubscriptionModal(true);
-              return;
-            }
-            
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            if (currentSegment) {
-              // IMMEDIATE correction and pause if outside segment
-              if (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end) {
-                video.pause();
-                video.currentTime = currentSegment.start;
-                setIsPlaying(false);
-              }
-            } else {
-              video.pause();
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              setIsPlaying(false);
-            }
-          }
-        });
-
-        // COMPREHENSIVE blocking on all video events
-        video.addEventListener("canplay", () => {
-          if (!hasPremiumSubscription && !premiumLoading) {
-            if (trailerEnded) {
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              return;
-            }
-            
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            if (currentSegment && (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end)) {
-              video.currentTime = currentSegment.start;
-            }
-          }
-        });
-
-        // Block on playing event
-        video.addEventListener("playing", () => {
-          if (!hasPremiumSubscription && !premiumLoading) {
-            if (trailerEnded) {
-              video.pause();
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              setIsPlaying(false);
-              setShowSubscriptionModal(true);
-              return;
-            }
-            
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            if (currentSegment && (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end)) {
-              video.pause();
-              video.currentTime = currentSegment.start;
-              setIsPlaying(false);
-            }
-          }
-        });
-
-        // Block on any time change
-        video.addEventListener("durationchange", () => {
-          if (!hasPremiumSubscription && !premiumLoading && video.currentTime !== TRAILER_SEGMENTS[currentTrailerSegment]?.start) {
-            video.currentTime = TRAILER_SEGMENTS[currentTrailerSegment]?.start || TRAILER_SEGMENTS[0].start;
-          }
-        });
-
-        // Disable context menu for non-premium users
-        if (!hasPremiumSubscription && !premiumLoading) {
-          video.addEventListener("contextmenu", (e) => {
-            e.preventDefault();
-            return false;
-          });
-
-          // Disable keyboard shortcuts that could bypass restrictions
-          video.addEventListener("keydown", (e) => {
-            // Disable arrow keys, spacebar, and other controls
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Home', 'End'].includes(e.key)) {
-              e.preventDefault();
-              return false;
-            }
-          });
-        }
-
-        // COMPLETE source control for non-premium users
-        const originalSrc = video.src;
-        
-        // Override video methods for non-premium users
-        if (!hasPremiumSubscription && !premiumLoading) {
-          // Hijack the video element's play method
-          const originalPlay = video.play.bind(video);
-          video.play = function() {
-            if (trailerEnded) {
-              video.pause();
-              video.currentTime = TRAILER_SEGMENTS[0].start;
-              setShowSubscriptionModal(true);
-              return Promise.reject(new Error('Trailer ended'));
-            }
-            
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            if (currentSegment && (video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end)) {
-              video.currentTime = currentSegment.start;
-            }
-            
-            return originalPlay();
-          };
-
-          // Hijack currentTime setter
-          let currentTimeValue = TRAILER_SEGMENTS[0].start;
-          Object.defineProperty(video, 'currentTime', {
-            get: function() { return currentTimeValue; },
-            set: function(value) {
-              if (trailerEnded) {
-                currentTimeValue = TRAILER_SEGMENTS[0].start;
-                return;
-              }
-              
-              const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-              if (currentSegment) {
-                if (value < currentSegment.start || value >= currentSegment.end) {
-                  currentTimeValue = currentSegment.start;
-                } else {
-                  currentTimeValue = value;
-                }
-              } else {
-                currentTimeValue = TRAILER_SEGMENTS[0].start;
-              }
-              
-              // Apply to actual video element
-              Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').set.call(this, currentTimeValue);
-            }
-          });
-        }
-
-        // Set initial trailer segment for non-premium users
-        video.addEventListener("loadstart", () => {
-          if (!hasPremiumSubscription && !premiumLoading) {
-            setCurrentTrailerSegment(0);
-            setTrailerEnded(false);
-            video.currentTime = TRAILER_SEGMENTS[0].start;
-          }
-        });
-
-        // Force initial position after metadata loads
-        video.addEventListener("loadeddata", () => {
-          if (!hasPremiumSubscription && !premiumLoading) {
-            video.currentTime = TRAILER_SEGMENTS[0].start;
-          }
-        });
-
-        video.addEventListener("pause", () => {
-          setIsPlaying(false);
-        });
-
+        video.addEventListener("play", () => setIsPlaying(true));
+        video.addEventListener("pause", () => setIsPlaying(false));
         video.addEventListener("volumechange", () => {
           setIsMuted(video.muted);
           setVolume(video.volume);
@@ -707,19 +449,22 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       clearTimeout(timer);
       if (videoRef.current) {
         try {
-          const player = videoRef.current as any;
-          if (player.fluidPlayerInstance) {
-            player.fluidPlayerInstance.destroy();
+          const video = videoRef.current as any;
+          if (video.fluidPlayerInstance) {
+            video.fluidPlayerInstance.destroy();
           }
-          if (player.monitoringInterval) {
-            clearInterval(player.monitoringInterval);
+          if (video.enforceInterval) {
+            clearInterval(video.enforceInterval);
+          }
+          if (video.vrEnforceInterval) {
+            clearInterval(video.vrEnforceInterval);
           }
         } catch (error) {
-          console.log("Error cleaning up Premium FluidPlayer:", error);
+          console.log("Error cleaning up player:", error);
         }
       }
     };
-  }, [src, poster]);
+  }, [src, poster, hasPremiumSubscription, premiumLoading]);
 
   // Track premium views
   const handlePlay = async () => {
@@ -742,11 +487,9 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
   const handleSubscriptionSuccess = () => {
     setShowSubscriptionModal(false);
-    setPreviewTimeReached(false);
     setTrailerEnded(false);
     setCurrentTrailerSegment(0);
     refreshSubscription();
-    // Allow continued playback
     if (videoRef.current) {
       videoRef.current.play();
     }
@@ -795,10 +538,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         crossOrigin="anonymous"
         onPlay={handlePlay}
         onError={(e) => {
-          console.error(
-            "Premium video playback error:",
-            e.currentTarget.error
-          );
+          console.error("Premium video playback error:", e.currentTarget.error);
           if (videoRef.current) videoRef.current.controls = true;
         }}
         style={{
@@ -820,7 +560,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             ref={vrSceneRef}
             className="w-full h-full"
           />
-          
+
           {/* Premium VR Mode Overlay */}
           <div className="absolute top-4 left-4 bg-gradient-to-r from-yellow-500/90 to-orange-500/90 text-black p-3 rounded-lg">
             <div className="flex items-center gap-2">
@@ -835,10 +575,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           </div>
         </div>
       )}
-
-      {/* Preview Time Indicator removed as requested */}
-
-      {/* Premium Badge removed as requested */}
 
       {/* Trailer Segment Overlay */}
       {showPreviewOverlay && !hasPremiumSubscription && !trailerEnded && (
@@ -902,6 +638,29 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             >
               <Crown className="w-5 h-5" />
               <span>Get Premium Access</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Non-Premium Control Overlay */}
+      {!hasPremiumSubscription && !trailerEnded && (
+        <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-sm text-white p-3 rounded-lg border border-yellow-400/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Lock className="w-5 h-5 text-yellow-400" />
+              <div>
+                <p className="font-semibold text-sm">Trailer Mode</p>
+                <p className="text-xs text-gray-300">
+                  Segment {currentTrailerSegment + 1} of {TRAILER_SEGMENTS.length} • {formatTimeLeft(timeLeft)} left
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowSubscriptionModal(true)}
+              className="bg-yellow-500 hover:bg-yellow-600 text-black px-3 py-1.5 rounded font-bold text-xs transition-all"
+            >
+              Upgrade
             </button>
           </div>
         </div>
