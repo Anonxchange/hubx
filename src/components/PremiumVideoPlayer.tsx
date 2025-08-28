@@ -16,7 +16,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
 import { usePremiumSubscription } from "@/hooks/usePremiumSubscription";
 import SubscriptionModal from "@/components/SubscriptionModal";
-import Hls from 'hls.js';
 
 declare global {
   interface Window {
@@ -92,52 +91,44 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
   const [sceneTimeLeft, setSceneTimeLeft] = useState(15);
   const [totalPreviewTimeLeft, setTotalPreviewTimeLeft] = useState(TOTAL_PREVIEW_DURATION);
-  const [hlsInstance, setHlsInstance] = useState<Hls | null>(null);
-  const [isHlsVideo, setIsHlsVideo] = useState(false);
-  const [sceneStartTime, setSceneStartTime] = useState(0);
+  const [sceneStartTime, setSceneStartTime] = useState(Date.now());
+  const [sceneElapsedTime, setSceneElapsedTime] = useState(0);
 
-  // Highlight scenes enforcement system for non-premium users (HLS compatible)
-  const enforceHighlightRestrictions = (video: HTMLVideoElement) => {
+  // Manual scene timing system (no external dependencies)
+  const enforceHighlightRestrictions = () => {
     // Only skip enforcement if user has confirmed premium subscription
-    if (hasPremiumSubscription) {
+    if (hasPremiumSubscription || trailerEnded) {
       return;
     }
 
-    const currentTime = video.currentTime;
     const currentScene = HIGHLIGHT_SCENES[currentSceneIndex];
-
-    // If trailer ended, show modal and prevent playback
-    if (trailerEnded) {
-      video.pause();
-      setIsPlaying(false);
-      setShowSubscriptionModal(true);
-      return;
-    }
-
-    // If no current scene, something went wrong
     if (!currentScene) {
       setTrailerEnded(true);
       setShowSubscriptionModal(true);
       return;
     }
 
-    // Calculate time since scene started (more reliable for HLS)
-    const timeIntoScene = currentTime - sceneStartTime;
-    const sceneTimeLeft = Math.max(0, currentScene.duration - timeIntoScene);
-
-    // Update scene time left
-    setSceneTimeLeft(Math.ceil(sceneTimeLeft));
+    // Calculate elapsed time since scene started
+    const now = Date.now();
+    const elapsed = Math.floor((now - sceneStartTime) / 1000);
+    const sceneTimeLeft = Math.max(0, currentScene.duration - elapsed);
+    
+    setSceneElapsedTime(elapsed);
+    setSceneTimeLeft(sceneTimeLeft);
 
     // Update total preview time left
     const remainingScenes = HIGHLIGHT_SCENES.slice(currentSceneIndex + 1);
     const remainingScenesTime = remainingScenes.reduce((total, scene) => total + scene.duration, 0);
     const totalTimeLeft = sceneTimeLeft + remainingScenesTime;
-    setTotalPreviewTimeLeft(Math.ceil(totalTimeLeft));
+    setTotalPreviewTimeLeft(totalTimeLeft);
 
     // If current scene finished, transition to next
-    if (timeIntoScene >= currentScene.duration) {
-      video.pause();
-      setIsPlaying(false);
+    if (elapsed >= currentScene.duration) {
+      const video = videoRef.current;
+      if (video) {
+        video.pause();
+        setIsPlaying(false);
+      }
 
       // Move to next scene or end preview
       if (currentSceneIndex < HIGHLIGHT_SCENES.length - 1) {
@@ -146,22 +137,25 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         
         console.log(`Moving to scene ${nextSceneIndex + 1}/${HIGHLIGHT_SCENES.length}`);
         setCurrentSceneIndex(nextSceneIndex);
+        setSceneStartTime(Date.now());
+        setSceneElapsedTime(0);
         
         // Jump to next scene start
-        try {
-          video.currentTime = nextScene.start;
-          setSceneStartTime(nextScene.start);
-        } catch (error) {
-          console.log('Seek error (normal for some streams):', error);
+        if (video) {
+          try {
+            video.currentTime = nextScene.start;
+          } catch (error) {
+            console.log('Seek error:', error);
+          }
         }
         
-        // Smooth transition to next scene
+        // Resume playback after brief pause
         setTimeout(() => {
           if (!trailerEnded && videoRef.current && !hasPremiumSubscription) {
             videoRef.current.play().catch(console.error);
             setIsPlaying(true);
           }
-        }, 200);
+        }, 300);
       } else {
         // No more scenes, end preview
         setTrailerEnded(true);
@@ -260,8 +254,10 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
               setShowSubscriptionModal(true);
               return;
             }
-            // Apply restrictions but don't prevent play if within scene
-            enforceHighlightRestrictions(vrVideo);
+            // Apply restrictions for VR mode
+            if (!hasPremiumSubscription) {
+              enforceHighlightRestrictions();
+            }
           }
 
           if (vrVideo.paused) {
@@ -277,9 +273,9 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         if (!hasPremiumSubscription && !premiumLoading) {
           const vrEnforceInterval = setInterval(() => {
             if (!trailerEnded && !hasPremiumSubscription) {
-              enforceHighlightRestrictions(vrVideo);
+              enforceHighlightRestrictions();
             }
-          }, 500);
+          }, 1000);
 
           (vrVideo as any).vrEnforceInterval = vrEnforceInterval;
         }
@@ -322,55 +318,33 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           setCurrentSceneIndex(0);
           setSceneTimeLeft(HIGHLIGHT_SCENES[0].duration);
           setTotalPreviewTimeLeft(TOTAL_PREVIEW_DURATION);
-          setSceneStartTime(HIGHLIGHT_SCENES[0].start);
+          setSceneStartTime(Date.now());
+          setSceneElapsedTime(0);
 
-          // Check if it's an HLS video
-          const isHls = src.includes('.m3u8') || src.includes('hls');
-          setIsHlsVideo(isHls);
+          // Start from first scene
+          const startFirstScene = () => {
+            video.currentTime = HIGHLIGHT_SCENES[0].start;
+            setSceneStartTime(Date.now());
+            setTimeout(() => {
+              if (!hasPremiumSubscription && !trailerEnded) {
+                video.play().catch(console.error);
+              }
+            }, 100);
+          };
 
-          // Setup HLS if needed
-          if (isHls && Hls.isSupported()) {
-            const hls = new Hls();
-            hls.loadSource(src);
-            hls.attachMedia(video);
-            setHlsInstance(hls);
-            
-            hls.on(Hls.Events.MANIFEST_PARSED, () => {
-              // HLS is ready, start first scene
-              video.currentTime = HIGHLIGHT_SCENES[0].start;
-              setTimeout(() => {
-                if (!hasPremiumSubscription) {
-                  video.play().catch(console.error);
-                }
-              }, 100);
-            });
+          // Wait for video to be ready
+          if (video.readyState >= 1) {
+            startFirstScene();
           } else {
-            // Regular video setup
-            if (video.readyState >= 1) {
-              video.currentTime = HIGHLIGHT_SCENES[0].start;
-              setTimeout(() => {
-                if (!hasPremiumSubscription) {
-                  video.play().catch(console.error);
-                }
-              }, 50);
-            } else {
-              video.addEventListener('loadedmetadata', () => {
-                video.currentTime = HIGHLIGHT_SCENES[0].start;
-                setTimeout(() => {
-                  if (!hasPremiumSubscription) {
-                    video.play().catch(console.error);
-                  }
-                }, 50);
-              }, { once: true });
-            }
+            video.addEventListener('loadedmetadata', startFirstScene, { once: true });
           }
 
-          // Monitor video time every 500ms for smooth scene transitions
+          // Monitor scene timing every 1000ms
           const enforceInterval = setInterval(() => {
-            if (video && !video.paused && !trailerEnded && !hasPremiumSubscription) {
-              enforceHighlightRestrictions(video);
+            if (!hasPremiumSubscription && !trailerEnded) {
+              enforceHighlightRestrictions();
             }
-          }, 500);
+          }, 1000);
 
           // Disable context menu and keyboard shortcuts
           video.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -448,22 +422,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
         video.addEventListener("timeupdate", () => {
           setCurrentTime(video.currentTime);
-
-          // Only apply highlight scene logic for non-premium users
-          if (!hasPremiumSubscription) {
-            const currentScene = HIGHLIGHT_SCENES[currentSceneIndex];
-            if (currentScene) {
-              const timeIntoScene = video.currentTime - sceneStartTime;
-              const sceneTimeLeft = Math.max(0, currentScene.duration - timeIntoScene);
-              setSceneTimeLeft(Math.ceil(sceneTimeLeft));
-              
-              // Calculate total preview time left
-              const remainingScenes = HIGHLIGHT_SCENES.slice(currentSceneIndex + 1);
-              const remainingScenesTime = remainingScenes.reduce((total, scene) => total + scene.duration, 0);
-              const totalTimeLeft = sceneTimeLeft + remainingScenesTime;
-              setTotalPreviewTimeLeft(Math.ceil(totalTimeLeft));
-            }
-          }
         });
 
         video.addEventListener("play", () => setIsPlaying(true));
@@ -481,9 +439,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
     return () => {
       clearTimeout(timer);
-      if (hlsInstance) {
-        hlsInstance.destroy();
-      }
       if (videoRef.current) {
         try {
           const video = videoRef.current as any;
