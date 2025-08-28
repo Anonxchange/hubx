@@ -74,8 +74,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     title.toLowerCase().includes('360')
   ));
 
-  // 1-minute preview per video, 4-minute total limit
-  const PREVIEW_DURATION = 60; // 60 seconds (1 minute) per video preview
+  // 2-minute preview per video, 4-minute total limit
+  const PREVIEW_DURATION = 120; // 120 seconds (2 minutes) per video preview
   const TOTAL_PREVIEW_LIMIT = 240; // 4 minutes total across all premium videos
 
   // Premium access control states
