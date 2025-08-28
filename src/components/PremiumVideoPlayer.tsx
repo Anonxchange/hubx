@@ -95,9 +95,11 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const [sceneElapsedTime, setSceneElapsedTime] = useState(0);
 
   // Manual scene timing system (no external dependencies)
-  const enforceHighlightRestrictions = () => {
-    // Only skip enforcement if user has confirmed premium subscription
-    if (hasPremiumSubscription || trailerEnded) {
+  const enforceHighlightRestrictions = useRef(false);
+  
+  const processSceneTransition = () => {
+    // Prevent multiple simultaneous executions
+    if (enforceHighlightRestrictions.current || hasPremiumSubscription || trailerEnded) {
       return;
     }
 
@@ -124,6 +126,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
 
     // If current scene finished, transition to next
     if (elapsed >= currentScene.duration) {
+      enforceHighlightRestrictions.current = true; // Prevent re-entry
+      
       const video = videoRef.current;
       if (video) {
         video.pause();
@@ -136,6 +140,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         const nextScene = HIGHLIGHT_SCENES[nextSceneIndex];
         
         console.log(`Moving to scene ${nextSceneIndex + 1}/${HIGHLIGHT_SCENES.length}`);
+        
+        // Update state immediately to prevent loops
         setCurrentSceneIndex(nextSceneIndex);
         setSceneStartTime(Date.now());
         setSceneElapsedTime(0);
@@ -144,22 +150,31 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         if (video) {
           try {
             video.currentTime = nextScene.start;
+            console.log(`Jumped to scene ${nextSceneIndex + 1} at ${nextScene.start}s`);
           } catch (error) {
             console.log('Seek error:', error);
           }
         }
         
-        // Resume playback after brief pause
+        // Resume playback after brief pause and reset the lock
         setTimeout(() => {
           if (!trailerEnded && videoRef.current && !hasPremiumSubscription) {
+            // Double-check we're still on the correct scene before playing
+            const video = videoRef.current;
+            if (Math.abs(video.currentTime - nextScene.start) > 2) {
+              video.currentTime = nextScene.start;
+            }
             videoRef.current.play().catch(console.error);
             setIsPlaying(true);
           }
-        }, 300);
+          enforceHighlightRestrictions.current = false; // Allow next transition
+        }, 500);
       } else {
         // No more scenes, end preview
+        console.log('All scenes completed, showing subscription modal');
         setTrailerEnded(true);
         setShowSubscriptionModal(true);
+        enforceHighlightRestrictions.current = false;
       }
     }
   };
@@ -256,7 +271,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             }
             // Apply restrictions for VR mode
             if (!hasPremiumSubscription) {
-              enforceHighlightRestrictions();
+              processSceneTransition();
             }
           }
 
@@ -273,7 +288,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         if (!hasPremiumSubscription && !premiumLoading) {
           const vrEnforceInterval = setInterval(() => {
             if (!trailerEnded && !hasPremiumSubscription) {
-              enforceHighlightRestrictions();
+              processSceneTransition();
             }
           }, 1000);
 
@@ -342,7 +357,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           // Monitor scene timing every 1000ms
           const enforceInterval = setInterval(() => {
             if (!hasPremiumSubscription && !trailerEnded) {
-              enforceHighlightRestrictions();
+              processSceneTransition();
             }
           }, 1000);
 
