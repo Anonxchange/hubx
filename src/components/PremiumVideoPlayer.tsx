@@ -74,13 +74,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     title.toLowerCase().includes('360')
   ));
 
-  // Premium access control states
-  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
-  const [trailerEnded, setTrailerEnded] = useState(false);
-  const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
-  const [sceneTimeLeft, setSceneTimeLeft] = useState(15);
-  const [totalPreviewTimeLeft, setTotalPreviewTimeLeft] = useState(TOTAL_PREVIEW_DURATION);
-
   // Define highlight scenes for preview (like other adult sites)
   const HIGHLIGHT_SCENES = [
     { start: 0, duration: 15 },        // Opening scene (0-15s)
@@ -91,6 +84,13 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   ];
   
   const TOTAL_PREVIEW_DURATION = HIGHLIGHT_SCENES.reduce((total, scene) => total + scene.duration, 0); // 60s total
+
+  // Premium access control states
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+  const [trailerEnded, setTrailerEnded] = useState(false);
+  const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
+  const [sceneTimeLeft, setSceneTimeLeft] = useState(15);
+  const [totalPreviewTimeLeft, setTotalPreviewTimeLeft] = useState(TOTAL_PREVIEW_DURATION);
 
   // Highlight scenes enforcement system for non-premium users
   const enforceHighlightRestrictions = (video: HTMLVideoElement) => {
@@ -304,12 +304,13 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           video.controls = false;
           
           // Safely add controlsList restrictions if supported
-          if (video.controlsList && typeof video.controlsList.add === 'function') {
-            try {
-              video.controlsList.add('nodownload', 'nofullscreen', 'noremoteplayback');
-            } catch (e) {
-              console.log('controlsList not supported:', e);
+          try {
+            const videoElement = video as any;
+            if (videoElement.controlsList && typeof videoElement.controlsList.add === 'function') {
+              videoElement.controlsList.add('nodownload', 'nofullscreen', 'noremoteplayback');
             }
+          } catch (e) {
+            console.log('controlsList not supported:', e);
           }
 
           // Set initial state for highlight scenes
@@ -589,7 +590,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       <SubscriptionModal
         isOpen={showSubscriptionModal}
         onClose={() => setShowSubscriptionModal(false)}
-        onSubscriptionSuccess={handleSubscriptionSuccess}
       />
 
       {/* Trailer Ended Overlay */}
