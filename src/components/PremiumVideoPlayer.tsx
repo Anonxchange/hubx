@@ -77,19 +77,30 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   // Premium access control states
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [trailerEnded, setTrailerEnded] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
+  const [sceneTimeLeft, setSceneTimeLeft] = useState(15);
+  const [totalPreviewTimeLeft, setTotalPreviewTimeLeft] = useState(TOTAL_PREVIEW_DURATION);
 
-  // Define trailer duration with smooth transitions (no segments)
-  const TRAILER_DURATION = 60; // 60 seconds of preview
+  // Define highlight scenes for preview (like other adult sites)
+  const HIGHLIGHT_SCENES = [
+    { start: 0, duration: 15 },        // Opening scene (0-15s)
+    { start: 120, duration: 10 },      // Exciting moment at 2min (120-130s)  
+    { start: 300, duration: 10 },      // Highlight at 5min (300-310s)
+    { start: 480, duration: 10 },      // Climax scene at 8min (480-490s)
+    { start: 720, duration: 15 }       // Final highlight at 12min (720-735s)
+  ];
+  
+  const TOTAL_PREVIEW_DURATION = HIGHLIGHT_SCENES.reduce((total, scene) => total + scene.duration, 0); // 60s total
 
-  // Trailer enforcement system for non-premium users with smooth transitions
-  const enforceTrailerRestrictions = (video: HTMLVideoElement) => {
+  // Highlight scenes enforcement system for non-premium users
+  const enforceHighlightRestrictions = (video: HTMLVideoElement) => {
     // Only skip enforcement if user has confirmed premium subscription
     if (hasPremiumSubscription) {
       return;
     }
 
     const currentTime = video.currentTime;
+    const currentScene = HIGHLIGHT_SCENES[currentSceneIndex];
 
     // If trailer ended, show modal and prevent playback
     if (trailerEnded) {
@@ -99,23 +110,60 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       return;
     }
 
-    // If trailer duration exceeded, end trailer smoothly
-    if (currentTime >= TRAILER_DURATION) {
-      video.pause();
-      setIsPlaying(false);
+    // If no current scene, something went wrong
+    if (!currentScene) {
       setTrailerEnded(true);
       setShowSubscriptionModal(true);
       return;
     }
 
-    // Prevent seeking beyond trailer duration
-    if (currentTime > TRAILER_DURATION) {
-      video.currentTime = TRAILER_DURATION - 1;
-    }
+    const sceneEndTime = currentScene.start + currentScene.duration;
+    const timeIntoScene = currentTime - currentScene.start;
+    const sceneTimeLeft = Math.max(0, currentScene.duration - timeIntoScene);
 
-    // Update time left
-    const timeLeft = Math.max(0, TRAILER_DURATION - currentTime);
-    setTimeLeft(Math.ceil(timeLeft));
+    // Update scene time left
+    setSceneTimeLeft(Math.ceil(sceneTimeLeft));
+
+    // Update total preview time left
+    const remainingScenes = HIGHLIGHT_SCENES.slice(currentSceneIndex + 1);
+    const remainingScenesTime = remainingScenes.reduce((total, scene) => total + scene.duration, 0);
+    const totalTimeLeft = sceneTimeLeft + remainingScenesTime;
+    setTotalPreviewTimeLeft(Math.ceil(totalTimeLeft));
+
+    // If current scene finished, transition to next
+    if (currentTime >= sceneEndTime) {
+      video.pause();
+      setIsPlaying(false);
+
+      // Move to next scene or end preview
+      if (currentSceneIndex < HIGHLIGHT_SCENES.length - 1) {
+        const nextSceneIndex = currentSceneIndex + 1;
+        const nextScene = HIGHLIGHT_SCENES[nextSceneIndex];
+        
+        setCurrentSceneIndex(nextSceneIndex);
+        
+        // Jump to next scene start
+        video.currentTime = nextScene.start;
+        
+        // Smooth transition to next scene
+        setTimeout(() => {
+          if (!trailerEnded && videoRef.current && !hasPremiumSubscription) {
+            videoRef.current.play().catch(console.error);
+            setIsPlaying(true);
+          }
+        }, 100);
+      } else {
+        // No more scenes, end preview
+        setTrailerEnded(true);
+        setShowSubscriptionModal(true);
+      }
+    } 
+    // Prevent seeking outside current scene bounds
+    else if (currentTime < currentScene.start) {
+      video.currentTime = currentScene.start;
+    } else if (currentTime > sceneEndTime) {
+      video.currentTime = sceneEndTime - 0.1;
+    }
   };
 
   // Check VR support
@@ -208,8 +256,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
               setShowSubscriptionModal(true);
               return;
             }
-            // Apply restrictions but don't prevent play if within segment
-            enforceTrailerRestrictions(vrVideo);
+            // Apply restrictions but don't prevent play if within scene
+            enforceHighlightRestrictions(vrVideo);
           }
 
           if (vrVideo.paused) {
@@ -221,13 +269,13 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           }
         });
 
-        // Apply trailer restrictions in VR mode only for non-premium users
+        // Apply highlight scene restrictions in VR mode only for non-premium users
         if (!hasPremiumSubscription && !premiumLoading) {
           const vrEnforceInterval = setInterval(() => {
             if (!trailerEnded && !hasPremiumSubscription) {
-              enforceTrailerRestrictions(vrVideo);
+              enforceHighlightRestrictions(vrVideo);
             }
-          }, 1000);
+          }, 500);
 
           (vrVideo as any).vrEnforceInterval = vrEnforceInterval;
         }
@@ -264,14 +312,16 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             }
           }
 
-          // Set initial state
+          // Set initial state for highlight scenes
           setTrailerEnded(false);
-          setTimeLeft(TRAILER_DURATION);
+          setCurrentSceneIndex(0);
+          setSceneTimeLeft(HIGHLIGHT_SCENES[0].duration);
+          setTotalPreviewTimeLeft(TOTAL_PREVIEW_DURATION);
 
-          // Wait for video to load before auto-playing from beginning
+          // Wait for video to load before auto-playing first scene
           if (video.readyState >= 1) {
-            video.currentTime = 0;
-            // Auto-play trailer immediately
+            video.currentTime = HIGHLIGHT_SCENES[0].start;
+            // Auto-play first highlight scene immediately
             setTimeout(() => {
               if (!hasPremiumSubscription) {
                 video.play().catch(console.error);
@@ -279,8 +329,8 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             }, 50);
           } else {
             video.addEventListener('loadedmetadata', () => {
-              video.currentTime = 0;
-              // Auto-play trailer after metadata loads
+              video.currentTime = HIGHLIGHT_SCENES[0].start;
+              // Auto-play first highlight scene after metadata loads
               setTimeout(() => {
                 if (!hasPremiumSubscription) {
                   video.play().catch(console.error);
@@ -289,12 +339,12 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             }, { once: true });
           }
 
-          // Monitor video time every 1000ms (less aggressive)
+          // Monitor video time every 500ms for smooth scene transitions
           const enforceInterval = setInterval(() => {
             if (video && !video.paused && !trailerEnded && !hasPremiumSubscription) {
-              enforceTrailerRestrictions(video);
+              enforceHighlightRestrictions(video);
             }
-          }, 1000);
+          }, 500);
 
           // Disable context menu and keyboard shortcuts
           video.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -362,9 +412,9 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         // Common event listeners
         video.addEventListener("loadedmetadata", () => {
           if (!hasPremiumSubscription && !premiumLoading) {
-            setDuration(TRAILER_DURATION);
-            // Set to beginning after metadata loads
-            video.currentTime = 0;
+            setDuration(TOTAL_PREVIEW_DURATION);
+            // Set to first scene start after metadata loads
+            video.currentTime = HIGHLIGHT_SCENES[0].start;
           } else {
             setDuration(video.duration);
           }
@@ -373,10 +423,20 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         video.addEventListener("timeupdate", () => {
           setCurrentTime(video.currentTime);
 
-          // Only apply trailer logic for non-premium users
+          // Only apply highlight scene logic for non-premium users
           if (!hasPremiumSubscription) {
-            const timeLeft = Math.max(0, TRAILER_DURATION - video.currentTime);
-            setTimeLeft(Math.ceil(timeLeft));
+            const currentScene = HIGHLIGHT_SCENES[currentSceneIndex];
+            if (currentScene) {
+              const timeIntoScene = video.currentTime - currentScene.start;
+              const sceneTimeLeft = Math.max(0, currentScene.duration - timeIntoScene);
+              setSceneTimeLeft(Math.ceil(sceneTimeLeft));
+              
+              // Calculate total preview time left
+              const remainingScenes = HIGHLIGHT_SCENES.slice(currentSceneIndex + 1);
+              const remainingScenesTime = remainingScenes.reduce((total, scene) => total + scene.duration, 0);
+              const totalTimeLeft = sceneTimeLeft + remainingScenesTime;
+              setTotalPreviewTimeLeft(Math.ceil(totalTimeLeft));
+            }
           }
         });
 
@@ -540,11 +600,13 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
               <Lock className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
               <h3 className="text-2xl font-bold mb-2">Trailer Completed</h3>
               <p className="text-gray-300">
-                You've watched the {TRAILER_DURATION}-second preview. 
+                You've watched all {HIGHLIGHT_SCENES.length} highlight scenes ({TOTAL_PREVIEW_DURATION}s total). 
                 Upgrade to Premium to watch the full video and access unlimited content.
               </p>
               <div className="mt-4 text-sm text-gray-400">
-                Preview duration: {formatTime(TRAILER_DURATION)}
+                Highlights shown from: {HIGHLIGHT_SCENES.map((scene, i) => 
+                  `${Math.floor(scene.start / 60)}:${(scene.start % 60).toString().padStart(2, '0')}`
+                ).join(', ')}
               </div>
             </div>
             <button
@@ -558,14 +620,19 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Non-Premium Status Bar - Only show when 5 seconds or less left */}
-      {!hasPremiumSubscription && !trailerEnded && timeLeft <= 5 && (
+      {/* Non-Premium Status Bar - Show scene info and time left */}
+      {!hasPremiumSubscription && !trailerEnded && (
         <div className="absolute bottom-4 left-4 right-4 bg-black/80 backdrop-blur-sm text-white p-3 rounded-lg border border-yellow-400/30">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Lock className="w-5 h-5 text-yellow-400" />
               <div>
-                <p className="font-semibold text-sm">Preview ends in {formatTimeLeft(timeLeft)}</p>
+                <p className="font-semibold text-sm">
+                  Scene {currentSceneIndex + 1}/{HIGHLIGHT_SCENES.length} • {formatTimeLeft(totalPreviewTimeLeft)} left
+                </p>
+                <p className="text-xs text-gray-400">
+                  Highlight from {Math.floor(HIGHLIGHT_SCENES[currentSceneIndex]?.start / 60)}:{(HIGHLIGHT_SCENES[currentSceneIndex]?.start % 60).toString().padStart(2, '0')}
+                </p>
               </div>
             </div>
             <button
