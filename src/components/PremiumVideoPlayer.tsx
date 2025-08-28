@@ -89,7 +89,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     { start: 1080, end: 1100 }  // 18:00-18:20
   ];
 
-  // BULLETPROOF enforcement system for non-premium users
+  // Trailer enforcement system for non-premium users
   const enforceTrailerRestrictions = (video: HTMLVideoElement) => {
     // Skip enforcement if user has premium OR if still loading subscription status
     if (hasPremiumSubscription || premiumLoading) return;
@@ -97,44 +97,40 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
     const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
     const currentTime = video.currentTime;
 
-    // If trailer ended, completely block everything
+    // If trailer ended, show modal but keep video available
     if (trailerEnded) {
       video.pause();
-      video.currentTime = TRAILER_SEGMENTS[0].start;
-      video.src = ''; // Remove source completely
       setIsPlaying(false);
       setShowSubscriptionModal(true);
       return;
     }
 
-    // If outside current segment, force correction
-    if (!currentSegment || currentTime < currentSegment.start || currentTime >= currentSegment.end) {
+    // If outside current segment, handle transition
+    if (currentSegment && currentTime >= currentSegment.end) {
       video.pause();
       setIsPlaying(false);
 
-      if (currentSegment && currentTime >= currentSegment.end) {
-        // Move to next segment or end
-        if (currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
-          const nextSegment = currentTrailerSegment + 1;
-          setCurrentTrailerSegment(nextSegment);
-          video.currentTime = TRAILER_SEGMENTS[nextSegment].start;
-          setShowPreviewOverlay(true);
+      // Move to next segment or end
+      if (currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
+        const nextSegment = currentTrailerSegment + 1;
+        setCurrentTrailerSegment(nextSegment);
+        video.currentTime = TRAILER_SEGMENTS[nextSegment].start;
+        setShowPreviewOverlay(true);
 
-          setTimeout(() => {
-            if (!trailerEnded && videoRef.current) {
-              setShowPreviewOverlay(false);
-              videoRef.current.play();
-              setIsPlaying(true);
-            }
-          }, 2000);
-        } else {
-          setTrailerEnded(true);
-          setShowSubscriptionModal(true);
-        }
+        setTimeout(() => {
+          if (!trailerEnded && videoRef.current) {
+            setShowPreviewOverlay(false);
+            videoRef.current.play();
+            setIsPlaying(true);
+          }
+        }, 2000);
       } else {
-        // Force back to segment start
-        video.currentTime = currentSegment ? currentSegment.start : TRAILER_SEGMENTS[0].start;
+        setTrailerEnded(true);
+        setShowSubscriptionModal(true);
       }
+    } else if (currentSegment && currentTime < currentSegment.start) {
+      // Force to segment start if before it
+      video.currentTime = currentSegment.start;
     }
   };
 
@@ -262,9 +258,9 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
 
-        // For non-premium users, completely override video behavior
+        // For non-premium users, set up trailer restrictions
         if (!hasPremiumSubscription) {
-          // Remove all default controls
+          // Remove default controls but allow video to load
           video.controls = false;
           video.controlsList.add('nodownload', 'nofullscreen', 'noremoteplayback');
 
@@ -272,71 +268,15 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           setCurrentTrailerSegment(0);
           setTrailerEnded(false);
 
-          // Override ALL video methods and properties
-          const originalPlay = video.play.bind(video);
-          const originalPause = video.pause.bind(video);
-          const originalLoad = video.load.bind(video);
+          // Start at first trailer segment
+          video.currentTime = TRAILER_SEGMENTS[0].start;
 
-          // Hijack play method
-          video.play = function() {
-            if (trailerEnded) {
-              setShowSubscriptionModal(true);
-              return Promise.reject(new Error('Premium required'));
-            }
-
-            const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-            if (!currentSegment || video.currentTime < currentSegment.start || video.currentTime >= currentSegment.end) {
-              video.currentTime = currentSegment ? currentSegment.start : TRAILER_SEGMENTS[0].start;
-            }
-
-            return originalPlay();
-          };
-
-          // Block seeking completely
-          Object.defineProperty(video, 'currentTime', {
-            get: function() {
-              return this._restrictedCurrentTime || TRAILER_SEGMENTS[0].start;
-            },
-            set: function(value) {
-              if (trailerEnded) {
-                this._restrictedCurrentTime = TRAILER_SEGMENTS[0].start;
-                return;
-              }
-
-              const currentSegment = TRAILER_SEGMENTS[currentTrailerSegment];
-              if (currentSegment) {
-                if (value >= currentSegment.start && value < currentSegment.end) {
-                  this._restrictedCurrentTime = value;
-                  Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').set.call(this, value);
-                } else {
-                  this._restrictedCurrentTime = currentSegment.start;
-                  Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').set.call(this, currentSegment.start);
-                }
-              } else {
-                this._restrictedCurrentTime = TRAILER_SEGMENTS[0].start;
-                Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime').set.call(this, TRAILER_SEGMENTS[0].start);
-              }
-            }
-          });
-
-          // Ultra-aggressive monitoring
+          // Monitor video time every 500ms (less aggressive)
           const enforceInterval = setInterval(() => {
-            enforceTrailerRestrictions(video);
-          }, 50);
-
-          // Block all events that could bypass restrictions
-          const blockingEvents = [
-            'loadstart', 'loadeddata', 'loadedmetadata', 'canplay', 'canplaythrough',
-            'playing', 'timeupdate', 'seeking', 'seeked', 'progress', 'durationchange'
-          ];
-
-          blockingEvents.forEach(eventType => {
-            video.addEventListener(eventType, () => {
-              if (!hasPremiumSubscription) {
-                enforceTrailerRestrictions(video);
-              }
-            });
-          });
+            if (video && !video.paused) {
+              enforceTrailerRestrictions(video);
+            }
+          }, 500);
 
           // Disable context menu and keyboard shortcuts
           video.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -427,8 +367,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                 setShowPreviewOverlay(true);
               }
             }
-
-            enforceTrailerRestrictions(video);
           }
         });
 
