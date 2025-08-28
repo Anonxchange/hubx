@@ -122,6 +122,64 @@ const CreatorDashboard = () => {
     setEditingVideo(video);
   };
 
+  // Function to handle thumbnail upload using Bunny CDN
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>, videoId: string) => {
+    if (!event.target.files || event.target.files.length === 0) {
+      return;
+    }
+    const file = event.target.files[0];
+    
+    try {
+      // Import the upload function dynamically
+      const { uploadToBunnyStorage, generateUniqueFilename } = await import('@/services/bunnyStorageService');
+      
+      // Generate unique filename for thumbnail
+      const filename = generateUniqueFilename(file.name, user?.id || '', 'thumbnails');
+      
+      // Upload to Bunny CDN
+      const uploadResult = await uploadToBunnyStorage(file, filename);
+      
+      if (uploadResult.success && uploadResult.url) {
+        // Update video thumbnail in database
+        const { error } = await supabase
+          .from('videos')
+          .update({ thumbnail_url: uploadResult.url })
+          .eq('id', videoId)
+          .eq('owner_id', user?.id);
+
+        if (error) {
+          console.error('Error updating video thumbnail:', error);
+          toast({
+            title: "Error",
+            description: "Failed to update thumbnail in database",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Success",
+            description: "Thumbnail updated successfully!",
+          });
+          // Refresh the videos list
+          fetchCreatorContent();
+        }
+      } else {
+        console.error('Failed to upload thumbnail:', uploadResult.error);
+        toast({
+          title: "Error",
+          description: "Failed to upload thumbnail. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error uploading thumbnail:', error);
+      toast({
+        title: "Error",
+        description: "Error uploading thumbnail. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (!user) {
     navigate('/auth');
     return null;
@@ -416,6 +474,17 @@ const CreatorDashboard = () => {
                               Edit
                             </Button>
                             <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                // Trigger a hidden file input for image upload
+                                document.getElementById(`thumbnail-upload-${video.id}`)?.click();
+                              }}
+                            >
+                              <Upload className="w-4 h-4 mr-1" />
+                              Update Thumbnail
+                            </Button>
+                            <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => handleDelete(video.id)}
@@ -424,6 +493,14 @@ const CreatorDashboard = () => {
                               <Trash2 className="w-4 h-4 mr-1" />
                               Delete
                             </Button>
+                            {/* Hidden file input for thumbnail upload */}
+                            <input
+                              type="file"
+                              id={`thumbnail-upload-${video.id}`}
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleImageUpload(e, video.id)}
+                            />
                           </div>
                         </div>
                       ))}
