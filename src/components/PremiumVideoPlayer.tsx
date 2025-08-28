@@ -79,7 +79,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
   const [currentTrailerSegment, setCurrentTrailerSegment] = useState(0);
   const [trailerEnded, setTrailerEnded] = useState(false);
   const [timeLeft, setTimeLeft] = useState(20);
-  const [showPreviewOverlay, setShowPreviewOverlay] = useState(false);
 
   // Define trailer segments (start and end times in seconds)
   const TRAILER_SEGMENTS = [
@@ -121,19 +120,17 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         const nextSegment = TRAILER_SEGMENTS[nextSegmentIndex];
         
         setCurrentTrailerSegment(nextSegmentIndex);
-        setShowPreviewOverlay(true);
         
-        // Jump to next segment start
+        // Jump to next segment start and immediately play
         video.currentTime = nextSegment.start;
-
-        // Auto-play next segment after brief pause
+        
+        // Small delay to let video seek, then auto-play next segment
         setTimeout(() => {
           if (!trailerEnded && videoRef.current && !hasPremiumSubscription) {
-            setShowPreviewOverlay(false);
             videoRef.current.play().catch(console.error);
             setIsPlaying(true);
           }
-        }, 2000);
+        }, 200);
       } else {
         // No more segments, end trailer
         setTrailerEnded(true);
@@ -299,12 +296,12 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           // Wait for video to load before setting time and auto-playing
           if (video.readyState >= 1) {
             video.currentTime = TRAILER_SEGMENTS[0].start;
-            // Auto-play the first trailer segment
+            // Auto-play the first trailer segment quickly
             setTimeout(() => {
               if (!hasPremiumSubscription) {
                 video.play().catch(console.error);
               }
-            }, 500);
+            }, 100);
           } else {
             video.addEventListener('loadedmetadata', () => {
               video.currentTime = TRAILER_SEGMENTS[0].start;
@@ -313,7 +310,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
                 if (!hasPremiumSubscription) {
                   video.play().catch(console.error);
                 }
-              }, 500);
+              }, 100);
             }, { once: true });
           }
 
@@ -410,11 +407,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
             if (currentSegment) {
               const segmentTimeLeft = Math.max(0, currentSegment.end - video.currentTime);
               setTimeLeft(Math.ceil(segmentTimeLeft));
-
-              // Show preview overlay when approaching end of segment
-              if (segmentTimeLeft <= 5 && segmentTimeLeft > 0 && !showPreviewOverlay && currentTrailerSegment < TRAILER_SEGMENTS.length - 1) {
-                setShowPreviewOverlay(true);
-              }
             }
           }
         });
@@ -564,39 +556,6 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         </div>
       )}
 
-      {/* Trailer Segment Overlay */}
-      {showPreviewOverlay && !hasPremiumSubscription && !trailerEnded && (
-        <div className="absolute bottom-20 left-4 right-4 bg-gradient-to-r from-blue-600/90 to-purple-600/90 backdrop-blur-sm text-white p-4 rounded-lg border border-yellow-400/50 shadow-2xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <Crown className="w-6 h-6 text-yellow-400 animate-pulse" />
-              <div>
-                {currentTrailerSegment < TRAILER_SEGMENTS.length - 1 ? (
-                  <>
-                    <h4 className="font-bold text-sm">Trailer segment ending!</h4>
-                    <p className="text-xs text-gray-200">
-                      Next preview starts in {timeLeft} seconds
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <h4 className="font-bold text-sm">Final trailer segment!</h4>
-                    <p className="text-xs text-gray-200">
-                      {timeLeft} seconds left - Subscribe for full video
-                    </p>
-                  </>
-                )}
-              </div>
-            </div>
-            <button
-              onClick={() => setShowSubscriptionModal(true)}
-              className="bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg font-bold text-sm transition-all transform hover:scale-105"
-            >
-              Subscribe Now
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Subscription Modal */}
       <SubscriptionModal
