@@ -1,5 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, Suspense } from 'react';
 import { useIntersectionObserver } from '@/hooks/useIntersectionObserver';
+
+const AdComponent = React.lazy(() => import('./AdComponent'));
 
 interface LazyAdComponentProps {
   zoneId: string;
