@@ -614,7 +614,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
     (video, index, self) => index === self.findIndex((v) => v.id === video.id)
   );
 
-  const [visibleCount, setVisibleCount] = useState(20); // Start with fewer videos
+  const [visibleCount, setVisibleCount] = useState(60); // Show all fetched videos initially
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   // Intersection observer for infinite loading
@@ -651,6 +651,12 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
           {visibleVideos.map((video, index) => (
             <div key={`${video.id}-${index}`}>
               <OptimizedVideoCard video={video} viewMode="grid" />
+              {/* Show MomentsCarousel between videos 23-24 (after index 23) */}
+              {showMoments && index === 23 && (
+                <div className="col-span-full my-6">
+                  <MomentsCarousel />
+                </div>
+              )}
               {showAds && index > 0 && (index + 1) % 8 === 0 && (
                 <div className="mt-4">
                   <LazyAdComponent zoneId="5661270" />
