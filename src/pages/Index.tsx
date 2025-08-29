@@ -58,14 +58,14 @@ const Index = () => {
   }, [isLoading]);
 
 
-  const handleCategoryChange = (category: string) => {
+  const handleCategoryChange = React.useCallback((category: string) => {
     setSelectedCategory(category);
     setCurrentPage(1);
-  };
+  }, []);
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = React.useCallback((page: number) => {
     setCurrentPage(page);
-  };
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
