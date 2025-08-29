@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, ThumbsUp } from 'lucide-react';
-import { LazyImage } from '@/components/LazyImage';
+import LazyImage from '@/components/LazyImage';
 import VerificationBadge from './VerificationBadge';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import { supabase } from '@/integrations/supabase/client';
