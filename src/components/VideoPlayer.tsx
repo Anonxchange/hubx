@@ -143,6 +143,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, tags, isV
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
 
+        // Set basic video attributes for faster initial render
+        video.playsInline = true;
+        video.preload = 'none'; // Only load when user interacts
+        video.muted = true; // Allow autoplay on mobile
+
         // Load FluidPlayer script if not already loaded
         const existingScript = document.querySelector<HTMLScriptElement>(
           "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
