@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // Import useNavigate
 import { ThumbsUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { LazyImage } from '@/components/LazyImage';
+import LazyImage from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import { supabase } from '@/integrations/supabase/client';
 
