@@ -258,6 +258,7 @@ const VideoPage = () => {
         <div className="relative w-full">
           <div className="w-full bg-black" style={{ height: 'min(calc(100vw * 9/16), 720px)' }}>
             <VideoPlayer
+              key={video.id}
               src={video.video_url}
               poster={video.thumbnail_url}
               onError={handleVideoError}
