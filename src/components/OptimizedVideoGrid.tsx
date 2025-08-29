@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Eye, ThumbsUp, MoreVertical, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { LazyImage } from '@/components/LazyImage';
+import LazyImage from '@/components/LazyImage';
 import AdComponent from '@/components/AdComponent';
 import { useAuth } from '@/contexts/AuthContext';
 import VerificationBadge from './VerificationBadge';
@@ -51,7 +51,7 @@ const setActivePreviewCard = (cardId: string | null) => {
   }
 };
 
-const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'list' }> = ({
+const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'list' }> = React.memo(({
   video,
   viewMode = 'grid'
 }) => {
@@ -123,13 +123,13 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       console.log('DEBUG: URL is empty or null:', url);
       return false;
     }
-    
+
     // Handle relative URLs, data URLs, and blob URLs
     if (url.startsWith('/') || url.startsWith('data:') || url.startsWith('blob:')) {
       console.log('DEBUG: Valid relative/data/blob URL:', url);
       return true;
     }
-    
+
     // Handle HTTP/HTTPS URLs
     if (url.startsWith('http://') || url.startsWith('https://')) {
       try {
@@ -141,7 +141,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         return false;
       }
     }
-    
+
     // Handle URLs without protocol (assume https)
     if (url.includes('.') && !url.includes(' ')) {
       try {
@@ -153,7 +153,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         return false;
       }
     }
-    
+
     console.log('DEBUG: URL validation failed for:', url);
     return false;
   };
@@ -212,7 +212,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const handleMouseEnter = () => {
     if (isMobile) return; // Don't handle mouse events on mobile
     setIsHovered(true);
-    
+
     // Only start preview if we have a valid image preview URL
     if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
       startPreview();
@@ -289,7 +289,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     if (video.preview_url && video.preview_url.trim() !== '') {
       return video.preview_url;
     }
-    
+
     // Try to generate preview URL from Bunny Stream video URL
     if (video.video_url && video.video_url.includes('vz-a3bd9097-45c.b-cdn.net')) {
       // Extract video ID from HLS URL like: https://vz-a3bd9097-45c.b-cdn.net/04c24b96-ad5f-4c61-ab1b-990f186dc4ce/playlist.m3u8
@@ -299,7 +299,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
         return `https://vz-a3bd9097-45c.b-cdn.net/${videoId}/preview.webp`;
       }
     }
-    
+
     return null;
   }, [video.preview_url, video.video_url]);
 
@@ -428,10 +428,10 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   // grid mode
   return (
-    <Link to={`/video/${video.id}`} className="block w-full">
-      <div
-        className="group hover:bg-muted/5 transition-all duration-200 w-full"
-      >
+    <Link 
+      to={`/video/${video.id}`} 
+      className="block w-full group hover:bg-muted/5 transition-all duration-200"
+    >
         <div
           className="relative bg-muted overflow-hidden rounded-xl w-full"
           style={{ 
@@ -528,9 +528,45 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             </span>
           </div>
         </div>
-      </div>
     </Link>
   );
+});
+
+// Mock hook for useIntersectionObserver
+const useIntersectionObserver = (callback: () => void, options?: IntersectionObserverInit) => {
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const elementRef = useRef<HTMLDivElement | null>(null);
+
+  React.useEffect(() => {
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            callback();
+          }
+        });
+      },
+      options
+    );
+
+    if (elementRef.current) {
+      observerRef.current.observe(elementRef.current);
+    }
+
+    return () => {
+      if (elementRef.current) {
+        observerRef.current?.unobserve(elementRef.current);
+      }
+      observerRef.current = null;
+    };
+  }, [callback, options]);
+
+  return elementRef;
+};
+
+// Mock component for LazyAdComponent
+const LazyAdComponent = ({ zoneId }: { zoneId: string }) => {
+  return <AdComponent zoneId={zoneId} className="w-full" />;
 };
 
 const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
@@ -578,34 +614,61 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
     (video, index, self) => index === self.findIndex((v) => v.id === video.id)
   );
 
+  const [visibleCount, setVisibleCount] = useState(20); // Start with fewer videos
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Intersection observer for infinite loading
+  const loadMoreRef = useIntersectionObserver(
+    () => {
+      if (visibleCount < uniqueVideos.length && !isLoadingMore) {
+        setIsLoadingMore(true);
+        // Batch load more videos
+        setTimeout(() => {
+          setVisibleCount(prev => Math.min(prev + 10, uniqueVideos.length));
+          setIsLoadingMore(false);
+        }, 100);
+      }
+    },
+    { threshold: 0.1 }
+  );
+
+  const visibleVideos = uniqueVideos.slice(0, visibleCount);
+
   return (
-    <div
-      className={viewMode === 'grid' ? 'w-full max-w-none' : 'space-y-3'}
-      style={{
-        display: viewMode === 'grid' ? 'grid' : 'block',
-        gridTemplateColumns: viewMode === 'grid' ? 'repeat(auto-fill, minmax(320px, 1fr))' : undefined,
-        gap: viewMode === 'grid' ? '20px' : undefined
-      }}
-    >
-      {uniqueVideos.map((video, index) => (
-        <div key={`video-fragment-${video.id}`}>
-          {!video.is_moment && (
-            <>
-              <OptimizedVideoCard video={video} viewMode={viewMode} />
-              {showMoments && index === 22 && (
-                <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
-                  <MomentsCarousel />
+    <div className="w-full">
+      {viewMode === 'list' ? (
+        <div className="space-y-4">
+          {visibleVideos.map((video, index) => (
+            <OptimizedVideoCard
+              key={`${video.id}-${index}`}
+              video={video}
+              viewMode="list"
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
+          {visibleVideos.map((video, index) => (
+            <div key={`${video.id}-${index}`}>
+              <OptimizedVideoCard video={video} viewMode="grid" />
+              {showAds && index > 0 && (index + 1) % 8 === 0 && (
+                <div className="mt-4">
+                  <LazyAdComponent zoneId="5661270" />
                 </div>
               )}
-              {showAds && (index + 1) % 12 === 0 && (
-                <div className="col-span-1 sm:col-span-2 lg:col-span-3 xl:col-span-4">
-                  <AdComponent zoneId="5661270" className="w-full" />
-                </div>
-              )}
-            </>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Load more trigger */}
+      {visibleCount < uniqueVideos.length && (
+        <div ref={loadMoreRef} className="h-20 flex items-center justify-center">
+          {isLoadingMore && (
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
           )}
         </div>
-      ))}
+      )}
     </div>
   );
 };
