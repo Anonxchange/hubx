@@ -3,15 +3,15 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
+import React from 'react';
 
-// Lazy load heavy components
-const Index = lazy(() => import('./pages/Index'));
-const VideoPage = lazy(() => import('./pages/VideoPage'));
-const AuthPage = lazy(() => import('./pages/AuthPage'));
-const CreatorDashboard = lazy(() => import('./pages/CreatorDashboard'));
-const StudioDashboard = lazy(() => import('./pages/StudioDashboard'));
-const AdminPanel = lazy(() => import('./pages/AdminPanel'));
+// Import components normally to avoid suspense issues
+import Index from './pages/Index';
+import VideoPage from './pages/VideoPage';
+import AuthPage from './pages/AuthPage';
+import CreatorDashboard from './pages/CreatorDashboard';
+import StudioDashboard from './pages/StudioDashboard';
+import AdminPanel from './pages/AdminPanel';
 
 import AgeGateWrapper from "./components/AgeGateWrapper";
 import CategoryPage from "./pages/CategoryPage";
