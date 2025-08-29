@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getOptimizedVideos } from '@/services/optimizedVideosService';
 import { getHomepageVideos } from '@/services/videosService';
+import { cacheService } from '@/services/cacheService';
 
 export const useOptimizedVideos = (page = 1, limit = 20, category?: string, searchQuery?: string) => {
   // Get user ID for personalization with expiry check
@@ -16,12 +17,12 @@ export const useOptimizedVideos = (page = 1, limit = 20, category?: string, sear
     } catch (error) {
       console.error('Error reading user ID cache:', error);
     }
-    
-    const userId = localStorage.getItem('user_id') || 
-                  localStorage.getItem('supabase.auth.token')?.includes('user_id') ? 
-                  JSON.parse(localStorage.getItem('supabase.auth.token') || '{}')?.user?.id : 
+
+    const userId = localStorage.getItem('user_id') ||
+                  localStorage.getItem('supabase.auth.token')?.includes('user_id') ?
+                  JSON.parse(localStorage.getItem('supabase.auth.token') || '{}')?.user?.id :
                   undefined;
-    
+
     // Cache the user ID with timestamp
     if (userId) {
       localStorage.setItem('user_id_cache', JSON.stringify({
@@ -29,10 +30,10 @@ export const useOptimizedVideos = (page = 1, limit = 20, category?: string, sear
         timestamp: Date.now()
       }));
     }
-    
+
     return userId;
   };
-  
+
   const userId = getUserId();
 
   return useQuery({
