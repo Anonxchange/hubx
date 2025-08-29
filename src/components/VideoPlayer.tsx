@@ -139,14 +139,36 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, tags, isV
   };
 
   useEffect(() => {
+    // Reset initialization state when src changes (new video)
+    setInitialized(false);
+    
     const initializeVideo = () => {
-      if (videoRef.current && !initialized) {
+      if (videoRef.current && !initialized && src) {
         const video = videoRef.current;
 
+        // Clean up any existing player instance first
+        try {
+          const existingPlayer = (video as any).fluidPlayerInstance;
+          if (existingPlayer) {
+            existingPlayer.destroy();
+            (video as any).fluidPlayerInstance = null;
+          }
+        } catch (error) {
+          console.log("Error cleaning up existing player:", error);
+        }
+
+        // Reset video element
+        video.load();
+        video.src = src;
+        
         // Set basic video attributes for faster initial render
         video.playsInline = true;
-        video.preload = 'none'; // Only load when user interacts
+        video.preload = 'metadata';
         video.muted = true; // Allow autoplay on mobile
+        
+        if (poster) {
+          video.poster = poster;
+        }
 
         // Load FluidPlayer script if not already loaded
         const existingScript = document.querySelector<HTMLScriptElement>(
@@ -222,9 +244,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, tags, isV
               // Save instance for cleanup
               (video as any).fluidPlayerInstance = fluidPlayerInstance;
               console.log("FluidPlayer initialized successfully");
+              setInitialized(true);
             } catch (error) {
               console.error("Error initializing FluidPlayer:", error);
               video.controls = true;
+              setInitialized(true);
             }
           }
         };
@@ -239,14 +263,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, tags, isV
             console.error(
               "Failed to load FluidPlayer script, using native player"
             );
-            if (videoRef.current) videoRef.current.controls = true;
+            if (videoRef.current) {
+              videoRef.current.controls = true;
+              setInitialized(true);
+            }
           };
           document.body.appendChild(script);
         } else if (window.fluidPlayer) {
           setTimeout(loadFluidPlayer, 300);
         }
-
-        setInitialized(true);
       }
     };
 
@@ -259,13 +284,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, tags, isV
           const player = videoRef.current as any;
           if (player.fluidPlayerInstance) {
             player.fluidPlayerInstance.destroy();
+            player.fluidPlayerInstance = null;
           }
         } catch (error) {
           console.log("Error cleaning up FluidPlayer:", error);
         }
       }
     };
-  }, [src, poster]);
+  }, [src, poster, initialized]);
 
   // Track views
   const handlePlay = async () => {
