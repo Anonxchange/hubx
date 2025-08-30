@@ -11,12 +11,13 @@ declare global {
 }
 
 interface VideoPlayerProps {
-  src: string;
+  hlsSrc: string;  // HLS URL
+  mp4Src: string;  // MP4 fallback
   poster?: string;
   title?: string;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ hlsSrc, mp4Src, poster, title }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useAuth();
   const [initialized, setInitialized] = useState(false);
@@ -26,104 +27,94 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
 
-        // Load FluidPlayer + Hls.js if not already loaded
-        const loadScripts = async () => {
-          const loadScript = (src: string) =>
-            new Promise<void>((resolve, reject) => {
-              if (document.querySelector(`script[src="${src}"]`)) {
-                resolve();
-                return;
-              }
-              const script = document.createElement("script");
-              script.src = src;
-              script.async = true;
-              script.onload = () => resolve();
-              script.onerror = () => reject(new Error(`Failed to load ${src}`));
-              document.body.appendChild(script);
-            });
-
-          try {
-            await loadScript("https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js");
-            await loadScript("https://cdn.jsdelivr.net/npm/hls.js@latest");
-
-            if (window.fluidPlayer && videoRef.current) {
-              // If HLS source
-              if (src.endsWith(".m3u8") && window.Hls && window.Hls.isSupported()) {
-                const hls = new window.Hls();
-                hls.loadSource(src);
-                hls.attachMedia(videoRef.current);
-              }
-
-              const fluidPlayerInstance = window.fluidPlayer(video, {
-                layoutControls: {
-                  autoPlay: false,
-                  mute: false,
-                  fillToContainer: true,
-                  playButtonShowing: true,
-                  posterImage: poster || "",
-                  allowDownload: false,
-                  keyboardControl: true,
-                  playbackRates: ["x0.5", "x1", "x1.25", "x1.5", "x2"],
-                  primaryColor: "#ff6b35",
-                  responsive: true,
-                  controlBar: {
-                    autoHide: true,
-                    autoHideTimeout: 3,
-                  },
-                  // ⚡ FluidPlayer automatically creates quality selector when multiple HLS renditions exist
-                },
-                vastOptions: {
-                  adList: [
-                    {
-                      roll: "preRoll",
-                      vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
-                    },
-                  ],
-                  skipButtonCaption: "Skip in [seconds]",
-                  skipButtonClickCaption: "Skip >>",
-                  allowVPAID: true,
-                  adClickable: true,
-                  adFinishedCallback: () => {
-                    console.log("Ad completed, main video starting");
-                  },
-                },
-              });
-
-              (video as any).fluidPlayerInstance = fluidPlayerInstance;
-              console.log("FluidPlayer initialized with HLS support ✅");
+        // Load Hls.js
+        const loadHls = () => {
+          if (window.Hls && videoRef.current) {
+            if (window.Hls.isSupported()) {
+              const hls = new window.Hls();
+              hls.loadSource(hlsSrc);
+              hls.attachMedia(videoRef.current);
             }
-          } catch (error) {
-            console.error("Error setting up player:", error);
-            if (videoRef.current) videoRef.current.controls = true;
           }
         };
 
-        loadScripts();
+        // Load FluidPlayer script
+        const loadFluidPlayer = () => {
+          if (window.fluidPlayer && videoRef.current) {
+            const fluidPlayerInstance = window.fluidPlayer(video, {
+              layoutControls: {
+                fillToContainer: true,
+                autoPlay: false,
+                mute: false,
+                playButtonShowing: true,
+                posterImage: poster || "",
+                allowDownload: false,
+                playbackRateEnabled: true,
+                keyboardControl: true,
+                controlBar: {
+                  autoHide: true,
+                  autoHideTimeout: 3,
+                },
+                primaryColor: "#ff6b35",
+                responsive: true,
+                mediaControls: {
+                  // 👇 Enable quality selector
+                  controlElements: ["playpause", "currenttime", "progress", "duration", "volume", "fullscreen", "quality"],
+                },
+              },
+              vastOptions: {
+                adList: [
+                  {
+                    roll: "preRoll",
+                    vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
+                  },
+                ],
+              },
+            });
+
+            (video as any).fluidPlayerInstance = fluidPlayerInstance;
+          }
+        };
+
+        // Inject scripts if missing
+        const addScript = (src: string, onload?: () => void) => {
+          if (!document.querySelector(`script[src="${src}"]`)) {
+            const script = document.createElement("script");
+            script.src = src;
+            script.async = true;
+            if (onload) script.onload = onload;
+            document.body.appendChild(script);
+          } else if (onload) {
+            onload();
+          }
+        };
+
+        addScript("https://cdn.jsdelivr.net/npm/hls.js@latest", loadHls);
+        addScript("https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js", loadFluidPlayer);
+
         setInitialized(true);
       }
     };
 
-    const timer = setTimeout(initializeVideo, 100);
+    const timer = setTimeout(initializeVideo, 200);
 
     return () => {
       clearTimeout(timer);
       if (videoRef.current) {
         try {
-          const player = videoRef.current as any;
-          if (player.fluidPlayerInstance) {
-            player.fluidPlayerInstance.destroy();
-          }
+          const player = (videoRef.current as any).fluidPlayerInstance;
+          if (player) player.destroy();
         } catch (error) {
           console.log("Cleanup error:", error);
         }
       }
     };
-  }, [src, poster, initialized]);
+  }, [hlsSrc, mp4Src, poster, initialized]);
 
   // Track views
   const handlePlay = async () => {
     if (user) {
-      await trackVideoView(user.id, src);
+      await trackVideoView(user.id, hlsSrc);
     }
   };
 
@@ -139,25 +130,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           poster={poster}
           preload="none"
           playsInline
+          webkit-playsinline="true"
           crossOrigin="anonymous"
           onPlay={handlePlay}
-          onError={(e) => {
-            console.error("Video error:", e.currentTarget.error);
-            if (videoRef.current) videoRef.current.controls = true;
-          }}
-          style={{
-            objectFit: "contain",
-            backgroundColor: "#000",
-            display: "block",
-            maxWidth: "100%",
-            maxHeight: "100%",
-          }}
         >
-          {src.endsWith(".m3u8") ? (
-            <source src={src} type="application/x-mpegURL" />
-          ) : (
-            <source src={src} type="video/mp4" />
-          )}
+          <source src={hlsSrc} type="application/x-mpegURL" />
+          <source src={mp4Src} type="video/mp4" />
         </video>
       </div>
 
