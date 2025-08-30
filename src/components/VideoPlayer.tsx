@@ -45,12 +45,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   configureHls: (options: any) => {
                     return {
                       ...options,
-                      startLevel: -1, // Start with lowest quality for HLS
+                      startLevel: 0, // Force start with lowest quality (240p)
                       maxMaxBufferLength: 30
                     };
                   },
                   onAfterInitHls: (hls: any) => {
-                    hls.startLevel = -1; // Force lowest quality start
+                    hls.startLevel = 0; // Force lowest quality start
                   }
                 }
               } : {};
