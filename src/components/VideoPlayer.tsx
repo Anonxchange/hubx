@@ -49,6 +49,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   },
                   primaryColor: "#ff6b35",
                   responsive: true,
+
+                  // 👇 Enable quality selector if HLS
+                  mediaControls: {
+                    quality: src.endsWith(".m3u8"),
+                  },
                 },
                 vastOptions: {
                   adList: [
@@ -56,7 +61,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                       roll: "preRoll",
                       vastTag:
                         "https://syndication.exoclick.com/splash.php?idzone=5660526",
-                      // Removed adText to disable custom banner
                     },
                   ],
                   skipButtonCaption: "Skip in [seconds]",
@@ -142,7 +146,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         }
       }
     };
-  }, [src, poster]);
+  }, [src, poster, initialized]);
 
   // Track views
   const handlePlay = async () => {
@@ -179,7 +183,12 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             maxHeight: "100%",
           }}
         >
-          <source src={src} type="video/mp4" />
+          {/* If HLS file */}
+          {src.endsWith(".m3u8") ? (
+            <source src={src} type="application/x-mpegURL" />
+          ) : (
+            <source src={src} type="video/mp4" />
+          )}
         </video>
       </div>
 
