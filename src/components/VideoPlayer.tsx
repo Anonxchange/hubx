@@ -6,265 +6,169 @@ import { trackVideoView } from "@/services/userStatsService";
 declare global {
   interface Window {
     fluidPlayer: any;
-    Hls: any;
   }
 }
 
 interface VideoPlayerProps {
-  hlsSrc: string; // HLS URL
-  mp4Src: string; // MP4 fallback
+  src: string;
   poster?: string;
   title?: string;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({
-  hlsSrc,
-  mp4Src,
-  poster,
-  title,
-}) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useAuth();
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    const videoEl = videoRef.current;
-    if (!videoEl || initialized) return;
+    const initializeVideo = () => {
+      if (videoRef.current && !initialized) {
+        const video = videoRef.current;
 
-    let hls: any | null = null;
-    let destroyed = false;
+        // Load FluidPlayer script if not already loaded
+        const existingScript = document.querySelector<HTMLScriptElement>(
+          "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
+        );
 
-    // Add external CSS/JS once
-    const addLinkOnce = (href: string) =>
-      new Promise<void>((resolve) => {
-        if (document.querySelector(`link[href="${href}"]`)) return resolve();
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.href = href;
-        link.onload = () => resolve();
-        document.head.appendChild(link);
-      });
+        const loadFluidPlayer = () => {
+          if (window.fluidPlayer && videoRef.current) {
+            try {
+              const fluidPlayerInstance = window.fluidPlayer(video, {
+                layoutControls: {
+                  autoPlay: false,
+                  mute: false,
+                  fillToContainer: true,
+                  playButtonShowing: true,
+                  posterImage: poster || "",
+                  allowDownload: false,
+                  keyboardControl: true,
+                  playbackRates: ["x0.5", "x1", "x1.25", "x1.5", "x2"],
+                  controlBar: {
+                    autoHide: true,
+                    autoHideTimeout: 3,
+                  },
+                  primaryColor: "#ff6b35",
+                  responsive: true,
+                },
+                vastOptions: {
+                  adList: [
+                    {
+                      roll: "preRoll",
+                      vastTag:
+                        "https://syndication.exoclick.com/splash.php?idzone=5660526",
+                      // Removed adText to disable custom banner
+                    },
+                  ],
+                  skipButtonCaption: "Skip in [seconds]",
+                  skipButtonClickCaption: "Skip >>",
+                  showProgressbarMarkers: false,
+                  allowVPAID: true,
+                  maxAllowedVastTagRedirects: 3,
+                  vastTimeout: 10000,
+                  adCTAText: "Visit Site",
+                  adCTATextPosition: "top left",
+                  adClickable: true,
+                  vastAdvanced: {
+                    vastLoadedCallback: () => {
+                      console.log("VAST ad loaded successfully");
+                    },
+                    vastErrorCallback: (error: any) => {
+                      console.log(
+                        "VAST ad error, proceeding to main video:",
+                        error
+                      );
+                    },
+                    noVastVideoCallback: () => {
+                      console.log(
+                        "No VAST ad available, playing main video directly"
+                      );
+                    },
+                    adSkippedCallback: () => {
+                      console.log("Ad was skipped, loading main video");
+                    },
+                    adStartedCallback: () => {
+                      console.log("Ad playback started");
+                    },
+                  },
+                  adFinishedCallback: () => {
+                    console.log("Ad completed, main video starting");
+                  },
+                },
+              });
 
-    const addScriptOnce = (src: string) =>
-      new Promise<void>((resolve, reject) => {
-        const existing = document.querySelector(`script[src="${src}"]`);
-        if (existing) return resolve();
-        const s = document.createElement("script");
-        s.src = src;
-        s.async = true;
-        s.onload = () => resolve();
-        s.onerror = () => reject(new Error(`Failed loading ${src}`));
-        document.body.appendChild(s);
-      });
-
-    // Small helper: create simple quality UI that talks to hls.js
-    const attachQualityMenu = (hlsInstance: any) => {
-      const levels: Array<{ height?: number; bitrate?: number }> = hlsInstance.levels || [];
-      if (!levels || levels.length <= 1) return; // nothing to show
-
-      // Container
-      const wrap = document.createElement("div");
-      wrap.style.position = "absolute";
-      wrap.style.right = "12px";
-      wrap.style.bottom = "56px";
-      wrap.style.zIndex = "10000";
-      wrap.style.background = "rgba(0,0,0,0.65)";
-      wrap.style.backdropFilter = "blur(2px)";
-      wrap.style.borderRadius = "6px";
-      wrap.style.padding = "6px 8px";
-      wrap.style.display = "flex";
-      wrap.style.alignItems = "center";
-      wrap.style.gap = "6px";
-      wrap.style.pointerEvents = "auto";
-
-      const label = document.createElement("span");
-      label.textContent = "Quality:";
-      label.style.fontSize = "12px";
-      label.style.color = "#fff";
-
-      const select = document.createElement("select");
-      select.style.fontSize = "12px";
-      select.style.background = "transparent";
-      select.style.color = "#fff";
-      select.style.border = "1px solid rgba(255,255,255,0.25)";
-      select.style.borderRadius = "4px";
-      select.style.padding = "2px 6px";
-      select.style.outline = "none";
-
-      // Auto
-      const auto = document.createElement("option");
-      auto.value = "-1";
-      auto.text = "Auto";
-      select.appendChild(auto);
-
-      levels.forEach((lvl, idx) => {
-        const o = document.createElement("option");
-        const h = lvl.height ? `${lvl.height}p` : "";
-        const kbps = lvl.bitrate ? `${Math.round(lvl.bitrate / 1000)}kbps` : "";
-        o.value = String(idx);
-        o.text = h && kbps ? `${h} • ${kbps}` : h || kbps || `Level ${idx}`;
-        select.appendChild(o);
-      });
-
-      select.onchange = () => {
-        const val = parseInt(select.value, 10);
-        hlsInstance.currentLevel = val; // -1 = auto
-      };
-
-      wrap.appendChild(label);
-      wrap.appendChild(select);
-
-      // mount near the video element container
-      const container = videoEl.parentElement; // the rounded black wrapper
-      if (container) container.appendChild(wrap);
-
-      // cleanup on unmount
-      return () => {
-        wrap.remove();
-      };
-    };
-
-    const init = async () => {
-      try {
-        // Ensure Fluid CSS + scripts
-        await addLinkOnce("https://cdn.fluidplayer.com/v3/current/fluidplayer.min.css");
-        await addScriptOnce("https://cdn.jsdelivr.net/npm/hls.js@latest");
-        await addScriptOnce("https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js");
-
-        if (destroyed) return;
-
-        // Decide playback path
-        const supportsNativeHls =
-          typeof (videoEl as any).canPlayType === "function" &&
-          !!videoEl.canPlayType("application/vnd.apple.mpegURL");
-
-        let removeQualityMenu: (() => void) | undefined;
-
-        if (window.Hls && window.Hls.isSupported()) {
-          // Use hls.js (most browsers)
-          hls = new window.Hls({
-            capLevelToPlayerSize: true,
-            startLevel: -1,
-            autoStartLoad: true,
-          });
-          hls.loadSource(hlsSrc);
-          hls.attachMedia(videoEl);
-
-          // If manifest parsed, attach the quality menu
-          hls.on(window.Hls.Events.MANIFEST_PARSED, () => {
-            removeQualityMenu = attachQualityMenu(hls);
-          });
-
-          // On fatal error, fall back to MP4
-          hls.on(window.Hls.Events.ERROR, (_e: any, data: any) => {
-            if (data?.fatal) {
-              try {
-                hls?.destroy();
-              } catch {}
-              videoEl.src = mp4Src;
-              videoEl.load();
+              // Save instance for cleanup
+              (video as any).fluidPlayerInstance = fluidPlayerInstance;
+              console.log("FluidPlayer initialized successfully");
+            } catch (error) {
+              console.error("Error initializing FluidPlayer:", error);
+              video.controls = true;
             }
-          });
-        } else if (supportsNativeHls) {
-          // Safari / iOS
-          videoEl.src = hlsSrc;
-          videoEl.load();
-          // Native HLS usually manages qualities automatically; no manual menu here
-        } else {
-          // Old browsers: fallback to MP4
-          videoEl.src = mp4Src;
-          videoEl.load();
+          }
+        };
+
+        if (!existingScript) {
+          const script = document.createElement("script");
+          script.src =
+            "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
+          script.async = true;
+          script.onload = () => setTimeout(loadFluidPlayer, 300);
+          script.onerror = () => {
+            console.error(
+              "Failed to load FluidPlayer script, using native player"
+            );
+            if (videoRef.current) videoRef.current.controls = true;
+          };
+          document.body.appendChild(script);
+        } else if (window.fluidPlayer) {
+          setTimeout(loadFluidPlayer, 300);
         }
 
-        // Init Fluid Player AFTER sources are ready (tiny delay helps race conditions)
-        setTimeout(() => {
-          if (!window.fluidPlayer) return;
-
-          const player = window.fluidPlayer(videoEl.id, {
-            layoutControls: {
-              fillToContainer: true,
-              autoPlay: false,
-              mute: false,
-              playButtonShowing: true,
-              posterImage: poster || "",
-              allowDownload: false,
-              keyboardControl: true,
-              playbackRates: ["x0.5", "x1", "x1.25", "x1.5", "x2"],
-              primaryColor: "#ff6b35",
-              responsive: true,
-              controlBar: {
-                autoHide: true,
-                autoHideTimeout: 3,
-              },
-              // Don't force "quality" element (Fluid's built-in) to avoid hiding controls if not available.
-            },
-            vastOptions: {
-              adList: [
-                {
-                  roll: "preRoll",
-                  vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
-                },
-              ],
-              skipButtonCaption: "Skip in [seconds]",
-              skipButtonClickCaption: "Skip >>",
-              allowVPAID: true,
-              adClickable: true,
-              vastTimeout: 10000,
-            },
-          });
-
-          (videoEl as any).fluidPlayerInstance = player;
-          setInitialized(true);
-        }, 150);
-      } catch (err) {
-        console.error("Player init error:", err);
-        // Last-ditch fallback to native controls
-        videoEl.controls = true;
-        videoEl.src = mp4Src || hlsSrc;
-        videoEl.load();
+        setInitialized(true);
       }
     };
 
-    init();
+    const timer = setTimeout(initializeVideo, 100);
 
-    // Cleanup
     return () => {
-      destroyed = true;
-      try {
-        const p = (videoEl as any).fluidPlayerInstance;
-        if (p) p.destroy();
-      } catch {}
-      try {
-        hls?.destroy();
-      } catch {}
+      clearTimeout(timer);
+      if (videoRef.current) {
+        try {
+          const player = videoRef.current as any;
+          if (player.fluidPlayerInstance) {
+            player.fluidPlayerInstance.destroy();
+          }
+        } catch (error) {
+          console.log("Error cleaning up FluidPlayer:", error);
+        }
+      }
     };
-  }, [hlsSrc, mp4Src, poster, initialized]);
+  }, [src, poster]);
 
   // Track views
   const handlePlay = async () => {
     if (user) {
-      await trackVideoView(user.id, hlsSrc);
+      await trackVideoView(user.id, src);
     }
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto">
+      {/* Responsive container */}
       <div
         className="relative w-full bg-black rounded-lg overflow-hidden"
         style={{ aspectRatio: "16/9" }}
       >
         <video
-          id="hubx-player"
           ref={videoRef}
           className="w-full h-full"
           poster={poster}
           preload="none"
           playsInline
+          webkit-playsinline="true"
           crossOrigin="anonymous"
           onPlay={handlePlay}
           onError={(e) => {
-            console.error("Video error:", e.currentTarget.error);
-            // Expose native controls if anything goes wrong so user can still play
+            console.error("Video playbook error:", e.currentTarget.error);
             if (videoRef.current) videoRef.current.controls = true;
           }}
           style={{
@@ -275,12 +179,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             maxHeight: "100%",
           }}
         >
-          {/* Put MP4 first for better fallback on some browsers */}
-          <source src={mp4Src} type="video/mp4" />
-          <source src={hlsSrc} type="application/x-mpegURL" />
+          <source src={src} type="video/mp4" />
         </video>
       </div>
 
+      {/* Video info */}
       {title && (
         <div className="flex justify-between items-center mt-3 px-2">
           <div className="flex items-center gap-2">
