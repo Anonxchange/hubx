@@ -49,11 +49,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   },
                   primaryColor: "#ff6b35",
                   responsive: true,
-
-                  // 👇 Enable quality selector if HLS
-                  mediaControls: {
-                    quality: src.endsWith(".m3u8"),
-                  },
+                  // ⚡ No mediaControls here, Fluid handles quality selector automatically if HLS has multiple renditions
                 },
                 vastOptions: {
                   adList: [
@@ -183,7 +179,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             maxHeight: "100%",
           }}
         >
-          {/* If HLS file */}
+          {/* Dynamic source based on type */}
           {src.endsWith(".m3u8") ? (
             <source src={src} type="application/x-mpegURL" />
           ) : (
