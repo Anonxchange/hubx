@@ -25,7 +25,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
 
-        // Load FluidPlayer script if not already loaded
         const existingScript = document.querySelector<HTMLScriptElement>(
           "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
         );
@@ -42,11 +41,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   posterImage: poster || "",
                   allowDownload: false,
                   keyboardControl: true,
-                  playbackRates: ["x0.5", "x1", "x1.25", "x1.5", "x2"],
+
+                  // ✅ enable full settings menu
+                  settings: true,
+                  layout: "default",
+
+                  playbackRates: ["x0.25", "x0.5", "x1", "x1.25", "x1.5", "x2"],
                   controlBar: {
-                    autoHide: true,
-                    autoHideTimeout: 3,
+                    autoHide: false,
+                    autoHideTimeout: 5,
+                    animated: true,
                   },
+
+                  captions: {
+                    play: true,
+                    default: "English", // change if you add captions
+                  },
+
                   primaryColor: "#ff6b35",
                   responsive: true,
                 },
@@ -56,7 +67,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                       roll: "preRoll",
                       vastTag:
                         "https://syndication.exoclick.com/splash.php?idzone=5660526",
-                      // Removed adText to disable custom banner
                     },
                   ],
                   skipButtonCaption: "Skip in [seconds]",
@@ -96,9 +106,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                 },
               });
 
-              // Save instance for cleanup
               (video as any).fluidPlayerInstance = fluidPlayerInstance;
-              console.log("FluidPlayer initialized successfully");
+              console.log("FluidPlayer initialized with full settings");
             } catch (error) {
               console.error("Error initializing FluidPlayer:", error);
               video.controls = true;
@@ -153,7 +162,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      {/* Responsive container */}
       <div
         className="relative w-full bg-black rounded-lg overflow-hidden"
         style={{ aspectRatio: "16/9" }}
@@ -168,7 +176,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           crossOrigin="anonymous"
           onPlay={handlePlay}
           onError={(e) => {
-            console.error("Video playbook error:", e.currentTarget.error);
+            console.error("Video play error:", e.currentTarget.error);
             if (videoRef.current) videoRef.current.controls = true;
           }}
           style={{
@@ -179,11 +187,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             maxHeight: "100%",
           }}
         >
+          {/* You can add multiple quality sources here */}
           <source src={src} type="video/mp4" />
         </video>
       </div>
 
-      {/* Video info */}
       {title && (
         <div className="flex justify-between items-center mt-3 px-2">
           <div className="flex items-center gap-2">
