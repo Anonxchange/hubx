@@ -42,25 +42,24 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   allowDownload: false,
                   keyboardControl: true,
 
-                  // ✅ enable full settings menu
+                  // ✅ keep playback rates
+                  playbackRates: ["x0.5", "x1", "x1.25", "x1.5", "x2"],
+
+                  // ✅ enable full settings + default layout
                   settings: true,
                   layout: "default",
 
-                  playbackRates: ["x0.25", "x0.5", "x1", "x1.25", "x1.5", "x2"],
                   controlBar: {
-                    autoHide: false,
-                    autoHideTimeout: 5,
+                    autoHide: true,
+                    autoHideTimeout: 3,
                     animated: true,
-                  },
-
-                  captions: {
-                    play: true,
-                    default: "English", // change if you add captions
                   },
 
                   primaryColor: "#ff6b35",
                   responsive: true,
                 },
+
+                // ✅ your ads config stays intact
                 vastOptions: {
                   adList: [
                     {
@@ -107,7 +106,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
               });
 
               (video as any).fluidPlayerInstance = fluidPlayerInstance;
-              console.log("FluidPlayer initialized with full settings");
+              console.log("FluidPlayer initialized with full settings + ads");
             } catch (error) {
               console.error("Error initializing FluidPlayer:", error);
               video.controls = true;
@@ -187,7 +186,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             maxHeight: "100%",
           }}
         >
-          {/* You can add multiple quality sources here */}
           <source src={src} type="video/mp4" />
         </video>
       </div>
