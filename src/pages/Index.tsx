@@ -85,6 +85,7 @@ const Index = () => {
         {/* Ad Code Below Hero Text */}
         <AdComponent zoneId="5660534" />
 
+
         {/* Mobile Categories Scroll - Mobile Only */}
         <div className="block md:hidden">
           <div className="flex items-center space-x-3 overflow-x-auto scrollbar-hide pb-2">
@@ -210,7 +211,13 @@ const Index = () => {
             <p className="text-muted-foreground">Please try again later.</p>
           </div>
         ) : (
-          <OptimizedVideoGrid videos={videos} viewMode={viewMode} showAds={true} showMoments={selectedCategory === 'All'} />
+          <OptimizedVideoGrid 
+            videos={videos} 
+            viewMode={viewMode} 
+            showAds={true} 
+            showMoments={selectedCategory === 'All'} 
+            showPremiumSection={selectedCategory === 'All' && !searchQuery}
+          />
         )}
 
         {/* Ad Code Before Pagination */}
