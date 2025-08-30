@@ -6,6 +6,7 @@ import { trackVideoView } from "@/services/userStatsService";
 declare global {
   interface Window {
     fluidPlayer: any;
+    Hls: any;
   }
 }
 
@@ -25,14 +26,34 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
       if (videoRef.current && !initialized) {
         const video = videoRef.current;
 
-        // Load FluidPlayer script if not already loaded
-        const existingScript = document.querySelector<HTMLScriptElement>(
-          "script[src='https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js']"
-        );
+        // Load FluidPlayer + Hls.js if not already loaded
+        const loadScripts = async () => {
+          const loadScript = (src: string) =>
+            new Promise<void>((resolve, reject) => {
+              if (document.querySelector(`script[src="${src}"]`)) {
+                resolve();
+                return;
+              }
+              const script = document.createElement("script");
+              script.src = src;
+              script.async = true;
+              script.onload = () => resolve();
+              script.onerror = () => reject(new Error(`Failed to load ${src}`));
+              document.body.appendChild(script);
+            });
 
-        const loadFluidPlayer = () => {
-          if (window.fluidPlayer && videoRef.current) {
-            try {
+          try {
+            await loadScript("https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js");
+            await loadScript("https://cdn.jsdelivr.net/npm/hls.js@latest");
+
+            if (window.fluidPlayer && videoRef.current) {
+              // If HLS source
+              if (src.endsWith(".m3u8") && window.Hls && window.Hls.isSupported()) {
+                const hls = new window.Hls();
+                hls.loadSource(src);
+                hls.attachMedia(videoRef.current);
+              }
+
               const fluidPlayerInstance = window.fluidPlayer(video, {
                 layoutControls: {
                   autoPlay: false,
@@ -43,86 +64,41 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                   allowDownload: false,
                   keyboardControl: true,
                   playbackRates: ["x0.5", "x1", "x1.25", "x1.5", "x2"],
+                  primaryColor: "#ff6b35",
+                  responsive: true,
                   controlBar: {
                     autoHide: true,
                     autoHideTimeout: 3,
                   },
-                  primaryColor: "#ff6b35",
-                  responsive: true,
-                  // ⚡ No mediaControls here, Fluid handles quality selector automatically if HLS has multiple renditions
+                  // ⚡ FluidPlayer automatically creates quality selector when multiple HLS renditions exist
                 },
                 vastOptions: {
                   adList: [
                     {
                       roll: "preRoll",
-                      vastTag:
-                        "https://syndication.exoclick.com/splash.php?idzone=5660526",
+                      vastTag: "https://syndication.exoclick.com/splash.php?idzone=5660526",
                     },
                   ],
                   skipButtonCaption: "Skip in [seconds]",
                   skipButtonClickCaption: "Skip >>",
-                  showProgressbarMarkers: false,
                   allowVPAID: true,
-                  maxAllowedVastTagRedirects: 3,
-                  vastTimeout: 10000,
-                  adCTAText: "Visit Site",
-                  adCTATextPosition: "top left",
                   adClickable: true,
-                  vastAdvanced: {
-                    vastLoadedCallback: () => {
-                      console.log("VAST ad loaded successfully");
-                    },
-                    vastErrorCallback: (error: any) => {
-                      console.log(
-                        "VAST ad error, proceeding to main video:",
-                        error
-                      );
-                    },
-                    noVastVideoCallback: () => {
-                      console.log(
-                        "No VAST ad available, playing main video directly"
-                      );
-                    },
-                    adSkippedCallback: () => {
-                      console.log("Ad was skipped, loading main video");
-                    },
-                    adStartedCallback: () => {
-                      console.log("Ad playback started");
-                    },
-                  },
                   adFinishedCallback: () => {
                     console.log("Ad completed, main video starting");
                   },
                 },
               });
 
-              // Save instance for cleanup
               (video as any).fluidPlayerInstance = fluidPlayerInstance;
-              console.log("FluidPlayer initialized successfully");
-            } catch (error) {
-              console.error("Error initializing FluidPlayer:", error);
-              video.controls = true;
+              console.log("FluidPlayer initialized with HLS support ✅");
             }
+          } catch (error) {
+            console.error("Error setting up player:", error);
+            if (videoRef.current) videoRef.current.controls = true;
           }
         };
 
-        if (!existingScript) {
-          const script = document.createElement("script");
-          script.src =
-            "https://cdn.fluidplayer.com/v3/current/fluidplayer.min.js";
-          script.async = true;
-          script.onload = () => setTimeout(loadFluidPlayer, 300);
-          script.onerror = () => {
-            console.error(
-              "Failed to load FluidPlayer script, using native player"
-            );
-            if (videoRef.current) videoRef.current.controls = true;
-          };
-          document.body.appendChild(script);
-        } else if (window.fluidPlayer) {
-          setTimeout(loadFluidPlayer, 300);
-        }
-
+        loadScripts();
         setInitialized(true);
       }
     };
@@ -138,7 +114,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             player.fluidPlayerInstance.destroy();
           }
         } catch (error) {
-          console.log("Error cleaning up FluidPlayer:", error);
+          console.log("Cleanup error:", error);
         }
       }
     };
@@ -153,7 +129,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
 
   return (
     <div className="w-full max-w-5xl mx-auto">
-      {/* Responsive container */}
       <div
         className="relative w-full bg-black rounded-lg overflow-hidden"
         style={{ aspectRatio: "16/9" }}
@@ -164,11 +139,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           poster={poster}
           preload="none"
           playsInline
-          webkit-playsinline="true"
           crossOrigin="anonymous"
           onPlay={handlePlay}
           onError={(e) => {
-            console.error("Video playbook error:", e.currentTarget.error);
+            console.error("Video error:", e.currentTarget.error);
             if (videoRef.current) videoRef.current.controls = true;
           }}
           style={{
@@ -179,7 +153,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             maxHeight: "100%",
           }}
         >
-          {/* Dynamic source based on type */}
           {src.endsWith(".m3u8") ? (
             <source src={src} type="application/x-mpegURL" />
           ) : (
@@ -188,7 +161,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
         </video>
       </div>
 
-      {/* Video info */}
       {title && (
         <div className="flex justify-between items-center mt-3 px-2">
           <div className="flex items-center gap-2">
