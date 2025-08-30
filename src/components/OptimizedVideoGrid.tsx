@@ -9,6 +9,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import VerificationBadge from './VerificationBadge';
 import MomentsCarousel from './MomentsCarousel';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
+import { Crown, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import VideoCard from '@/components/VideoCard';
 
 // Define LightVideo interface here
 interface LightVideo {
@@ -39,6 +44,7 @@ interface OptimizedVideoGridProps {
   viewMode?: 'grid' | 'list';
   showAds?: boolean;
   showMoments?: boolean;
+  showPremiumSection?: boolean;
 }
 
 // Global state to track active preview - only one video can preview at a time
@@ -569,12 +575,48 @@ const LazyAdComponent = ({ zoneId }: { zoneId: string }) => {
   return <AdComponent zoneId={zoneId} className="w-full" />;
 };
 
+// Function to fetch premium videos
+const fetchPremiumVideos = async (): Promise<LightVideo[]> => {
+  const { data, error } = await supabase
+    .from('videos')
+    .select('*')
+    .eq('is_premium', true)
+    .order('created_at', { ascending: false })
+    .limit(6);
+
+  if (error) {
+    console.error('Error fetching premium videos:', error);
+    return [];
+  }
+
+  // Transform data to match LightVideo interface
+  return (data || []).map(video => ({
+    ...video,
+    description: video.description || undefined,
+    thumbnail_url: video.thumbnail_url || undefined,
+    preview_url: video.preview_url || undefined,
+    video_url: video.video_url || '',
+    duration: video.duration || '0:00',
+    views: video.views || 0,
+    likes: video.likes || 0,
+    tags: video.tags || []
+  }));
+};
+
 const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   videos,
   viewMode = 'grid',
   showAds = false,
-  showMoments = false
+  showMoments = false,
+  showPremiumSection = false
 }) => {
+  // Fetch premium videos when showPremiumSection is true
+  const { data: premiumVideos = [] } = useQuery({
+    queryKey: ['premium-videos-grid'],
+    queryFn: fetchPremiumVideos,
+    enabled: showPremiumSection,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
   // Remove auth loading dependency to speed up initial render
 
   // Skeleton loading component
@@ -647,23 +689,73 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
-          {visibleVideos.map((video, index) => (
-            <div key={`${video.id}-${index}`}>
-              <OptimizedVideoCard video={video} viewMode="grid" />
-              {/* Show MomentsCarousel between videos 23-24 (after index 23) */}
-              {showMoments && index === 23 && (
-                <div className="col-span-full my-6">
-                  <MomentsCarousel />
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
+            {visibleVideos.map((video, index) => {
+              const elements = [];
+              
+              // Add the video card
+              elements.push(
+                <div key={`${video.id}-${index}`}>
+                  <OptimizedVideoCard video={video} viewMode="grid" />
+                  {/* Show MomentsCarousel between videos 23-24 (after index 23) */}
+                  {showMoments && index === 23 && (
+                    <div className="col-span-full my-6">
+                      <MomentsCarousel />
+                    </div>
+                  )}
+                  {showAds && index > 0 && (index + 1) % 8 === 0 && (
+                    <div className="mt-4">
+                      <LazyAdComponent zoneId="5661270" />
+                    </div>
+                  )}
                 </div>
-              )}
-              {showAds && index > 0 && (index + 1) % 8 === 0 && (
-                <div className="mt-4">
-                  <LazyAdComponent zoneId="5661270" />
-                </div>
-              )}
-            </div>
-          ))}
+              );
+
+              // Insert premium videos section after video 40 (index 39)
+              if (showPremiumSection && index === 39 && premiumVideos.length > 0) {
+                elements.push(
+                  <div key="premium-section" className="col-span-full my-8">
+                    <div className="space-y-4">
+                      {/* Section Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <Crown className="w-6 h-6 text-yellow-500" />
+                          <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
+                            Premium Videos
+                          </h2>
+                        </div>
+                        <Link to="/premium">
+                          <Button variant="outline" className="group">
+                            Watch all
+                            <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                          </Button>
+                        </Link>
+                      </div>
+                      
+                      {/* Horizontal Scrollable Premium Videos */}
+                      <div className="relative">
+                        <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
+                          {premiumVideos.map((premiumVideo) => (
+                            <div key={`premium-${premiumVideo.id}`} className="flex-shrink-0 w-64">
+                              <VideoCard video={{
+                                ...premiumVideo,
+                                video_url: premiumVideo.video_url || ''
+                              }} viewMode="grid" />
+                            </div>
+                          ))}
+                        </div>
+                        {/* Gradient fade on right edge */}
+                        <div className="absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
+              return elements;
+            })}
+          </div>
         </div>
       )}
 
