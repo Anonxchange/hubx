@@ -4,7 +4,7 @@ import { Clock, Eye, ThumbsUp, MoreVertical, Plus, Share2, Crown } from 'lucide-
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { LazyImage } from '@/components/LazyImage';
+import LazyImage from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import VerificationBadge from './VerificationBadge'; // Added import for VerificationBadge
 import { useVideoReaction } from '@/hooks/useVideoReactions'; // Assuming useVideoReaction is in this path
