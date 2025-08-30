@@ -579,7 +579,16 @@ const LazyAdComponent = ({ zoneId }: { zoneId: string }) => {
 const fetchPremiumVideos = async (): Promise<LightVideo[]> => {
   const { data, error } = await supabase
     .from('videos')
-    .select('*')
+    .select(`
+      *,
+      profiles (
+        id,
+        username,
+        full_name,
+        avatar_url,
+        user_type
+      )
+    `)
     .eq('is_premium', true)
     .order('created_at', { ascending: false })
     .limit(6);
@@ -599,7 +608,12 @@ const fetchPremiumVideos = async (): Promise<LightVideo[]> => {
     duration: video.duration || '0:00',
     views: video.views || 0,
     likes: video.likes || 0,
-    tags: video.tags || []
+    tags: video.tags || [],
+    uploader_username: video.profiles?.username || 'Creator',
+    uploader_name: video.profiles?.full_name || video.profiles?.username || 'Creator',
+    uploader_avatar: video.profiles?.avatar_url,
+    uploader_type: video.profiles?.user_type || 'user',
+    uploader_id: video.profiles?.id
   }));
 };
 
@@ -693,7 +707,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
             {visibleVideos.map((video, index) => {
               const elements = [];
-              
+
               // Add the video card
               elements.push(
                 <div key={`${video.id}-${index}`}>
@@ -712,36 +726,45 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
                 </div>
               );
 
-              // Insert premium videos section after video 40 (index 39)
+              // Insert premium videos section after video 40 (index 39) - no special styling
               if (showPremiumSection && index === 39 && premiumVideos.length > 0) {
                 elements.push(
                   <div key="premium-section" className="col-span-full my-8">
                     <div className="space-y-4">
-                      {/* Section Header */}
+                      {/* Simple section header without premium styling */}
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <Crown className="w-6 h-6 text-yellow-500" />
-                          <h2 className="text-2xl font-bold bg-gradient-to-r from-yellow-500 to-orange-500 bg-clip-text text-transparent">
-                            Premium Videos
-                          </h2>
-                        </div>
+                        <h2 className="text-2xl font-bold text-foreground">
+                          More Videos
+                        </h2>
                         <Link to="/premium">
                           <Button variant="outline" className="group">
-                            Watch all
+                            View more
                             <ChevronRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
                           </Button>
                         </Link>
                       </div>
-                      
-                      {/* Horizontal Scrollable Premium Videos */}
+
+                      {/* Horizontal scrollable layout */}
                       <div className="relative">
                         <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
                           {premiumVideos.map((premiumVideo) => (
-                            <div key={`premium-${premiumVideo.id}`} className="flex-shrink-0 w-64">
-                              <VideoCard video={{
-                                ...premiumVideo,
-                                video_url: premiumVideo.video_url || ''
-                              }} viewMode="grid" />
+                            <div key={`premium-${premiumVideo.id}`} className="flex-shrink-0 w-64 relative">
+                              <OptimizedVideoCard 
+                                video={{
+                                  ...premiumVideo,
+                                  video_url: premiumVideo.video_url || '',
+                                  is_premium: false, // Hide premium indicators to match other videos
+                                  tags: premiumVideo.tags?.filter(tag => tag.toLowerCase() !== 'premium') || [], // Remove premium tags
+                                  uploader_username: premiumVideo.uploader_username || 'Creator',
+                                  uploader_name: premiumVideo.uploader_name || premiumVideo.uploader_username || 'Creator',
+                                  uploader_avatar: premiumVideo.uploader_avatar || premiumVideo.thumbnail_url,
+                                }} 
+                                viewMode="grid" 
+                              />
+                              {/* Crown icon overlay */}
+                              <div className="absolute top-2 left-2 z-20">
+                                <Crown className="w-4 h-4 text-yellow-400" />
+                              </div>
                             </div>
                           ))}
                         </div>
