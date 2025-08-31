@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Building, Star, Users, DollarSign, TrendingUp, Shield, Clock } from 'lucide-react';
@@ -85,7 +84,7 @@ const OpenStudioPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.studioName || !formData.contactEmail || !formData.description) {
       toast.error('Please fill in all required fields');
       return;
@@ -95,7 +94,7 @@ const OpenStudioPage = () => {
       // In a real implementation, you would send this to your backend
       console.log('Studio application submitted:', formData);
       toast.success('Application submitted successfully! We will review your application and contact you within 2-3 business days.');
-      
+
       // Reset form
       setFormData({
         studioName: '',
@@ -115,10 +114,10 @@ const OpenStudioPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8 space-y-8">
         {/* Back Button */}
-        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">>
+        <Link to="/" className="inline-flex items-center text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Back to Home
         </Link>
@@ -178,7 +177,7 @@ const OpenStudioPage = () => {
               Fill out the form below to apply for a studio partnership. All fields marked with * are required.
             </p>
           </CardHeader>
-          
+
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
@@ -193,7 +192,7 @@ const OpenStudioPage = () => {
                     required
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="contactEmail">Contact Email *</Label>
                   <Input
