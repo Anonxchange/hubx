@@ -1,54 +1,27 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Building, Users, TrendingUp, DollarSign, Star, Camera, Shield, Globe, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Building, Star, Users, DollarSign, TrendingUp, Shield, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 
 const OpenStudioPage = () => {
-  const studioFeatures = [
-    {
-      icon: Users,
-      title: "Multi-Creator Management",
-      description: "Manage multiple performers under one studio account with individual earnings tracking."
-    },
-    {
-      icon: DollarSign,
-      title: "Enhanced Revenue Share",
-      description: "Studios earn up to 75% revenue share with volume bonuses and performance incentives."
-    },
-    {
-      icon: TrendingUp,
-      title: "Advanced Analytics",
-      description: "Comprehensive studio dashboard with performer analytics and revenue insights."
-    },
-    {
-      icon: Shield,
-      title: "Professional Support",
-      description: "Dedicated account manager and priority support for all studio partners."
-    },
-    {
-      icon: Camera,
-      title: "Production Tools",
-      description: "Access to professional content creation tools and marketing resources."
-    },
-    {
-      icon: Globe,
-      title: "Global Distribution",
-      description: "Reach millions of viewers worldwide with our premium marketing channels."
-    }
-  ];
-
-  const requirements = [
-    "Valid business registration and tax documentation",
-    "Minimum 3 verified performers ready to create content",
-    "Professional content creation setup (equipment, studio space)",
-    "Compliance with all local and international regulations",
-    "Age verification systems for all performers (18+ only)",
-    "Content moderation and quality control processes"
-  ];
+  const [formData, setFormData] = useState({
+    studioName: '',
+    contactEmail: '',
+    website: '',
+    description: '',
+    experience: '',
+    contentTypes: [] as string[],
+    estimatedCreators: ''
+  });
 
   const benefits = [
     {
@@ -72,6 +45,72 @@ const OpenStudioPage = () => {
       description: "Priority customer support for studios"
     }
   ];
+
+  const features = [
+    {
+      icon: Users,
+      title: "Creator Management",
+      description: "Advanced tools to manage multiple creators and their content"
+    },
+    {
+      icon: DollarSign,
+      title: "Revenue Analytics",
+      description: "Detailed financial reporting and revenue optimization tools"
+    },
+    {
+      icon: TrendingUp,
+      title: "Performance Tracking",
+      description: "Monitor performance metrics and growth analytics"
+    },
+    {
+      icon: Shield,
+      title: "Content Protection",
+      description: "Advanced security features to protect your content"
+    }
+  ];
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleContentTypeChange = (type: string) => {
+    setFormData(prev => ({
+      ...prev,
+      contentTypes: prev.contentTypes.includes(type)
+        ? prev.contentTypes.filter(t => t !== type)
+        : [...prev.contentTypes, type]
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.studioName || !formData.contactEmail || !formData.description) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+
+    try {
+      // In a real implementation, you would send this to your backend
+      console.log('Studio application submitted:', formData);
+      toast.success('Application submitted successfully! We will review your application and contact you within 2-3 business days.');
+      
+      // Reset form
+      setFormData({
+        studioName: '',
+        contactEmail: '',
+        website: '',
+        description: '',
+        experience: '',
+        contentTypes: [],
+        estimatedCreators: ''
+      });
+    } catch (error) {
+      console.error('Error submitting application:', error);
+      toast.error('Failed to submit application. Please try again.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -112,130 +151,166 @@ const OpenStudioPage = () => {
           ))}
         </div>
 
-        {/* Studio Features */}
-        <Card>
+        {/* Features */}
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {features.map((feature, index) => {
+            const IconComponent = feature.icon;
+            return (
+              <Card key={index}>
+                <CardContent className="p-6 text-center">
+                  <IconComponent className="w-8 h-8 text-purple-600 mx-auto mb-3" />
+                  <h3 className="font-semibold mb-2">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+
+        {/* Application Form */}
+        <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Building className="w-5 h-5 text-purple-400" />
-              <span>Studio Features & Benefits</span>
+              <Building className="w-5 h-5" />
+              <span>Studio Application</span>
             </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Fill out the form below to apply for a studio partnership. All fields marked with * are required.
+            </p>
           </CardHeader>
+          
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {studioFeatures.map((feature, index) => (
-                <div key={index} className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-purple-100 dark:bg-purple-900/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <feature.icon className="w-6 h-6 text-purple-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">{feature.title}</h3>
-                    <p className="text-sm text-muted-foreground">{feature.description}</p>
-                  </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="studioName">Studio Name *</Label>
+                  <Input
+                    id="studioName"
+                    name="studioName"
+                    value={formData.studioName}
+                    onChange={handleInputChange}
+                    placeholder="Enter your studio name"
+                    required
+                  />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="contactEmail">Contact Email *</Label>
+                  <Input
+                    id="contactEmail"
+                    name="contactEmail"
+                    type="email"
+                    value={formData.contactEmail}
+                    onChange={handleInputChange}
+                    placeholder="your@email.com"
+                    required
+                  />
+                </div>
+              </div>
 
-        {/* Requirements */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <CheckCircle className="w-5 h-5 text-green-400" />
-              <span>Studio Requirements</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Essential Requirements</h3>
-                <ul className="space-y-3">
-                  {requirements.map((requirement, index) => (
-                    <li key={index} className="flex items-start space-x-3">
-                      <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-sm">{requirement}</span>
-                    </li>
+              <div className="space-y-2">
+                <Label htmlFor="website">Website (Optional)</Label>
+                <Input
+                  id="website"
+                  name="website"
+                  type="url"
+                  value={formData.website}
+                  onChange={handleInputChange}
+                  placeholder="https://yourstudio.com"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Studio Description *</Label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  value={formData.description}
+                  onChange={handleInputChange}
+                  placeholder="Tell us about your studio, your vision, and what makes you unique..."
+                  className="min-h-24"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="experience">Industry Experience</Label>
+                <Textarea
+                  id="experience"
+                  name="experience"
+                  value={formData.experience}
+                  onChange={handleInputChange}
+                  placeholder="Describe your experience in the adult content industry..."
+                  className="min-h-20"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Content Types (Select all that apply)</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {['Solo', 'Couples', 'VR', 'Live Streaming', 'Premium Content', 'Interactive'].map((type) => (
+                    <div key={type} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={type}
+                        checked={formData.contentTypes.includes(type)}
+                        onChange={() => handleContentTypeChange(type)}
+                        className="rounded"
+                      />
+                      <Label htmlFor={type} className="text-sm">{type}</Label>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">Preferred Qualifications</h3>
-                <ul className="space-y-2 text-muted-foreground text-sm">
-                  <li>• 6+ months experience in adult content production</li>
-                  <li>• Established social media presence (10K+ followers)</li>
-                  <li>• Professional photography/videography equipment</li>
-                  <li>• Content creation team (photographers, editors, etc.)</li>
-                  <li>• Marketing and promotion experience</li>
-                  <li>• Multi-language content capability</li>
-                </ul>
+
+              <div className="space-y-2">
+                <Label htmlFor="estimatedCreators">Estimated Number of Creators</Label>
+                <Input
+                  id="estimatedCreators"
+                  name="estimatedCreators"
+                  type="number"
+                  value={formData.estimatedCreators}
+                  onChange={handleInputChange}
+                  placeholder="How many creators do you plan to work with?"
+                />
               </div>
-            </div>
+
+              <Button type="submit" className="w-full bg-purple-600 hover:bg-purple-700">
+                Submit Application
+              </Button>
+            </form>
           </CardContent>
         </Card>
 
-        {/* Application Process */}
+        {/* Process Timeline */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
-              <Star className="w-5 h-5 text-yellow-400" />
+              <Clock className="w-5 h-5" />
               <span>Application Process</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto">
-                  <span className="text-white text-xl font-bold">1</span>
-                </div>
-                <h3 className="font-semibold">Submit Application</h3>
-                <p className="text-sm text-muted-foreground">Complete our comprehensive studio application form with all required documentation</p>
+            <div className="grid md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center mx-auto mb-2">1</div>
+                <h4 className="font-semibold">Submit Application</h4>
+                <p className="text-sm text-muted-foreground">Fill out and submit the form above</p>
               </div>
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 bg-purple-500 rounded-full flex items-center justify-center mx-auto">
-                  <span className="text-white text-xl font-bold">2</span>
-                </div>
-                <h3 className="font-semibold">Review & Verification</h3>
-                <p className="text-sm text-muted-foreground">Our team reviews your application and verifies all business and legal documentation</p>
+              <div className="text-center">
+                <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center mx-auto mb-2">2</div>
+                <h4 className="font-semibold">Review Process</h4>
+                <p className="text-sm text-muted-foreground">Our team reviews your application (2-3 days)</p>
               </div>
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 bg-orange-500 rounded-full flex items-center justify-center mx-auto">
-                  <span className="text-white text-xl font-bold">3</span>
-                </div>
-                <h3 className="font-semibold">Partner Interview</h3>
-                <p className="text-sm text-muted-foreground">Virtual meeting with our partnerships team to discuss goals and requirements</p>
+              <div className="text-center">
+                <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center mx-auto mb-2">3</div>
+                <h4 className="font-semibold">Interview Call</h4>
+                <p className="text-sm text-muted-foreground">Schedule a call to discuss partnership details</p>
               </div>
-              <div className="text-center space-y-3">
-                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto">
-                  <span className="text-white text-xl font-bold">4</span>
-                </div>
-                <h3 className="font-semibold">Launch Studio</h3>
-                <p className="text-sm text-muted-foreground">Account setup, onboarding, and start earning with your studio partnership</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Success Stories */}
-        <Card className="bg-gradient-to-r from-purple-600/10 to-blue-600/10 border-purple-500/20">
-          <CardHeader>
-            <CardTitle className="text-center">Studio Success Stories</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
-              <div className="space-y-2">
-                <div className="text-3xl font-bold text-purple-600">$2.5M+</div>
-                <div className="text-sm font-medium">Total Studio Earnings</div>
-                <div className="text-xs text-muted-foreground">Last 12 months</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-3xl font-bold text-blue-600">500+</div>
-                <div className="text-sm font-medium">Active Studio Creators</div>
-                <div className="text-xs text-muted-foreground">Across all partners</div>
-              </div>
-              <div className="space-y-2">
-                <div className="text-3xl font-bold text-green-600">95%</div>
-                <div className="text-sm font-medium">Partner Satisfaction</div>
-                <div className="text-xs text-muted-foreground">Based on surveys</div>
+              <div className="text-center">
+                <div className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center mx-auto mb-2">4</div>
+                <h4 className="font-semibold">Launch Studio</h4>
+                <p className="text-sm text-muted-foreground">Complete setup and start managing creators</p>
               </div>
             </div>
           </CardContent>
@@ -247,48 +322,26 @@ const OpenStudioPage = () => {
             <CardTitle>Frequently Asked Questions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold mb-2">How long does the application process take?</h3>
-                <p className="text-sm text-muted-foreground">The complete application and approval process typically takes 2-4 weeks, depending on documentation completeness and verification requirements.</p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">What's the minimum revenue commitment?</h3>
-                <p className="text-sm text-muted-foreground">We don't require minimum revenue commitments, but studios typically generate $10K+ monthly to maximize the partnership benefits.</p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">Can I manage creators from different countries?</h3>
-                <p className="text-sm text-muted-foreground">Yes, studios can manage creators globally, but must ensure compliance with local regulations and tax requirements in each jurisdiction.</p>
-              </div>
-              <div>
-                <h3 className="font-semibold mb-2">What support do you provide for marketing?</h3>
-                <p className="text-sm text-muted-foreground">Studio partners receive dedicated marketing support, featured placements, promotional campaigns, and access to our affiliate network.</p>
-              </div>
+            <div>
+              <h4 className="font-semibold mb-1">What are the requirements to become a studio partner?</h4>
+              <p className="text-sm text-muted-foreground">
+                You need to have experience in content creation or management, a business plan, and the ability to work with multiple creators professionally.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-1">How much does it cost to start a studio?</h4>
+              <p className="text-sm text-muted-foreground">
+                There are no upfront costs to become a studio partner. You'll share revenue with HubX based on our partnership agreement.
+              </p>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-1">What support do you provide to studio partners?</h4>
+              <p className="text-sm text-muted-foreground">
+                We provide marketing support, technical assistance, payment processing, content management tools, and dedicated account management.
+              </p>
             </div>
           </CardContent>
         </Card>
-
-        {/* CTA */}
-        <div className="text-center space-y-6">
-          <h2 className="text-3xl font-bold">Ready to Launch Your Studio?</h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto">
-            Join the most successful adult content studios on HubX and start building your empire today.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-purple-600 hover:bg-purple-700 text-white px-8">
-              <Building className="w-5 h-5 mr-2" />
-              Apply for Studio Partnership
-            </Button>
-            <Link to="/contact">
-              <Button size="lg" variant="outline">
-                Contact Partnership Team
-              </Button>
-            </Link>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Questions? Email us at <span className="text-purple-600">studios@hubx.com</span>
-          </p>
-        </div>
       </main>
 
       <Footer />
