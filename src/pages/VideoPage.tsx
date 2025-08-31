@@ -51,6 +51,14 @@ const VideoPage = () => {
     15
   );
 
+  // Get related premium videos
+  const { data: relatedPremiumVideos = [] } = useRelatedVideos(
+    video?.id || '',
+    video?.tags || [],
+    8, // Show fewer premium videos
+    true // isPremiumContext = true
+  );
+
   const { mutate: addVideoToPlaylist } = useAddToPlaylist();
   const { data: reactionData, mutate: reactToVideo, isPending: reactionMutationPending } =
     useVideoReaction(video?.id || '');
@@ -309,7 +317,9 @@ const VideoPage = () => {
           videos={relatedVideos}
           currentVideo={video}
           videoId={video.id}
+          premiumVideos={relatedPremiumVideos}
         />
+
       </main>
 
       {/* Playlist Modal */}
