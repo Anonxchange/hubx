@@ -35,6 +35,12 @@ import NotFound from "./pages/NotFound";
 import ProfilePage from "./pages/ProfilePage";
 import BecomeModelPage from "@/pages/BecomeModelPage";
 import FAQPage from "@/pages/FAQPage";
+import AboutPage from "@/pages/AboutPage";
+import CreatorsBlog from "@/pages/CreatorsBlog";
+import VRGuide from "@/pages/VRGuide";
+import BillingSupportPage from "@/pages/BillingSupportPage";
+import OpenStudioPage from "@/pages/OpenStudioPage";
+import AffiliatePage from "@/pages/AffiliatePage";
 import UploadPage from './pages/UploadPage';
 import DebugAuth from './pages/DebugAuth';
 import ChannelPage from '@/pages/ChannelPage';
@@ -69,6 +75,12 @@ const App = () => {
                   <Route path="/moments" element={<MomentsPage />} />
                   <Route path="/channel" element={<ChannelPage />} />
                   <Route path="/contact" element={<ContactUs />} />
+                  <Route path="/about" element={<AboutPage />} />
+                  <Route path="/blog" element={<CreatorsBlog />} />
+                  <Route path="/vr-guide" element={<VRGuide />} />
+                  <Route path="/billing-support" element={<BillingSupportPage />} />
+                  <Route path="/open-studio" element={<OpenStudioPage />} />
+                  <Route path="/affiliate" element={<AffiliatePage />} />
                   <Route path="/report/:videoId" element={<ReportVideoPage />} />
                   <Route path="/faq" element={<FAQPage />} />
                   <Route path="/recommended" element={<RecommendedPage />} />
