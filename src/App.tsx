@@ -4,15 +4,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import React from 'react';
+import { Analytics } from '@vercel/analytics/react'; // <-- import Analytics here
 
-// Import components normally to avoid suspense issues
+// Import pages/components normally
 import Index from './pages/Index';
 import VideoPage from './pages/VideoPage';
 import AuthPage from './pages/AuthPage';
 import CreatorDashboard from './pages/CreatorDashboard';
 import StudioDashboard from './pages/StudioDashboard';
 import AdminPanel from './pages/AdminPanel';
-
 import AgeGateWrapper from "./components/AgeGateWrapper";
 import CategoryPage from "./pages/CategoryPage";
 import AllCategoriesPage from "./pages/AllCategoriesPage";
@@ -45,12 +45,11 @@ import UploadPage from './pages/UploadPage';
 import DebugAuth from './pages/DebugAuth';
 import ChannelPage from '@/pages/ChannelPage';
 import PlaylistsPage from './pages/PlaylistsPage';
-import ReportVideoPage from '@/pages/ReportVideoPage';
+import ReportVideoPage from './pages/ReportVideoPage';
 import FavoritesPage from '@/pages/FavoritesPage';
 import FeedPage from '@/pages/FeedPage.tsx';
 import NotificationsPage from '@/pages/NotificationsPage';
 import InboxPage from '@/pages/InboxPage';
-
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -68,6 +67,7 @@ const App = () => {
             <Router>
               <AgeGateWrapper>
                 <Routes>
+                  {/* All your routes go here */}
                   <Route path="/" element={<Index />} />
                   <Route path="/video/:id" element={<VideoPage />} />
                   <Route path="/category/:category" element={<CategoryPage />} />
@@ -103,7 +103,7 @@ const App = () => {
                   <Route path="/favorites" element={<FavoritesPage />} />
                   <Route path="/feed" element={<FeedPage />} />
 
-                  {/* Protected Creator Dashboard */}
+                  {/* Protected routes */}
                   <Route
                     path="/creator-dashboard"
                     element={
@@ -112,7 +112,6 @@ const App = () => {
                       </ProtectedRoute>
                     }
                   />
-                  {/* Protected Studio Dashboard */}
                   <Route
                     path="/studio-dashboard"
                     element={
@@ -121,7 +120,6 @@ const App = () => {
                       </ProtectedRoute>
                     }
                   />
-                  {/* Protected Upload Page */}
                   <Route
                     path="/upload"
                     element={
@@ -141,6 +139,9 @@ const App = () => {
                 </Routes>
               </AgeGateWrapper>
             </Router>
+
+            {/* Put Analytics at the very root so it tracks all pages */}
+            <Analytics />
           </AuthProvider>
         </LanguageProvider>
       </TooltipProvider>
