@@ -4,7 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import React from 'react';
-import { Analytics } from '@vercel/analytics/react'; // <-- import Analytics here
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react'; // <-- add this
 
 // Import pages/components normally
 import Index from './pages/Index';
@@ -45,7 +46,7 @@ import UploadPage from './pages/UploadPage';
 import DebugAuth from './pages/DebugAuth';
 import ChannelPage from '@/pages/ChannelPage';
 import PlaylistsPage from './pages/PlaylistsPage';
-import ReportVideoPage from './pages/ReportVideoPage';
+import ReportVideoPage from '@/pages/ReportVideoPage';
 import FavoritesPage from '@/pages/FavoritesPage';
 import FeedPage from '@/pages/FeedPage.tsx';
 import NotificationsPage from '@/pages/NotificationsPage';
@@ -67,7 +68,7 @@ const App = () => {
             <Router>
               <AgeGateWrapper>
                 <Routes>
-                  {/* All your routes go here */}
+                  {/* All your existing routes */}
                   <Route path="/" element={<Index />} />
                   <Route path="/video/:id" element={<VideoPage />} />
                   <Route path="/category/:category" element={<CategoryPage />} />
@@ -140,8 +141,9 @@ const App = () => {
               </AgeGateWrapper>
             </Router>
 
-            {/* Put Analytics at the very root so it tracks all pages */}
+            {/* Root-level Analytics and SpeedInsights */}
             <Analytics />
+            <SpeedInsights /> {/* <-- added here */}
           </AuthProvider>
         </LanguageProvider>
       </TooltipProvider>
