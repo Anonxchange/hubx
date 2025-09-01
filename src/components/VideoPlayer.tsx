@@ -189,11 +189,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   const isHLS = src.includes('.m3u8');
 
   return (
-    <div className="w-full max-w-5xl mx-auto">
+    <div className="w-full">
       {/* Responsive container */}
       <div
-        className="relative w-full bg-black rounded-lg overflow-hidden group"
-        style={{ aspectRatio: "16/9" }}
+        className="relative w-full bg-black overflow-hidden group"
+        style={{ 
+          aspectRatio: "16/9",
+          maxWidth: "1280px",
+          maxHeight: "720px"
+        }}
       >
         <video
           ref={videoRef}
