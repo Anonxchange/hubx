@@ -282,6 +282,15 @@ const ProfileDropdown = () => {
 
             <div
               className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
+              onClick={() => navigate('/watch-later')}
+            >
+              <Clock className="h-6 w-6 text-gray-300" />
+              <span className="text-xs text-gray-300">Watch Later</span>
+            </div>
+
+            {/* Fourth Row */}
+            <div
+              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
               onClick={() => navigate('/playlists')}
             >
               <List className="h-6 w-6 text-gray-300" />
@@ -306,6 +315,12 @@ const ProfileDropdown = () => {
                 <span className="text-xs text-blue-400">
                   {isStudioCreator ? 'Studio Dashboard' : 'Creator Dashboard'}
                 </span>
+              </div>
+            )}
+
+            {!isCreator && (
+              <div className="flex flex-col items-center space-y-2 p-3 rounded-lg">
+                {/* Empty space for non-creators to maintain grid alignment */}
               </div>
             )}
 
