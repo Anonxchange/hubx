@@ -11,6 +11,17 @@ interface SubscriptionModalProps {
   onClose: () => void;
 }
 
+// Interface for crypto payment details
+interface CryptoPaymentDetails {
+  pay_amount: string;
+  pay_currency: string;
+  pay_address: string;
+  price_amount: string;
+  expiration_estimate_date: string;
+  payment_id: string;
+  payment_status: string;
+}
+
 declare global {
   interface Window {
     paypal: any;
@@ -28,6 +39,29 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
   const [isSignIn, setIsSignIn] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // State for the crypto payment modal
+  const [showCryptoModal, setShowCryptoModal] = useState(false);
+  const [cryptoPaymentDetails, setCryptoPaymentDetails] = useState<CryptoPaymentDetails | null>(null);
+
+
+  // Assuming subscriptionPlans is fetched elsewhere or defined here
+  const subscriptionPlans = [
+    { id: '2day', title: '2-day trial', subtitle: 'Limited access', price: '$0.99', amount: 0.99, period: '/2 days', badge: 'TRY IT', badgeColor: 'bg-red-500', recommended: false },
+    { id: '12months', title: '12 months', subtitle: '', price: '$2.99', amount: 35.88, period: '/month', badge: '40% OFF', badgeColor: 'bg-red-500', recommended: true },
+    { id: '3months', title: '3 months', subtitle: '', price: '$3.99', amount: 11.97, period: '/month', badge: '20% OFF', badgeColor: 'bg-red-500', recommended: false },
+    { id: '1month', title: '1 month', subtitle: '', price: '$4.99', amount: 4.99, period: '/month', badge: '', badgeColor: '', recommended: false },
+    { id: 'lifetime', title: 'Lifetime', subtitle: 'Use forever', price: '$399.99', amount: 399.99, period: '', badge: 'Use forever', badgeColor: 'bg-red-500', recommended: false }
+  ];
+
+  // Placeholder for fetchSubscriptionPlans if it's not defined globally
+  const fetchSubscriptionPlans = async () => {
+    // Mock fetch if not implemented elsewhere
+    console.log("Fetching subscription plans...");
+  };
+
+  // Placeholder for session if it's not available in the context
+  const session = { access_token: 'dummy_access_token' }; // Replace with actual session object
+
   const { user, signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -42,6 +76,72 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       }, 500);
     }
   }, [user, isProcessing, authError]);
+
+  // Check if user is returning from PayPal redirect
+  const checkForPayPalReturn = async () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const payerID = urlParams.get('PayerID');
+    const token = urlParams.get('token');
+
+    if (payerID && token) {
+      // User returned from PayPal
+      const pendingOrder = sessionStorage.getItem('pendingPayPalOrder');
+
+      if (pendingOrder) {
+        const orderInfo = JSON.parse(pendingOrder);
+        sessionStorage.removeItem('pendingPayPalOrder');
+
+        setIsProcessing(true);
+
+        try {
+          // Capture the PayPal order
+          const captureResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/paypal-payment?action=capture`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              orderId: orderInfo.orderId
+            }),
+          });
+
+          const captureResult = await captureResponse.json();
+
+          if (captureResponse.ok && captureResult.status === 'COMPLETED') {
+            await handlePaymentSuccess({
+              id: captureResult.orderId,
+              status: 'COMPLETED',
+              paymentMethod: 'paypal',
+              amount: orderInfo.amount || 0,
+              currency: 'USD'
+            });
+
+            alert('PayPal payment successful! Your premium subscription is now active.');
+
+            // Clean up URL parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+            onClose();
+          } else {
+            alert('Payment verification failed. Please contact support if you completed the payment.');
+          }
+        } catch (error) {
+          console.error('PayPal return capture error:', error);
+          alert('Payment verification failed. Please contact support if you completed the payment.');
+        } finally {
+          setIsProcessing(false);
+        }
+      }
+    }
+  };
+
+  // useEffect to fetch plans and check for PayPal return
+  useEffect(() => {
+    if (isOpen) {
+      fetchSubscriptionPlans();
+      checkForPayPalReturn();
+    }
+  }, [isOpen]);
 
   const handleSubscription = async (planId: string, amount: number) => {
     if (!user) {
@@ -256,20 +356,15 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
       return;
     }
 
-    // Prevent multiple calls if already processing
-    if (isProcessing) {
+    if (!selectedPlan) {
+      alert('Please select a subscription plan');
       return;
     }
 
     setIsProcessing(true);
-    try {
-      console.log('Processing PayPal payment for user:', user.id, { selectedPlan });
 
-      // Get current user session
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('User session not found');
-      }
+    try {
+      const selectedPlanData = subscriptionPlans.find(plan => plan.id === selectedPlan);
 
       // Create PayPal order using Supabase function
       const createResponse = await fetch(`${supabase.supabaseUrl}/functions/v1/paypal-payment?action=create`, {
@@ -292,14 +387,26 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
 
       console.log('PayPal order created:', orderResult);
 
-      // Open PayPal approval URL in new window
+      // Try popup first, fallback to redirect if blocked
       if (orderResult.approvalUrl) {
-        // Open the PayPal window
+        // Try to open PayPal window
         const paypalWindow = window.open(orderResult.approvalUrl, 'paypal-payment', 'width=800,height=700,scrollbars=yes,resizable=yes');
 
-        if (!paypalWindow) {
+        // Check if popup was blocked
+        if (!paypalWindow || paypalWindow.closed || typeof paypalWindow.closed === 'undefined') {
+          // Popup blocked - use redirect method instead
           setIsProcessing(false);
-          throw new Error('Failed to open PayPal window. Please allow popups and try again.');
+
+          // Store order info in sessionStorage for when user returns
+          sessionStorage.setItem('pendingPayPalOrder', JSON.stringify({
+            orderId: orderResult.orderId,
+            planId: selectedPlan,
+            amount: selectedPlanData?.amount
+          }));
+
+          // Redirect to PayPal in same window
+          window.location.href = orderResult.approvalUrl;
+          return;
         }
 
         // Flag to prevent multiple captures
@@ -333,8 +440,8 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
 
               if (captureResponse.ok && captureResult.status === 'COMPLETED') {
                 // Process successful payment
-                await handlePaymentSuccess({ 
-                  id: captureResult.orderId, 
+                await handlePaymentSuccess({
+                  id: captureResult.orderId,
                   status: 'COMPLETED',
                   paymentMethod: 'paypal',
                   amount: selectedPlanData?.amount || 0,
@@ -498,7 +605,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
 
       // Check if we have a payment URL or address
       const paymentUrl = payment.pay_url || payment.payment_url || payment.invoice_url;
-      
+
       if (paymentUrl) {
         console.log('Opening payment URL:', paymentUrl);
         // Open payment URL in new window
@@ -507,40 +614,10 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
           throw new Error('Failed to open payment window. Please allow popups and try again.');
         }
       } else if (payment.pay_address) {
-        // For direct crypto payments, show payment details
+        // For direct crypto payments, show payment details in modal
         console.log('Direct crypto payment details:', payment);
-        
-        const paymentDetails = `
-Crypto Payment Details:
-━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💰 Amount: ${payment.pay_amount} ${payment.pay_currency.toUpperCase()}
-📍 Address: ${payment.pay_address}
-💵 USD Value: $${payment.price_amount}
-⏰ Valid Until: ${new Date(payment.expiration_estimate_date).toLocaleString()}
-
-Please send exactly ${payment.pay_amount} ${payment.pay_currency.toUpperCase()} to the address above.
-
-Payment ID: ${payment.payment_id}
-Status: ${payment.payment_status}
-        `.trim();
-
-        // Show payment details in alert for now - you might want to create a proper modal
-        alert(paymentDetails);
-        
-        // Copy address to clipboard with fallback
-        if (navigator.clipboard && window.isSecureContext) {
-          try {
-            await navigator.clipboard.writeText(payment.pay_address);
-            alert('Payment address copied to clipboard!');
-          } catch (err) {
-            console.error('Failed to copy to clipboard:', err);
-            alert('Could not copy to clipboard automatically. Please copy the address manually.');
-          }
-        } else {
-          // Fallback for non-secure contexts
-          alert('Could not copy to clipboard automatically. Please copy the address manually.');
-        }
+        setCryptoPaymentDetails(payment);
+        setShowCryptoModal(true);
       } else {
         console.error('Payment object structure:', payment);
         throw new Error('Payment processor did not provide payment details. Please try a different cryptocurrency or contact support.');
@@ -571,8 +648,8 @@ Status: ${payment.payment_status}
               cryptoWindow?.close();
 
               // Process successful payment
-              await handlePaymentSuccess({ 
-                id: payment.payment_id, 
+              await handlePaymentSuccess({
+                id: payment.payment_id,
                 status: 'COMPLETED',
                 paymentMethod: 'crypto'
               });
@@ -752,11 +829,28 @@ Status: ${payment.payment_status}
     }
   };
 
+  // Function to copy text to clipboard
+  const copyToClipboard = async (text: string, message: string) => {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        alert(message);
+      } catch (err) {
+        console.error('Failed to copy to clipboard:', err);
+        alert('Could not copy to clipboard automatically. Please copy the address manually.');
+      }
+    } else {
+      // Fallback for non-secure contexts or older browsers
+      alert('Could not copy to clipboard automatically. Please copy the address manually.');
+    }
+  };
+
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md mx-auto bg-white text-black p-0 overflow-hidden rounded-2xl max-h-[90vh] overflow-y-auto">
         {/* Header with background image */}
-        <div 
+        <div
           className="relative h-48 bg-cover bg-center"
           style={{
             backgroundImage: `url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&h=400&fit=crop')`
@@ -773,7 +867,7 @@ Status: ${payment.payment_status}
                 <Crown className="w-6 h-6 text-yellow-400 mr-2" />
                 <span className="font-bold">HubX</span>
               </div>
-              <button 
+              <button
                 onClick={onClose}
                 className="text-white hover:text-gray-300"
               >
@@ -784,7 +878,7 @@ Status: ${payment.payment_status}
             {/* Sign in button */}
             <div className="flex justify-end">
               {!user && (
-                <Button 
+                <Button
                   onClick={() => setIsSignIn(!isSignIn)}
                   className="bg-transparent border border-white text-white hover:bg-white hover:text-black px-4 py-2 text-sm"
                 >
@@ -821,8 +915,8 @@ Status: ${payment.payment_status}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                      selectedPlan === plan.id 
-                        ? 'border-yellow-500 bg-yellow-500' 
+                      selectedPlan === plan.id
+                        ? 'border-yellow-500 bg-yellow-500'
                         : 'border-gray-300'
                     }`}>
                       {selectedPlan === plan.id && (
@@ -858,31 +952,31 @@ Status: ${payment.payment_status}
 
           {/* Payment Methods */}
           <div className="flex space-x-2 mb-4 mt-4">
-            <Button 
+            <Button
               onClick={() => setPaymentMethod('creditcard')}
               className={`flex-1 text-sm py-2 ${
-                paymentMethod === 'creditcard' 
-                  ? 'bg-yellow-500 text-black' 
+                paymentMethod === 'creditcard'
+                  ? 'bg-yellow-500 text-black'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               Credit card
             </Button>
-            <Button 
+            <Button
               onClick={() => setPaymentMethod('paypal')}
               className={`flex-1 text-sm py-2 ${
-                paymentMethod === 'paypal' 
-                  ? 'bg-blue-600 text-white' 
+                paymentMethod === 'paypal'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               PayPal
             </Button>
-            <Button 
+            <Button
               onClick={() => setPaymentMethod('crypto')}
               className={`flex-1 text-sm py-2 ${
-                paymentMethod === 'crypto' 
-                  ? 'bg-orange-500 text-white' 
+                paymentMethod === 'crypto'
+                  ? 'bg-orange-500 text-white'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
@@ -896,7 +990,7 @@ Status: ${payment.payment_status}
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Select Cryptocurrency
               </label>
-              <select 
+              <select
                 className="w-full bg-gray-100 border border-gray-300 rounded-lg px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 value={selectedCrypto}
                 onChange={(e) => setSelectedCrypto(e.target.value)}
@@ -952,9 +1046,9 @@ Status: ${payment.payment_status}
                     <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
                     <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
                   </svg>
-                  <input 
-                    type="email" 
-                    placeholder="Your email" 
+                  <input
+                    type="email"
+                    placeholder="Your email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-gray-100 border border-gray-300 rounded-lg px-10 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
@@ -964,9 +1058,9 @@ Status: ${payment.payment_status}
                   <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd"/>
                   </svg>
-                  <input 
-                    type="password" 
-                    placeholder="Password" 
+                  <input
+                    type="password"
+                    placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="w-full bg-gray-100 border border-gray-300 rounded-lg px-10 py-3 text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-yellow-500"
@@ -991,7 +1085,7 @@ Status: ${payment.payment_status}
                 PayPal Payment
               </div>
               <p className="text-blue-600 text-xs">
-                You will be redirected to PayPal to complete your payment securely.
+                Payment will open in a popup window. If popups are blocked, you'll be redirected to PayPal in the same tab.
               </p>
             </div>
           )}
@@ -1006,19 +1100,19 @@ Status: ${payment.payment_status}
                 Cryptocurrency Payment
               </div>
               <p className="text-orange-600 text-xs">
-                You will be redirected to complete your {selectedCrypto.toUpperCase()} payment. 
+                You will be redirected to complete your {selectedCrypto.toUpperCase()} payment.
                 The payment window will close automatically when completed.
               </p>
             </div>
           )}
 
           {/* Continue button - Show for all payment methods */}
-          <Button 
+          <Button
             onClick={user ? handleGetMembership : handleAuth}
             disabled={isProcessing}
             className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-bold text-lg py-4 rounded-lg disabled:opacity-50"
           >
-            {isProcessing ? 'PROCESSING...' : 
+            {isProcessing ? 'PROCESSING...' :
              user ? `Get Membership - ${selectedPlanData?.price}` :
              isSignIn ? 'Sign In & Get Membership' : `Create Account & Get Membership`}
           </Button>
@@ -1031,6 +1125,57 @@ Status: ${payment.payment_status}
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Crypto Payment Modal */}
+    <Dialog open={showCryptoModal} onOpenChange={(open) => { setShowCryptoModal(open); if (!open) setCryptoPaymentDetails(null); }}>
+      <DialogContent className="max-w-4xl mx-auto bg-white text-black p-6 rounded-2xl">
+        {cryptoPaymentDetails ? (
+          <>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold">Complete Your Crypto Payment</h2>
+              <button onClick={() => { setShowCryptoModal(false); setCryptoPaymentDetails(null); }} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="bg-gray-100 p-4 rounded-lg border border-gray-300">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-lg font-semibold">Amount to Pay:</span>
+                <span className="text-lg font-bold text-orange-600">{cryptoPaymentDetails.pay_amount} {cryptoPaymentDetails.pay_currency.toUpperCase()}</span>
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-lg font-semibold">Approx. USD Value:</span>
+                <span className="text-lg font-bold">${cryptoPaymentDetails.price_amount}</span>
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-lg font-semibold">Payment Address:</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-md font-mono bg-gray-200 px-2 py-1 rounded break-all">{cryptoPaymentDetails.pay_address}</span>
+                  <Button onClick={() => copyToClipboard(cryptoPaymentDetails.pay_address, 'Payment address copied to clipboard!')} className="bg-orange-500 hover:bg-orange-600 text-white text-sm px-3 py-1">Copy</Button>
+                </div>
+              </div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-lg font-semibold">Valid Until:</span>
+                <span className="text-md text-gray-700">{new Date(cryptoPaymentDetails.expiration_estimate_date).toLocaleString()}</span>
+              </div>
+              <div className="mt-5 text-center text-sm text-gray-600">
+                Please send the exact amount to the address above. Your subscription will be activated once the payment is confirmed.
+              </div>
+            </div>
+            <div className="mt-6 text-center">
+              <Button onClick={() => copyToClipboard(cryptoPaymentDetails.pay_address, 'Payment address copied to clipboard!')} className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg mr-3">
+                Copy Address
+              </Button>
+              <Button onClick={() => { setShowCryptoModal(false); setCryptoPaymentDetails(null); }} className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-6 rounded-lg">
+                Close
+              </Button>
+            </div>
+          </>
+        ) : (
+          <p>Loading payment details...</p>
+        )}
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
 
