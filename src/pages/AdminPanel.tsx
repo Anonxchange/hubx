@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Video as VideoIcon, BarChart } from 'lucide-react';
+import { Upload, Video as VideoIcon, BarChart, DollarSign } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,6 +8,7 @@ import AdminLogin from '@/components/admin/AdminLogin';
 import VideoUploadForm from '@/components/admin/VideoUploadForm';
 import VideoManagement from '@/components/admin/VideoManagement';
 import AdminAnalytics from '@/components/admin/AdminAnalytics';
+import PayoutManagement from '@/components/admin/PayoutManagement';
 
 const AdminPanel = () => {
   const { user } = useAuth();
@@ -34,7 +35,7 @@ const AdminPanel = () => {
         </div>
 
         <Tabs defaultValue="upload" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="upload" className="flex items-center space-x-2">
               <Upload className="w-4 h-4" />
               <span>Upload Video</span>
@@ -46,6 +47,10 @@ const AdminPanel = () => {
             <TabsTrigger value="analytics" className="flex items-center space-x-2">
               <BarChart className="w-4 h-4" />
               <span>Analytics</span>
+            </TabsTrigger>
+            <TabsTrigger value="payouts" className="flex items-center space-x-2">
+              <DollarSign className="w-4 h-4" />
+              <span>Payouts</span>
             </TabsTrigger>
           </TabsList>
 
@@ -59,6 +64,10 @@ const AdminPanel = () => {
 
           <TabsContent value="analytics">
             <AdminAnalytics />
+          </TabsContent>
+
+          <TabsContent value="payouts">
+            <PayoutManagement />
           </TabsContent>
         </Tabs>
       </div>
