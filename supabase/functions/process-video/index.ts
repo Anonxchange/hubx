@@ -236,6 +236,39 @@ class VideoPreviewProcessor {
       return null;
     }
   }
+
+  // Upload static thumbnail to Bunny Storage
+  async uploadThumbnailToBunny(
+    thumbnailData: Uint8Array, 
+    filename: string, 
+    userId: string
+  ): Promise<string | null> {
+    try {
+      const path = `/thumbnails/${userId}/${filename}`;
+      
+      const response = await fetch(`${BUNNY_STORAGE_URL}${path}`, {
+        method: 'PUT',
+        headers: {
+          'AccessKey': BUNNY_STORAGE_API_KEY,
+          'Content-Type': 'image/jpeg',
+        },
+        body: thumbnailData,
+      });
+
+      if (response.ok) {
+        const publicUrl = `${BUNNY_CDN_URL}${path}`;
+        console.log(`Thumbnail uploaded successfully: ${publicUrl}`);
+        return publicUrl;
+      } else {
+        const errorText = await response.text();
+        console.error('Bunny storage thumbnail upload failed:', errorText);
+        return null;
+      }
+    } catch (error) {
+      console.error('Error uploading thumbnail to Bunny storage:', error);
+      return null;
+    }
+  }
 }
 
 // Extract video metadata from HLS
@@ -334,23 +367,23 @@ serve(async (req) => {
     // Generate thumbnail
     const thumbnailBlob = await generateThumbnail(hlsUrl);
     
-    // Upload thumbnail to Supabase storage
-    const thumbnailPath = `${videoId}-thumb.jpg`;
-    const { error: thumbError } = await supabaseClient.storage
-      .from('thumbnails')
-      .upload(thumbnailPath, thumbnailBlob, {
-        contentType: 'image/jpeg',
-        upsert: true
-      });
+    // Upload thumbnail to Bunny Storage (not Supabase)
+    const thumbnailFilename = `${videoId}_thumbnail.jpg`;
+    const processor = new VideoPreviewProcessor();
+    
+    // Convert blob to Uint8Array for Bunny upload
+    const thumbnailArrayBuffer = await thumbnailBlob.arrayBuffer();
+    const thumbnailData = new Uint8Array(thumbnailArrayBuffer);
+    
+    const thumbnailUrl = await processor.uploadThumbnailToBunny(
+      thumbnailData,
+      thumbnailFilename,
+      userId
+    );
 
-    if (thumbError) {
-      console.error('Thumbnail upload error:', thumbError);
+    if (!thumbnailUrl) {
+      console.error('Failed to upload thumbnail to Bunny Storage');
     }
-
-    // Get thumbnail URL
-    const { data: thumbnailUrlData } = supabaseClient.storage
-      .from('thumbnails')
-      .getPublicUrl(thumbnailPath);
 
     let previewUrls: string[] = [];
 
@@ -397,10 +430,10 @@ serve(async (req) => {
       }
     }
 
-    // Update video record in Supabase
+    // Update video record in Supabase (metadata only)
     const updateData: any = {
       duration: metadata.duration,
-      thumbnail_url: thumbnailUrlData.publicUrl,
+      thumbnail_url: thumbnailUrl, // Bunny Storage URL
       processing_status: 'completed',
       updated_at: new Date().toISOString()
     };
@@ -425,7 +458,7 @@ serve(async (req) => {
     const result = {
       videoId,
       duration: metadata.duration,
-      thumbnail_url: thumbnailUrlData.publicUrl,
+      thumbnail_url: thumbnailUrl, // Bunny Storage URL
       preview_urls: previewUrls,
       preview_count: previewUrls.length,
       processing_status: 'completed'
