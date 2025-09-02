@@ -5,12 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteVideo, updateVideo, Video } from '@/services/videosService';
 import { useToast } from '@/hooks/use-toast';
 import VideoEditModal from '@/components/admin/VideoEditModal';
+import { getCreatorEarnings, getViewEarnings, getCreatorPayouts, requestPayout, EarningsStats, ViewEarning, Payout } from '@/services/earningsService';
 
 const CreatorDashboard = () => {
   const navigate = useNavigate();
@@ -26,7 +31,26 @@ const CreatorDashboard = () => {
     totalLikes: 0,
     subscribers: 0
   });
+  const [earningsStats, setEarningsStats] = useState<EarningsStats>({
+    totalEarnings: 0,
+    thisMonth: 0,
+    lastMonth: 0,
+    pendingPayouts: 0,
+    availableBalance: 0,
+    totalTips: 0,
+    premiumRevenue: 0,
+    viewEarnings: 0,
+    totalViews: 0,
+    premiumViews: 0
+  });
+  const [viewEarnings, setViewEarnings] = useState<ViewEarning[]>([]);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [earningsLoading, setEarningsLoading] = useState(false);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState('');
+  const [payoutMethod, setPayoutMethod] = useState<'paypal' | 'crypto' | 'bank_transfer'>('paypal');
+  const [payoutDetails, setPayoutDetails] = useState('');
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -72,6 +96,30 @@ const CreatorDashboard = () => {
     },
   });
 
+  // Fetch earnings data
+  const fetchEarningsData = async () => {
+    if (!user?.id) return;
+    
+    setEarningsLoading(true);
+    try {
+      // Get creator earnings
+      const earnings = await getCreatorEarnings(user.id);
+      setEarningsStats(earnings);
+
+      // Get view earnings history
+      const viewEarningsData = await getViewEarnings(user.id, 50);
+      setViewEarnings(viewEarningsData);
+
+      // Get payout history
+      const payoutsData = await getCreatorPayouts(user.id);
+      setPayouts(payoutsData);
+    } catch (error) {
+      console.error('Error fetching earnings data:', error);
+    } finally {
+      setEarningsLoading(false);
+    }
+  };
+
   const fetchCreatorContent = async () => {
     if (!user?.id) return;
     
@@ -101,6 +149,9 @@ const CreatorDashboard = () => {
         totalLikes,
         subscribers: 0 // TODO: Implement subscriber count
       });
+
+      // Also fetch earnings data
+      await fetchEarningsData();
     } catch (error) {
       console.error('Error fetching creator content:', error);
     } finally {
@@ -120,6 +171,58 @@ const CreatorDashboard = () => {
 
   const handleEdit = (video: Video) => {
     setEditingVideo(video);
+  };
+
+  // Handle payout request
+  const handlePayoutRequest = async () => {
+    if (!user?.id) return;
+
+    const amount = parseFloat(payoutAmount);
+    if (isNaN(amount) || amount < 10) {
+      toast({
+        title: "Error",
+        description: "Minimum payout amount is $10.00",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (amount > earningsStats.availableBalance) {
+      toast({
+        title: "Error",
+        description: "Insufficient balance for this payout amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let details = {};
+    try {
+      if (payoutMethod === 'paypal') {
+        details = { email: payoutDetails };
+      } else if (payoutMethod === 'crypto') {
+        details = { wallet_address: payoutDetails, currency: 'BTC' };
+      } else if (payoutMethod === 'bank_transfer') {
+        details = { routing_number: payoutDetails, account_number: 'hidden' };
+      }
+
+      const success = await requestPayout(user.id, amount, payoutMethod, details);
+      
+      if (success) {
+        setShowPayoutModal(false);
+        setPayoutAmount('');
+        setPayoutDetails('');
+        // Refresh earnings data
+        await fetchEarningsData();
+      }
+    } catch (error) {
+      console.error('Error requesting payout:', error);
+      toast({
+        title: "Error",
+        description: "Failed to request payout. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Function to handle thumbnail upload using Bunny CDN
@@ -253,8 +356,11 @@ const CreatorDashboard = () => {
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Earnings</p>
-                    <p className="text-2xl font-bold">$0.00</p>
+                    <p className="text-sm font-medium text-muted-foreground">Total Earnings</p>
+                    <p className="text-2xl font-bold">${earningsStats.totalEarnings.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Available: ${earningsStats.availableBalance.toFixed(2)}
+                    </p>
                   </div>
                   <DollarSign className="h-8 w-8 text-muted-foreground" />
                 </div>
@@ -352,30 +458,146 @@ const CreatorDashboard = () => {
 
             {/* Earnings Tab */}
             <TabsContent value="earnings">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Earnings & Payouts</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div className="text-center p-6 bg-muted/50 rounded-lg">
-                      <h3 className="text-2xl font-bold text-green-600">$0.00</h3>
+              <div className="space-y-6">
+                {/* Earnings Overview */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <h3 className="text-2xl font-bold text-green-600">
+                        ${earningsStats.availableBalance.toFixed(2)}
+                      </h3>
                       <p className="text-sm text-muted-foreground">Available Balance</p>
-                    </div>
-                    <div className="text-center p-6 bg-muted/50 rounded-lg">
-                      <h3 className="text-2xl font-bold">$0.00</h3>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <h3 className="text-2xl font-bold">
+                        ${earningsStats.thisMonth.toFixed(2)}
+                      </h3>
                       <p className="text-sm text-muted-foreground">This Month</p>
-                    </div>
-                    <div className="text-center p-6 bg-muted/50 rounded-lg">
-                      <h3 className="text-2xl font-bold">$0.00</h3>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <h3 className="text-2xl font-bold">
+                        ${earningsStats.totalEarnings.toFixed(2)}
+                      </h3>
                       <p className="text-sm text-muted-foreground">Total Earned</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="p-6 text-center">
+                      <h3 className="text-2xl font-bold">
+                        ${earningsStats.pendingPayouts.toFixed(2)}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">Pending Payouts</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Earnings Breakdown */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Earnings Breakdown</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
+                        <span>View Earnings ({earningsStats.totalViews + earningsStats.premiumViews} views)</span>
+                        <span className="font-bold">${earningsStats.viewEarnings.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
+                        <span>Tips & Donations</span>
+                        <span className="font-bold">${earningsStats.totalTips.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-4 bg-muted/50 rounded-lg">
+                        <span>Premium Revenue</span>
+                        <span className="font-bold">${earningsStats.premiumRevenue.toFixed(2)}</span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No earnings data available yet. Upload content to start earning!</p>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                {/* Payout Section */}
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <CardTitle>Payout Management</CardTitle>
+                      <Button 
+                        onClick={() => setShowPayoutModal(true)}
+                        disabled={earningsStats.availableBalance < 10}
+                      >
+                        Request Payout
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {payouts.length > 0 ? (
+                        payouts.slice(0, 5).map((payout) => (
+                          <div key={payout.id} className="flex justify-between items-center p-4 border rounded-lg">
+                            <div>
+                              <p className="font-medium">${payout.amount.toFixed(2)} via {payout.payout_method}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {new Date(payout.requested_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <Badge variant={
+                              payout.status === 'completed' ? 'default' : 
+                              payout.status === 'pending' ? 'secondary' :
+                              payout.status === 'processing' ? 'outline' : 'destructive'
+                            }>
+                              {payout.status}
+                            </Badge>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center py-6 text-muted-foreground">
+                          No payout history yet. Minimum payout is $10.
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Recent View Earnings */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent View Earnings</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {viewEarnings.length > 0 ? (
+                        viewEarnings.slice(0, 10).map((earning) => (
+                          <div key={earning.id} className="flex justify-between items-center p-3 border rounded-lg">
+                            <div>
+                              <p className="text-sm font-medium">
+                                {(earning as any).videos?.title || 'Video'} 
+                                {earning.is_premium && <Badge className="ml-2" variant="secondary">Premium</Badge>}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(earning.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-green-600">
+                                +${earning.earnings_amount.toFixed(4)}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                ${earning.earnings_rate_per_1k.toFixed(2)}/1k views
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="text-center py-6 text-muted-foreground">
+                          No view earnings yet. Upload content and get views to start earning!
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </TabsContent>
 
             {/* Upload Tab */}
@@ -613,6 +835,84 @@ const CreatorDashboard = () => {
         isOpen={editingVideo !== null}
         onClose={() => setEditingVideo(null)}
       />
+
+      {/* Payout Request Modal */}
+      <Dialog open={showPayoutModal} onOpenChange={setShowPayoutModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Request Payout</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="amount">Payout Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="10.00"
+                min="10"
+                max={earningsStats.availableBalance}
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Available: ${earningsStats.availableBalance.toFixed(2)} (Min: $10.00)
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="method">Payout Method</Label>
+              <Select value={payoutMethod} onValueChange={(value: any) => setPayoutMethod(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select payout method" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="paypal">PayPal</SelectItem>
+                  <SelectItem value="crypto">Cryptocurrency (BTC)</SelectItem>
+                  <SelectItem value="bank_transfer">Bank Transfer (USA only)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="details">
+                {payoutMethod === 'paypal' ? 'PayPal Email' : 
+                 payoutMethod === 'crypto' ? 'Bitcoin Wallet Address' : 
+                 'Routing Number'}
+              </Label>
+              <Input
+                id="details"
+                placeholder={
+                  payoutMethod === 'paypal' ? 'your@email.com' : 
+                  payoutMethod === 'crypto' ? 'bc1q...' : 
+                  '123456789'
+                }
+                value={payoutDetails}
+                onChange={(e) => setPayoutDetails(e.target.value)}
+              />
+            </div>
+
+            <div className="bg-muted/50 p-3 rounded-lg text-sm">
+              <p><strong>Processing Time:</strong></p>
+              <ul className="text-muted-foreground mt-1 space-y-1">
+                <li>• PayPal: 1-2 business days</li>
+                <li>• Crypto: 1-24 hours</li>
+                <li>• Bank Transfer: 3-5 business days</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPayoutModal(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handlePayoutRequest}
+              disabled={!payoutAmount || !payoutDetails || parseFloat(payoutAmount) < 10}
+            >
+              Request ${payoutAmount || '0'} Payout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
