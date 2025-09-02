@@ -22,7 +22,7 @@ interface PreviewTimestamp {
 }
 
 class VideoPreviewProcessor {
-  private ffmpeg: any;
+  public ffmpeg: any;
   private isLoaded = false;
 
   async init() {
@@ -46,39 +46,40 @@ class VideoPreviewProcessor {
     }
   }
 
-  // Generate preview timestamps based on video duration
-  generatePreviewTimestamps(durationSeconds: number): PreviewTimestamp[] {
-    const timestamps: PreviewTimestamp[] = [];
+  // Generate scene timestamps for single 10-second preview
+  generateSceneTimestamps(durationSeconds: number): number[] {
+    const scenes: number[] = [];
     
     if (durationSeconds <= 60) {
-      // Short video: every 15 seconds
-      for (let i = 10; i < durationSeconds - 10; i += 15) {
-        timestamps.push({
-          time: i,
-          filename: `preview_${i}s.webp`
-        });
-      }
+      // Short video: 3-4 scenes
+      scenes.push(
+        Math.floor(durationSeconds * 0.15),
+        Math.floor(durationSeconds * 0.4),
+        Math.floor(durationSeconds * 0.65),
+        Math.floor(durationSeconds * 0.85)
+      );
     } else if (durationSeconds <= 300) {
-      // Medium video: every 45 seconds
-      for (let i = 30; i < durationSeconds - 20; i += 45) {
-        timestamps.push({
-          time: i,
-          filename: `preview_${i}s.webp`
-        });
-      }
+      // Medium video: 4-5 scenes
+      scenes.push(
+        Math.floor(durationSeconds * 0.1),
+        Math.floor(durationSeconds * 0.3),
+        Math.floor(durationSeconds * 0.5),
+        Math.floor(durationSeconds * 0.7),
+        Math.floor(durationSeconds * 0.9)
+      );
     } else {
-      // Long video: distributed timestamps
-      const intervals = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85];
-      intervals.forEach((ratio, index) => {
-        const time = Math.floor(durationSeconds * ratio);
-        timestamps.push({
-          time,
-          filename: `preview_${time}s.webp`
-        });
-      });
+      // Long video: 5-6 scenes from different parts
+      scenes.push(
+        Math.floor(durationSeconds * 0.08),
+        Math.floor(durationSeconds * 0.25),
+        Math.floor(durationSeconds * 0.42),
+        Math.floor(durationSeconds * 0.58),
+        Math.floor(durationSeconds * 0.75),
+        Math.floor(durationSeconds * 0.92)
+      );
     }
 
-    return timestamps.slice(0, 6); // Max 6 previews
+    return scenes.filter(scene => scene > 5 && scene < durationSeconds - 5); // Ensure valid timestamps
   }
 
   // Extract video duration from HLS manifest
@@ -154,52 +155,88 @@ class VideoPreviewProcessor {
     }
   }
 
-  // Generate animated WebP preview using FFmpeg
-  async generateAnimatedWebPPreview(
+  // Generate single 10-second preview with scenes from different parts of video
+  async generateSceneBasedPreview(
     hlsUrl: string, 
-    timestamp: number, 
-    videoId: string
+    videoId: string,
+    durationSeconds: number
   ): Promise<Uint8Array | null> {
     try {
       await this.init();
       
-      // Download a longer segment (15 seconds) to have enough footage
-      const segmentData = await this.downloadHLSSegment(hlsUrl, Math.max(0, timestamp - 2), 15);
+      const sceneTimestamps = this.generateSceneTimestamps(durationSeconds);
+      const secondsPerScene = Math.floor(10 / sceneTimestamps.length); // Divide 10 seconds among scenes
       
-      // Write input file to FFmpeg virtual filesystem
-      const inputName = `input_${timestamp}.ts`;
-      const outputName = `output_${timestamp}.webp`;
+      console.log(`Creating preview with ${sceneTimestamps.length} scenes, ${secondsPerScene}s each`);
       
-      await this.ffmpeg.writeFile(inputName, segmentData);
+      const sceneFiles: string[] = [];
       
-      // Extract 10-second animated WebP starting from timestamp
-      // Use palette optimization for better quality and smaller size
-      await this.ffmpeg.exec([
-        '-i', inputName,
-        '-ss', '2', // Skip first 2 seconds to get to our target timestamp
-        '-t', '10', // 10 second duration
-        '-vf', 'scale=480:270:flags=lanczos,fps=8', // 8 FPS for smaller size
+      // Download and process each scene
+      for (let i = 0; i < sceneTimestamps.length; i++) {
+        const timestamp = sceneTimestamps[i];
+        const segmentData = await this.downloadHLSSegment(hlsUrl, timestamp, secondsPerScene + 2);
+        
+        const inputName = `scene_${i}.ts`;
+        const outputName = `scene_${i}.webp`;
+        
+        await this.ffmpeg.writeFile(inputName, segmentData);
+        
+        // Extract scene clip
+        await this.ffmpeg.exec([
+          '-i', inputName,
+          '-ss', '1',
+          '-t', secondsPerScene.toString(),
+          '-vf', 'scale=480:270:flags=lanczos,fps=8',
+          '-c:v', 'libwebp',
+          '-lossless', '0',
+          '-compression_level', '6',
+          '-q:v', '75',
+          '-preset', 'default',
+          '-an',
+          outputName
+        ]);
+        
+        sceneFiles.push(outputName);
+        
+        // Clean up input
+        await this.ffmpeg.deleteFile(inputName);
+      }
+      
+      // Concatenate all scenes into one 10-second preview
+      const finalOutput = `final_preview_${videoId}.webp`;
+      
+      // Create filter complex to concatenate WebP files
+      const filterComplex = sceneFiles.map((file, i) => `[${i}:v]`).join('') + 
+        `concat=n=${sceneFiles.length}:v=1[outv]`;
+      
+      const ffmpegArgs = [
+        ...sceneFiles.flatMap(file => ['-i', file]),
+        '-filter_complex', filterComplex,
+        '-map', '[outv]',
         '-c:v', 'libwebp',
         '-lossless', '0',
         '-compression_level', '6',
         '-q:v', '75',
         '-preset', 'default',
         '-loop', '0', // Infinite loop
-        '-an', // No audio
-        outputName
-      ]);
+        finalOutput
+      ];
       
-      // Read the output file
-      const outputData = await this.ffmpeg.readFile(outputName);
+      await this.ffmpeg.exec(ffmpegArgs);
       
-      // Clean up
-      await this.ffmpeg.deleteFile(inputName);
-      await this.ffmpeg.deleteFile(outputName);
+      // Read the final preview
+      const outputData = await this.ffmpeg.readFile(finalOutput);
+      
+      // Clean up all temporary files
+      for (const file of sceneFiles) {
+        await this.ffmpeg.deleteFile(file);
+      }
+      await this.ffmpeg.deleteFile(finalOutput);
       
       return outputData as Uint8Array;
       
     } catch (error) {
-      console.error(`Failed to generate WebP preview for timestamp ${timestamp}:`, error);
+      console.error(`Failed to generate scene-based preview:`, error);
       return null;
     }
   }
@@ -385,48 +422,37 @@ serve(async (req) => {
       console.error('Failed to upload thumbnail to Bunny Storage');
     }
 
-    let previewUrls: string[] = [];
+    let previewUrl: string | null = null;
 
-    // Generate WebP previews if requested and video is long enough
+    // Generate single scene-based preview if requested and video is long enough
     if (generatePreviews && metadata.durationSeconds > 30) {
-      console.log('Generating WebP previews...');
+      console.log('Generating single 10-second scene-based preview...');
       
       const processor = new VideoPreviewProcessor();
-      const timestamps = processor.generatePreviewTimestamps(metadata.durationSeconds);
       
-      console.log(`Generating ${timestamps.length} previews at timestamps:`, timestamps.map(t => t.time));
-
-      // Process each timestamp
-      for (const timestampInfo of timestamps) {
-        try {
-          console.log(`Processing timestamp ${timestampInfo.time}s...`);
-          
-          const webpData = await processor.generateAnimatedWebPPreview(
-            hlsUrl,
-            timestampInfo.time,
-            videoId
+      try {
+        const webpData = await processor.generateSceneBasedPreview(
+          hlsUrl,
+          videoId,
+          metadata.durationSeconds
+        );
+        
+        if (webpData) {
+          const filename = `${videoId}_hover_preview.webp`;
+          const uploadUrl = await processor.uploadWebPToBunny(
+            webpData,
+            filename,
+            userId
           );
           
-          if (webpData) {
-            const filename = `${videoId}_${timestampInfo.time}s_preview.webp`;
-            const uploadUrl = await processor.uploadWebPToBunny(
-              webpData,
-              filename,
-              userId
-            );
-            
-            if (uploadUrl) {
-              previewUrls.push(uploadUrl);
-              console.log(`Preview ${timestampInfo.time}s uploaded: ${uploadUrl}`);
-            }
+          if (uploadUrl) {
+            previewUrl = uploadUrl;
+            console.log(`Hover preview uploaded: ${uploadUrl}`);
           }
-          
-          // Small delay to prevent overwhelming the system
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-        } catch (error) {
-          console.error(`Failed to process timestamp ${timestampInfo.time}:`, error);
         }
+        
+      } catch (error) {
+        console.error(`Failed to generate hover preview:`, error);
       }
     }
 
@@ -438,11 +464,10 @@ serve(async (req) => {
       updated_at: new Date().toISOString()
     };
 
-    // Add preview URLs
-    if (previewUrls.length > 0) {
-      updateData.preview_urls = previewUrls;
-      updateData.preview_url = previewUrls[0]; // Main preview URL
-      console.log(`Generated ${previewUrls.length} WebP previews`);
+    // Add single preview URL
+    if (previewUrl) {
+      updateData.preview_url = previewUrl; // Single hover preview URL
+      console.log(`Generated hover preview: ${previewUrl}`);
     }
 
     const { error: updateError } = await supabaseClient
@@ -459,8 +484,8 @@ serve(async (req) => {
       videoId,
       duration: metadata.duration,
       thumbnail_url: thumbnailUrl, // Bunny Storage URL
-      preview_urls: previewUrls,
-      preview_count: previewUrls.length,
+      preview_url: previewUrl,
+      has_preview: !!previewUrl,
       processing_status: 'completed'
     };
 
