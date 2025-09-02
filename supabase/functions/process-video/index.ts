@@ -1,121 +1,275 @@
-// supabase/functions/process-video/index.ts
-// ----------------------------------------------------
-// Updated: generate a 10‑second preview by picking a random HLS
-// segment (or a random URI from the playlist) and converting it
-// to WebP. The preview is uploaded to BunnyCDN.
-// ----------------------------------------------------
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { FFmpeg } from "https://esm.sh/@ffmpeg/ffmpeg@0.12.10";
+import { fetchFile, toBlobURL } from "https://esm.sh/@ffmpeg/util@0.12.1";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
-import { createFFmpeg } from "npm:@ffmpeg/ffmpeg@0.12.6";
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
-// -----------------------------------------------------------------
-// Environment variables – keep them secret in the Supabase UI
-// -----------------------------------------------------------------
-const BUNNY_ZONE = Deno.env.get("BUNNY_STORAGE_ZONE");
-const BUNNY_KEY  = Deno.env.get("BUNNY_STORAGE_API_KEY");
-if (!BUNNY_ZONE || !BUNNY_KEY) {
-  console.error("❌ Missing BunnyCDN env vars");
+// Initialize Supabase client
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// BunnyCDN configuration
+const BUNNY_STORAGE_ZONE = Deno.env.get('BUNNY_STORAGE_ZONE')!;
+const BUNNY_STORAGE_API_KEY = Deno.env.get('BUNNY_STORAGE_API_KEY')!;
+const BUNNY_STORAGE_URL = `https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}`;
+
+interface ProcessVideoRequest {
+  videoId: string;
+  hlsUrl: string;
+  userId: string;
+  title?: string;
 }
 
-// -----------------------------------------------------------------
-// FFmpeg singleton – preload the WASM module once per cold start
-// -----------------------------------------------------------------
-const ffmpeg = createFFmpeg({ log: true });
-async function preload() {
-  if (!ffmpeg.isLoaded()) {
-    console.info("🔄 Loading ffmpeg.wasm …");
-    await ffmpeg.load();
-    console.info("✅ ffmpeg.wasm ready");
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
   }
-}
-EdgeRuntime.waitUntil(preload());
-
-// -----------------------------------------------------------------
-// Helper – upload a Buffer to BunnyCDN
-// -----------------------------------------------------------------
-async function uploadToBunny(path: string, data: Uint8Array, mime: string) {
-  const url = `https://storage.bunnycdn.com/${BUNNY_ZONE}/${path}`;
-  const res = await fetch(url, {
-    method: "PUT",
-    headers: {
-      AccessKey: BUNNY_KEY ?? "",
-      "Content-Type": mime,
-    },
-    body: data,
-  });
-  if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(`Bunny upload failed (${res.status}): ${txt}`);
-  }
-  return url; // public link
-}
-
-// -----------------------------------------------------------------
-// Main handler
-// -----------------------------------------------------------------
-Deno.serve(async (req: Request) => {
-  // ------------------- parse JSON -------------------
-  let payload: any;
-  try { payload = await req.json(); } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { "Content-Type": "application/json" } });
-  }
-
-  const { videoId, hlsUrl, userId, title } = payload;
-  if (!videoId || !hlsUrl || !userId) {
-    return new Response(JSON.stringify({ error: "Missing videoId, hlsUrl or userId" }), { status: 400, headers: { "Content-Type": "application/json" } });
-  }
-
-  // Ensure ffmpeg is ready (fast‑path)
-  if (!ffmpeg.isLoaded()) await ffmpeg.load();
 
   try {
-    // ------------------- fetch playlist -------------------
-    const playlistRes = await fetch(hlsUrl);
-    if (!playlistRes.ok) throw new Error(`Playlist ${playlistRes.status}`);
-    const playlist = await playlistRes.text();
-
-    // Extract all .ts URIs (ignore comments)
-    const lines = playlist.split(/\r?\n/).filter(l => l && !l.startsWith("#"));
-    const tsUris = lines.filter(l => l.endsWith(".ts"));
-    if (tsUris.length === 0) throw new Error("No .ts files in playlist");
-
-    // Pick a random URI
-    const randIndex = crypto.getRandomValues(new Uint32Array(1))[0] % tsUris.length;
-    let segmentUrl = tsUris[randIndex].trim();
-    if (!segmentUrl.startsWith("http")) {
-      const base = new URL(hlsUrl);
-      segmentUrl = new URL(segmentUrl, base).toString();
+    // Validate request method
+    if (req.method !== 'POST') {
+      return new Response(
+        JSON.stringify({ error: 'Method not allowed' }),
+        { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // ------------------- download segment -------------------
-    const segRes = await fetch(segmentUrl);
-    if (!segRes.ok) throw new Error(`Segment ${segRes.status}`);
-    const segData = new Uint8Array(await segRes.arrayBuffer());
-    ffmpeg.FS("writeFile", "segment.ts", segData);
+    // Parse and validate request body
+    let requestBody: ProcessVideoRequest;
+    try {
+      requestBody = await req.json();
+    } catch (error) {
+      console.error('Invalid JSON:', error);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // ------------------- create 10‑sec WebP preview -------------------
-    const PREVIEW_SEC = "10"; // hard‑coded 10 seconds
-    await ffmpeg.run(
-      "-i", "segment.ts",
-      "-t", PREVIEW_SEC,
-      "-vf", "scale=640:-1",
-      "-c:v", "libwebp",
-      "-lossless", "1",
-      "preview.webp",
+    // Validate required fields
+    const { videoId, hlsUrl, userId, title } = requestBody;
+    if (!videoId || !hlsUrl || !userId) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: videoId, hlsUrl, userId' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Processing video ${videoId} for user ${userId}`);
+
+    // Kick off background processing and return immediately
+    async function backgroundTask() {
+      try {
+        // Step 1: Fetch HLS playlist
+        console.log('Fetching HLS playlist...');
+        const playlistResponse = await fetch(hlsUrl);
+        if (!playlistResponse.ok) {
+          throw new Error(`Failed to fetch HLS playlist: ${playlistResponse.status}`);
+        }
+        const playlistContent = await playlistResponse.text();
+        console.log('HLS playlist fetched successfully');
+
+        // Step 2: Parse playlist and get segment URLs
+        const segmentUrls = parseHLSPlaylist(playlistContent, hlsUrl);
+        if (segmentUrls.length === 0) {
+          throw new Error('No video segments found in HLS playlist');
+        }
+
+        // Step 3: Select multiple segments from different parts of the video
+        const desiredClips = Math.min(5, Math.max(2, segmentUrls.length >= 2 ? 5 : segmentUrls.length));
+        const selectedSegmentUrls = pickEvenlySpaced(segmentUrls, desiredClips);
+        console.log(`Selected ${selectedSegmentUrls.length} segments across the video`);
+
+        // Step 4: Download the selected segments and write them to the FFmpeg FS
+        console.log('Initializing FFmpeg...');
+        const baseURL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
+        const ffmpeg = new FFmpeg();
+        ffmpeg.on('log', ({ message }) => console.log(message));
+
+        await ffmpeg.load({
+          coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+          wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+        console.log('FFmpeg loaded successfully');
+
+        const inputFiles: string[] = [];
+        for (let i = 0; i < selectedSegmentUrls.length; i++) {
+          const url = selectedSegmentUrls[i];
+          console.log(`Downloading segment ${i + 1}/${selectedSegmentUrls.length}: ${url}`);
+          const res = await fetch(url);
+          if (!res.ok) throw new Error(`Failed to download segment ${i}: ${res.status}`);
+          const buf = new Uint8Array(await res.arrayBuffer());
+          const fileName = `input_${i}.ts`;
+          await ffmpeg.writeFile(fileName, await fetchFile(buf));
+          inputFiles.push(fileName);
+        }
+        console.log('All selected segments written to FFmpeg FS');
+
+        // Step 5: Build FFmpeg command to trim each segment and concatenate into a 10s animated WebP
+        const totalDuration = 10;
+        const perClip = (totalDuration / inputFiles.length);
+        const perClipStr = perClip.toFixed(2);
+
+        const args: string[] = [];
+        inputFiles.forEach((file) => {
+          args.push('-t', perClipStr, '-i', file);
+        });
+
+        const vLabels: string[] = [];
+        const filters: string[] = [];
+        for (let i = 0; i < inputFiles.length; i++) {
+          const label = `v${i}`;
+          filters.push(`[${i}:v]scale=640:-1:flags=lanczos,fps=12[${label}]`);
+          vLabels.push(`[${label}]`);
+        }
+        const concat = `${vLabels.join('')}concat=n=${inputFiles.length}:v=1:a=0[outv]`;
+        const filterGraph = `${filters.join(';')};${concat}`;
+
+        const outputFileName = 'preview.webp';
+        const ffmpegCmd = [
+          ...args,
+          '-filter_complex', filterGraph,
+          '-map', '[outv]',
+          '-an',
+          '-vsync', '0',
+          '-vcodec', 'libwebp',
+          '-q:v', '70',
+          '-preset', 'default',
+          '-loop', '0',
+          '-f', 'webp',
+          outputFileName,
+        ];
+
+        console.log('Processing animated WebP with FFmpeg...');
+        await ffmpeg.exec(ffmpegCmd);
+
+        const processedData = await ffmpeg.readFile(outputFileName) as Uint8Array;
+        console.log(`Animated WebP generated: ${processedData.length} bytes`);
+
+        // Cleanup temp files
+        try {
+          for (const f of inputFiles) await ffmpeg.deleteFile(f);
+          await ffmpeg.deleteFile(outputFileName);
+        } catch (cleanupErr) {
+          console.warn('Cleanup warning:', cleanupErr);
+        }
+
+        // Step 6: Upload to BunnyCDN
+        const uploadPath = `previews/${videoId}/preview.webp`;
+        const uploadUrl = `${BUNNY_STORAGE_URL}/${uploadPath}`;
+        console.log(`Uploading to BunnyCDN: ${uploadPath}`);
+
+        const uploadResponse = await fetch(uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'AccessKey': BUNNY_STORAGE_API_KEY,
+            'Content-Type': 'image/webp',
+          },
+          body: processedData,
+        });
+
+        if (!uploadResponse.ok) {
+          const errorText = await uploadResponse.text();
+          console.error('BunnyCDN upload failed:', uploadResponse.status, errorText);
+          return; // Can't return body to client now; just log
+        }
+
+        console.log('Successfully uploaded to BunnyCDN');
+        const previewUrl = `https://${BUNNY_STORAGE_ZONE}.b-cdn.net/${uploadPath}`;
+
+        // Step 7: Update database with preview URL
+        const { error: dbErr } = await supabase
+          .from('videos')
+          .update({ preview_url: previewUrl })
+          .eq('id', videoId);
+        if (dbErr) console.warn('DB update error:', dbErr.message);
+        else console.log('Updated video record with preview URL');
+
+      } catch (err) {
+        console.error('Background processing error:', err);
+      }
+    }
+
+    // Run in background and return 202 immediately
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore - EdgeRuntime is provided in the Edge environment
+    EdgeRuntime.waitUntil(backgroundTask());
+
+    return new Response(
+      JSON.stringify({ status: 'processing', videoId, title: title || 'Untitled' }),
+      { status: 202, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-    const previewBytes = ffmpeg.FS("readFile", "preview.webp");
 
-    // ------------------- upload to Bunny -------------------
-    const previewPath = `previews/${videoId}/preview.webp`;
-    const previewUrl = await uploadToBunny(previewPath, previewBytes, "image/webp");
-
-    // ------------------- respond -------------------
-    const result = { videoId, title: title ?? null, previewUrl };
-    return new Response(JSON.stringify(result), { status: 200, headers: { "Content-Type": "application/json" } });
-  } catch (e) {
-    console.error("⚠️ process‑video error:", e);
-    return new Response(JSON.stringify({ error: "Processing failed", details: e instanceof Error ? e.message : String(e) }), { status: 500, headers: { "Content-Type": "application/json" } });
-  } finally {
-    // cleanup virtual FS
-    try { ffmpeg.FS("unlink", "segment.ts"); ffmpeg.FS("unlink", "preview.webp"); } catch { }
+  } catch (error) {
+    console.error('Processing error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Video processing failed', details: (error as Error).message }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
+
+/**
+ * Parse HLS playlist and extract segment URLs
+ */
+function parseHLSPlaylist(playlistContent: string, baseUrl: string): string[] {
+  const lines = playlistContent.split('\n').map((line) => line.trim());
+  const segmentUrls: string[] = [];
+
+  // Get base URL for relative paths
+  const urlObj = new URL(baseUrl);
+  const basePath = urlObj.origin + urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1);
+
+  for (const line of lines) {
+    if (!line || line.startsWith('#')) continue;
+    if (line.includes('.ts') || line.includes('.m4s')) {
+      let segmentUrl = line;
+      if (!line.startsWith('http')) {
+        segmentUrl = basePath + line;
+      }
+      segmentUrls.push(segmentUrl);
+    }
+  }
+
+  console.log(`Found ${segmentUrls.length} segments in playlist`);
+  return segmentUrls;
+}
+
+/**
+ * Pick N evenly spaced items from an array
+ */
+function pickEvenlySpaced<T>(arr: T[], count: number): T[] {
+  if (arr.length <= count) return arr.slice();
+  const out: T[] = [];
+  const step = (arr.length - 1) / (count - 1);
+  const used = new Set<number>();
+  for (let i = 0; i < count; i++) {
+    const idx = Math.round(i * step);
+    if (!used.has(idx)) {
+      out.push(arr[idx]);
+      used.add(idx);
+    }
+  }
+  // Fill if any duplicates were rounded the same index
+  let cursor = 0;
+  while (out.length < count && cursor < arr.length) {
+    if (!used.has(cursor)) {
+      out.push(arr[cursor]);
+      used.add(cursor);
+    }
+    cursor++;
+  }
+  return out;
+}
+
+function uint8ToBase64(uint8: Uint8Array): string {
+  let binary = '';
+  for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+  return btoa(binary);
+}
