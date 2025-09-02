@@ -5,6 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { 
   Crown, 
   Users, 
@@ -24,7 +28,9 @@ import {
   ThumbsUp,
   Tv,
   Edit,
-  Trash2
+  Trash2,
+  CreditCard,
+  Download
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -33,6 +39,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteVideo, updateVideo, Video as VideoType } from '@/services/videosService';
 import { useToast } from '@/hooks/use-toast';
 import VideoEditModal from '@/components/admin/VideoEditModal';
+import { getCreatorEarnings, getViewEarnings, getCreatorPayouts, requestPayout, EarningsStats, ViewEarning, Payout } from '@/services/earningsService';
 
 const StudioDashboard = () => {
   const { user, userType, loading } = useAuth();
@@ -50,6 +57,25 @@ const StudioDashboard = () => {
   const [uploadedVideos, setUploadedVideos] = useState<any[]>([]);
   const [editingVideo, setEditingVideo] = useState<VideoType | null>(null);
   const [contentLoading, setContentLoading] = useState(true);
+  const [earningsStats, setEarningsStats] = useState<EarningsStats>({
+    totalEarnings: 0,
+    thisMonth: 0,
+    lastMonth: 0,
+    pendingPayouts: 0,
+    availableBalance: 0,
+    totalTips: 0,
+    premiumRevenue: 0,
+    viewEarnings: 0,
+    totalViews: 0,
+    premiumViews: 0
+  });
+  const [viewEarnings, setViewEarnings] = useState<ViewEarning[]>([]);
+  const [payouts, setPayouts] = useState<Payout[]>([]);
+  const [earningsLoading, setEarningsLoading] = useState(false);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState('');
+  const [payoutMethod, setPayoutMethod] = useState<'paypal' | 'crypto' | 'bank_transfer'>('paypal');
+  const [payoutDetails, setPayoutDetails] = useState('');
 
   // Delete mutation
   const deleteMutation = useMutation({
@@ -105,6 +131,92 @@ const StudioDashboard = () => {
     setEditingVideo(video);
   };
 
+  // Fetch earnings data
+  const fetchEarningsData = async () => {
+    if (!user?.id) return;
+    
+    setEarningsLoading(true);
+    try {
+      // Get creator earnings
+      const earnings = await getCreatorEarnings(user.id);
+      setEarningsStats(earnings);
+
+      // Get view earnings history
+      const viewEarningsData = await getViewEarnings(user.id, 50);
+      setViewEarnings(viewEarningsData);
+
+      // Get payout history
+      const payoutsData = await getCreatorPayouts(user.id);
+      setPayouts(payoutsData);
+
+      // Update stats with earnings data
+      setStats(prev => ({
+        ...prev,
+        totalEarnings: earnings.totalEarnings
+      }));
+    } catch (error) {
+      console.error('Error fetching earnings data:', error);
+    } finally {
+      setEarningsLoading(false);
+    }
+  };
+
+  // Handle payout request
+  const handlePayoutRequest = async () => {
+    if (!user?.id) return;
+
+    const amount = parseFloat(payoutAmount);
+    if (isNaN(amount) || amount < 10) {
+      toast({
+        title: "Error",
+        description: "Minimum payout amount is $10.00",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (amount > earningsStats.availableBalance) {
+      toast({
+        title: "Error",
+        description: "Insufficient balance for this payout amount",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let details = {};
+    try {
+      if (payoutMethod === 'paypal') {
+        details = { email: payoutDetails };
+      } else if (payoutMethod === 'crypto') {
+        details = { wallet_address: payoutDetails, currency: 'BTC' };
+      } else if (payoutMethod === 'bank_transfer') {
+        details = { routing_number: payoutDetails, account_number: 'hidden' };
+      }
+
+      const success = await requestPayout(user.id, amount, payoutMethod, details);
+      
+      if (success) {
+        setShowPayoutModal(false);
+        setPayoutAmount('');
+        setPayoutDetails('');
+        // Refresh earnings data
+        await fetchEarningsData();
+        toast({
+          title: "Success",
+          description: "Payout request submitted successfully",
+        });
+      }
+    } catch (error) {
+      console.error('Error requesting payout:', error);
+      toast({
+        title: "Error",
+        description: "Failed to request payout. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
@@ -144,6 +256,9 @@ const StudioDashboard = () => {
         totalVideos: videos?.length || 0,
         totalViews
       }));
+
+      // Also fetch earnings data
+      await fetchEarningsData();
     } catch (error) {
       console.error('Error fetching studio content:', error);
     } finally {
@@ -248,8 +363,11 @@ const StudioDashboard = () => {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-400 text-sm">Earnings</p>
-                  <p className="text-2xl font-bold">${stats.totalEarnings}</p>
+                  <p className="text-gray-400 text-sm">Total Earnings</p>
+                  <p className="text-2xl font-bold">${earningsStats.totalEarnings.toFixed(2)}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Available: ${earningsStats.availableBalance.toFixed(2)}
+                  </p>
                 </div>
                 <DollarSign className="w-8 h-8 text-green-500" />
               </div>
@@ -271,8 +389,9 @@ const StudioDashboard = () => {
 
         {/* Main Content */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-gray-800 border-gray-700">
+          <TabsList className="grid w-full grid-cols-6 bg-gray-800 border-gray-700">
             <TabsTrigger value="overview" className="data-[state=active]:bg-orange-500">Overview</TabsTrigger>
+            <TabsTrigger value="earnings" className="data-[state=active]:bg-orange-500">Earnings</TabsTrigger>
             <TabsTrigger value="content" className="data-[state=active]:bg-orange-500">Content</TabsTrigger>
             <TabsTrigger value="team" className="data-[state=active]:bg-orange-500">Team</TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-orange-500">Analytics</TabsTrigger>
@@ -342,6 +461,150 @@ const StudioDashboard = () => {
                       <Settings className="w-4 h-4 mr-2" />
                       Studio Settings
                     </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="earnings" className="mt-6">
+            <div className="space-y-6">
+              {/* Earnings Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <Card className="bg-gray-900 border-gray-800">
+                  <CardContent className="p-6 text-center">
+                    <h3 className="text-2xl font-bold text-green-400">
+                      ${earningsStats.availableBalance.toFixed(2)}
+                    </h3>
+                    <p className="text-sm text-gray-400">Available Balance</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gray-900 border-gray-800">
+                  <CardContent className="p-6 text-center">
+                    <h3 className="text-2xl font-bold text-white">
+                      ${earningsStats.thisMonth.toFixed(2)}
+                    </h3>
+                    <p className="text-sm text-gray-400">This Month</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gray-900 border-gray-800">
+                  <CardContent className="p-6 text-center">
+                    <h3 className="text-2xl font-bold text-white">
+                      ${earningsStats.totalEarnings.toFixed(2)}
+                    </h3>
+                    <p className="text-sm text-gray-400">Total Earned</p>
+                  </CardContent>
+                </Card>
+                <Card className="bg-gray-900 border-gray-800">
+                  <CardContent className="p-6 text-center">
+                    <h3 className="text-2xl font-bold text-yellow-400">
+                      ${earningsStats.pendingPayouts.toFixed(2)}
+                    </h3>
+                    <p className="text-sm text-gray-400">Pending Payouts</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Earnings Breakdown */}
+              <Card className="bg-gray-900 border-gray-800">
+                <CardHeader>
+                  <CardTitle className="text-white">Earnings Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="flex justify-between items-center p-4 bg-gray-800 rounded-lg">
+                      <span className="text-white">View Earnings ({earningsStats.totalViews + earningsStats.premiumViews} views)</span>
+                      <span className="font-bold text-green-400">${earningsStats.viewEarnings.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-4 bg-gray-800 rounded-lg">
+                      <span className="text-white">Tips & Donations</span>
+                      <span className="font-bold text-green-400">${earningsStats.totalTips.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-4 bg-gray-800 rounded-lg">
+                      <span className="text-white">Premium Revenue</span>
+                      <span className="font-bold text-green-400">${earningsStats.premiumRevenue.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Payout Section */}
+              <Card className="bg-gray-900 border-gray-800">
+                <CardHeader>
+                  <div className="flex justify-between items-center">
+                    <CardTitle className="text-white">Payout Management</CardTitle>
+                    <Button 
+                      onClick={() => setShowPayoutModal(true)}
+                      disabled={earningsStats.availableBalance < 10}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      Request Payout
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {payouts.length > 0 ? (
+                      payouts.slice(0, 5).map((payout) => (
+                        <div key={payout.id} className="flex justify-between items-center p-4 border border-gray-700 rounded-lg">
+                          <div>
+                            <p className="font-medium text-white">${payout.amount.toFixed(2)} via {payout.payout_method}</p>
+                            <p className="text-sm text-gray-400">
+                              {new Date(payout.requested_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge variant={
+                            payout.status === 'completed' ? 'default' : 
+                            payout.status === 'pending' ? 'secondary' :
+                            payout.status === 'processing' ? 'outline' : 'destructive'
+                          }>
+                            {payout.status}
+                          </Badge>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center py-6 text-gray-400">
+                        No payout history yet. Minimum payout is $10.
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Recent View Earnings */}
+              <Card className="bg-gray-900 border-gray-800">
+                <CardHeader>
+                  <CardTitle className="text-white">Recent View Earnings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {viewEarnings.length > 0 ? (
+                      viewEarnings.slice(0, 10).map((earning) => (
+                        <div key={earning.id} className="flex justify-between items-center p-3 border border-gray-700 rounded-lg">
+                          <div>
+                            <p className="text-sm font-medium text-white">
+                              {(earning as any).videos?.title || 'Video'} 
+                              {earning.is_premium && <Badge className="ml-2" variant="secondary">Premium</Badge>}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              {new Date(earning.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold text-green-400">
+                              +${earning.earnings_amount.toFixed(4)}
+                            </p>
+                            <p className="text-xs text-gray-400">
+                              ${earning.earnings_rate_per_1k.toFixed(2)}/1k views
+                            </p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-center py-6 text-gray-400">
+                        No view earnings yet. Upload content and get views to start earning!
+                      </p>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -547,6 +810,87 @@ const StudioDashboard = () => {
         isOpen={editingVideo !== null}
         onClose={() => setEditingVideo(null)}
       />
+
+      {/* Payout Request Modal */}
+      <Dialog open={showPayoutModal} onOpenChange={setShowPayoutModal}>
+        <DialogContent className="sm:max-w-md bg-gray-900 border-gray-700">
+          <DialogHeader>
+            <DialogTitle className="text-white">Request Payout</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="amount" className="text-white">Payout Amount</Label>
+              <Input
+                id="amount"
+                type="number"
+                placeholder="10.00"
+                min="10"
+                max={earningsStats.availableBalance}
+                value={payoutAmount}
+                onChange={(e) => setPayoutAmount(e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                Available: ${earningsStats.availableBalance.toFixed(2)} (Min: $10.00)
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="method" className="text-white">Payout Method</Label>
+              <Select value={payoutMethod} onValueChange={(value: any) => setPayoutMethod(value)}>
+                <SelectTrigger className="bg-gray-800 border-gray-700 text-white">
+                  <SelectValue placeholder="Select payout method" />
+                </SelectTrigger>
+                <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectItem value="paypal" className="text-white">PayPal</SelectItem>
+                  <SelectItem value="crypto" className="text-white">Cryptocurrency (BTC)</SelectItem>
+                  <SelectItem value="bank_transfer" className="text-white">Bank Transfer (USA only)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="details" className="text-white">
+                {payoutMethod === 'paypal' ? 'PayPal Email' : 
+                 payoutMethod === 'crypto' ? 'Bitcoin Wallet Address' : 
+                 'Routing Number'}
+              </Label>
+              <Input
+                id="details"
+                placeholder={
+                  payoutMethod === 'paypal' ? 'your@email.com' : 
+                  payoutMethod === 'crypto' ? 'bc1q...' : 
+                  '123456789'
+                }
+                value={payoutDetails}
+                onChange={(e) => setPayoutDetails(e.target.value)}
+                className="bg-gray-800 border-gray-700 text-white"
+              />
+            </div>
+
+            <div className="bg-gray-800 p-3 rounded-lg text-sm">
+              <p className="text-white"><strong>Processing Time:</strong></p>
+              <ul className="text-gray-400 mt-1 space-y-1">
+                <li>• PayPal: 1-2 business days</li>
+                <li>• Crypto: 1-24 hours</li>
+                <li>• Bank Transfer: 3-5 business days</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPayoutModal(false)} className="border-gray-700 text-white hover:bg-gray-800">
+              Cancel
+            </Button>
+            <Button 
+              onClick={handlePayoutRequest}
+              disabled={!payoutAmount || !payoutDetails || parseFloat(payoutAmount) < 10}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Request ${payoutAmount || '0'} Payout
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
