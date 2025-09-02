@@ -15,6 +15,8 @@ interface SignInModalProps {
 
 const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => {
   const [selectedUserType, setSelectedUserType] = useState<'member' | 'creator'>('member');
+  const [selectedCreatorType, setSelectedCreatorType] = useState<'individual_creator' | 'studio_creator'>('individual_creator');
+  const [showCreatorOptions, setShowCreatorOptions] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -33,7 +35,12 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => {
     setLoading(true);
     try {
       // Map the selected type to your auth system's user types
-      const userType = selectedUserType === 'member' ? 'user' : 'individual_creator';
+      let userType;
+      if (selectedUserType === 'member') {
+        userType = 'user';
+      } else {
+        userType = selectedCreatorType; // 'individual_creator' or 'studio_creator'
+      }
       
       const { error } = await signIn(username, password, userType);
       
@@ -72,40 +79,81 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => {
         {/* Content */}
         <div className="p-6">
           {/* User Type Selection */}
-          <div className="flex gap-3 mb-6">
-            <button
-              onClick={() => setSelectedUserType('member')}
-              className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                selectedUserType === 'member'
-                  ? 'border-yellow-500 bg-yellow-500/10'
-                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-              }`}
-            >
-              <div className="flex items-center justify-center mb-2">
-                <Crown className="w-6 h-6 text-yellow-500" />
-              </div>
-              <div className="text-center">
-                <h3 className="font-semibold text-white">Member</h3>
-                <p className="text-xs text-gray-400 mt-1">For members watching videos</p>
-              </div>
-            </button>
+          <div className="space-y-4 mb-6">
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setSelectedUserType('member');
+                  setShowCreatorOptions(false);
+                }}
+                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                  selectedUserType === 'member'
+                    ? 'border-yellow-500 bg-yellow-500/10'
+                    : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                }`}
+              >
+                <div className="flex items-center justify-center mb-2">
+                  <Crown className="w-6 h-6 text-yellow-500" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-semibold text-white">Member</h3>
+                  <p className="text-xs text-gray-400 mt-1">For members watching videos</p>
+                </div>
+              </button>
 
-            <button
-              onClick={() => setSelectedUserType('creator')}
-              className={`flex-1 p-4 rounded-lg border-2 transition-all ${
-                selectedUserType === 'creator'
-                  ? 'border-yellow-500 bg-yellow-500/10'
-                  : 'border-gray-600 bg-gray-800 hover:border-gray-500'
-              }`}
-            >
-              <div className="flex items-center justify-center mb-2">
-                <User className="w-6 h-6 text-yellow-500" />
+              <button
+                onClick={() => {
+                  setSelectedUserType('creator');
+                  setShowCreatorOptions(true);
+                }}
+                className={`flex-1 p-4 rounded-lg border-2 transition-all ${
+                  selectedUserType === 'creator'
+                    ? 'border-yellow-500 bg-yellow-500/10'
+                    : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                }`}
+              >
+                <div className="flex items-center justify-center mb-2">
+                  <User className="w-6 h-6 text-yellow-500" />
+                </div>
+                <div className="text-center">
+                  <h3 className="font-semibold text-white">Creator</h3>
+                  <p className="text-xs text-gray-400 mt-1">For producers, studios, content-creators</p>
+                </div>
+              </button>
+            </div>
+
+            {/* Creator Type Sub-Selection */}
+            {showCreatorOptions && (
+              <div className="flex gap-3 animate-in slide-in-from-top-2 duration-200">
+                <button
+                  onClick={() => setSelectedCreatorType('individual_creator')}
+                  className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                    selectedCreatorType === 'individual_creator'
+                      ? 'border-orange-500 bg-orange-500/10'
+                      : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="text-center">
+                    <h4 className="font-semibold text-white text-sm">Individual</h4>
+                    <p className="text-xs text-gray-400 mt-1">Solo creator</p>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => setSelectedCreatorType('studio_creator')}
+                  className={`flex-1 p-3 rounded-lg border-2 transition-all ${
+                    selectedCreatorType === 'studio_creator'
+                      ? 'border-purple-500 bg-purple-500/10'
+                      : 'border-gray-600 bg-gray-800 hover:border-gray-500'
+                  }`}
+                >
+                  <div className="text-center">
+                    <h4 className="font-semibold text-white text-sm">Studio</h4>
+                    <p className="text-xs text-gray-400 mt-1">Team/Agency</p>
+                  </div>
+                </button>
               </div>
-              <div className="text-center">
-                <h3 className="font-semibold text-white">Creator</h3>
-                <p className="text-xs text-gray-400 mt-1">For producers, studios, content-creators</p>
-              </div>
-            </button>
+            )}
           </div>
 
           {/* Form Fields */}
@@ -167,7 +215,10 @@ const SignInModal: React.FC<SignInModalProps> = ({ isOpen, onClose }) => {
               disabled={loading}
               className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-semibold py-3 rounded-lg transition-colors"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in...' : `Sign in as ${
+                selectedUserType === 'member' ? 'Member' :
+                selectedCreatorType === 'individual_creator' ? 'Individual Creator' : 'Studio Creator'
+              }`}
             </Button>
 
             {/* Google Sign In */}
