@@ -81,7 +81,7 @@ const setActivePreviewCard = (cardId: string | null) => {
   }
 };
 
-const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid', showTags = true, showDate = true }) => {
+const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid', showTags = true, showDate = false }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [currentPreviewTime, setCurrentPreviewTime] = useState(0);
