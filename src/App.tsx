@@ -55,6 +55,12 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import WatchLaterPage from './pages/WatchLaterPage';
+import EarningsPage from './pages/EarningsPage';
+import CoreSettingsPage from './pages/CoreSettingsPage';
+import ContentManagementPage from './pages/ContentManagementPage';
+import ContestsPage from './pages/ContestsPage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import FeaturedVideosPage from './pages/FeaturedVideosPage';
 
 const queryClient = new QueryClient();
 
@@ -105,6 +111,12 @@ const App = () => {
                   <Route path="/favorites" element={<FavoritesPage />} />
                   <Route path="/feed" element={<FeedPage />} />
                   <Route path="/watch-later" element={<WatchLaterPage />} />
+                  <Route path="/earnings" element={<EarningsPage />} />
+                  <Route path="/core-settings" element={<CoreSettingsPage />} />
+                  <Route path="/content-management" element={<ContentManagementPage />} />
+                  <Route path="/contests" element={<ContestsPage />} />
+                  <Route path="/analytics" element={<AnalyticsPage />} />
+                  <Route path="/featured-videos" element={<FeaturedVideosPage />} />
 
                   {/* Protected routes */}
                   <Route
