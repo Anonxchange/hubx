@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, ThumbsUp } from 'lucide-react';
+import { Eye, ThumbsUp, MoreVertical, Plus, Clock } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import LazyImage from '@/components/LazyImage';
 import VerificationBadge from './VerificationBadge';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
@@ -49,12 +50,24 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [creatorProfile, setCreatorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isInWatchLater, setIsInWatchLater] = useState(false);
+  const [isAddingToWatchLater, setIsAddingToWatchLater] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const { shouldLoadPreview } = useBandwidthOptimization();
   const isMobile = useIsMobile();
   const navigate = useNavigate(); // Hook to enable navigation
+
+  const formatViews = (views: number) => {
+    if (views >= 1000000) {
+      return `${(views / 1000000).toFixed(1)}M`;
+    }
+    if (views >= 1000) {
+      return `${(views / 1000).toFixed(1)}K`;
+    }
+    return views.toString();
+  };
 
   // Fetch creator profile information
   useEffect(() => {
@@ -135,6 +148,108 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
 
     fetchCreatorProfile();
   }, [video.owner_id, video.profiles, video.uploader_username, video.uploader_avatar, video.uploader_name, video.uploader_type, video.uploader_profile_picture]);
+
+  // Fetch watch later status
+  useEffect(() => {
+    const checkWatchLaterStatus = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsInWatchLater(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('watch_later')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('video_id', video.id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking watch later status:', error);
+          setIsInWatchLater(false);
+        } else {
+          setIsInWatchLater(!!data);
+        }
+      } catch (error) {
+        console.error('Error checking watch later status:', error);
+        setIsInWatchLater(false);
+      }
+    };
+    checkWatchLaterStatus();
+  }, [video.id]);
+
+  const handleWatchLater = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (isAddingToWatchLater) {
+      return;
+    }
+
+    setIsAddingToWatchLater(true);
+
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error('Error getting user:', userError);
+        return;
+      }
+
+      if (!user) {
+        alert('Please sign in to use Watch Later');
+        return;
+      }
+
+      if (isInWatchLater) {
+        // Remove from watch later
+        const { error } = await supabase
+          .from('watch_later')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('video_id', video.id);
+
+        if (error) {
+          console.error('Error removing from watch later:', error);
+          alert('Failed to remove from Watch Later');
+        } else {
+          setIsInWatchLater(false);
+          alert('Removed from Watch Later');
+        }
+      } else {
+        // Add to watch later
+        const { error } = await supabase
+          .from('watch_later')
+          .insert({
+            user_id: user.id,
+            video_id: video.id
+          });
+
+        if (error) {
+          console.error('Error adding to watch later:', error);
+          if (error.code === '23505') {
+            setIsInWatchLater(true);
+            alert('Already in Watch Later');
+          } else {
+            alert('Failed to add to Watch Later: ' + error.message);
+          }
+        } else {
+          setIsInWatchLater(true);
+          alert('Added to Watch Later!');
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleWatchLater:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIsAddingToWatchLater(false);
+    }
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
 
   // Generate preview URL with timestamp for Bunny CDN videos
   const generateBunnyPreviewUrl = (videoUrl: string, time: number): string => {
@@ -237,16 +352,6 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
     console.log('Touch end event triggered on mobile');
     e.preventDefault();
     setTimeout(() => handleMouseLeave(e), 3000);
-  };
-
-  const formatViews = (views: number) => {
-    if (views >= 1000000) {
-      return `${(views / 1000000).toFixed(1)}M`;
-    }
-    if (views >= 1000) {
-      return `${(views / 1000).toFixed(1)}K`;
-    }
-    return views.toString();
   };
 
   // Define the click handler for navigation
@@ -384,15 +489,47 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
             </div>
           )}
 
-          <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-            <span className="flex items-center">
-              <Eye className="w-3 h-3 mr-1" />
-              {formatViews(video.views || 0)}
-            </span>
-            <span className="flex items-center">
-              <ThumbsUp className="w-3 h-3 mr-1" />
-              {video.likes || 0}
-            </span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+              <span className="flex items-center">
+                <Eye className="w-3 h-3 mr-1" />
+                {formatViews(video.views || 0)}
+              </span>
+              <span className="flex items-center">
+                <ThumbsUp className="w-3 h-3 mr-1" />
+                {video.likes || 0}
+              </span>
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="p-1 rounded-full hover:bg-muted transition-colors"
+                  onClick={handleActionClick}
+                >
+                  <MoreVertical className="w-3 h-3 text-muted-foreground" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleWatchLater} disabled={isAddingToWatchLater}>
+                  {isAddingToWatchLater ? (
+                    <>
+                      <div className="w-3 h-3 mr-2 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                      {isInWatchLater ? 'Removing...' : 'Adding...'}
+                    </>
+                  ) : isInWatchLater ? (
+                    <>
+                      <Clock className="w-3 h-3 mr-2" />
+                      Remove from Watch Later
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3 h-3 mr-2" />
+                      Add to Watch Later
+                    </>
+                  )}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
