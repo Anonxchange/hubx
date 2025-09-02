@@ -1,10 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom'; // Import useNavigate
-import { ThumbsUp } from 'lucide-react';
+import { ThumbsUp, Eye, MoreVertical, Plus, Clock } from 'lucide-react'; // Import necessary icons
 import { Card, CardContent } from '@/components/ui/card';
 import LazyImage from '@/components/LazyImage';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"; // Import Dropdown Menu components
 
 interface Video {
   id: string;
@@ -55,6 +61,8 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [creatorProfile, setCreatorProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [isInWatchLater, setIsInWatchLater] = useState(false); // State for watch later
+  const [isAddingToWatchLater, setIsAddingToWatchLater] = useState(false); // State for loading
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -163,6 +171,26 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
     fetchCreatorProfile();
   }, [video.owner_id, video.profiles, video.uploader_username, video.uploader_avatar, video.uploader_name, video.uploader_type]);
 
+  // Check if video is already in watch later list
+  useEffect(() => {
+    const checkWatchLater = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('watch_later')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('video_id', video.id)
+        .single();
+
+      if (error) console.error('Error checking watch later:', error);
+      setIsInWatchLater(!error && data !== null);
+    };
+
+    checkWatchLater();
+  }, [video.id]);
+
   // Generate preview URL with timestamp for Bunny CDN videos
   const generateBunnyPreviewUrl = (videoUrl: string, time: number): string => {
     if (videoUrl.includes('bunnycdn.com') || videoUrl.includes('b-cdn.net')) {
@@ -171,16 +199,73 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
     return videoUrl;
   };
 
+  // Define the click handler with the new logic
+  const handleClick = () => {
+    // Route to premium video page if it's a premium video
+    if (video.is_premium) {
+      navigate(`/premium/video/${video.id}`);
+    } else {
+      navigate(`/video/${video.id}`);
+    }
+  };
+
+  // Handle adding/removing from watch later
+  const handleWatchLater = async () => {
+    setIsAddingToWatchLater(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      // Redirect to login if user is not logged in
+      navigate('/login');
+      setIsAddingToWatchLater(false);
+      return;
+    }
+
+    if (isInWatchLater) {
+      // Remove from watch later
+      const { error } = await supabase
+        .from('watch_later')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('video_id', video.id);
+
+      if (error) {
+        console.error('Error removing from watch later:', error);
+      } else {
+        setIsInWatchLater(false);
+      }
+    } else {
+      // Add to watch later
+      const { error } = await supabase
+        .from('watch_later')
+        .insert([
+          { user_id: user.id, video_id: video.id }
+        ]);
+
+      if (error) {
+        console.error('Error adding to watch later:', error);
+      } else {
+        setIsInWatchLater(true);
+      }
+    }
+    setIsAddingToWatchLater(false);
+  };
+
+  // Handler for the action button click (to open dropdown)
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent navigation when clicking the dropdown
+    // No specific action needed here, the dropdown handles its own opening
+  };
+
   // Check if we have a valid preview URL
   const hasValidPreviewUrl = () => {
-    return video.preview_url && 
-           typeof video.preview_url === 'string' && 
+    return video.preview_url &&
+           typeof video.preview_url === 'string' &&
            video.preview_url.trim() !== '' &&
            video.preview_url !== 'undefined' &&
            video.preview_url !== 'null';
   };
 
-  // Check if the preview URL is an image/animation
+  // Check if the preview URL is an image
   const isImagePreview = () => {
     return hasValidPreviewUrl() && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url!);
   };
@@ -259,7 +344,8 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
     setTimeout(() => handleMouseLeave(e), 3000);
   };
 
-  const formatViews = (views: number) => {
+  const formatViews = (views: number | null | undefined) => {
+    if (views === null || views === undefined) return '0';
     if (views >= 1000000) {
       return `${(views / 1000000).toFixed(1)}M`;
     }
@@ -269,23 +355,13 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
     return views.toString();
   };
 
-  // Define the click handler with the new logic
-  const handleClick = () => {
-    // Route to premium video page if it's a premium video
-    if (video.is_premium) {
-      navigate(`/premium/video/${video.id}`);
-    } else {
-      navigate(`/video/${video.id}`);
-    }
-  };
-
 
   return (
     // Use the handleClick function for the Link's onClick event
-    <Link to={`/video/${video.id}`} onClick={handleClick} className="block"> 
+    <Link to={video.is_premium ? `/premium/video/${video.id}` : `/video/${video.id}`} className="block" onClick={handleActionClick}>
       <Card className="hover:bg-muted/5 transition-colors">
         <CardContent className={`p-3 ${viewMode === 'list' ? 'flex space-x-3' : ''}`}>
-          <div 
+          <div
             className={`relative bg-muted rounded-lg overflow-hidden flex-shrink-0 border border-border ${
               viewMode === 'grid' ? 'aspect-video mb-3' : 'w-24 h-16'
             }`}
@@ -298,12 +374,12 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
               src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=200&h=120&fit=crop'}
               alt={video.title}
               className={`w-full h-full object-cover transition-opacity duration-300 ${
-                (showPreview || (isHovered && isImagePreview())) ? 'opacity-0' : 'opacity-100'
+                showPreview ? 'opacity-0' : 'opacity-100'
               }`}
             />
 
             {/* Animated preview (WebP/GIF) */}
-            {isImagePreview() && isHovered && (
+            {isImagePreview() && showPreview && (
               <img
                 src={computedPreviewUrl!}
                 alt={`${video.title} preview`}
@@ -387,9 +463,42 @@ const RelatedVideoCard: React.FC<RelatedVideoCardProps> = ({ video, viewMode }) 
               </div>
             )}
 
-            <p className="text-xs text-muted-foreground">
-              {formatViews(video.views || 0)} views
-            </p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">
+                {formatViews(video.views)} views
+              </p>
+              {/* Dropdown menu for actions like "Add to Watch Later" */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="p-1 rounded-full hover:bg-muted transition-colors"
+                    onClick={handleActionClick}
+                  >
+                    <MoreVertical className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={handleWatchLater} disabled={isAddingToWatchLater}>
+                    {isAddingToWatchLater ? (
+                      <>
+                        <div className="w-4 h-4 mr-2 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                        {isInWatchLater ? 'Removing...' : 'Adding...'}
+                      </>
+                    ) : isInWatchLater ? (
+                      <>
+                        <Clock className="w-4 h-4 mr-2" />
+                        Remove from Watch Later
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add to Watch Later
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
 
             {viewMode === 'grid' && (
               <div className="flex items-center space-x-1 mt-1">
