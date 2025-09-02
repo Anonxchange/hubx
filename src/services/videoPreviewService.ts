@@ -24,23 +24,33 @@ interface WebPPreviewOptions {
 export class VideoPreviewService {
   private static previewCache = new Map<string, VideoPreviewData>();
 
-  // Generate intelligent preview timestamps based on video duration
+  // Generate intelligent preview timestamps based on video duration (matches backend logic)
   static generatePreviewTimestamps(durationString: string): number[] {
     const [minutes, seconds] = durationString.split(':').map(Number);
     const totalSeconds = (minutes || 0) * 60 + (seconds || 0);
     
-    // Generate 5 preview points distributed throughout the video
+    const timestamps: number[] = [];
+    
     if (totalSeconds <= 60) {
-      // Short video - preview every 10-15 seconds
-      return [5, 15, 30, 45].filter(t => t < totalSeconds - 5);
+      // Short video: every 15 seconds
+      for (let i = 10; i < totalSeconds - 10; i += 15) {
+        timestamps.push(i);
+      }
     } else if (totalSeconds <= 300) {
-      // Medium video (up to 5 min) - preview every minute or so
-      return [10, 60, 120, 180, 240].filter(t => t < totalSeconds - 10);
+      // Medium video: every 45 seconds
+      for (let i = 30; i < totalSeconds - 20; i += 45) {
+        timestamps.push(i);
+      }
     } else {
-      // Long video - preview at 10%, 25%, 50%, 75%, 90% marks
-      const marks = [0.1, 0.25, 0.5, 0.75, 0.9];
-      return marks.map(mark => Math.floor(totalSeconds * mark));
+      // Long video: distributed timestamps
+      const intervals = [0.1, 0.25, 0.4, 0.55, 0.7, 0.85];
+      intervals.forEach((ratio) => {
+        const time = Math.floor(totalSeconds * ratio);
+        timestamps.push(time);
+      });
     }
+
+    return timestamps.slice(0, 6); // Max 6 previews
   }
 
   // Get or generate preview data for a video
@@ -379,10 +389,57 @@ export class VideoPreviewService {
     return timestamps.map(timestamp => this.getWebPPreviewUrl(videoId, timestamp, userId));
   }
 
-  // Get WebP preview URL for specific timestamp
+  // Get WebP preview URL for specific timestamp (FFmpeg-generated)
   static getWebPPreviewUrl(videoId: string, timestamp: number, userId: string): string {
     const BUNNY_CDN_URL = 'https://hubx.b-cdn.net';
-    return `${BUNNY_CDN_URL}/previews/${userId}/preview_${videoId}_${timestamp}.webp`;
+    return `${BUNNY_CDN_URL}/previews/${userId}/${videoId}_${timestamp}s_preview.webp`;
+  }
+
+  // Get all preview URLs for a video from database
+  static async getVideoPreviewUrls(videoId: string): Promise<string[]> {
+    const { data: video, error } = await supabase
+      .from('videos')
+      .select('preview_urls')
+      .eq('id', videoId)
+      .single();
+
+    if (error || !video?.preview_urls) {
+      console.error('Error fetching preview URLs:', error);
+      return [];
+    }
+
+    return video.preview_urls;
+  }
+
+  // Trigger video processing for existing videos
+  static async triggerVideoProcessing(videoId: string, hlsUrl: string, userId: string): Promise<boolean> {
+    try {
+      const response = await fetch('/functions/v1/process-video', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          videoId,
+          hlsUrl,
+          userId,
+          generatePreviews: true
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Processing failed: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Video processing triggered:', result);
+      return true;
+      
+    } catch (error) {
+      console.error('Failed to trigger video processing:', error);
+      return false;
+    }
   }
 
   // Get Bunny CDN generated video preview URL (replaces main video hover previews)
