@@ -337,11 +337,11 @@ const CreatorDashboard = () => {
                       <Upload className="w-4 h-4 mr-2" />
                       Upload New Video
                     </Button>
-                    <Button className="w-full" variant="outline">
+                    <Button onClick={() => navigate('/analytics')} className="w-full" variant="outline">
                       <BarChart3 className="w-4 h-4 mr-2" />
                       View Analytics
                     </Button>
-                    <Button className="w-full" variant="outline">
+                    <Button onClick={() => navigate('/earnings')} className="w-full" variant="outline">
                       <DollarSign className="w-4 h-4 mr-2" />
                       Check Earnings
                     </Button>
