@@ -54,6 +54,7 @@ import InboxPage from '@/pages/InboxPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from "@/contexts/AuthContext";
 import { LanguageProvider } from '@/contexts/LanguageContext';
+import WatchLaterPage from './pages/WatchLaterPage';
 
 const queryClient = new QueryClient();
 
@@ -103,6 +104,7 @@ const App = () => {
                   <Route path="/playlists" element={<PlaylistsPage />} />
                   <Route path="/favorites" element={<FavoritesPage />} />
                   <Route path="/feed" element={<FeedPage />} />
+                  <Route path="/watch-later" element={<WatchLaterPage />} />
 
                   {/* Protected routes */}
                   <Route
