@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { calculateViewEarnings } from './earningsService';
 
 export interface UserStats {
   videosWatched: number;
@@ -95,17 +96,45 @@ export const trackVideoView = async (videoId: string, userId?: string) => {
       .single();
 
     if (!existingView) {
-      // Insert new view record
-      const { error } = await supabase
+      // Insert new view record and get the ID for earnings calculation
+      const { data: newView, error } = await supabase
         .from('video_views')
         .insert({
           video_id: videoId,
           user_id: userId,
           viewed_at: new Date().toISOString()
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) {
         console.error('Error tracking video view:', error);
+        return;
+      }
+
+      // Get video details for earnings calculation
+      const { data: videoData, error: videoError } = await supabase
+        .from('videos')
+        .select('owner_id, is_premium, profiles:owner_id(user_type)')
+        .eq('id', videoId)
+        .single();
+
+      if (videoError) {
+        console.error('Error fetching video details:', videoError);
+        return;
+      }
+
+      if (videoData && newView) {
+        const creatorId = videoData.owner_id;
+        const isPremium = videoData.is_premium || false;
+        const isCreator = videoData.profiles?.user_type === 'individual_creator' || 
+                         videoData.profiles?.user_type === 'studio_creator';
+
+        // Only calculate earnings for creators (not regular users)
+        if (isCreator && creatorId && creatorId !== userId) {
+          // Calculate and record view earnings for the creator
+          await calculateViewEarnings(videoId, creatorId, newView.id, isPremium);
+        }
       }
     }
   } catch (error) {
