@@ -1,16 +1,15 @@
 import React, { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, ThumbsUp, MoreVertical, Plus } from 'lucide-react';
+import { Eye, ThumbsUp, MoreVertical, Plus, Trash2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import LazyImage from '@/components/LazyImage';
 import AdComponent from '@/components/AdComponent';
-import { useAuth } from '@/contexts/AuthContext';
 import VerificationBadge from './VerificationBadge';
 import MomentsCarousel from './MomentsCarousel';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Crown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import VideoCard from '@/components/VideoCard';
@@ -45,6 +44,8 @@ interface OptimizedVideoGridProps {
   showAds?: boolean;
   showMoments?: boolean;
   showPremiumSection?: boolean;
+  showTags?: boolean;
+  showDate?: boolean;
 }
 
 // Global state to track active preview - only one video can preview at a time
@@ -61,6 +62,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   video,
   viewMode = 'grid'
 }) => {
+  const queryClient = useQueryClient();
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [currentPreviewTime, setCurrentPreviewTime] = useState(0);
@@ -72,6 +74,27 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const touchTimeoutRef = useRef<number | null>(null);
   const cardId = useRef(`optimized-video-card-${video.id}-${Math.random()}`).current;
   const { shouldLoadPreview } = useBandwidthOptimization();
+  const [isAddingToWatchLater, setIsAddingToWatchLater] = useState(false);
+
+  const { data: isInWatchLater, isLoading: isLoadingWatchLater } = useQuery({
+    queryKey: ['watchLaterStatus', video.id],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+      const { data, error } = await supabase
+        .from('watch_later')
+        .select('video_id')
+        .eq('user_id', user.id)
+        .eq('video_id', video.id);
+      if (error) {
+        console.error('Error checking watch later status:', error);
+        return false;
+      }
+      return data && data.length > 0;
+    },
+    enabled: !!video.id, // Only run if video.id is available
+    staleTime: 60 * 1000, // 1 minute
+  });
 
   // Listen for global stop preview events
   React.useEffect(() => {
@@ -106,7 +129,72 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
   const handleWatchLater = async (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    console.log('Adding to watch later:', video.title);
+
+    if (isLoadingWatchLater || isAddingToWatchLater) return;
+
+    setIsAddingToWatchLater(true);
+
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError) {
+        console.error('Error getting user:', userError);
+        setIsAddingToWatchLater(false);
+        return;
+      }
+
+      if (!user) {
+        alert('Please sign in to use Watch Later');
+        setIsAddingToWatchLater(false);
+        return;
+      }
+
+      if (isInWatchLater) {
+        // Remove from watch later
+        console.log('Removing from watch later:', video.title);
+        const { error } = await supabase
+          .from('watch_later')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('video_id', video.id);
+
+        if (error) {
+          console.error('Error removing from watch later:', error);
+          alert('Failed to remove from Watch Later: ' + error.message);
+        } else {
+          console.log('Successfully removed from watch later:', video.title);
+          queryClient.invalidateQueries({ queryKey: ['watchLaterStatus', video.id] });
+          queryClient.invalidateQueries({ queryKey: ['watchLaterVideos'] }); // Invalidate if you have a list of all watch later videos
+        }
+      } else {
+        // Add to watch later
+        console.log('Adding to watch later:', video.title);
+        const { error } = await supabase
+          .from('watch_later')
+          .insert({
+            user_id: user.id,
+            video_id: video.id
+          });
+
+        if (error) {
+          console.error('Error adding to watch later:', error);
+          if (error.code === '23505') {
+            alert('Already in Watch Later');
+          } else {
+            alert('Failed to add to Watch Later: ' + error.message);
+          }
+        } else {
+          console.log('Successfully added to watch later:', video.title);
+          queryClient.invalidateQueries({ queryKey: ['watchLaterStatus', video.id] });
+          queryClient.invalidateQueries({ queryKey: ['watchLaterVideos'] });
+        }
+      }
+    } catch (error) {
+      console.error('Error in OptimizedGrid handleWatchLater:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIsAddingToWatchLater(false);
+    }
   };
 
   const isImagePreview = (url: string) => {
@@ -319,7 +407,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200 z-10"
           loading="lazy"
           decoding="async"
-          style={{ 
+          style={{
             imageRendering: 'auto',
             opacity: 1
           }}
@@ -342,7 +430,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             {/* thumbnail + preview */}
             <div
               className="relative bg-muted rounded-lg overflow-hidden flex-shrink-0"
-              style={{ 
+              style={{
                 aspectRatio: '16/9',
                 touchAction: 'manipulation',
                 WebkitTouchCallout: 'none'
@@ -407,9 +495,23 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={handleWatchLater}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add to Watch Later
+                    <DropdownMenuItem onClick={handleWatchLater} disabled={isAddingToWatchLater || isLoadingWatchLater}>
+                      {isAddingToWatchLater ? (
+                        <>
+                          <div className="w-3 h-3 mr-2 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                          {isInWatchLater ? 'Removing...' : 'Adding...'}
+                        </>
+                      ) : isInWatchLater ? (
+                        <>
+                          <Trash2 className="w-3 h-3 mr-2" />
+                          Remove from Watch Later
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="w-3 h-3 mr-2" />
+                          Add to Watch Later
+                        </>
+                      )}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -423,7 +525,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                   <ThumbsUp className="w-4 h-4 mr-1" />
                   {video.likes || 0}
                 </span>
-                <span>{formatDate(video.created_at)}</span>
+                {video.created_at && <span>{formatDate(video.created_at)}</span>}
               </div>
             </div>
           </CardContent>
@@ -434,14 +536,14 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
 
   // grid mode
   return (
-    <Link 
-      to={`/video/${video.id}`} 
+    <Link
+      to={`/video/${video.id}`}
       className="block w-full group hover:bg-muted/5 transition-all duration-200"
     >
         <div
           className="relative bg-muted overflow-hidden rounded-xl w-full"
-          style={{ 
-            aspectRatio: '16/9', 
+          style={{
+            aspectRatio: '16/9',
             height: 'auto',
             touchAction: 'manipulation'
           }}
@@ -516,9 +618,23 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleWatchLater}>
-                  <Plus className="w-3 h-3 mr-2" />
-                  Add to Watch Later
+                <DropdownMenuItem onClick={handleWatchLater} disabled={isAddingToWatchLater || isLoadingWatchLater}>
+                  {isAddingToWatchLater ? (
+                    <>
+                      <div className="w-3 h-3 mr-2 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                      {isInWatchLater ? 'Removing...' : 'Adding...'}
+                    </>
+                  ) : isInWatchLater ? (
+                    <>
+                      <Trash2 className="w-3 h-3 mr-2" />
+                      Remove from Watch Later
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3 h-3 mr-2" />
+                      Add to Watch Later
+                    </>
+                  )}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -532,6 +648,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               <ThumbsUp className="w-3 h-3 mr-1" />
               {video.likes || 0}
             </span>
+            {video.created_at && <span>{formatDate(video.created_at)}</span>}
           </div>
         </div>
     </Link>
@@ -621,8 +738,10 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   videos,
   viewMode = 'grid',
   showAds = false,
-  showMoments = false,
-  showPremiumSection = false
+  showMoments = true,
+  showPremiumSection = true,
+  showTags = true,
+  showDate = true
 }) => {
   // Fetch premium videos when showPremiumSection is true
   const { data: premiumVideos = [] } = useQuery({
@@ -711,7 +830,12 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
               // Add the video card
               elements.push(
                 <div key={`${video.id}-${index}`}>
-                  <OptimizedVideoCard video={video} viewMode="grid" />
+                  <OptimizedVideoCard
+                    video={video}
+                    viewMode="grid"
+                    showTags={showTags}
+                    showDate={showDate}
+                  />
                   {/* Show MomentsCarousel between videos 23-24 (after index 23) */}
                   {showMoments && index === 23 && (
                     <div className="col-span-full my-6">
@@ -749,7 +873,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
                         <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
                           {premiumVideos.map((premiumVideo) => (
                             <div key={`premium-${premiumVideo.id}`} className="flex-shrink-0 w-64 relative">
-                              <OptimizedVideoCard 
+                              <OptimizedVideoCard
                                 video={{
                                   ...premiumVideo,
                                   video_url: premiumVideo.video_url || '',
@@ -758,8 +882,10 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
                                   uploader_username: premiumVideo.uploader_username || 'Creator',
                                   uploader_name: premiumVideo.uploader_name || premiumVideo.uploader_username || 'Creator',
                                   uploader_avatar: premiumVideo.uploader_avatar || premiumVideo.thumbnail_url,
-                                }} 
-                                viewMode="grid" 
+                                }}
+                                viewMode="grid"
+                                showTags={showTags}
+                                showDate={showDate}
                               />
                               {/* Crown icon overlay */}
                               <div className="absolute top-2 left-2 z-20">
