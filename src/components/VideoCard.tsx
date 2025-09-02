@@ -53,6 +53,8 @@ interface Video {
 interface VideoCardProps {
   video: Video;
   viewMode?: 'grid' | 'list';
+  showTags?: boolean;
+  showDate?: boolean;
 }
 
 // Hook to detect if the device is mobile
@@ -79,7 +81,7 @@ const setActivePreviewCard = (cardId: string | null) => {
   }
 };
 
-const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
+const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid', showTags = true, showDate = true }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [currentPreviewTime, setCurrentPreviewTime] = useState(0);
@@ -94,6 +96,11 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
   // --- State for video loading status ---
   const [isVideoLoading, setIsVideoLoading] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  // --- End State ---
+
+  // --- State for Watch Later ---
+  const [isInWatchLater, setIsInWatchLater] = useState(false);
+  const [isAddingToWatchLater, setIsAddingToWatchLater] = useState(false);
   // --- End State ---
 
   // Listen for global stop preview events
@@ -212,6 +219,37 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
     fetchCreatorProfile();
   }, [video.owner_id, video.uploader_id, video.profiles, video.uploader_username, video.uploader_avatar, video.uploader_name, video.uploader_type]);
+
+  // Fetch watch later status
+  useEffect(() => {
+    const checkWatchLaterStatus = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setIsInWatchLater(false);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('watch_later')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('video_id', video.id)
+          .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no data
+
+        if (error) {
+          console.error('Error checking watch later status:', error);
+          setIsInWatchLater(false);
+        } else {
+          setIsInWatchLater(!!data);
+        }
+      } catch (error) {
+        console.error('Error checking watch later status:', error);
+        setIsInWatchLater(false);
+      }
+    };
+    checkWatchLaterStatus();
+  }, [video.id]);
 
 
   // Generate preview URL with timestamp for Bunny CDN videos
@@ -366,9 +404,88 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
 
   const handleWatchLater = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    // Add to watch later functionality
-    console.log('Adding to watch later:', video.title);
-    // TODO: Implement watch later functionality with Supabase
+    
+    // Prevent multiple rapid clicks
+    if (isAddingToWatchLater) {
+      console.log('Already processing watch later request, ignoring...');
+      return;
+    }
+
+    setIsAddingToWatchLater(true);
+
+    try {
+      console.log('Getting user session...');
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError) {
+        console.error('Error getting user:', userError);
+        return;
+      }
+      
+      if (!user) {
+        console.log('User not authenticated');
+        alert('Please sign in to use Watch Later');
+        return;
+      }
+
+      console.log('User authenticated:', user.id);
+      console.log('Video ID:', video.id);
+      console.log('Current watch later status:', isInWatchLater);
+
+      if (isInWatchLater) {
+        // Remove from watch later
+        console.log('Removing from watch later:', video.title);
+        const { data, error } = await supabase
+          .from('watch_later')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('video_id', video.id);
+
+        console.log('Delete response:', { data, error });
+
+        if (error) {
+          console.error('Error removing from watch later:', error);
+          alert('Failed to remove from Watch Later');
+        } else {
+          console.log('Successfully removed from watch later:', video.title);
+          setIsInWatchLater(false);
+          alert('Removed from Watch Later');
+        }
+      } else {
+        // Add to watch later
+        console.log('Adding to watch later:', video.title);
+        const { data, error } = await supabase
+          .from('watch_later')
+          .insert({
+            user_id: user.id,
+            video_id: video.id
+          });
+
+        console.log('Insert response:', { data, error });
+
+        if (error) {
+          console.error('Error adding to watch later:', error);
+          // Handle unique constraint violation (already exists)
+          if (error.code === '23505') {
+            console.log('Video already in watch later, updating state');
+            setIsInWatchLater(true);
+            alert('Already in Watch Later');
+          } else {
+            console.error('Database error details:', error);
+            alert('Failed to add to Watch Later: ' + error.message);
+          }
+        } else {
+          console.log('Successfully added to watch later:', video.title);
+          setIsInWatchLater(true);
+          alert('Added to Watch Later!');
+        }
+      }
+    } catch (error) {
+      console.error('Error in handleWatchLater:', error);
+      alert('An error occurred. Please try again.');
+    } finally {
+      setIsAddingToWatchLater(false);
+    }
   };
 
 
@@ -549,7 +666,7 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                   <ThumbsUp className="w-4 h-4 mr-1" />
                   {getActualLikes()}
                 </span>
-                <span>{formatDate(video.created_at)}</span>
+                {showDate && <span>{formatDate(video.created_at)}</span>}
               </div>
 
               {/* Creator info section - YouTube style */}
@@ -591,41 +708,57 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                       </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handleWatchLater}>
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add to Watch Later
+                      <DropdownMenuItem onClick={handleWatchLater} disabled={isAddingToWatchLater}>
+                        {isAddingToWatchLater ? (
+                          <>
+                            <div className="w-4 h-4 mr-2 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                            {isInWatchLater ? 'Removing...' : 'Adding...'}
+                          </>
+                        ) : isInWatchLater ? (
+                          <>
+                            <Clock className="w-4 h-4 mr-2" />
+                            Remove from Watch Later
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add to Watch Later
+                          </>
+                        )}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
               )}
-              <div className="flex flex-wrap gap-1">
-                {/* Special badges for 4K and VR */}
-                {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
-                  <Badge variant="default" className="text-xs bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold">
-                    🥽 VR
-                  </Badge>
-                )}
-                {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
-                  <Badge variant="default" className="text-xs bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold">
-                    4K
-                  </Badge>
-                )}
-                {/* Regular tags (excluding 4K and VR which are shown as special badges) */}
-                {video.tags
-                  .filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase()))
-                  .slice(0, 3)
-                  .map((tag) => (
-                    <Badge key={tag} variant="secondary" className="text-xs">
-                      {tag}
+              {showTags && (
+                <div className="flex flex-wrap gap-1">
+                  {/* Special badges for 4K and VR */}
+                  {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
+                    <Badge variant="default" className="text-xs bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold">
+                      🥽 VR
                     </Badge>
-                  ))}
-                {video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length > 3 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length - 3}
-                  </Badge>
-                )}
-              </div>
+                  )}
+                  {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
+                    <Badge variant="default" className="text-xs bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold">
+                      4K
+                    </Badge>
+                  )}
+                  {/* Regular tags (excluding 4K and VR which are shown as special badges) */}
+                  {video.tags
+                    .filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase()))
+                    .slice(0, 3)
+                    .map((tag) => (
+                      <Badge key={tag} variant="secondary" className="text-xs">
+                        {tag}
+                      </Badge>
+                    ))}
+                  {video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length > 3 && (
+                    <Badge variant="outline" className="text-xs">
+                      +{video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length - 3}
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -809,9 +942,23 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={handleWatchLater}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add to Watch Later
+                  <DropdownMenuItem onClick={handleWatchLater} disabled={isAddingToWatchLater}>
+                    {isAddingToWatchLater ? (
+                      <>
+                        <div className="w-4 h-4 mr-2 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                        {isInWatchLater ? 'Removing...' : 'Adding...'}
+                      </>
+                    ) : isInWatchLater ? (
+                      <>
+                        <Clock className="w-4 h-4 mr-2" />
+                        Remove from Watch Later
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add to Watch Later
+                      </>
+                    )}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -829,39 +976,43 @@ const VideoCard: React.FC<VideoCardProps> = ({ video, viewMode = 'grid' }) => {
                 {getActualLikes()}
               </span>
             </div>
-            <span className="flex items-center">
-              <Clock className="w-4 h-4 mr-1" />
-              {formatDate(video.created_at)}
-            </span>
+            {showDate && (
+              <span className="flex items-center">
+                <Clock className="w-4 h-4 mr-1" />
+                {formatDate(video.created_at)}
+              </span>
+            )}
           </div>
 
-          <div className="flex flex-wrap gap-1">
-            {/* Special badges for VR and 4K */}
-            {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
-              <Badge variant="default" className="text-xs bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold">
-                🥽 VR
-              </Badge>
-            )}
-            {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
-              <Badge variant="default" className="text-xs bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold">
-                4K
-              </Badge>
-            )}
-            {/* Regular tags (excluding 4K and VR which are shown as special badges) */}
-            {video.tags
-              .filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase()))
-              .slice(0, 2)
-              .map((tag) => (
-                <Badge key={tag} variant="secondary" className="text-xs">
-                  {tag}
+          {showTags && (
+            <div className="flex flex-wrap gap-1">
+              {/* Special badges for VR and 4K */}
+              {video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && (
+                <Badge variant="default" className="text-xs bg-gradient-to-r from-green-500 to-teal-500 text-white font-bold">
+                  🥽 VR
                 </Badge>
-              ))}
-            {video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length > 2 && (
-              <Badge variant="outline" className="text-xs">
-                +{video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length - 2}
-              </Badge>
-            )}
-          </div>
+              )}
+              {!video.tags.some(tag => ['vr', 'virtual reality'].includes(tag.toLowerCase())) && video.tags.some(tag => tag.toLowerCase() === '4k') && (
+                <Badge variant="default" className="text-xs bg-gradient-to-r from-purple-500 to-blue-500 text-white font-bold">
+                  4K
+                </Badge>
+              )}
+              {/* Regular tags (excluding 4K and VR which are shown as special badges) */}
+              {video.tags
+                .filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase()))
+                .slice(0, 2)
+                .map((tag) => (
+                  <Badge key={tag} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+              {video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length > 2 && (
+                <Badge variant="outline" className="text-xs">
+                  +{video.tags.filter(tag => !['4k', 'vr', 'virtual reality'].includes(tag.toLowerCase())).length - 2}
+                </Badge>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </Link>
