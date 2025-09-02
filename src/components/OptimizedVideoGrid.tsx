@@ -525,7 +525,6 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                   <ThumbsUp className="w-4 h-4 mr-1" />
                   {video.likes || 0}
                 </span>
-                {video.created_at && <span>{formatDate(video.created_at)}</span>}
               </div>
             </div>
           </CardContent>
@@ -648,7 +647,6 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
               <ThumbsUp className="w-3 h-3 mr-1" />
               {video.likes || 0}
             </span>
-            {video.created_at && <span>{formatDate(video.created_at)}</span>}
           </div>
         </div>
     </Link>
@@ -741,7 +739,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   showMoments = true,
   showPremiumSection = true,
   showTags = true,
-  showDate = true
+  showDate = false
 }) => {
   // Fetch premium videos when showPremiumSection is true
   const { data: premiumVideos = [] } = useQuery({
