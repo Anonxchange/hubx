@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { TrendingUp, MapPin, Globe, Eye, Heart } from 'lucide-react';
+import { TrendingUp, MapPin, Globe, Eye, Heart, X } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
@@ -9,7 +9,7 @@ import ImageStylePagination from '@/components/ImageStylePagination';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getUserCountry, getHottestByCountry } from '@/services/videosService';
+import { getUserCountry, getHottestByCountry, getVideos } from '@/services/videosService';
 import type { Video } from '@/services/videosService';
 
 const HottestPage = () => {
@@ -21,6 +21,7 @@ const HottestPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   const videosPerPage = 60;
 
@@ -73,15 +74,22 @@ const HottestPage = () => {
     if (selectedLocation) {
       fetchHottestVideos();
     }
-  }, [currentPage, selectedLocation]);
+  }, [currentPage, selectedLocation, selectedCategory]);
 
   const fetchHottestVideos = async () => {
     try {
       setLoading(true);
 
-      // Adjust targetLocation to be more inclusive for filtering
-      const targetLocation = selectedLocation === 'Global' ? 'global' : selectedLocation;
-      const result = await getHottestByCountry(targetLocation, currentPage, videosPerPage, userId);
+      let result;
+      
+      if (selectedCategory) {
+        // Get videos filtered by category
+        result = await getVideos(currentPage, videosPerPage, selectedCategory);
+      } else {
+        // Get hottest videos by country (original algorithm)
+        const targetLocation = selectedLocation === 'Global' ? 'global' : selectedLocation;
+        result = await getHottestByCountry(targetLocation, currentPage, videosPerPage, userId);
+      }
 
       setVideos(result.videos);
       setTotalCount(result.totalCount);
@@ -112,6 +120,18 @@ const HottestPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleCategorySelect = (category: string) => {
+    setSelectedCategory(category);
+    setCurrentPage(1); // Reset to first page when filtering
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClearCategory = () => {
+    setSelectedCategory('');
+    setCurrentPage(1); // Reset to first page when clearing filter
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const displayCountry = selectedLocation || actualCountry || 'Global';
 
   return (
@@ -126,54 +146,67 @@ const HottestPage = () => {
             <MapPin className="h-6 w-6 text-blue-500" />
           </div>
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-red-500 to-orange-500 bg-clip-text text-transparent">
-            Hottest in {displayCountry}
+            {selectedCategory ? `Hottest ${selectedCategory} Videos` : `Hottest in ${displayCountry}`}
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Most popular videos in your region, ranked by views, likes, and engagement
-          </p>
-
-          {/* Location Filter */}
-          <div className="flex justify-center items-center space-x-4 mt-6">
-            <div className="flex items-center space-x-2">
-              <Globe className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium">Location:</span>
-            </div>
-            <Select value={selectedLocation} onValueChange={handleLocationChange}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select location" />
-              </SelectTrigger>
-              <SelectContent>
-                {locationOptions.map((location) => (
-                  <SelectItem key={location} value={location}>
-                    {location}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex justify-center space-x-2 mt-4">
-            <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              Most Popular
-            </Badge>
-            <Badge variant="outline">
-              <Eye className="h-3 w-3 mr-1" />
-              {totalCount} Videos
-            </Badge>
-            {userId && (
-              <Badge variant="outline">
-                <Heart className="h-3 w-3 mr-1" />
-                Personalized
+          {selectedCategory && (
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <Badge 
+                variant="secondary" 
+                className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+              >
+                {selectedCategory}
               </Badge>
-            )}
-          </div>
+              <button
+                onClick={handleClearCategory}
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3 w-3" />
+                Clear filter
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Top Ad Banner */}
         <div className="w-full flex justify-center">
           <div className="w-full max-w-4xl">
             <AdComponent zoneId="5660534" />
+          </div>
+        </div>
+
+        {/* Category Tags */}
+        <div className="px-4">
+          <div className="flex items-center space-x-3 overflow-x-auto scrollbar-hide pb-2">
+            <Badge 
+              variant={!selectedCategory ? "secondary" : "outline"}
+              className={`flex-shrink-0 hover:bg-red-200 cursor-pointer whitespace-nowrap px-3 py-1 transition-colors ${
+                !selectedCategory 
+                  ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300' 
+                  : 'hover:bg-muted'
+              }`}
+              onClick={handleClearCategory}
+            >
+              <TrendingUp className="h-3 w-3 mr-1" />
+              All Hot
+            </Badge>
+            {[
+              'Amateur', 'Big Tits', 'MILF', 'Teen', 'Anal', 'Lesbian',
+              'Ebony', 'Blowjob', 'Hardcore', 'POV', 'Big Ass', 'Latina',
+              'Asian', 'Mature', 'Creampie', 'Cumshot'
+            ].map((category) => (
+              <Badge
+                key={category}
+                variant={selectedCategory === category ? "secondary" : "outline"}
+                className={`flex-shrink-0 whitespace-nowrap px-3 py-1 cursor-pointer transition-colors ${
+                  selectedCategory === category
+                    ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                    : 'hover:bg-muted'
+                }`}
+                onClick={() => handleCategorySelect(category)}
+              >
+                {category}
+              </Badge>
+            ))}
           </div>
         </div>
 
@@ -192,7 +225,7 @@ const HottestPage = () => {
           </div>
         ) : videos.length > 0 ? (
           <>
-            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} />
+            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} showMoments={false} showPremiumSection={false} />
 
             {/* Pagination */}
             {totalPages > 1 && (
