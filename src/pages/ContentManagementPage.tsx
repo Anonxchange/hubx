@@ -176,20 +176,22 @@ const ContentManagementPage = () => {
       <Header />
       
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="mr-4 text-white hover:bg-gray-800"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <h1 className="text-3xl font-bold">Content Management</h1>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              onClick={() => navigate(-1)}
+              className="mr-2 sm:mr-4 text-white hover:bg-gray-800 px-2 sm:px-4"
+            >
+              <ArrowLeft className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Back</span>
+            </Button>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold">Content Management</h1>
+          </div>
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8">
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-4">
               <div className="text-center">
@@ -237,53 +239,56 @@ const ContentManagementPage = () => {
         </div>
 
         {/* Actions Bar */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-6">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               placeholder="Search content..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-800 border-gray-700"
+              className="pl-10 bg-gray-800 border-gray-700 text-sm"
             />
           </div>
           
-          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-            <SelectTrigger className="w-full md:w-48 bg-gray-800 border-gray-700">
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="video">Videos</SelectItem>
-              <SelectItem value="image">Images</SelectItem>
-              <SelectItem value="audio">Audio</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex gap-2 sm:gap-4">
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger className="w-full sm:w-32 md:w-40 bg-gray-800 border-gray-700 text-xs sm:text-sm">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="video">Videos</SelectItem>
+                <SelectItem value="image">Images</SelectItem>
+                <SelectItem value="audio">Audio</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-            <SelectTrigger className="w-full md:w-48 bg-gray-800 border-gray-700">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Status</SelectItem>
-              <SelectItem value="published">Published</SelectItem>
-              <SelectItem value="draft">Draft</SelectItem>
-              <SelectItem value="processing">Processing</SelectItem>
-            </SelectContent>
-          </Select>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className="w-full sm:w-32 md:w-40 bg-gray-800 border-gray-700 text-xs sm:text-sm">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="published">Published</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+              </SelectContent>
+            </Select>
 
-          <Button onClick={() => navigate('/upload')} className="w-full md:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            Upload New
-          </Button>
+            <Button onClick={() => navigate('/upload')} className="whitespace-nowrap px-3 sm:px-4 text-xs sm:text-sm">
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Upload New</span>
+              <span className="sm:hidden">Upload</span>
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="all" className="space-y-6">
-          <TabsList className="bg-gray-900 border-gray-800">
-            <TabsTrigger value="all">All Content</TabsTrigger>
-            <TabsTrigger value="videos">Videos</TabsTrigger>
-            <TabsTrigger value="images">Images</TabsTrigger>
-            <TabsTrigger value="audio">Audio</TabsTrigger>
+          <TabsList className="bg-gray-900 border-gray-800 w-full overflow-x-auto flex-nowrap justify-start">
+            <TabsTrigger value="all" className="text-xs sm:text-sm whitespace-nowrap">All Content</TabsTrigger>
+            <TabsTrigger value="videos" className="text-xs sm:text-sm whitespace-nowrap">Videos</TabsTrigger>
+            <TabsTrigger value="images" className="text-xs sm:text-sm whitespace-nowrap">Images</TabsTrigger>
+            <TabsTrigger value="audio" className="text-xs sm:text-sm whitespace-nowrap">Audio</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all">
@@ -291,28 +296,28 @@ const ContentManagementPage = () => {
               {filteredContent.length > 0 ? (
                 filteredContent.map((item) => (
                   <Card key={item.id} className="bg-gray-900 border-gray-800 hover:border-gray-600 transition-colors">
-                    <CardContent className="p-4">
-                      <div className="flex items-center space-x-4">
-                        <div className="relative">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="flex items-center space-x-2 sm:space-x-4">
+                        <div className="relative flex-shrink-0">
                           <img
                             src={item.thumbnail}
                             alt={item.title}
-                            className="w-20 h-12 object-cover rounded bg-gray-800"
+                            className="w-16 h-10 sm:w-20 sm:h-12 object-cover rounded bg-gray-800"
                           />
                           <div className="absolute inset-0 flex items-center justify-center">
                             {getContentIcon(item.type)}
                           </div>
                         </div>
                         
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-white mb-1">{item.title}</h3>
-                          <div className="flex items-center space-x-4 text-sm text-gray-400">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-white mb-1 text-sm sm:text-base truncate">{item.title}</h3>
+                          <div className="flex items-center space-x-2 sm:space-x-4 text-xs sm:text-sm text-gray-400">
                             <span className="flex items-center">
                               <Eye className="w-3 h-3 mr-1" />
-                              {item.views.toLocaleString()} views
+                              {item.views.toLocaleString()}
                             </span>
-                            <span>{item.uploadDate}</span>
-                            {item.duration && <span>{item.duration}</span>}
+                            <span className="hidden sm:inline">{item.uploadDate}</span>
+                            {item.duration && <span className="hidden md:inline">{item.duration}</span>}
                           </div>
                         </div>
 
@@ -320,27 +325,27 @@ const ContentManagementPage = () => {
                           {getStatusBadge(item.status)}
                         </div>
 
-                        <div className="flex items-center space-x-2">
-                          <Button variant="ghost" size="sm" onClick={() => navigate(`/video/${item.id}`)}>
-                            <Eye className="w-4 h-4" />
+                        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+                          <Button variant="ghost" size="sm" onClick={() => navigate(`/video/${item.id}`)} className="px-2 sm:px-3">
+                            <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
-                            <Edit className="w-4 h-4" />
+                          <Button variant="ghost" size="sm" className="px-2 sm:px-3">
+                            <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
-                            <Download className="w-4 h-4" />
+                          <Button variant="ghost" size="sm" className="px-2 sm:px-3 hidden sm:flex">
+                            <Download className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="text-red-400 hover:text-red-300"
+                            className="text-red-400 hover:text-red-300 px-2 sm:px-3"
                             onClick={() => {
                               if (window.confirm('Are you sure you want to delete this content?')) {
                                 handleDeleteContent(item.id);
                               }
                             }}
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                           </Button>
                         </div>
                       </div>
