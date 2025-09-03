@@ -80,23 +80,11 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
     if (!ownerId) return;
 
     try {
-      const { data, error } = await supabase
-        .from('playlists')
-        .select(`
-          id, name, description, is_public, created_at,
-          playlist_items(count)
-        `)
-        .eq('user_id', ownerId)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        const playlistsWithCount = data.map(playlist => ({
-          ...playlist,
-          video_count: playlist.playlist_items?.[0]?.count || 0
-        }));
-        setUploaderPlaylists(playlistsWithCount);
-      }
+      // Use the proper service function
+      const { getCreatorPublicPlaylists } = await import('@/services/playlistService');
+      const playlists = await getCreatorPublicPlaylists(ownerId);
+      setUploaderPlaylists(playlists);
+      console.log('Fetched creator playlists:', playlists.length, 'playlists for creator:', ownerId);
     } catch (error) {
       console.error('Error fetching uploader playlists:', error);
     }
@@ -232,32 +220,39 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
             </h3>
           </div>
           {uploaderPlaylists.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {uploaderPlaylists.map((playlist) => (
                 <Link
                   key={playlist.id}
                   to={`/playlist/${playlist.id}`}
-                  className="group"
+                  className="block group"
                 >
-                  <div className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer transform transition-transform duration-200 hover:scale-105 hover:shadow-lg">
-                    <div className="p-4">
-                      <div className="flex items-center mb-2">
-                        <svg className="w-5 h-5 text-gray-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                        </svg>
-                        <h4 className="font-semibold text-gray-800 line-clamp-1">
-                          {playlist.name}
-                        </h4>
+                  <div className="relative aspect-video bg-gray-200 rounded-lg overflow-hidden">
+                    <img
+                      src={playlist.thumbnail_url || '/placeholder-thumbnail.jpg'}
+                      alt={playlist.name}
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute top-2 right-2">
+                      <div className="bg-black bg-opacity-75 rounded px-2 py-1 text-white text-xs font-medium">
+                        {playlist.video_count} videos
                       </div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-3">
+                    <h4 className="font-semibold text-sm line-clamp-2 group-hover:text-orange-600 transition-colors">
+                      {playlist.name}
+                    </h4>
+                    <div className="flex items-center text-gray-500 text-xs mt-1 space-x-2">
+                      <span>{new Date(playlist.created_at).toLocaleDateString()}</span>
                       {playlist.description && (
-                        <p className="text-gray-600 text-sm line-clamp-2 mb-2">
-                          {playlist.description}
-                        </p>
+                        <>
+                          <span>•</span>
+                          <span className="line-clamp-1">{playlist.description}</span>
+                        </>
                       )}
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <span>{playlist.video_count} videos</span>
-                        <span>{new Date(playlist.created_at).toLocaleDateString()}</span>
-                      </div>
                     </div>
                   </div>
                 </Link>
