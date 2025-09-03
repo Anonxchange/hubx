@@ -94,7 +94,7 @@ const CoreSettingsPage = () => {
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('display_name, bio, avatar_url, cover_photo_url, settings')
+        .select('full_name, bio, avatar_url, cover_photo_url')
         .eq('id', user.id)
         .single();
 
@@ -106,11 +106,12 @@ const CoreSettingsPage = () => {
       if (profile) {
         setSettings(prev => ({
           ...prev,
-          displayName: profile.display_name || '',
+          displayName: profile.full_name || '',
           bio: profile.bio || '',
           profilePicture: profile.avatar_url || '',
           coverPhoto: profile.cover_photo_url || '',
-          ...(profile.settings || {})
+          // Keep default values for notifications, privacy, and content settings
+          // since they're not stored in the database yet
         }));
       }
     } catch (error) {
@@ -123,26 +124,36 @@ const CoreSettingsPage = () => {
 
     setLoading(true);
     try {
+      // Update basic profile information (full_name, bio, avatar_url, cover_photo_url)
+      const updateData: any = {
+        full_name: settings.displayName,
+        bio: settings.bio,
+      };
+
+      // Only update avatar_url and cover_photo_url if they have values
+      if (settings.profilePicture) {
+        updateData.avatar_url = settings.profilePicture;
+      }
+      if (settings.coverPhoto) {
+        updateData.cover_photo_url = settings.coverPhoto;
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          display_name: settings.displayName,
-          bio: settings.bio,
-          settings: {
-            notifications: settings.notifications,
-            privacy: settings.privacy,
-            content: settings.content
-          }
-        })
+        .update(updateData)
         .eq('id', user.id);
 
       if (error) {
         throw error;
       }
 
+      // Note: Notification, privacy, and content settings are stored in the component state
+      // but not persisted to the database until we add the proper columns
+      // For now, they will reset when the page is refreshed
+
       toast({
         title: "Settings saved",
-        description: "Your settings have been updated successfully.",
+        description: "Your profile settings have been updated successfully. Note: Notification, privacy, and content preferences will be saved in a future update.",
       });
     } catch (error) {
       console.error('Error saving settings:', error);
@@ -293,7 +304,7 @@ const CoreSettingsPage = () => {
     <div className="min-h-screen bg-black text-white">
       <Header />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="flex items-center mb-6">
           <Button
             variant="ghost"
@@ -307,12 +318,23 @@ const CoreSettingsPage = () => {
         </div>
 
         <Tabs defaultValue="profile" className="space-y-6">
-          <TabsList className="bg-gray-900 border-gray-800">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
-            <TabsTrigger value="privacy">Privacy</TabsTrigger>
-            <TabsTrigger value="content">Content</TabsTrigger>
-            <TabsTrigger value="billing">Billing & Payouts</TabsTrigger>
+          <TabsList className="bg-gray-900 border-gray-800 w-full overflow-x-auto flex-nowrap justify-start">
+            <TabsTrigger value="profile" className="text-xs sm:text-sm whitespace-nowrap">
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="text-xs sm:text-sm whitespace-nowrap">
+              Notifications
+            </TabsTrigger>
+            <TabsTrigger value="privacy" className="text-xs sm:text-sm whitespace-nowrap">
+              Privacy
+            </TabsTrigger>
+            <TabsTrigger value="content" className="text-xs sm:text-sm whitespace-nowrap">
+              Content
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="text-xs sm:text-sm whitespace-nowrap">
+              <span className="hidden sm:inline">Billing & Payouts</span>
+              <span className="sm:hidden">Billing</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="profile">
@@ -610,7 +632,7 @@ const CoreSettingsPage = () => {
                 {payoutMethods.length > 0 ? (
                   <div className="space-y-4">
                     {payoutMethods.map((method) => (
-                      <div key={method.id} className="flex items-center justify-between p-4 bg-gray-800 rounded-lg">
+                      <div key={method.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-800 rounded-lg space-y-3 sm:space-y-0">
                         <div className="flex items-center space-x-4">
                           <CreditCard className="w-5 h-5 text-blue-400" />
                           <div>
@@ -623,7 +645,7 @@ const CoreSettingsPage = () => {
                             <Badge className="bg-green-500">Default</Badge>
                           )}
                         </div>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 w-full sm:w-auto">
                           {!method.is_default && (
                             <Button
                               variant="outline"
