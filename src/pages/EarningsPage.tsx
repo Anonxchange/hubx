@@ -278,7 +278,8 @@ const EarningsPage = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold text-purple-400">${stats.premiumRevenue.toFixed(2)}</div>
-                    <p className="text-gray-400 text-sm">From premium content</p>
+                    <p className="text-gray-400 text-sm">From premium subscriptions</p>
+                    <p className="text-xs text-gray-500 mt-1">Rate: $0.35 per subscriber</p>
                   </CardContent>
                 </Card>
               </div>
