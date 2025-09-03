@@ -189,19 +189,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   const isHLS = src.includes('.m3u8');
 
   return (
-    <div className="w-full">
+    <div className="w-full h-full">
       {/* Responsive container */}
       <div
-        className="relative w-full bg-black overflow-hidden group"
-        style={{ 
-          aspectRatio: "16/9",
-          maxWidth: "1280px",
-          maxHeight: "720px"
-        }}
+        className="relative w-full h-full bg-black overflow-hidden group"
       >
         <video
           ref={videoRef}
-          className="w-full h-full"
+          className="w-full h-full object-contain"
           poster={poster}
           preload="none"
           playsInline
@@ -213,11 +208,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             if (videoRef.current) videoRef.current.controls = true;
           }}
           style={{
-            objectFit: "contain",
             backgroundColor: "#000",
             display: "block",
-            maxWidth: "100%",
-            maxHeight: "100%",
+            objectFit: "contain",
+            objectPosition: "center",
           }}
         >
           {isHLS ? (
