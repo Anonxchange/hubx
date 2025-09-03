@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Flame, Eye, Heart, Globe, MapPin } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { TrendingUp, Flame, Eye, Heart, Globe, MapPin, X } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
@@ -11,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { getTrendingVideos, getUserCountry } from '@/services/videosService';
+import { getTrendingVideos, getUserCountry, getVideos } from '@/services/videosService';
 import type { Video } from '@/services/videosService';
 
 const TrendingPage = () => {
@@ -22,6 +21,7 @@ const TrendingPage = () => {
   const [userCountry, setUserCountry] = useState<string>('Global');
   const [selectedLocation, setSelectedLocation] = useState<string>('Global');
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   
   const videosPerPage = 60;
 
@@ -57,17 +57,25 @@ const TrendingPage = () => {
 
   useEffect(() => {
     fetchTrendingVideos();
-  }, [currentPage, selectedLocation]);
+  }, [currentPage, selectedLocation, selectedCategory]);
 
   const fetchTrendingVideos = async () => {
     try {
       setLoading(true);
       
-      const result = await getTrendingVideos(
-        currentPage, 
-        videosPerPage, 
-        selectedLocation === 'Global' ? undefined : selectedLocation
-      );
+      let result;
+      
+      if (selectedCategory) {
+        // Get videos filtered by category
+        result = await getVideos(currentPage, videosPerPage, selectedCategory);
+      } else {
+        // Get trending videos (original algorithm)
+        result = await getTrendingVideos(
+          currentPage, 
+          videosPerPage, 
+          selectedLocation === 'Global' ? undefined : selectedLocation
+        );
+      }
       
       setVideos(result.videos);
       setTotalVideos(result.totalCount);
@@ -89,6 +97,18 @@ const TrendingPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleCategorySelect = (category: string) => {
+    setSelectedCategory(category);
+    setCurrentPage(1); // Reset to first page when filtering
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClearCategory = () => {
+    setSelectedCategory('');
+    setCurrentPage(1); // Reset to first page when clearing filter
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -101,8 +121,25 @@ const TrendingPage = () => {
             <Flame className="h-6 w-6 text-red-500" />
           </div>
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
-            Trending Now
+            {selectedCategory ? `Trending ${selectedCategory} Videos` : 'Trending Now'}
           </h1>
+          {selectedCategory && (
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <Badge 
+                variant="secondary" 
+                className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300"
+              >
+                {selectedCategory}
+              </Badge>
+              <button
+                onClick={handleClearCategory}
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3 w-3" />
+                Clear filter
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Top Ad Banner */}
@@ -115,7 +152,15 @@ const TrendingPage = () => {
         {/* Trending Categories */}
         <div className="px-4">
           <div className="flex items-center space-x-3 overflow-x-auto scrollbar-hide pb-2">
-            <Badge variant="secondary" className="flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 hover:bg-orange-200 cursor-pointer whitespace-nowrap px-3 py-1">
+            <Badge 
+              variant={!selectedCategory ? "secondary" : "outline"}
+              className={`flex-shrink-0 hover:bg-orange-200 cursor-pointer whitespace-nowrap px-3 py-1 transition-colors ${
+                !selectedCategory 
+                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300' 
+                  : 'hover:bg-muted'
+              }`}
+              onClick={handleClearCategory}
+            >
               <TrendingUp className="h-3 w-3 mr-1" />
               All Trending
             </Badge>
@@ -124,18 +169,18 @@ const TrendingPage = () => {
               'Ebony', 'Blowjob', 'Hardcore', 'POV', 'Big Ass', 'Latina',
               'Asian', 'Mature', 'Creampie', 'Cumshot'
             ].map((category) => (
-              <Link
+              <Badge
                 key={category}
-                to={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
-                className="flex-shrink-0"
+                variant={selectedCategory === category ? "secondary" : "outline"}
+                className={`flex-shrink-0 whitespace-nowrap px-3 py-1 cursor-pointer transition-colors ${
+                  selectedCategory === category
+                    ? 'bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300'
+                    : 'hover:bg-muted'
+                }`}
+                onClick={() => handleCategorySelect(category)}
               >
-                <Badge
-                  variant="outline"
-                  className="whitespace-nowrap px-3 py-1 hover:bg-muted cursor-pointer transition-colors"
-                >
-                  {category}
-                </Badge>
-              </Link>
+                {category}
+              </Badge>
             ))}
           </div>
         </div>
@@ -157,7 +202,7 @@ const TrendingPage = () => {
           <>
             
             
-            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} />
+            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} showMoments={false} showPremiumSection={false} />
             
             {/* Pagination */}
             {totalPages > 1 && (
