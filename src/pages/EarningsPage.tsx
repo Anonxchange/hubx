@@ -176,7 +176,7 @@ const EarningsPage = () => {
         </div>
 
         {/* Earnings Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-8">
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -239,11 +239,14 @@ const EarningsPage = () => {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-gray-900 border-gray-800">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="view-earnings">View Earnings</TabsTrigger>
-            <TabsTrigger value="transactions">Transactions</TabsTrigger>
-            <TabsTrigger value="payouts">Payouts</TabsTrigger>
+          <TabsList className="bg-gray-900 border-gray-800 w-full overflow-x-auto flex-nowrap justify-start">
+            <TabsTrigger value="overview" className="text-xs sm:text-sm whitespace-nowrap">Overview</TabsTrigger>
+            <TabsTrigger value="view-earnings" className="text-xs sm:text-sm whitespace-nowrap">
+              <span className="hidden sm:inline">View Earnings</span>
+              <span className="sm:hidden">Views</span>
+            </TabsTrigger>
+            <TabsTrigger value="transactions" className="text-xs sm:text-sm whitespace-nowrap">Transactions</TabsTrigger>
+            <TabsTrigger value="payouts" className="text-xs sm:text-sm whitespace-nowrap">Payouts</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview">
