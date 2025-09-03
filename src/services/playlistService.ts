@@ -208,3 +208,60 @@ export const deletePlaylist = async (playlistId: string): Promise<void> => {
     throw error;
   }
 };
+
+// Get public playlists for a specific user (for showing creator's playlists)
+export const getCreatorPublicPlaylists = async (creatorId: string): Promise<PlaylistWithVideoCount[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('playlists')
+      .select(`
+        *,
+        playlist_items(count)
+      `)
+      .eq('user_id', creatorId)
+      .eq('is_public', true)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching creator playlists:', error);
+      return [];
+    }
+
+    // For each playlist, get the thumbnail from the first video
+    const playlistsWithThumbnails = await Promise.all((data || []).map(async (playlist) => {
+      try {
+        // Get the first video's thumbnail
+        const { data: firstVideoData } = await supabase
+          .from('playlist_items')
+          .select(`
+            videos:video_id (
+              thumbnail_url
+            )
+          `)
+          .eq('playlist_id', playlist.id)
+          .order('position', { ascending: true })
+          .limit(1);
+
+        const thumbnail_url = firstVideoData?.[0]?.videos?.thumbnail_url || null;
+
+        return {
+          ...playlist,
+          video_count: playlist.playlist_items?.[0]?.count || 0,
+          thumbnail_url
+        };
+      } catch (error) {
+        console.error('Error fetching playlist thumbnail:', error);
+        return {
+          ...playlist,
+          video_count: playlist.playlist_items?.[0]?.count || 0,
+          thumbnail_url: null
+        };
+      }
+    }));
+
+    return playlistsWithThumbnails;
+  } catch (error) {
+    console.error('Creator playlists feature not available:', error);
+    return [];
+  }
+};
