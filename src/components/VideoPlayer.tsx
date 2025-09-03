@@ -196,7 +196,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
       >
         <video
           ref={videoRef}
-          className="w-full h-full object-contain"
+          className="w-full h-full object-cover"
           poster={poster}
           preload="none"
           playsInline
@@ -210,7 +210,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
           style={{
             backgroundColor: "#000",
             display: "block",
-            objectFit: "contain",
+            objectFit: "cover",
             objectPosition: "center",
           }}
         >
