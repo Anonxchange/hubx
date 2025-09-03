@@ -61,6 +61,7 @@ import ContentManagementPage from './pages/ContentManagementPage';
 import ContestsPage from './pages/ContestsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import FeaturedVideosPage from './pages/FeaturedVideosPage';
+import PlaylistViewPage from '@/pages/PlaylistViewPage';
 
 const queryClient = new QueryClient();
 
@@ -78,6 +79,7 @@ const App = () => {
                   {/* All your existing routes */}
                   <Route path="/" element={<Index />} />
                   <Route path="/video/:id" element={<VideoPage />} />
+                  <Route path="/playlist/:id" element={<PlaylistViewPage />} />
                   <Route path="/category/:category" element={<CategoryPage />} />
                   <Route path="/categories" element={<AllCategoriesPage />} />
                   <Route path="/moments" element={<MomentsPage />} />
