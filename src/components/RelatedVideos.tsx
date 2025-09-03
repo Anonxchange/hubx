@@ -47,7 +47,8 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
 
   // Fetch uploader's other videos for recommend tab
   const fetchUploaderVideos = async () => {
-    if (!currentVideo?.owner_id) return;
+    const ownerId = currentVideo?.owner_id || (currentVideo as any)?.profiles?.id;
+    if (!ownerId) return;
 
     try {
       const { data, error } = await supabase
@@ -56,7 +57,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
           id, title, thumbnail_url, video_url, views, likes, tags, duration, created_at, is_premium, is_moment,
           profiles:owner_id (id, username, avatar_url, full_name, user_type)
         `)
-        .eq('owner_id', currentVideo.owner_id)
+        .eq('owner_id', ownerId)
         .neq('id', currentVideo.id)
         .eq('is_premium', false)
         .eq('is_moment', false)
@@ -75,7 +76,8 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
 
   // Fetch uploader's playlists for playlist tab
   const fetchUploaderPlaylists = async () => {
-    if (!currentVideo?.owner_id) return;
+    const ownerId = currentVideo?.owner_id || (currentVideo as any)?.profiles?.id;
+    if (!ownerId) return;
 
     try {
       const { data, error } = await supabase
@@ -84,7 +86,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
           id, name, description, is_public, created_at,
           playlist_items(count)
         `)
-        .eq('user_id', currentVideo.owner_id)
+        .eq('user_id', ownerId)
         .eq('is_public', true)
         .order('created_at', { ascending: false });
 
@@ -102,11 +104,12 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
 
   // Fetch data when currentVideo changes
   useEffect(() => {
-    if (currentVideo?.owner_id) {
+    const ownerId = currentVideo?.owner_id || (currentVideo as any)?.profiles?.id;
+    if (ownerId) {
       fetchUploaderVideos();
       fetchUploaderPlaylists();
     }
-  }, [currentVideo?.owner_id]);
+  }, [currentVideo?.owner_id, currentVideo?.profiles?.id]);
 
   // Function to calculate relatedness score
   const calculateRelatedness = (video: Video, current: Video): number => {
@@ -294,8 +297,8 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
                         </div>
                         {/* Crown icon overlay */}
                         <div className="absolute top-2 left-2 z-20">
-                          <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                          <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z"/>
                           </svg>
                         </div>
                       </div>
@@ -303,11 +306,19 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
                         <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">{premiumVideo.title}</h3>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
-                            <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-xs text-white font-bold">
-                              {(premiumVideo.title || 'U')[0].toUpperCase()}
+                            <div className="w-5 h-5 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs text-white font-bold">
+                              {premiumVideo.profiles?.avatar_url || premiumVideo.uploader_avatar ? (
+                                <img
+                                  src={premiumVideo.profiles?.avatar_url || premiumVideo.uploader_avatar}
+                                  alt="Creator"
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                (premiumVideo.profiles?.username || premiumVideo.uploader_username || 'U')[0].toUpperCase()
+                              )}
                             </div>
                             <span className="text-xs text-muted-foreground">
-                              Creator
+                              {premiumVideo.profiles?.username || premiumVideo.uploader_username || premiumVideo.uploader_name || 'Creator'}
                             </span>
                           </div>
                         </div>
