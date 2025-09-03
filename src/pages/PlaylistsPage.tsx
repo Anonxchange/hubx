@@ -9,8 +9,15 @@ import { toast } from 'sonner';
 import { Link } from 'react-router-dom';
 
 const PlaylistsPage: React.FC = () => {
-  const { data: playlists, isLoading } = usePlaylists();
+  const { data: playlists, isLoading, error } = usePlaylists();
   const deletePlaylistMutation = useDeletePlaylist();
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('Playlists data:', playlists);
+    console.log('Playlists loading:', isLoading);
+    console.log('Playlists error:', error);
+  }, [playlists, isLoading, error]);
 
   const handleDeletePlaylist = async (playlistId: string, playlistName: string) => {
     if (window.confirm(`Are you sure you want to delete "${playlistName}"?`)) {
