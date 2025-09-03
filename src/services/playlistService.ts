@@ -23,8 +23,16 @@ export interface PlaylistWithVideoCount extends Playlist {
   video_count: number;
 }
 
-// Generate session ID for anonymous users
-const getSessionId = (): string => {
+// Get user ID (authenticated user or fallback to session for anonymous users)
+const getUserId = async (): Promise<string> => {
+  // First try to get the authenticated user from Supabase
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (user) {
+    return user.id; // Use actual user ID if logged in
+  }
+  
+  // Fallback to session ID for anonymous users
   let sessionId = localStorage.getItem('user_session');
   if (!sessionId) {
     sessionId = crypto.randomUUID();
@@ -36,7 +44,7 @@ const getSessionId = (): string => {
 // Get all playlists for current user
 export const getUserPlaylists = async (): Promise<PlaylistWithVideoCount[]> => {
   try {
-    const sessionId = getSessionId();
+    const userId = await getUserId();
 
     const { data, error } = await supabase
       .from('playlists')
@@ -44,7 +52,7 @@ export const getUserPlaylists = async (): Promise<PlaylistWithVideoCount[]> => {
         *,
         playlist_items(count)
       `)
-      .eq('user_id', sessionId)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -65,13 +73,13 @@ export const getUserPlaylists = async (): Promise<PlaylistWithVideoCount[]> => {
 // Create a new playlist
 export const createPlaylist = async (name: string, description?: string, isPublic = false): Promise<Playlist | null> => {
   try {
-    const sessionId = getSessionId();
+    const userId = await getUserId();
 
     const { data, error } = await supabase
       .from('playlists')
       .insert([
         {
-          user_id: sessionId,
+          user_id: userId,
           name,
           description,
           is_public: isPublic
