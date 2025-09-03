@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, Flame, Eye, Heart, Globe, MapPin } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
@@ -102,61 +103,40 @@ const TrendingPage = () => {
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
             Trending Now
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Most popular videos based on recent activity in the last 24-48 hours
-          </p>
-          
-          {/* Location Filter */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-6">
-            <div className="flex items-center gap-2">
-              <Globe className="h-5 w-5 text-muted-foreground" />
-              <span className="text-sm font-medium">Filter by location:</span>
-            </div>
-            <Select value={selectedLocation} onValueChange={handleLocationChange}>
-              <SelectTrigger className="w-48">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {locationOptions.map((location) => (
-                  <SelectItem key={location} value={location}>
-                    <div className="flex items-center gap-2">
-                      {location === 'Global' ? (
-                        <Globe className="h-4 w-4" />
-                      ) : (
-                        <MapPin className="h-4 w-4" />
-                      )}
-                      {location}
-                      {location === userCountry && location !== 'Global' && (
-                        <Badge variant="secondary" className="ml-1 text-xs">Your Location</Badge>
-                      )}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Stats Badges */}
-          <div className="flex justify-center space-x-2 mt-4">
-            <Badge variant="secondary" className="bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              Live Trending
-            </Badge>
-            <Badge variant="outline">
-              <Eye className="h-3 w-3 mr-1" />
-              {totalVideos.toLocaleString()} Videos
-            </Badge>
-            <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300">
-              <Heart className="h-3 w-3 mr-1" />
-              24-48h Activity
-            </Badge>
-          </div>
         </div>
 
         {/* Top Ad Banner */}
         <div className="w-full flex justify-center">
           <div className="w-full max-w-4xl">
             <AdComponent zoneId="5660534" />
+          </div>
+        </div>
+
+        {/* Trending Categories */}
+        <div className="px-4">
+          <div className="flex items-center space-x-3 overflow-x-auto scrollbar-hide pb-2">
+            <Badge variant="secondary" className="flex-shrink-0 bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300 hover:bg-orange-200 cursor-pointer whitespace-nowrap px-3 py-1">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              All Trending
+            </Badge>
+            {[
+              'Amateur', 'Big Tits', 'MILF', 'Teen', 'Anal', 'Lesbian',
+              'Ebony', 'Blowjob', 'Hardcore', 'POV', 'Big Ass', 'Latina',
+              'Asian', 'Mature', 'Creampie', 'Cumshot'
+            ].map((category) => (
+              <Link
+                key={category}
+                to={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
+                className="flex-shrink-0"
+              >
+                <Badge
+                  variant="outline"
+                  className="whitespace-nowrap px-3 py-1 hover:bg-muted cursor-pointer transition-colors"
+                >
+                  {category}
+                </Badge>
+              </Link>
+            ))}
           </div>
         </div>
 
@@ -175,14 +155,7 @@ const TrendingPage = () => {
           </div>
         ) : videos.length > 0 ? (
           <>
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">
-                Trending in {selectedLocation}
-              </h2>
-              <div className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages} • {totalVideos.toLocaleString()} total videos
-              </div>
-            </div>
+            
             
             <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} />
             
