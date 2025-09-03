@@ -35,84 +35,99 @@ const getSessionId = (): string => {
 
 // Get all playlists for current user
 export const getUserPlaylists = async (): Promise<PlaylistWithVideoCount[]> => {
-  const sessionId = getSessionId();
+  try {
+    const sessionId = getSessionId();
 
-  const { data, error } = await supabase
-    .from('playlists')
-    .select(`
-      *,
-      playlist_items(count)
-    `)
-    .eq('user_id', sessionId)
-    .order('created_at', { ascending: false });
+    const { data, error } = await supabase
+      .from('playlists')
+      .select(`
+        *,
+        playlist_items(count)
+      `)
+      .eq('user_id', sessionId)
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching playlists:', error);
-    throw error;
+    if (error) {
+      console.error('Error fetching playlists (table may not exist):', error);
+      return []; // Return empty array instead of throwing
+    }
+
+    return (data || []).map(playlist => ({
+      ...playlist,
+      video_count: playlist.playlist_items?.[0]?.count || 0
+    }));
+  } catch (error) {
+    console.error('Playlists feature not available:', error);
+    return []; // Return empty array for graceful fallback
   }
-
-  return (data || []).map(playlist => ({
-    ...playlist,
-    video_count: playlist.playlist_items?.[0]?.count || 0
-  }));
 };
 
 // Create a new playlist
-export const createPlaylist = async (name: string, description?: string, isPublic = false): Promise<Playlist> => {
-  const sessionId = getSessionId();
+export const createPlaylist = async (name: string, description?: string, isPublic = false): Promise<Playlist | null> => {
+  try {
+    const sessionId = getSessionId();
 
-  const { data, error } = await supabase
-    .from('playlists')
-    .insert([
-      {
-        user_id: sessionId,
-        name,
-        description,
-        is_public: isPublic
-      }
-    ])
-    .select()
-    .single();
+    const { data, error } = await supabase
+      .from('playlists')
+      .insert([
+        {
+          user_id: sessionId,
+          name,
+          description,
+          is_public: isPublic
+        }
+      ])
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Error creating playlist:', error);
-    throw error;
+    if (error) {
+      console.error('Error creating playlist (table may not exist):', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Playlists feature not available:', error);
+    return null;
   }
-
-  return data;
 };
 
 // Add video to playlist
-export const addVideoToPlaylist = async (playlistId: string, videoId: string): Promise<PlaylistItem> => {
-  // Get the current highest position in the playlist
-  const { data: lastItem } = await supabase
-    .from('playlist_items')
-    .select('position')
-    .eq('playlist_id', playlistId)
-    .order('position', { ascending: false })
-    .limit(1)
-    .single();
+export const addVideoToPlaylist = async (playlistId: string, videoId: string): Promise<PlaylistItem | null> => {
+  try {
+    // Get the current highest position in the playlist
+    const { data: lastItem } = await supabase
+      .from('playlist_items')
+      .select('position')
+      .eq('playlist_id', playlistId)
+      .order('position', { ascending: false })
+      .limit(1)
+      .single();
 
-  const position = (lastItem?.position || 0) + 1;
+    const position = (lastItem?.position || 0) + 1;
 
-  const { data, error } = await supabase
-    .from('playlist_items')
-    .insert([
-      {
-        playlist_id: playlistId,
-        video_id: videoId,
-        position
-      }
-    ])
-    .select()
-    .single();
+    const { data, error } = await supabase
+      .from('playlist_items')
+      .insert([
+        {
+          playlist_id: playlistId,
+          video_id: videoId,
+          position
+        }
+      ])
+      .select()
+      .single();
 
-  if (error) {
-    console.error('Error adding video to playlist:', error);
-    throw error;
+    if (error) {
+      console.error('Error adding video to playlist (table may not exist):', error);
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Playlists feature not available:', error);
+    return null;
   }
-
-  return data;
 };
 
 // Remove video from playlist
@@ -148,25 +163,29 @@ export const isVideoInPlaylist = async (playlistId: string, videoId: string): Pr
 
 // Get playlist videos
 export const getPlaylistVideos = async (playlistId: string) => {
-  const { data, error } = await supabase
-    .from('playlist_items')
-    .select(`
-      position,
-      added_at,
-      videos:video_id (
-        id, title, description, video_url, thumbnail_url, duration, views, likes, dislikes, tags, created_at,
-        profiles:owner_id (id, username, avatar_url)
-      )
-    `)
-    .eq('playlist_id', playlistId)
-    .order('position', { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from('playlist_items')
+      .select(`
+        position,
+        added_at,
+        videos:video_id (
+          id, title, description, video_url, thumbnail_url, duration, views, tags, created_at
+        )
+      `)
+      .eq('playlist_id', playlistId)
+      .order('position', { ascending: true });
 
-  if (error) {
-    console.error('Error fetching playlist videos:', error);
-    throw error;
+    if (error) {
+      console.error('Error fetching playlist videos (table may not exist):', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Playlists feature not available:', error);
+    return [];
   }
-
-  return data || [];
 };
 
 // Delete playlist
