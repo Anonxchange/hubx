@@ -5,6 +5,8 @@ import AdComponent from '@/components/AdComponent';
 import OptimizedRelatedVideoCard from '@/components/OptimizedRelatedVideoCard';
 import CommentSection from '@/components/CommentSection';
 import Footer from '@/components/Footer';
+import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 
 interface Video {
   id: string;
@@ -27,6 +29,8 @@ interface RelatedVideosProps {
 const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, videoId, premiumVideos = [] }) => {
   const [visibleCount, setVisibleCount] = useState(10);
   const [activeTab, setActiveTab] = useState('related');
+  const [uploaderVideos, setUploaderVideos] = useState<Video[]>([]);
+  const [uploaderPlaylists, setUploaderPlaylists] = useState<any[]>([]);
 
   // Load the ad script asynchronously once
   useEffect(() => {
@@ -40,6 +44,69 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
       (window as any).AdProvider.push({ serve: {} });
     };
   }, []);
+
+  // Fetch uploader's other videos for recommend tab
+  const fetchUploaderVideos = async () => {
+    if (!currentVideo?.owner_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('videos')
+        .select(`
+          id, title, thumbnail_url, video_url, views, likes, tags, duration, created_at, is_premium, is_moment,
+          profiles:owner_id (id, username, avatar_url, full_name, user_type)
+        `)
+        .eq('owner_id', currentVideo.owner_id)
+        .neq('id', currentVideo.id)
+        .eq('is_premium', false)
+        .eq('is_moment', false)
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      if (!error && data) {
+        // Shuffle the videos for randomness
+        const shuffled = [...data].sort(() => Math.random() - 0.5);
+        setUploaderVideos(shuffled);
+      }
+    } catch (error) {
+      console.error('Error fetching uploader videos:', error);
+    }
+  };
+
+  // Fetch uploader's playlists for playlist tab
+  const fetchUploaderPlaylists = async () => {
+    if (!currentVideo?.owner_id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('playlists')
+        .select(`
+          id, name, description, is_public, created_at,
+          playlist_items(count)
+        `)
+        .eq('user_id', currentVideo.owner_id)
+        .eq('is_public', true)
+        .order('created_at', { ascending: false });
+
+      if (!error && data) {
+        const playlistsWithCount = data.map(playlist => ({
+          ...playlist,
+          video_count: playlist.playlist_items?.[0]?.count || 0
+        }));
+        setUploaderPlaylists(playlistsWithCount);
+      }
+    } catch (error) {
+      console.error('Error fetching uploader playlists:', error);
+    }
+  };
+
+  // Fetch data when currentVideo changes
+  useEffect(() => {
+    if (currentVideo?.owner_id) {
+      fetchUploaderVideos();
+      fetchUploaderPlaylists();
+    }
+  }, [currentVideo?.owner_id]);
 
   // Function to calculate relatedness score
   const calculateRelatedness = (video: Video, current: Video): number => {
@@ -120,6 +187,83 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
           {videoId && <CommentSection videoId={videoId} />}
           {!videoId && (
             <p className="text-muted-foreground text-sm">Video ID not available for comments</p>
+          )}
+        </div>
+      ) : activeTab === 'recommend' ? (
+        /* Uploader's Videos */
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">
+              More from {currentVideo?.profiles?.username || 'this creator'}
+            </h3>
+          </div>
+          {uploaderVideos.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {uploaderVideos.slice(0, visibleCount).map((video) => (
+                <OptimizedRelatedVideoCard key={video.id} video={video} viewMode="grid" />
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              <p>No other videos from this creator.</p>
+            </div>
+          )}
+          {uploaderVideos.length > visibleCount && (
+            <div className="flex justify-center my-6">
+              <Button
+                onClick={() => setVisibleCount(prev => Math.min(prev + 10, uploaderVideos.length))}
+                variant="outline"
+                className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:text-orange-500 transition-colors px-8 py-2 rounded-lg"
+              >
+                Show More ({Math.min(10, uploaderVideos.length - visibleCount)} more videos)
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : activeTab === 'playlist' ? (
+        /* Uploader's Playlists */
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">
+              Playlists by {currentVideo?.profiles?.username || 'this creator'}
+            </h3>
+          </div>
+          {uploaderPlaylists.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {uploaderPlaylists.map((playlist) => (
+                <Link
+                  key={playlist.id}
+                  to={`/playlist/${playlist.id}`}
+                  className="group"
+                >
+                  <div className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer transform transition-transform duration-200 hover:scale-105 hover:shadow-lg">
+                    <div className="p-4">
+                      <div className="flex items-center mb-2">
+                        <svg className="w-5 h-5 text-gray-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <h4 className="font-semibold text-gray-800 line-clamp-1">
+                          {playlist.name}
+                        </h4>
+                      </div>
+                      {playlist.description && (
+                        <p className="text-gray-600 text-sm line-clamp-2 mb-2">
+                          {playlist.description}
+                        </p>
+                      )}
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>{playlist.video_count} videos</span>
+                        <span>{new Date(playlist.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              <p>No public playlists from this creator.</p>
+            </div>
           )}
         </div>
       ) : (
