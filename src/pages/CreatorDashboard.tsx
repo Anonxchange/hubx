@@ -294,18 +294,20 @@ const CreatorDashboard = () => {
       <div className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <div className="gradient-overlay rounded-lg p-2">
-                <span className="text-xl font-bold text-white">HubX</span>
+                <span className="text-lg sm:text-xl font-bold text-white">HubX</span>
               </div>
-              <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+              <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 text-xs sm:text-sm">
                 Creator Studio
               </Badge>
             </div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground">Welcome, {user.email}</span>
-              <Button onClick={() => navigate('/')} variant="outline" size="sm">
-                Back to Site
+              <span className="text-xs sm:text-sm text-muted-foreground hidden md:inline">Welcome, {user.email}</span>
+              <span className="text-xs sm:text-sm text-muted-foreground md:hidden">Welcome</span>
+              <Button onClick={() => navigate('/')} variant="outline" size="sm" className="text-xs sm:text-sm px-2 sm:px-4">
+                <span className="hidden sm:inline">Back to Site</span>
+                <span className="sm:hidden">Back</span>
               </Button>
             </div>
           </div>
@@ -382,30 +384,31 @@ const CreatorDashboard = () => {
 
           {/* Main Content Tabs */}
           <Tabs defaultValue="dashboard" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-6">
-              <TabsTrigger value="dashboard" className="flex items-center space-x-1 text-xs">
+            <TabsList className="w-full overflow-x-auto flex-nowrap justify-start">
+              <TabsTrigger value="dashboard" className="flex items-center space-x-1 text-xs whitespace-nowrap">
                 <BarChart3 className="w-4 h-4" />
-                <span>Dashboard</span>
+                <span className="hidden sm:inline">Dashboard</span>
               </TabsTrigger>
-              <TabsTrigger value="earnings" className="flex items-center space-x-1 text-xs">
+              <TabsTrigger value="earnings" className="flex items-center space-x-1 text-xs whitespace-nowrap">
                 <DollarSign className="w-4 h-4" />
-                <span>Earnings</span>
+                <span className="hidden sm:inline">Earnings</span>
               </TabsTrigger>
-              <TabsTrigger value="upload" className="flex items-center space-x-1 text-xs">
+              <TabsTrigger value="upload" className="flex items-center space-x-1 text-xs whitespace-nowrap">
                 <Upload className="w-4 h-4" />
-                <span>Upload to HubX</span>
+                <span className="hidden sm:inline">Upload</span>
+                <span className="sm:hidden">Upload</span>
               </TabsTrigger>
-              <TabsTrigger value="management" className="flex items-center space-x-1 text-xs">
+              <TabsTrigger value="management" className="flex items-center space-x-1 text-xs whitespace-nowrap">
                 <FileText className="w-4 h-4" />
-                <span>Content Management</span>
+                <span className="hidden sm:inline">Content</span>
               </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center space-x-1 text-xs">
+              <TabsTrigger value="settings" className="flex items-center space-x-1 text-xs whitespace-nowrap">
                 <Settings className="w-4 h-4" />
-                <span>Core Settings</span>
+                <span className="hidden sm:inline">Settings</span>
               </TabsTrigger>
-              <TabsTrigger value="support" className="flex items-center space-x-1 text-xs">
+              <TabsTrigger value="support" className="flex items-center space-x-1 text-xs whitespace-nowrap">
                 <User className="w-4 h-4" />
-                <span>Support</span>
+                <span className="hidden sm:inline">Support</span>
               </TabsTrigger>
             </TabsList>
 
