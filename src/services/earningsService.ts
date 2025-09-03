@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -216,17 +217,6 @@ export const getCreatorEarnings = async (creatorId: string): Promise<EarningsSta
       console.error('Error fetching subscriber count:', subscriberError);
     }
 
-    // Get premium subscription revenue (legacy - keeping for backward compatibility)
-    const { data: subscriptions, error: subsError } = await supabase
-      .from('premium_subscriptions')
-      .select('amount, start_date, status')
-      .eq('user_id', creatorId)
-      .eq('status', 'active');
-
-    if (subsError && subsError.code !== 'PGRST116') {
-      console.error('Error fetching subscriptions:', subsError);
-    }
-
     // Get pending payouts
     const { data: pendingPayouts, error: payoutError } = await supabase
       .from('payouts')
@@ -250,12 +240,8 @@ export const getCreatorEarnings = async (creatorId: string): Promise<EarningsSta
     // Default rate: $0.35 per subscriber (between $0.2-0.5 range)
     const subscriptionRate = 0.35; // This can be made configurable
     const activeSubscribers = subscriberCount || 0;
-    const subscriptionRevenue = activeSubscribers * subscriptionRate;
+    const premiumRevenue = activeSubscribers * subscriptionRate;
     
-    // Legacy subscription revenue (keeping for backward compatibility)
-    const legacyPremiumRevenue = subscriptions?.reduce((sum, sub) => sum + parseFloat(sub.amount), 0) || 0;
-    
-    const premiumRevenue = subscriptionRevenue + (legacyPremiumRevenue / 100);
     const pendingPayoutAmount = pendingPayouts?.reduce((sum, payout) => sum + parseFloat(payout.amount), 0) || 0;
     
     const totalEarnings = viewEarnings + (totalTips / 100) + premiumRevenue;
