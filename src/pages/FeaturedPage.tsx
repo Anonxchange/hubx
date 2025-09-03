@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Crown, Sparkles, Eye, PlayCircle } from 'lucide-react';
+import { Star, Crown, Sparkles, Eye, PlayCircle, X } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
@@ -7,7 +7,7 @@ import AdComponent from '@/components/AdComponent';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { getHomepageVideos } from '@/services/videosService';
+import { getVideos } from '@/services/videosService';
 import type { Video } from '@/services/videosService';
 
 const FeaturedPage = () => {
@@ -17,20 +17,29 @@ const FeaturedPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
   
   const videosPerPage = 60;
   const userId = localStorage.getItem('user_id') || undefined;
 
   useEffect(() => {
     fetchFeaturedVideos();
-  }, [currentPage]);
+  }, [currentPage, selectedCategory]);
 
   const fetchFeaturedVideos = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const result = await getHomepageVideos(currentPage, videosPerPage, userId);
+      let result;
+      
+      if (selectedCategory) {
+        // Get videos filtered by category (excludes premium/moment)
+        result = await getVideos(currentPage, videosPerPage, selectedCategory);
+      } else {
+        // Get all featured videos (excludes premium/moment) 
+        result = await getVideos(currentPage, videosPerPage);
+      }
       
       setVideos(result.videos);
       setTotalVideos(result.totalCount);
@@ -48,6 +57,18 @@ const FeaturedPage = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleCategorySelect = (category: string) => {
+    setSelectedCategory(category);
+    setCurrentPage(1); // Reset to first page when filtering
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClearCategory = () => {
+    setSelectedCategory('');
+    setCurrentPage(1); // Reset to first page when clearing filter
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -61,27 +82,25 @@ const FeaturedPage = () => {
             <Sparkles className="h-6 w-6 text-pink-500" />
           </div>
           <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-yellow-400 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-            Featured Videos
+            {selectedCategory ? `Featured ${selectedCategory} Videos` : 'Featured Videos'}
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Hand-picked premium content featuring the best creators and most engaging videos
-          </p>
-          
-          {/* Stats Badges */}
-          <div className="flex justify-center space-x-2 mt-4">
-            <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">
-              <Crown className="h-3 w-3 mr-1" />
-              Editor's Choice
-            </Badge>
-            <Badge variant="outline">
-              <PlayCircle className="h-3 w-3 mr-1" />
-              {totalVideos.toLocaleString()} Featured
-            </Badge>
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300">
-              <Sparkles className="h-3 w-3 mr-1" />
-              Premium Quality
-            </Badge>
-          </div>
+          {selectedCategory && (
+            <div className="flex items-center justify-center gap-2 mt-2">
+              <Badge 
+                variant="secondary" 
+                className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
+              >
+                {selectedCategory}
+              </Badge>
+              <button
+                onClick={handleClearCategory}
+                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-3 w-3" />
+                Clear filter
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Top Ad Banner */}
@@ -116,16 +135,43 @@ const FeaturedPage = () => {
           </div>
         ) : videos.length > 0 ? (
           <>
-            <div className="flex flex-col sm:flex-row justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold">
-                Featured Collection
-              </h2>
-              <div className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages} • {totalVideos.toLocaleString()} featured videos
+            {/* Featured Categories */}
+            <div className="px-4">
+              <div className="flex items-center space-x-3 overflow-x-auto scrollbar-hide pb-2">
+                <Badge 
+                  variant={!selectedCategory ? "secondary" : "outline"}
+                  className={`flex-shrink-0 hover:bg-yellow-200 cursor-pointer whitespace-nowrap px-3 py-1 transition-colors ${
+                    !selectedCategory 
+                      ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300' 
+                      : 'hover:bg-muted'
+                  }`}
+                  onClick={handleClearCategory}
+                >
+                  <Crown className="h-3 w-3 mr-1" />
+                  All Featured
+                </Badge>
+                {[
+                  'Amateur', 'Big Tits', 'MILF', 'Teen', 'Anal', 'Lesbian',
+                  'Ebony', 'Blowjob', 'Hardcore', 'POV', 'Big Ass', 'Latina',
+                  'Asian', 'Mature', 'Creampie', 'Cumshot'
+                ].map((category) => (
+                  <Badge
+                    key={category}
+                    variant={selectedCategory === category ? "secondary" : "outline"}
+                    className={`flex-shrink-0 whitespace-nowrap px-3 py-1 cursor-pointer transition-colors ${
+                      selectedCategory === category
+                        ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300'
+                        : 'hover:bg-muted'
+                    }`}
+                    onClick={() => handleCategorySelect(category)}
+                  >
+                    {category}
+                  </Badge>
+                ))}
               </div>
             </div>
             
-            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} />
+            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} showMoments={false} showPremiumSection={false} />
             
             {/* Pagination */}
             {totalPages > 1 && (
