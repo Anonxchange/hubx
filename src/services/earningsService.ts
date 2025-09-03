@@ -208,7 +208,15 @@ export const getCreatorEarnings = async (creatorId: string): Promise<EarningsSta
       console.error('Error fetching tips:', tipsError);
     }
 
-    // Get premium subscription revenue (for studio creators)
+    // Get subscription-based earnings - count active subscribers to this creator
+    const { data: subscriberCount, error: subscriberError } = await supabase
+      .rpc('get_creator_subscriber_count', { creator_id: creatorId });
+
+    if (subscriberError) {
+      console.error('Error fetching subscriber count:', subscriberError);
+    }
+
+    // Get premium subscription revenue (legacy - keeping for backward compatibility)
     const { data: subscriptions, error: subsError } = await supabase
       .from('premium_subscriptions')
       .select('amount, start_date, status')
@@ -237,10 +245,20 @@ export const getCreatorEarnings = async (creatorId: string): Promise<EarningsSta
     const currentBalance = viewEarningsData?.current_balance || 0;
     
     const totalTips = tips?.reduce((sum, tip) => sum + parseFloat(tip.amount), 0) || 0;
-    const premiumRevenue = subscriptions?.reduce((sum, sub) => sum + parseFloat(sub.amount), 0) || 0;
+    
+    // Calculate subscription-based premium revenue
+    // Default rate: $0.35 per subscriber (between $0.2-0.5 range)
+    const subscriptionRate = 0.35; // This can be made configurable
+    const activeSubscribers = subscriberCount || 0;
+    const subscriptionRevenue = activeSubscribers * subscriptionRate;
+    
+    // Legacy subscription revenue (keeping for backward compatibility)
+    const legacyPremiumRevenue = subscriptions?.reduce((sum, sub) => sum + parseFloat(sub.amount), 0) || 0;
+    
+    const premiumRevenue = subscriptionRevenue + (legacyPremiumRevenue / 100);
     const pendingPayoutAmount = pendingPayouts?.reduce((sum, payout) => sum + parseFloat(payout.amount), 0) || 0;
     
-    const totalEarnings = viewEarnings + (totalTips / 100) + (premiumRevenue / 100);
+    const totalEarnings = viewEarnings + (totalTips / 100) + premiumRevenue;
     const availableBalance = currentBalance - pendingPayoutAmount;
 
     // Calculate this month and last month
@@ -274,7 +292,7 @@ export const getCreatorEarnings = async (creatorId: string): Promise<EarningsSta
       pendingPayouts: pendingPayoutAmount,
       availableBalance,
       totalTips: totalTips / 100,
-      premiumRevenue: premiumRevenue / 100,
+      premiumRevenue,
       viewEarnings,
       totalViews,
       premiumViews
@@ -387,6 +405,121 @@ export const getEarningsAnalytics = async (creatorId: string, period: 'week' | '
   } catch (error) {
     console.error('Error getting earnings analytics:', error);
     return { dailyEarnings: [], paymentMethods: {} };
+  }
+};
+
+// Calculate and record subscription-based earnings for a creator
+export const calculateSubscriptionEarnings = async (
+  creatorId: string,
+  subscriberId: string,
+  subscriptionType: 'monthly' | 'yearly' = 'monthly'
+) => {
+  try {
+    // Get subscription earnings rate (configurable)
+    const subscriptionRates = {
+      monthly: 0.35, // $0.35 per subscriber per month
+      yearly: 4.20   // $4.20 per subscriber per year (equivalent to monthly)
+    };
+
+    const earningsAmount = subscriptionRates[subscriptionType];
+
+    // Insert subscription earning record
+    const { error: subscriptionEarningError } = await supabase
+      .from('subscription_earnings')
+      .insert({
+        creator_id: creatorId,
+        subscriber_id: subscriberId,
+        subscription_type: subscriptionType,
+        earnings_amount: earningsAmount,
+        processed: false
+      });
+
+    if (subscriptionEarningError) {
+      console.error('Error inserting subscription earning:', subscriptionEarningError);
+      return;
+    }
+
+    // Update creator earnings
+    await updateCreatorSubscriptionEarnings(creatorId, earningsAmount);
+    
+  } catch (error) {
+    console.error('Error calculating subscription earnings:', error);
+  }
+};
+
+// Update creator's subscription-based earnings
+const updateCreatorSubscriptionEarnings = async (
+  creatorId: string, 
+  earningsAmount: number
+) => {
+  try {
+    // Get existing earnings record
+    const { data: existingEarnings, error: fetchError } = await supabase
+      .from('creator_earnings')
+      .select('*')
+      .eq('creator_id', creatorId)
+      .single();
+
+    if (fetchError && fetchError.code !== 'PGRST116') {
+      console.error('Error fetching creator earnings:', fetchError);
+      return;
+    }
+
+    if (existingEarnings) {
+      // Update existing record with subscription earnings
+      const { error: updateError } = await supabase
+        .from('creator_earnings')
+        .update({
+          total_earnings: existingEarnings.total_earnings + earningsAmount,
+          current_balance: existingEarnings.current_balance + earningsAmount,
+          lifetime_earnings: existingEarnings.lifetime_earnings + earningsAmount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('creator_id', creatorId);
+
+      if (updateError) {
+        console.error('Error updating creator subscription earnings:', updateError);
+      }
+    } else {
+      // Create new record
+      const { error: insertError } = await supabase
+        .from('creator_earnings')
+        .insert({
+          creator_id: creatorId,
+          total_views: 0,
+          total_premium_views: 0,
+          total_earnings: earningsAmount,
+          current_balance: earningsAmount,
+          lifetime_earnings: earningsAmount
+        });
+
+      if (insertError) {
+        console.error('Error creating creator earnings for subscription:', insertError);
+      }
+    }
+  } catch (error) {
+    console.error('Error updating creator subscription earnings:', error);
+  }
+};
+
+// Get subscription earnings rates (configurable)
+export const getSubscriptionRates = async () => {
+  try {
+    // For now, return hardcoded rates - could be moved to database
+    return {
+      monthly: 0.35,  // $0.35 per subscriber per month
+      yearly: 4.20,   // $4.20 per subscriber per year
+      minimum: 0.20,  // Minimum rate
+      maximum: 0.50   // Maximum rate
+    };
+  } catch (error) {
+    console.error('Error getting subscription rates:', error);
+    return {
+      monthly: 0.35,
+      yearly: 4.20,
+      minimum: 0.20,
+      maximum: 0.50
+    };
   }
 };
 
