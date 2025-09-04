@@ -264,7 +264,7 @@ const VideoPage = () => {
       {/* Full-width video player - YouTube size */}
       <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
         <div className="relative w-full">
-          <div className="w-full bg-black md:!h-[min(calc(100vw*11/16),580px)]" style={{ height: 'min(calc(100vw * 11/16), 420px)' }}>
+          <div className="w-full bg-black" style={{ aspectRatio: "16/9", maxHeight: "80vh" }}>
             <VideoPlayer
               key={video.id}
               src={video.video_url}
