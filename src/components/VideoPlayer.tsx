@@ -190,13 +190,17 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
 
   return (
     <div className="w-full h-full">
-      {/* Responsive container */}
+      {/* FluidPlayer container with 16:9 aspect ratio */}
       <div
-        className="relative w-full h-full bg-black overflow-hidden group"
+        className="relative w-full bg-black group"
+        style={{ aspectRatio: "16/9", height: "100%", minHeight: "100%" }}
       >
+        {/* Top gradient overlay */}
+        <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-black/60 via-black/30 to-transparent z-10 pointer-events-none" />
+        
         <video
           ref={videoRef}
-          className="w-full h-full object-cover"
+          className="w-full h-full"
           poster={poster}
           preload="none"
           playsInline
@@ -212,6 +216,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             display: "block",
             objectFit: "cover",
             objectPosition: "center",
+            width: "100%",
+            height: "100%",
+            minHeight: "100%",
           }}
         >
           {isHLS ? (
