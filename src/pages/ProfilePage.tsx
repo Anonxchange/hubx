@@ -53,7 +53,8 @@ import {
   Rss,
   List,
   Home,
-  Music
+  Music,
+  ChevronRight
 } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
@@ -107,6 +108,10 @@ const ProfilePage = () => {
     description: 'Support my content creation journey! 💖'
   });
   const [showMoreFavorites, setShowMoreFavorites] = useState(false);
+  const [showMoreUploads, setShowMoreUploads] = useState(false);
+  const [showMoreMoments, setShowMoreMoments] = useState(false);
+  const [showMorePremium, setShowMorePremium] = useState(false);
+  const [showMoreWatchHistory, setShowMoreWatchHistory] = useState(false);
 
   // Social Feed State
   const [posts, setPosts] = useState<Post[]>([]);
@@ -334,7 +339,7 @@ const ProfilePage = () => {
               bio: data.bio || 'Welcome to my profile! 🌟',
               userType: data.user_type || 'user'
             };
-            
+
             // Update all profile data at once
             setDisplayName(profileUpdates.displayName);
             setProfilePhoto(profileUpdates.profilePhoto);
@@ -375,17 +380,17 @@ const ProfilePage = () => {
 
         // Execute all promises concurrently
         const results = await Promise.allSettled(dataPromises.map(([_, promise]) => promise));
-        
+
         // Process results without causing multiple re-renders
         const updates = {};
-        
+
         results.forEach((result, index) => {
           const [key] = dataPromises[index];
           if (result.status === 'fulfilled') {
             updates[key] = result.value;
           } else {
             console.error(`Error fetching ${key}:`, result.reason);
-            updates[key] = key === 'posts' || key === 'feedPosts' ? [] : 
+            updates[key] = key === 'posts' || key === 'feedPosts' ? [] :
                           key === 'subscriberCount' ? 0 : false;
           }
         });
@@ -1426,38 +1431,38 @@ const ProfilePage = () => {
           <div className="mt-8">
             <Tabs defaultValue="home" className="w-full">
               <TabsList className="grid w-full grid-cols-6 bg-gray-800 border-gray-700">
-                <TabsTrigger 
-                  value="home" 
+                <TabsTrigger
+                  value="home"
                   className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
                 >
                   <Home className="w-5 h-5" />
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="videos" 
+                <TabsTrigger
+                  value="videos"
                   className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
                 >
                   <Video className="w-5 h-5" />
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="photos" 
+                <TabsTrigger
+                  value="photos"
                   className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
                 >
                   <Camera className="w-5 h-5" />
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="feed" 
+                <TabsTrigger
+                  value="feed"
                   className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
                 >
                   <Rss className="w-5 h-5" />
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="playlists" 
+                <TabsTrigger
+                  value="playlists"
                   className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
                 >
                   <Music className="w-5 h-5" />
                 </TabsTrigger>
-                <TabsTrigger 
-                  value="settings" 
+                <TabsTrigger
+                  value="settings"
                   className="data-[state=active]:bg-orange-500 data-[state=active]:text-white text-gray-300 flex items-center justify-center p-3"
                 >
                   <Settings className="w-5 h-5" />
@@ -1474,56 +1479,70 @@ const ProfilePage = () => {
                         </h2>
                       </div>
                       {uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length > 0 ? (
-                        <div
-                          className="w-full max-w-none"
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-                            gap: '16px',
-                            width: '100vw',
-                            maxWidth: '100vw',
-                            margin: '0 -16px',
-                            padding: '0 16px'
-                          }}
-                        >
-                          {uploadedVideos.filter(v => !v.is_moment && !v.is_premium).slice(0, 12).map((video) => (
-                            <div
-                              key={video.id}
-                              className="group cursor-pointer w-full"
-                              onClick={() => navigate(`/video/${video.id}`)}
-                            >
-                              <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
-                                {video.thumbnail_url && (
-                                  <img
-                                    src={video.thumbnail_url}
-                                    alt={video.title}
-                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                                    loading="lazy"
-                                  />
-                                )}
-                                {isOwnProfile && (
-                                  <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
-                                    MY VIDEO
+                        <>
+                          <div
+                            className="w-full max-w-none"
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                              gap: '16px',
+                              width: '100vw',
+                              maxWidth: '100vw',
+                              margin: '0 -16px',
+                              padding: '0 16px'
+                            }}
+                          >
+                            {uploadedVideos.filter(v => !v.is_moment && !v.is_premium).slice(0, showMoreUploads ? undefined : 7).map((video) => (
+                              <div
+                                key={video.id}
+                                className="group cursor-pointer w-full"
+                                onClick={() => navigate(`/video/${video.id}`)}
+                              >
+                                <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                                  {video.thumbnail_url && (
+                                    <img
+                                      src={video.thumbnail_url}
+                                      alt={video.title}
+                                      className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                      loading="lazy"
+                                    />
+                                  )}
+                                  {isOwnProfile && (
+                                    <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
+                                      MY VIDEO
+                                    </div>
+                                  )}
+                                  <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                    {video.duration || '00:00'}
                                   </div>
-                                )}
-                                <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                                  {video.duration || '00:00'}
+                                </div>
+                                <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                                <div className="flex items-center space-x-3 text-xs text-gray-400">
+                                  <span className="flex items-center space-x-1">
+                                    <Eye className="w-3 h-3" />
+                                    <span>{video.views?.toLocaleString() || 0}</span>
+                                  </span>
+                                  <span className="flex items-center space-x-1">
+                                    <Heart className="w-3 h-3" />
+                                    <span>{video.likes?.toLocaleString() || 0}</span>
+                                  </span>
                                 </div>
                               </div>
-                              <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
-                              <div className="flex items-center space-x-3 text-xs text-gray-400">
-                                <span className="flex items-center space-x-1">
-                                  <Eye className="w-3 h-3" />
-                                  <span>{video.views?.toLocaleString() || 0}</span>
-                                </span>
-                                <span className="flex items-center space-x-1">
-                                  <Heart className="w-3 h-3" />
-                                  <span>{video.likes?.toLocaleString() || 0}</span>
-                                </span>
-                              </div>
+                            ))}
+                          </div>
+                          {!showMoreUploads && uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length > 7 && (
+                            <div className="mt-4 text-center">
+                              <Button
+                                onClick={() => setShowMoreUploads(true)}
+                                variant="outline"
+                                className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                                data-testid="button-view-more-uploads"
+                              >
+                                View More ({uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length - 7} more)
+                              </Button>
                             </div>
-                          ))}
-                        </div>
+                          )}
+                        </>
                       ) : (
                         <div className="text-center py-8">
                           <Video className="w-8 h-8 mx-auto text-gray-600 mb-2" />
@@ -1535,15 +1554,24 @@ const ProfilePage = () => {
                     </div>
                   )}
 
-                  {/* Moments Section - Horizontal Scroll */}
+                  {/* Moments Section - Horizontal Scrollable */}
                   {uploadedVideos.filter(v => v.is_moment).length > 0 && (
                     <div className="mb-8">
-                      <div className="mb-4 flex items-center justify-between px-4">
+                      <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-white">
-                          {isOwnProfile ? 'My Moments' : `${displayedName}'s Moments`} ({uploadedVideos.filter(v => v.is_moment).length})
+                          {isOwnProfile ? 'My Moments' : `${displayedName}'s Moments`}
                         </h2>
+                        <Button
+                          variant="ghost"
+                          className="text-primary hover:text-primary/80"
+                          onClick={() => navigate(`/moments/${username || currentUserUsername}`)}
+                        >
+                          View More
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
                       </div>
-                      <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4 px-4">
+
+                      <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
                         {uploadedVideos.filter(v => v.is_moment).map((moment) => (
                           <div
                             key={moment.id}
@@ -1559,7 +1587,7 @@ const ProfilePage = () => {
                                   loading="lazy"
                                 />
                               )}
-                              
+
                               {/* Play overlay */}
                               <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                                 <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
@@ -1574,12 +1602,12 @@ const ProfilePage = () => {
                                 </Badge>
                               </div>
                             </div>
-                            
+
                             <div className="p-3 space-y-2">
                               <h3 className="font-medium text-sm line-clamp-2 leading-tight text-white">
                                 {moment.title}
                               </h3>
-                              
+
                               <div className="flex items-center justify-between text-xs text-gray-400">
                                 <span>{moment.views?.toLocaleString() || 0} views</span>
                                 <span>{moment.likes?.toLocaleString() || 0} likes</span>
@@ -1612,7 +1640,7 @@ const ProfilePage = () => {
                           padding: '0 16px'
                         }}
                       >
-                        {uploadedVideos.filter(v => v.is_premium).slice(0, 8).map((video) => (
+                        {uploadedVideos.filter(v => v.is_premium).slice(0, showMorePremium ? undefined : 7).map((video) => (
                           <div
                             key={video.id}
                             className="group cursor-pointer w-full"
@@ -1651,6 +1679,18 @@ const ProfilePage = () => {
                           </div>
                         ))}
                       </div>
+                      {!showMorePremium && uploadedVideos.filter(v => v.is_premium).length > 7 && (
+                        <div className="mt-4 text-center">
+                          <Button
+                            onClick={() => setShowMorePremium(true)}
+                            variant="outline"
+                            className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                            data-testid="button-view-more-premium"
+                          >
+                            View More ({uploadedVideos.filter(v => v.is_premium).length - 7} more)
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1672,7 +1712,7 @@ const ProfilePage = () => {
                           padding: '0 16px'
                         }}
                       >
-                        {favorites.slice(0, 8).map((video) => (
+                        {favorites.slice(0, showMoreFavorites ? undefined : 7).map((video) => (
                           <div
                             key={video.id}
                             className="group cursor-pointer w-full"
@@ -1705,6 +1745,18 @@ const ProfilePage = () => {
                           </div>
                         ))}
                       </div>
+                      {!showMoreFavorites && favorites.length > 7 && (
+                        <div className="mt-4 text-center">
+                          <Button
+                            onClick={() => setShowMoreFavorites(true)}
+                            variant="outline"
+                            className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                            data-testid="button-view-more-favorites"
+                          >
+                            View More ({favorites.length - 7} more)
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1726,7 +1778,7 @@ const ProfilePage = () => {
                           padding: '0 16px'
                         }}
                       >
-                        {watchHistory.slice(0, 8).map((video) => (
+                        {watchHistory.slice(0, showMoreWatchHistory ? undefined : 7).map((video) => (
                           <div
                             key={`${video.id}-${video.watched_at}`}
                             className="group cursor-pointer w-full"
@@ -1763,6 +1815,18 @@ const ProfilePage = () => {
                           </div>
                         ))}
                       </div>
+                      {!showMoreWatchHistory && watchHistory.length > 7 && (
+                        <div className="mt-4 text-center">
+                          <Button
+                            onClick={() => setShowMoreWatchHistory(true)}
+                            variant="outline"
+                            className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                            data-testid="button-view-more-watch-history"
+                          >
+                            View More ({watchHistory.length - 7} more)
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1853,15 +1917,24 @@ const ProfilePage = () => {
                     </div>
                   )}
 
-                  {/* Moments Section - Horizontal Scroll */}
+                  {/* Moments Section - Horizontal Scrollable */}
                   {uploadedVideos.filter(v => v.is_moment).length > 0 && (
                     <div className="mb-8">
-                      <div className="mb-4 flex items-center justify-between px-4">
+                      <div className="flex items-center justify-between mb-4">
                         <h2 className="text-xl font-bold text-white">
-                          {isOwnProfile ? 'My Moments' : `${displayedName}'s Moments`} ({uploadedVideos.filter(v => v.is_moment).length})
+                          {isOwnProfile ? 'My Moments' : `${displayedName}'s Moments`}
                         </h2>
+                        <Button
+                          variant="ghost"
+                          className="text-primary hover:text-primary/80"
+                          onClick={() => navigate(`/moments/${username || currentUserUsername}`)}
+                        >
+                          View More
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
                       </div>
-                      <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4 px-4">
+
+                      <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
                         {uploadedVideos.filter(v => v.is_moment).map((moment) => (
                           <div
                             key={moment.id}
@@ -1877,7 +1950,7 @@ const ProfilePage = () => {
                                   loading="lazy"
                                 />
                               )}
-                              
+
                               {/* Play overlay */}
                               <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                                 <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
@@ -1892,12 +1965,12 @@ const ProfilePage = () => {
                                 </Badge>
                               </div>
                             </div>
-                            
+
                             <div className="p-3 space-y-2">
                               <h3 className="font-medium text-sm line-clamp-2 leading-tight text-white">
                                 {moment.title}
                               </h3>
-                              
+
                               <div className="flex items-center justify-between text-xs text-gray-400">
                                 <span>{moment.views?.toLocaleString() || 0} views</span>
                                 <span>{moment.likes?.toLocaleString() || 0} likes</span>
@@ -1930,7 +2003,7 @@ const ProfilePage = () => {
                           padding: '0 16px'
                         }}
                       >
-                        {uploadedVideos.filter(v => v.is_premium).slice(0, 8).map((video) => (
+                        {uploadedVideos.filter(v => v.is_premium).slice(0, showMorePremium ? undefined : 7).map((video) => (
                           <div
                             key={video.id}
                             className="group cursor-pointer w-full"
@@ -1990,7 +2063,7 @@ const ProfilePage = () => {
                           padding: '0 16px'
                         }}
                       >
-                        {watchHistory.slice(0, 12).map((video) => (
+                        {watchHistory.slice(0, showMoreWatchHistory ? undefined : 7).map((video) => (
                           <div
                             key={`${video.id}-${video.watched_at}`}
                             className="group cursor-pointer w-full"
@@ -2027,17 +2100,611 @@ const ProfilePage = () => {
                           </div>
                         ))}
                       </div>
+                      {!showMoreWatchHistory && watchHistory.length > 7 && (
+                        <div className="mt-4 text-center">
+                          <Button
+                            onClick={() => setShowMoreWatchHistory(true)}
+                            variant="outline"
+                            className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                            data-testid="button-view-more-watch-history"
+                          >
+                            View More ({watchHistory.length - 7} more)
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
 
-                  {/* Empty state for no uploads */}
-                  {uploadedVideos.length === 0 && (!isOwnProfile || watchHistory.length === 0) && (
+                  {/* Empty state */}
+                  {uploadedVideos.length === 0 && favorites.length === 0 && watchHistory.length === 0 && (
                     <div className="text-center py-12">
-                      <Video className="w-12 h-12 mx-auto text-gray-600 mb-4" />
-                      <h3 className="text-lg font-semibold mb-2 text-white">No videos uploaded</h3>
-                      <p className="text-gray-400">
-                        {isOwnProfile ? 'Upload your first video to get started!' : `${displayedName} hasn't uploaded any videos yet.`}
-                      </p>
+                      {!isOwnProfile ? (
+                        <>
+                          <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">No content available</h3>
+                          <p className="text-gray-400">
+                            {displayedName} hasn't shared any content yet.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Video className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">Start your journey</h3>
+                          <p className="text-gray-400">
+                            Upload videos, create moments, and like content to see them here!
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              <TabsContent value="videos" className="mt-6">
+                <div className="w-full space-y-8">
+                  {/* Regular Videos Section */}
+                  {((isOwnProfile ? userType : profileUserType) === 'individual_creator' || (isOwnProfile ? userType : profileUserType) === 'studio_creator') && uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-bold text-white">
+                          {isOwnProfile ? 'My Videos' : `${displayedName}'s Videos`} ({uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length})
+                        </h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {uploadedVideos.filter(v => !v.is_moment && !v.is_premium).slice(0, 12).map((video) => (
+                          <div
+                            key={video.id}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(`/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              {isOwnProfile && (
+                                <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
+                                  MY VIDEO
+                                </div>
+                              )}
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration || '00:00'}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Heart className="w-3 h-3" />
+                                <span>{video.likes?.toLocaleString() || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Moments Section - Horizontal Scrollable */}
+                  {uploadedVideos.filter(v => v.is_moment).length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-white">
+                          {isOwnProfile ? 'My Moments' : `${displayedName}'s Moments`}
+                        </h2>
+                        <Button
+                          variant="ghost"
+                          className="text-primary hover:text-primary/80"
+                          onClick={() => navigate(`/moments/${username || currentUserUsername}`)}
+                        >
+                          View More
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+
+                      <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
+                        {uploadedVideos.filter(v => v.is_moment).map((moment) => (
+                          <div
+                            key={moment.id}
+                            className="flex-shrink-0 w-48 group cursor-pointer"
+                            onClick={() => navigate(`/moments?start=${moment.id}`)}
+                          >
+                            <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-800">
+                              {moment.thumbnail_url && (
+                                <img
+                                  src={moment.thumbnail_url}
+                                  alt={moment.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  loading="lazy"
+                                />
+                              )}
+
+                              {/* Play overlay */}
+                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                                  <Play className="w-6 h-6 text-white ml-1" fill="currentColor" />
+                                </div>
+                              </div>
+
+                              {/* Moments badge */}
+                              <div className="absolute top-2 left-2">
+                                <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold">
+                                  Moment
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <div className="p-3 space-y-2">
+                              <h3 className="font-medium text-sm line-clamp-2 leading-tight text-white">
+                                {moment.title}
+                              </h3>
+
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <span>{moment.views?.toLocaleString() || 0} views</span>
+                                <span>{moment.likes?.toLocaleString() || 0} likes</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Premium Videos Section */}
+                  {uploadedVideos.filter(v => v.is_premium).length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-white flex items-center">
+                          <Crown className="w-5 h-5 mr-2 text-yellow-400" />
+                          {isOwnProfile ? 'My Premium Content' : `${displayedName}'s Premium Content`} ({uploadedVideos.filter(v => v.is_premium).length})
+                        </h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {uploadedVideos.filter(v => v.is_premium).slice(0, showMorePremium ? undefined : 7).map((video) => (
+                          <div
+                            key={video.id}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(`/premium/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-purple-900/50 to-black mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
+                                <Crown className="w-3 h-3 mr-1 inline" />
+                                PREMIUM
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration || '00:00'}
+                              </div>
+                              {/* Premium glow effect */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-purple-500/10 to-orange-500/0 group-hover:via-purple-500/20 transition-all duration-300"></div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Heart className="w-3 h-3" />
+                                <span>{video.likes?.toLocaleString() || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Watch History Section (for own profile only) */}
+                  {isOwnProfile && watchHistory.length > 0 && (
+                    <div className="mb-8 border-t border-gray-800 pt-8">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-bold text-white">Recently Watched ({watchHistory.length})</h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {watchHistory.slice(0, showMoreWatchHistory ? undefined : 7).map((video) => (
+                          <div
+                            key={`${video.id}-${video.watched_at}`}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded">
+                                <Eye className="w-3 h-3 mr-1 inline" />
+                                WATCHED
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Calendar className="w-3 h-3" />
+                                <span>{new Date(video.watched_at).toLocaleDateString()}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {!showMoreWatchHistory && watchHistory.length > 7 && (
+                        <div className="mt-4 text-center">
+                          <Button
+                            onClick={() => setShowMoreWatchHistory(true)}
+                            variant="outline"
+                            className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                            data-testid="button-view-more-watch-history"
+                          >
+                            View More ({watchHistory.length - 7} more)
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {uploadedVideos.length === 0 && favorites.length === 0 && watchHistory.length === 0 && (
+                    <div className="text-center py-12">
+                      {!isOwnProfile ? (
+                        <>
+                          <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">No content available</h3>
+                          <p className="text-gray-400">
+                            {displayedName} hasn't shared any content yet.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Video className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">Start your journey</h3>
+                          <p className="text-gray-400">
+                            Upload videos, create moments, and like content to see them here!
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+              <TabsContent value="videos" className="mt-6">
+                <div className="w-full space-y-8">
+                  {/* Regular Videos Section */}
+                  {((isOwnProfile ? userType : profileUserType) === 'individual_creator' || (isOwnProfile ? userType : profileUserType) === 'studio_creator') && uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-bold text-white">
+                          {isOwnProfile ? 'My Videos' : `${displayedName}'s Videos`} ({uploadedVideos.filter(v => !v.is_moment && !v.is_premium).length})
+                        </h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {uploadedVideos.filter(v => !v.is_moment && !v.is_premium).slice(0, 12).map((video) => (
+                          <div
+                            key={video.id}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(`/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              {isOwnProfile && (
+                                <div className="absolute top-2 left-2 bg-orange-500/90 text-white text-xs px-2 py-1 rounded">
+                                  MY VIDEO
+                                </div>
+                              )}
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration || '00:00'}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Heart className="w-3 h-3" />
+                                <span>{video.likes?.toLocaleString() || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Moments Section - Horizontal Scrollable */}
+                  {uploadedVideos.filter(v => v.is_moment).length > 0 && (
+                    <div className="mb-8">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-white">
+                          {isOwnProfile ? 'My Moments' : `${displayedName}'s Moments`}
+                        </h2>
+                        <Button
+                          variant="ghost"
+                          className="text-primary hover:text-primary/80"
+                          onClick={() => navigate(`/moments/${username || currentUserUsername}`)}
+                        >
+                          View More
+                          <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      </div>
+
+                      <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
+                        {uploadedVideos.filter(v => v.is_moment).map((moment) => (
+                          <div
+                            key={moment.id}
+                            className="flex-shrink-0 w-48 group cursor-pointer"
+                            onClick={() => navigate(`/moments?start=${moment.id}`)}
+                          >
+                            <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-800">
+                              {moment.thumbnail_url && (
+                                <img
+                                  src={moment.thumbnail_url}
+                                  alt={moment.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  loading="lazy"
+                                />
+                              )}
+
+                              {/* Play overlay */}
+                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                <div className="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                                  <Play className="w-6 h-6 text-white ml-1" fill="currentColor" />
+                                </div>
+                              </div>
+
+                              {/* Moments badge */}
+                              <div className="absolute top-2 left-2">
+                                <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold">
+                                  Moment
+                                </Badge>
+                              </div>
+                            </div>
+
+                            <div className="p-3 space-y-2">
+                              <h3 className="font-medium text-sm line-clamp-2 leading-tight text-white">
+                                {moment.title}
+                              </h3>
+
+                              <div className="flex items-center justify-between text-xs text-gray-400">
+                                <span>{moment.views?.toLocaleString() || 0} views</span>
+                                <span>{moment.likes?.toLocaleString() || 0} likes</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Premium Videos Section */}
+                  {uploadedVideos.filter(v => v.is_premium).length > 0 && (
+                    <div className="mb-8">
+                      <div className="mb-4 flex items-center justify-between">
+                        <h2 className="text-xl font-bold text-white flex items-center">
+                          <Crown className="w-5 h-5 mr-2 text-yellow-400" />
+                          {isOwnProfile ? 'My Premium Content' : `${displayedName}'s Premium Content`} ({uploadedVideos.filter(v => v.is_premium).length})
+                        </h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {uploadedVideos.filter(v => v.is_premium).slice(0, showMorePremium ? undefined : 7).map((video) => (
+                          <div
+                            key={video.id}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(`/premium/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-purple-900/50 to-black mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute top-2 left-2 bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs px-2 py-1 rounded font-bold">
+                                <Crown className="w-3 h-3 mr-1 inline" />
+                                PREMIUM
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration || '00:00'}
+                              </div>
+                              {/* Premium glow effect */}
+                              <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-purple-500/10 to-orange-500/0 group-hover:via-purple-500/20 transition-all duration-300"></div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Heart className="w-3 h-3" />
+                                <span>{video.likes?.toLocaleString() || 0}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Watch History Section (for own profile only) */}
+                  {isOwnProfile && watchHistory.length > 0 && (
+                    <div className="mb-8 border-t border-gray-800 pt-8">
+                      <div className="mb-4">
+                        <h2 className="text-xl font-bold text-white">Recently Watched ({watchHistory.length})</h2>
+                      </div>
+                      <div
+                        className="w-full max-w-none"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+                          gap: '16px',
+                          width: '100vw',
+                          maxWidth: '100vw',
+                          margin: '0 -16px',
+                          padding: '0 16px'
+                        }}
+                      >
+                        {watchHistory.slice(0, showMoreWatchHistory ? undefined : 7).map((video) => (
+                          <div
+                            key={`${video.id}-${video.watched_at}`}
+                            className="group cursor-pointer w-full"
+                            onClick={() => navigate(video.is_moment ? `/moments?start=${video.id}` : `/video/${video.id}`)}
+                          >
+                            <div className="relative aspect-video rounded-lg overflow-hidden bg-gray-800 mb-2">
+                              {video.thumbnail_url && (
+                                <img
+                                  src={video.thumbnail_url}
+                                  alt={video.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                  loading="lazy"
+                                />
+                              )}
+                              <div className="absolute top-2 left-2 bg-purple-500/90 text-white text-xs px-2 py-1 rounded">
+                                <Eye className="w-3 h-3 mr-1 inline" />
+                                WATCHED
+                              </div>
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                                {video.duration}
+                              </div>
+                            </div>
+                            <h4 className="font-medium text-sm line-clamp-2 mb-1 text-white">{video.title}</h4>
+                            <div className="flex items-center space-x-3 text-xs text-gray-400">
+                              <span className="flex items-center space-x-1">
+                                <Eye className="w-3 h-3" />
+                                <span>{video.views?.toLocaleString() || 0}</span>
+                              </span>
+                              <span className="flex items-center space-x-1">
+                                <Calendar className="w-3 h-3" />
+                                <span>{new Date(video.watched_at).toLocaleDateString()}</span>
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {!showMoreWatchHistory && watchHistory.length > 7 && (
+                        <div className="mt-4 text-center">
+                          <Button
+                            onClick={() => setShowMoreWatchHistory(true)}
+                            variant="outline"
+                            className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700"
+                            data-testid="button-view-more-watch-history"
+                          >
+                            View More ({watchHistory.length - 7} more)
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Empty state */}
+                  {uploadedVideos.length === 0 && favorites.length === 0 && watchHistory.length === 0 && (
+                    <div className="text-center py-12">
+                      {!isOwnProfile ? (
+                        <>
+                          <Users className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">No content available</h3>
+                          <p className="text-gray-400">
+                            {displayedName} hasn't shared any content yet.
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <Video className="w-12 h-12 mx-auto text-gray-600 mb-4" />
+                          <h3 className="text-lg font-semibold mb-2 text-white">Start your journey</h3>
+                          <p className="text-gray-400">
+                            Upload videos, create moments, and like content to see them here!
+                          </p>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2291,7 +2958,7 @@ const ProfilePage = () => {
                       </DialogContent>
                     </Dialog>
                   )}
-                  
+
                   {/* Show loading state consistently */}
                   {(feedLoading || postsLoading || !initialSocialLoadComplete) ? (
                     <div className="text-center py-12">
@@ -2349,7 +3016,7 @@ const ProfilePage = () => {
                   <CardContent className="p-6">
                     <div className="text-center py-12">
                       <Music className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">Playlists</h3>
+                      <h3 className="text-lg font-semibold mb-2 text-white">Playlists</h3>
                       <p className="text-muted-foreground">
                         Create and manage your custom video playlists to organize your favorite content.
                       </p>
