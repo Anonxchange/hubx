@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { X, Search, Play, Eye, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import CreatorProfileCard from '@/components/CreatorProfileCard';
+import { searchCreators, CreatorProfile } from '@/services/creatorSearchService';
 
 interface SearchModalProps {
   isOpen: boolean;
@@ -13,17 +15,40 @@ interface SearchModalProps {
 const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, videos, onSearchChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredVideos, setFilteredVideos] = useState(videos);
+  const [creators, setCreators] = useState<CreatorProfile[]>([]);
+  const [isSearchingCreators, setIsSearchingCreators] = useState(false);
 
   useEffect(() => {
     if (searchTerm === '') {
       setFilteredVideos(videos);
+      setCreators([]);
     } else {
+      // Filter videos - search across title, description, channel name, uploader username, and tags
       const filtered = videos.filter(video => 
-        video.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        video.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         video.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        video.channelName?.toLowerCase().includes(searchTerm.toLowerCase())
+        video.channelName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        video.uploader_username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        video.category?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (Array.isArray(video.tags) && video.tags.some((tag: string) => 
+          tag.toLowerCase().includes(searchTerm.toLowerCase())
+        ))
       );
       setFilteredVideos(filtered);
+
+      // Search creators
+      setIsSearchingCreators(true);
+      searchCreators(searchTerm)
+        .then(foundCreators => {
+          setCreators(foundCreators);
+        })
+        .catch(error => {
+          console.error('Error searching creators:', error);
+          setCreators([]);
+        })
+        .finally(() => {
+          setIsSearchingCreators(false);
+        });
     }
     onSearchChange?.(searchTerm);
   }, [searchTerm, videos, onSearchChange]);
@@ -31,6 +56,7 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, videos, onSe
   const handleClose = () => {
     setSearchTerm('');
     setFilteredVideos(videos);
+    setCreators([]);
     onClose();
   };
 
@@ -67,19 +93,52 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, videos, onSe
           {searchTerm === '' ? (
             <div className="text-center py-12 px-4">
               <Search className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-              <p className="text-gray-400">Start typing to search for videos...</p>
+              <p className="text-gray-400">Start typing to search for creators and videos...</p>
             </div>
-          ) : filteredVideos.length === 0 ? (
+          ) : creators.length === 0 && filteredVideos.length === 0 && !isSearchingCreators ? (
             <div className="text-center py-12 px-4">
               <Search className="w-12 h-12 text-gray-600 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold mb-2 text-white">No videos found</h3>
-              <p className="text-gray-400">No videos match "{searchTerm}". Try different keywords.</p>
+              <h3 className="text-lg font-semibold mb-2 text-white">No results found</h3>
+              <p className="text-gray-400">No creators or videos match "{searchTerm}". Try different keywords.</p>
             </div>
           ) : (
             <div className="p-4">
+              {/* Results summary */}
               <div className="mb-4 text-sm text-gray-400">
-                {filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''} found
+                {creators.length > 0 && (
+                  <span>{creators.length} creator{creators.length !== 1 ? 's' : ''}</span>
+                )}
+                {creators.length > 0 && filteredVideos.length > 0 && <span> and </span>}
+                {filteredVideos.length > 0 && (
+                  <span>{filteredVideos.length} video{filteredVideos.length !== 1 ? 's' : ''}</span>
+                )}
+                <span> found</span>
               </div>
+
+              {/* Creator Results First */}
+              {creators.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-white font-semibold mb-3 flex items-center">
+                    Creators
+                  </h3>
+                  <div className="space-y-3">
+                    {creators.map((creator) => (
+                      <CreatorProfileCard 
+                        key={creator.id} 
+                        creator={creator} 
+                        onClose={handleClose} 
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Video Results Below */}
+              {filteredVideos.length > 0 && (
+                <div>
+                  <h3 className="text-white font-semibold mb-3 flex items-center">
+                    Videos
+                  </h3>
               <div className="space-y-4">
                 {filteredVideos.map((video) => (
                   <Link
@@ -128,7 +187,9 @@ const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, videos, onSe
                     </div>
                   </Link>
                 ))}
-              </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
