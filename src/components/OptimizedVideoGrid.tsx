@@ -741,6 +741,8 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   showTags = true,
   showDate = false
 }) => {
+  // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY CONDITIONAL LOGIC
+  
   // Fetch premium videos when showPremiumSection is true
   const { data: premiumVideos = [] } = useQuery({
     queryKey: ['premium-videos-grid'],
@@ -748,7 +750,29 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
     enabled: showPremiumSection,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-  // Remove auth loading dependency to speed up initial render
+  
+  const [visibleCount, setVisibleCount] = useState(60); // Show all fetched videos initially
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Process unique videos before using in hooks
+  const uniqueVideos = videos ? videos.filter(
+    (video, index, self) => index === self.findIndex((v) => v.id === video.id)
+  ) : [];
+
+  // Intersection observer for infinite loading
+  const loadMoreRef = useIntersectionObserver(
+    () => {
+      if (visibleCount < uniqueVideos.length && !isLoadingMore) {
+        setIsLoadingMore(true);
+        // Batch load more videos
+        setTimeout(() => {
+          setVisibleCount(prev => Math.min(prev + 10, uniqueVideos.length));
+          setIsLoadingMore(false);
+        }, 100);
+      }
+    },
+    { threshold: 0.1 }
+  );
 
   // Skeleton loading component
   const SkeletonCard = () => (
@@ -765,6 +789,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
     </div>
   );
 
+  // CONDITIONAL LOGIC AND EARLY RETURNS COME AFTER ALL HOOKS
   // Show videos immediately, auth loading doesn't block video display
   if (!videos || videos.length === 0) {
     return (
@@ -773,37 +798,6 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
       </div>
     );
   }
-
-  if (videos.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <h2 className="text-xl font-semibold mb-2">No videos found</h2>
-        <p className="text-muted-foreground">Try adjusting your search or browse different categories.</p>
-      </div>
-    );
-  }
-
-  const uniqueVideos = videos.filter(
-    (video, index, self) => index === self.findIndex((v) => v.id === video.id)
-  );
-
-  const [visibleCount, setVisibleCount] = useState(60); // Show all fetched videos initially
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-  // Intersection observer for infinite loading
-  const loadMoreRef = useIntersectionObserver(
-    () => {
-      if (visibleCount < uniqueVideos.length && !isLoadingMore) {
-        setIsLoadingMore(true);
-        // Batch load more videos
-        setTimeout(() => {
-          setVisibleCount(prev => Math.min(prev + 10, uniqueVideos.length));
-          setIsLoadingMore(false);
-        }, 100);
-      }
-    },
-    { threshold: 0.1 }
-  );
 
   const visibleVideos = uniqueVideos.slice(0, visibleCount);
 
