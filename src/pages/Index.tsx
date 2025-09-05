@@ -6,11 +6,13 @@ import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import AdComponent from '@/components/AdComponent';
+import CreatorProfileCard from '@/components/CreatorProfileCard';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useOptimizedVideos } from '@/hooks/useOptimizedVideos';
+import { searchCreators, CreatorProfile } from '@/services/creatorSearchService';
 import ImageStylePagination from '@/components/ImageStylePagination';
 
 const categories = [
@@ -26,6 +28,8 @@ const Index = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showLoading, setShowLoading] = useState(true); // Added for optimized loading state
+  const [creators, setCreators] = useState<CreatorProfile[]>([]);
+  const [isSearchingCreators, setIsSearchingCreators] = useState(false);
 
   // Get search query from URL params
   const searchQuery = searchParams.get('search') || undefined;
@@ -56,6 +60,26 @@ const Index = () => {
       setShowLoading(false);
     }
   }, [isLoading]);
+
+  // Search for creators when search query changes
+  useEffect(() => {
+    if (searchQuery) {
+      setIsSearchingCreators(true);
+      searchCreators(searchQuery)
+        .then(foundCreators => {
+          setCreators(foundCreators);
+        })
+        .catch(error => {
+          console.error('Error searching creators:', error);
+          setCreators([]);
+        })
+        .finally(() => {
+          setIsSearchingCreators(false);
+        });
+    } else {
+      setCreators([]);
+    }
+  }, [searchQuery]);
 
 
   const handleCategoryChange = React.useCallback((category: string) => {
@@ -176,6 +200,9 @@ const Index = () => {
               </Badge>
               <span className="text-blue-700 dark:text-blue-300">
                 Showing results for "{searchQuery}"
+                {creators.length > 0 && (
+                  <span> - Found {creators.length} creator{creators.length !== 1 ? 's' : ''}</span>
+                )}
               </span>
             </div>
             <Button
@@ -188,6 +215,28 @@ const Index = () => {
             >
               Clear Search
             </Button>
+          </div>
+        )}
+
+        {/* Creator Results Section - Show First */}
+        {searchQuery && creators.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Creators</h2>
+            <div className="space-y-3">
+              {creators.map((creator) => (
+                <CreatorProfileCard 
+                  key={creator.id} 
+                  creator={creator} 
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Video Results Section - Show After Creators */}
+        {searchQuery && videos.length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-foreground">Videos</h2>
           </div>
         )}
 
