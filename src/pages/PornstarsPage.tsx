@@ -133,10 +133,10 @@ const PornstarsPage = () => {
 
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-white mb-4">
-              Individual Creators
+              PornStars | Models
             </h1>
             <p className="text-muted-foreground text-lg">
-              Discover talented individual content creators
+              Discover talented Model content creators
             </p>
           </div>
 
@@ -169,7 +169,7 @@ const PornstarsPage = () => {
           {/* Navigation Tabs */}
           <div className="flex gap-4 mb-8 overflow-x-auto">
             <button className="bg-orange-600 text-white px-6 py-2 rounded-full font-medium whitespace-nowrap">
-              All Studios
+              All PornStars
             </button>
             <button className="text-gray-400 px-6 py-2 rounded-full font-medium whitespace-nowrap hover:text-white">
               Popular
@@ -216,7 +216,7 @@ const PornstarsPage = () => {
                           {creator.username || creator.full_name || 'Unknown Creator'}
                         </h3>
                         <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
-                          Studio
+                          Model
                         </span>
                       </div>
                       
