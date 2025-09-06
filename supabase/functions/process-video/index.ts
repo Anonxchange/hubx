@@ -18,6 +18,17 @@ const BUNNY_STORAGE_ZONE = Deno.env.get('BUNNY_STORAGE_ZONE')!;
 const BUNNY_STORAGE_API_KEY = Deno.env.get('BUNNY_STORAGE_API_KEY')!;
 const BUNNY_STORAGE_URL = `https://storage.bunnycdn.com/${BUNNY_STORAGE_ZONE}`;
 
+// Constant Referer header to use for all HLS playlist and segment requests
+const HLS_REFERER = 'https://hubx-tau.vercel.app';
+
+// Helper: fetch with Referer header
+async function fetchWithReferer(input: string | URL, init: RequestInit = {}) {
+  const mergedHeaders = new Headers(init.headers || {});
+  // Ensure Referer is always set for HLS resources
+  mergedHeaders.set('Referer', HLS_REFERER);
+  return fetch(input, { ...init, headers: mergedHeaders });
+}
+
 interface ProcessVideoRequest {
   videoId: string;
   hlsUrl: string;
@@ -66,19 +77,78 @@ serve(async (req) => {
     // Kick off background processing and return immediately
     async function backgroundTask() {
       try {
-        // Step 1: Fetch HLS playlist
+        // Step 1: Fetch HLS playlist (with Referer header)
         console.log('Fetching HLS playlist...');
-        const playlistResponse = await fetch(hlsUrl);
-        if (!playlistResponse.ok) {
-          throw new Error(`Failed to fetch HLS playlist: ${playlistResponse.status}`);
+        const initialResp = await fetchWithReferer(hlsUrl);
+        if (!initialResp.ok) {
+          throw new Error(`Failed to fetch HLS playlist: ${initialResp.status}`);
         }
-        const playlistContent = await playlistResponse.text();
+        const initialContent = await initialResp.text();
         console.log('HLS playlist fetched successfully');
 
+        // Step 1b: If master playlist, auto-select best variant (highest BANDWIDTH)
+        let mediaPlaylistContent = initialContent;
+        let mediaPlaylistUrl = hlsUrl;
+
+        if (/#EXT-X-STREAM-INF/i.test(initialContent)) {
+          console.log('Master playlist detected. Selecting best variant...');
+          const lines = initialContent.split('\n').map(l => l.trim());
+          const urlObj = new URL(hlsUrl);
+          const basePath = urlObj.origin + urlObj.pathname.substring(0, urlObj.pathname.lastIndexOf('/') + 1);
+
+          type Variant = { uri: string; bandwidth: number; resolution?: string };
+          const variants: Variant[] = [];
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.startsWith('#EXT-X-STREAM-INF')) {
+              const attrs = line.split(':')[1] || '';
+              const bwMatch = attrs.match(/BANDWIDTH=(\d+)/i);
+              const resMatch = attrs.match(/RESOLUTION=([0-9xX]+)/i);
+              // Find next non-comment, non-empty line for URI
+              let j = i + 1;
+              while (j < lines.length && (!lines[j] || lines[j].startsWith('#'))) j++;
+              if (j < lines.length) {
+                let uri = lines[j];
+                if (!/^https?:\/\//i.test(uri)) uri = basePath + uri;
+                variants.push({
+                  uri,
+                  bandwidth: bwMatch ? parseInt(bwMatch[1], 10) : 0,
+                  resolution: resMatch ? resMatch[1] : undefined,
+                });
+              }
+            }
+          }
+
+          if (variants.length === 0) {
+            throw new Error('No media variants found in master playlist');
+          }
+
+          // Prefer 720p, then 480p, else highest bandwidth
+          const normalizeRes = (r?: string) => (r ?? '').toLowerCase().trim();
+          const pickByRes = (wanted: string[]) =>
+            variants.find(v => wanted.includes(normalizeRes(v.resolution)));
+          const preferred = pickByRes(['1280x720']) ?? pickByRes(['854x480', '640x480']);
+          let chosen: Variant;
+          if (preferred) {
+            chosen = preferred;
+          } else {
+            variants.sort((a, b) => b.bandwidth - a.bandwidth);
+            chosen = variants[0];
+          }
+          console.log(`Chosen variant → bandwidth=${chosen.bandwidth}${chosen.resolution ? `, res=${chosen.resolution}` : ''} url=${chosen.uri}`);
+
+          const mediaResp = await fetchWithReferer(chosen.uri);
+          if (!mediaResp.ok) {
+            throw new Error(`Failed to fetch media playlist: ${mediaResp.status}`);
+          }
+          mediaPlaylistContent = await mediaResp.text();
+          mediaPlaylistUrl = chosen.uri;
+        }
+
         // Step 2: Parse playlist and get segment URLs
-        const segmentUrls = parseHLSPlaylist(playlistContent, hlsUrl);
+        const segmentUrls = parseHLSPlaylist(mediaPlaylistContent, mediaPlaylistUrl);
         if (segmentUrls.length === 0) {
-          throw new Error('No video segments found in HLS playlist');
+          throw new Error('No video segments found in selected HLS playlist');
         }
 
         // Step 3: Select multiple segments from different parts of the video
@@ -102,7 +172,8 @@ serve(async (req) => {
         for (let i = 0; i < selectedSegmentUrls.length; i++) {
           const url = selectedSegmentUrls[i];
           console.log(`Downloading segment ${i + 1}/${selectedSegmentUrls.length}: ${url}`);
-          const res = await fetch(url);
+          // Fetch segments with Referer header
+          const res = await fetchWithReferer(url);
           if (!res.ok) throw new Error(`Failed to download segment ${i}: ${res.status}`);
           const buf = new Uint8Array(await res.arrayBuffer());
           const fileName = `input_${i}.ts`;
@@ -272,4 +343,3 @@ function uint8ToBase64(uint8: Uint8Array): string {
   let binary = '';
   for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
   return btoa(binary);
-}
