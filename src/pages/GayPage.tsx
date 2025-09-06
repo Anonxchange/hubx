@@ -6,6 +6,7 @@ import CategoryFilter from '@/components/CategoryFilter';
 import { getOptimizedVideos } from '@/services/optimizedVideosService';
 import { Video } from '@/services/videosService';
 import { Skeleton } from '@/components/ui/skeleton';
+import AdComponent from '@/components/AdComponent';
 
 const GayPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
@@ -80,6 +81,13 @@ const GayPage = () => {
       
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
+          {/* Top Ad Banner */}
+          <div className="w-full flex justify-center mb-8">
+            <div className="w-full max-w-4xl">
+              <AdComponent zoneId="5660534" />
+            </div>
+          </div>
+
           {/* Header Section */}
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-white mb-4">
