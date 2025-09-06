@@ -208,7 +208,7 @@ const PornstarsPage = () => {
                           {creator.username || creator.full_name || 'Unknown Creator'}
                         </h3>
                         <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
-                          Studio
+                          Model
                         </span>
                       </div>
                       
