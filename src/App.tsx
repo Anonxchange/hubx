@@ -33,6 +33,7 @@ import PremiumIndividualCreatorsPage from './pages/PremiumIndividualCreatorsPage
 import ContactUs from "./pages/ContactUs";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import RTAPage from './pages/RTAPage';
 import NotFound from "./pages/NotFound";
 import ProfilePage from "./pages/ProfilePage";
 import BecomeModelPage from "@/pages/BecomeModelPage";
@@ -154,6 +155,7 @@ const App = () => {
 
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="/rta" element={<RTAPage />} />
                   <Route path="/admin-hubx-2024" element={<AdminPanel />} />
                   <Route path="/debug-auth" element={<DebugAuth />} />
                   <Route path="/notifications" element={<NotificationsPage />} />
