@@ -125,7 +125,7 @@ const PornstarsPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-white mb-4">
-              PornStars/Model
+              PornStars| Model
             </h1>
             <p className="text-muted-foreground text-lg">
               Discover talented model content creators
@@ -161,7 +161,7 @@ const PornstarsPage = () => {
           {/* Navigation Tabs */}
           <div className="flex gap-4 mb-8 overflow-x-auto">
             <button className="bg-orange-600 text-white px-6 py-2 rounded-full font-medium whitespace-nowrap">
-              All Studios
+              All Pornstars
             </button>
             <button className="text-gray-400 px-6 py-2 rounded-full font-medium whitespace-nowrap hover:text-white">
               Popular
