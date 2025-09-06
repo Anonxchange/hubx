@@ -63,6 +63,8 @@ import ContestsPage from './pages/ContestsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
 import FeaturedVideosPage from './pages/FeaturedVideosPage';
 import PlaylistViewPage from '@/pages/PlaylistViewPage';
+import PornstarsPage from './pages/PornstarsPage';
+import GayPage from './pages/GayPage';
 
 const queryClient = new QueryClient();
 
@@ -121,6 +123,8 @@ const App = () => {
                   <Route path="/contests" element={<ContestsPage />} />
                   <Route path="/analytics" element={<AnalyticsPage />} />
                   <Route path="/featured-videos" element={<FeaturedVideosPage />} />
+                  <Route path="/pornstars" element={<PornstarsPage />} />
+                  <Route path="/gay" element={<GayPage />} />
 
                   {/* Protected routes */}
                   <Route
