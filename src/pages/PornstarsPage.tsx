@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { CreatorProfile } from '@/services/creatorSearchService';
+import AdComponent from '@/components/AdComponent';
 
 const PornstarsPage = () => {
   const navigate = useNavigate();
@@ -123,12 +124,19 @@ const PornstarsPage = () => {
       
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
+          {/* Top Ad Banner */}
+          <div className="w-full flex justify-center mb-8">
+            <div className="w-full max-w-4xl">
+              <AdComponent zoneId="5660534" />
+            </div>
+          </div>
+
           <div className="text-center mb-8">
             <h1 className="text-4xl font-bold text-white mb-4">
-              PornStars| Model
+              Individual Creators
             </h1>
             <p className="text-muted-foreground text-lg">
-              Discover talented model content creators
+              Discover talented individual content creators
             </p>
           </div>
 
@@ -161,7 +169,7 @@ const PornstarsPage = () => {
           {/* Navigation Tabs */}
           <div className="flex gap-4 mb-8 overflow-x-auto">
             <button className="bg-orange-600 text-white px-6 py-2 rounded-full font-medium whitespace-nowrap">
-              All Pornstars
+              All Studios
             </button>
             <button className="text-gray-400 px-6 py-2 rounded-full font-medium whitespace-nowrap hover:text-white">
               Popular
@@ -208,7 +216,7 @@ const PornstarsPage = () => {
                           {creator.username || creator.full_name || 'Unknown Creator'}
                         </h3>
                         <span className="bg-yellow-500 text-black text-xs font-bold px-2 py-1 rounded">
-                          Model
+                          Studio
                         </span>
                       </div>
                       
