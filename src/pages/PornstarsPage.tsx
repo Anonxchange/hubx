@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Search } from 'lucide-react';
 import { CreatorProfile } from '@/services/creatorSearchService';
 import AdComponent from '@/components/AdComponent';
+import VerificationBadge from '@/components/VerificationBadge';
 
 const PornstarsPage = () => {
   const navigate = useNavigate();
@@ -46,14 +47,14 @@ const PornstarsPage = () => {
             // Get video count and views
             let videoCount = 0;
             let totalViews = 0;
-            
+
             try {
               // @ts-ignore - Temporary fix for TypeScript compilation issue
               const { data, error } = await supabase
                 .from('videos')
                 .select('views')
                 .eq('owner_id', profile.id);
-                
+
               if (!error && data) {
                 videoCount = data.length;
                 totalViews = data.reduce((sum: number, video: any) => sum + (video.views || 0), 0);
@@ -61,7 +62,7 @@ const PornstarsPage = () => {
             } catch (error) {
               console.error(`Error fetching videos for creator ${profile.id}:`, error);
             }
-            
+
             // Get subscriber count
             const subscriberResult = await supabase
               .from('subscriptions')
@@ -121,7 +122,7 @@ const PornstarsPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-7xl mx-auto">
           {/* Top Ad Banner */}
@@ -203,8 +204,12 @@ const PornstarsPage = () => {
                           e.currentTarget.src = '/default-avatar.png';
                         }}
                       />
+                      {/* Verification Badge */}
+                      <div className="absolute -bottom-1 -right-1">
+                        <VerificationBadge userType="individual_creator" size="small" />
+                      </div>
                       {/* Rank Badge */}
-                      <div className="absolute -top-2 -right-2 bg-yellow-500 text-black text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                      <div className="absolute -top-2 -left-2 bg-yellow-500 text-black text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
                         #{index + 1}
                       </div>
                     </div>
@@ -219,7 +224,7 @@ const PornstarsPage = () => {
                           Model
                         </span>
                       </div>
-                      
+
                       <p className="text-gray-400 text-sm mb-3">
                         Welcome to my profile! 🌟
                       </p>
@@ -280,7 +285,7 @@ const PornstarsPage = () => {
           )}
         </div>
       </main>
-      
+
       <Footer />
     </div>
   );
