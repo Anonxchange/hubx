@@ -129,7 +129,7 @@ const Footer = () => {
           </div>
           <p className="text-xs text-muted-foreground text-center max-w-2xl leading-relaxed">
             This website is rated with RTA label. Parents, you can easily block access to this site. 
-            Please read this <a href="https://www.rtalabel.org/index.php?content=parents" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">page</a> for more information.
+            Please read our <Link to="/rta" className="text-primary hover:underline">RTA information page</Link> for more information.
           </p>
         </div>
 
