@@ -17,6 +17,93 @@ const PornstarsPage = () => {
   const [filteredCreators, setFilteredCreators] = useState<CreatorProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [user, setUser] = useState<any>(null); // State to hold the current user
+  const [activeTab, setActiveTab] = useState('all'); // State for active tab
+
+  // Fetch current user
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    fetchUser();
+  }, []);
+
+  // Helper function to check if the current user is subscribed to a creator
+  const isSubscribedToCreator = async (creatorId: string): Promise<boolean> => {
+    if (!user) return false;
+    const { data, error } = await supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('subscriber_id', user.id)
+      .eq('creator_id', creatorId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error checking subscription:', error);
+      return false;
+    }
+    return !!data;
+  };
+
+  // Handle subscribe/unsubscribe
+  const handleSubscribeToggle = async (creatorId: string) => {
+    if (!user) {
+      alert('Please log in to subscribe.');
+      return;
+    }
+
+    const creatorIndex = creators.findIndex(c => c.id === creatorId);
+    if (creatorIndex === -1) return;
+
+    const creator = creators[creatorIndex];
+    const isCurrentlySubscribed = creator.isFollowing;
+
+    try {
+      if (isCurrentlySubscribed) {
+        // Unsubscribe
+        const { error } = await supabase
+          .from('subscriptions')
+          .delete()
+          .eq('subscriber_id', user.id)
+          .eq('creator_id', creatorId);
+        
+        if (error) throw error;
+      } else {
+        // Subscribe
+        const { error } = await supabase
+          .from('subscriptions')
+          .insert([
+            { 
+              subscriber_id: user.id, 
+              creator_id: creatorId,
+              created_at: new Date().toISOString()
+            }
+          ]);
+        
+        if (error) throw error;
+      }
+
+      // Update the local state for both arrays
+      const updateCreators = (prevCreators: CreatorProfile[]) =>
+        prevCreators.map(c =>
+          c.id === creatorId
+            ? { 
+                ...c, 
+                isFollowing: !isCurrentlySubscribed,
+                subscriberCount: isCurrentlySubscribed ? c.subscriberCount - 1 : c.subscriberCount + 1,
+              }
+            : c
+        );
+
+      setCreators(updateCreators);
+      setFilteredCreators(updateCreators);
+
+    } catch (error) {
+      console.error('Error toggling subscription:', error);
+      alert('Failed to update subscription. Please try again.');
+    }
+  };
 
   // Fetch individual creators
   useEffect(() => {
@@ -41,7 +128,7 @@ const PornstarsPage = () => {
           return;
         }
 
-        // Process creators with stats - simplified approach
+        // Get stats for each creator
         const creatorsWithStats = await Promise.all(
           individualProfiles.map(async (profile: any, index: number) => {
             // Get video count and views
@@ -64,10 +151,20 @@ const PornstarsPage = () => {
             }
 
             // Get subscriber count
-            const subscriberResult = await supabase
+            const { count: subscriberCount, error: subError } = await supabase
               .from('subscriptions')
               .select('*', { count: 'exact', head: true })
               .eq('creator_id', profile.id);
+            
+            if (subError) {
+              console.error('Error fetching subscriber count:', subError);
+            }
+
+            // Check if current user is subscribed
+            let isFollowing = false;
+            if (user) {
+              isFollowing = await isSubscribedToCreator(profile.id);
+            }
 
             return {
               id: profile.id,
@@ -79,8 +176,9 @@ const PornstarsPage = () => {
               cover_photo_url: profile.cover_photo_url,
               videoCount,
               totalViews,
-              subscriberCount: subscriberResult.count || 0,
+              subscriberCount: subscriberCount || 0,
               rank: index + 1,
+              isFollowing,
             };
           })
         );
@@ -98,20 +196,34 @@ const PornstarsPage = () => {
     };
 
     fetchIndividualCreators();
-  }, []);
+  }, [user]); // Re-fetch when user changes
 
-  // Filter creators based on search query
+  // Filter creators based on search query and active tab
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredCreators(creators);
-    } else {
-      const filtered = creators.filter(creator => 
+    let filtered = creators;
+
+    // Apply tab filter first
+    if (activeTab === 'popular') {
+      // Sort by total views (most popular)
+      filtered = [...creators].sort((a, b) => b.totalViews - a.totalViews);
+    } else if (activeTab === 'trending') {
+      // Sort by subscriber count (trending)
+      filtered = [...creators].sort((a, b) => b.subscriberCount - a.subscriberCount);
+    } else if (activeTab === 'following') {
+      // Show only creators the user is following
+      filtered = creators.filter(creator => creator.isFollowing);
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(creator => 
         creator.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         creator.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredCreators(filtered);
     }
-  }, [searchQuery, creators]);
+
+    setFilteredCreators(filtered);
+  }, [searchQuery, creators, activeTab]);
 
   // Handle creator profile click
   const handleCreatorClick = (creator: CreatorProfile) => {
@@ -169,16 +281,44 @@ const PornstarsPage = () => {
 
           {/* Navigation Tabs */}
           <div className="flex gap-4 mb-8 overflow-x-auto">
-            <button className="bg-orange-600 text-white px-6 py-2 rounded-full font-medium whitespace-nowrap">
+            <button 
+              className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-colors ${
+                activeTab === 'all' 
+                  ? 'bg-orange-600 text-white' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              onClick={() => setActiveTab('all')}
+            >
               All PornStars
             </button>
-            <button className="text-gray-400 px-6 py-2 rounded-full font-medium whitespace-nowrap hover:text-white">
+            <button 
+              className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-colors ${
+                activeTab === 'popular' 
+                  ? 'bg-orange-600 text-white' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              onClick={() => setActiveTab('popular')}
+            >
               Popular
             </button>
-            <button className="text-gray-400 px-6 py-2 rounded-full font-medium whitespace-nowrap hover:text-white">
+            <button 
+              className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-colors ${
+                activeTab === 'trending' 
+                  ? 'bg-orange-600 text-white' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              onClick={() => setActiveTab('trending')}
+            >
               Trending
             </button>
-            <button className="text-gray-400 px-6 py-2 rounded-full font-medium whitespace-nowrap hover:text-white">
+            <button 
+              className={`px-6 py-2 rounded-full font-medium whitespace-nowrap transition-colors ${
+                activeTab === 'following' 
+                  ? 'bg-orange-600 text-white' 
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              onClick={() => setActiveTab('following')}
+            >
               Following
             </button>
           </div>
@@ -251,17 +391,18 @@ const PornstarsPage = () => {
 
                       {/* Subscribe Button */}
                       <button 
-                        className="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors"
+                        className={`w-full font-medium py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition-colors ${
+                          creator.isFollowing 
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white' 
+                            : 'bg-orange-600 hover:bg-orange-700 text-white'
+                        }`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          // Handle subscribe logic here
+                          handleSubscribeToggle(creator.id);
                         }}
                         data-testid={`button-subscribe-${creator.id}`}
                       >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"/>
-                        </svg>
-                        Subscribe
+                        {creator.isFollowing ? 'Unsubscribe' : 'Subscribe'}
                       </button>
                     </div>
                   </div>
@@ -274,12 +415,18 @@ const PornstarsPage = () => {
           {!loading && filteredCreators.length === 0 && (
             <div className="text-center py-12">
               <h3 className="text-xl font-semibold text-white mb-2">
-                {searchQuery ? 'No creators found' : 'No creators available'}
+                {searchQuery 
+                  ? 'No creators found' 
+                  : activeTab === 'following' 
+                    ? 'No followed creators' 
+                    : 'No creators available'}
               </h3>
               <p className="text-muted-foreground">
                 {searchQuery 
                   ? 'Try adjusting your search terms.' 
-                  : 'Check back later for new content creators.'}
+                  : activeTab === 'following'
+                    ? 'Start following creators to see them here.'
+                    : 'Check back later for new content creators.'}
               </p>
             </div>
           )}
