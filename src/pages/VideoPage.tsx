@@ -249,9 +249,9 @@ const VideoPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      {/* Ad right above player */}
-      <div className="mb-2">
-        <AdComponent zoneId="5660534" />
+      {/* Ad at the top of the video player itself - Desktop Only */}
+      <div className="hidden md:block mb-2 px-4">
+        <AdComponent zoneId="5660526" />
       </div>
 
       {/* Video Title above player */}
