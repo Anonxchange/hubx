@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import PaginationAdComponent from './PaginationAdComponent';
 
 interface ImageStylePaginationProps {
   currentPage: number;
@@ -54,7 +55,8 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
   };
 
   return (
-    <div className="flex items-center justify-center gap-1 sm:gap-2 my-8 px-4 w-full">
+    <div className="w-full">
+      <div className="flex items-center justify-center gap-1 sm:gap-2 my-8 px-4 w-full">
       {/* Previous Button */}
       <button
         onClick={() => handlePageChange(currentPage - 1)}
@@ -100,6 +102,10 @@ const ImageStylePagination: React.FC<ImageStylePaginationProps> = ({
       >
         Next
       </button>
+      </div>
+      
+      {/* Desktop-only Ad Component */}
+      <PaginationAdComponent />
     </div>
   );
 };
