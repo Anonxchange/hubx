@@ -145,49 +145,35 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Desktop Filters and View Toggle - Desktop Only */}
-        <div className="hidden md:flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">Category:</span>
-              <Select value={selectedCategory} onValueChange={handleCategoryChange}>
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category === 'recommended' ? 'Recommended' : category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="text-sm font-medium">Sort:</span>
-              <Badge variant="secondary">Newest</Badge>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium">View:</span>
-            <div className="flex items-center space-x-1">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
+        {/* Desktop Categories Section */}
+        <div className="hidden md:block mb-6">
+          <div className="flex flex-wrap items-center gap-3">
+            {[
+              'Amateur', 'Big Tits', 'MILF', 'Teen', 'Anal', 'Lesbian',
+              'Ebony', 'Blowjob', 'Hardcore', 'POV', 'Big Ass', 'Latina',
+              'Asian', 'Mature', 'Creampie', 'Cumshot', 'Blonde', 'Brunette',
+              'Redhead', 'Threesome', 'Gangbang', 'Interracial', 'BBC', 'BWC'
+            ].map((category) => (
+              <Link
+                key={category}
+                to={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
               >
-                <Grid3X3 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
+                <Badge
+                  variant="outline"
+                  className="px-4 py-2 text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer border-2"
+                >
+                  {category}
+                </Badge>
+              </Link>
+            ))}
+            <Link to="/categories">
+              <Badge
+                variant="default"
+                className="px-4 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
               >
-                <List className="w-4 h-4" />
-              </Button>
-            </div>
+                View All Categories
+              </Badge>
+            </Link>
           </div>
         </div>
 
