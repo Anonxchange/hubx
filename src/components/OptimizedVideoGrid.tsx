@@ -10,7 +10,7 @@ import MomentsCarousel from './MomentsCarousel';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Crown, ChevronRight } from 'lucide-react';
+import { Crown, ChevronRight } from 'lucide-lucide-react';
 import { Button } from '@/components/ui/button';
 import VideoCard from '@/components/VideoCard';
 
@@ -411,9 +411,10 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             imageRendering: 'auto',
             opacity: 1
           }}
-          onError={() => {
-            // Silently fail if preview doesn't exist
-            setShowPreview(false);
+          onError={(e) => {
+            console.log('Thumbnail failed to load for video:', video.id, video.thumbnail_url);
+            // Set fallback image
+            e.currentTarget.src = 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop';
           }}
         />
       );
@@ -451,6 +452,11 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
                 className={`w-full h-full object-cover transition-opacity duration-300 ${
                   showPreview ? 'opacity-0' : 'opacity-100'
                 }`}
+                onError={(e) => {
+                  console.log('Thumbnail failed to load for video:', video.id, video.thumbnail_url);
+                  // Set fallback image
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=200&fit=crop';
+                }}
               />
               {renderPreview()}
               <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
@@ -562,6 +568,11 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             className={`w-full h-full object-cover transition-opacity duration-300 ${
               showPreview ? 'opacity-0' : 'opacity-100'
             }`}
+            onError={(e) => {
+              console.log('Thumbnail failed to load for video:', video.id, video.thumbnail_url);
+              // Set fallback image
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop';
+            }}
           />
           {renderPreview()}
           <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
@@ -742,7 +753,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   showDate = false
 }) => {
   // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY CONDITIONAL LOGIC
-  
+
   // Fetch premium videos when showPremiumSection is true
   const { data: premiumVideos = [] } = useQuery({
     queryKey: ['premium-videos-grid'],
@@ -750,14 +761,23 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
     enabled: showPremiumSection,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-  
+
   const [visibleCount, setVisibleCount] = useState(60); // Show all fetched videos initially
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Process unique videos before using in hooks
-  const uniqueVideos = videos ? videos.filter(
+  // Filter out videos with missing essential data first
+  const validVideos = videos?.filter(video =>
+    video &&
+    video.id &&
+    video.title &&
+    typeof video.views === 'number' &&
+    typeof video.likes === 'number'
+  ) || [];
+
+  // Process unique videos after validation
+  const uniqueVideos = validVideos.filter(
     (video, index, self) => index === self.findIndex((v) => v.id === video.id)
-  ) : [];
+  );
 
   // Intersection observer for infinite loading
   const loadMoreRef = useIntersectionObserver(
