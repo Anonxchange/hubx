@@ -111,10 +111,26 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
     };
   }, [cardId]);
 
-  // Detect mobile device
+  // Detect mobile device - stricter detection for moments carousel
   React.useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+
+      // Only consider mobile if it's actually a mobile device, not just a small desktop screen
+      const isMobileDevice = (isSmallScreen && isTouchDevice) || isMobileUA;
+
+      console.log('Mobile detection:', {
+        innerWidth: window.innerWidth,
+        isTouchDevice,
+        isSmallScreen,
+        isMobileUA,
+        finalIsMobile: isMobileDevice
+      });
+
+      setIsMobile(isMobileDevice);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
@@ -742,7 +758,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
   showDate = false
 }) => {
   // ALL HOOKS MUST BE AT THE TOP - BEFORE ANY CONDITIONAL LOGIC
-  
+
   // Fetch premium videos when showPremiumSection is true
   const { data: premiumVideos = [] } = useQuery({
     queryKey: ['premium-videos-grid'],
@@ -750,15 +766,31 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
     enabled: showPremiumSection,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
-  
+
   const [visibleCount, setVisibleCount] = useState(60); // Show all fetched videos initially
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect mobile device
+  // Detect mobile device - stricter detection for moments carousel
   React.useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth <= 768 || 'ontouchstart' in window);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+
+      // Only consider mobile if it's actually a mobile device, not just a small desktop screen
+      const isMobileDevice = (isSmallScreen && isTouchDevice) || isMobileUA;
+
+      console.log('Mobile detection:', {
+        innerWidth: window.innerWidth,
+        isTouchDevice,
+        isSmallScreen,
+        isMobileUA,
+        finalIsMobile: isMobileDevice
+      });
+
+      setIsMobile(isMobileDevice);
     };
     checkMobile();
     window.addEventListener('resize', checkMobile);
