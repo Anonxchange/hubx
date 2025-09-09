@@ -171,6 +171,33 @@ const Index = () => {
           </div>
         </div>
 
+        {/* Fantasy Foreplay Section - Mobile Only */}
+        {!searchQuery && (
+          <div className="block md:hidden">
+            <div className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 border border-purple-500/30 rounded-lg p-4 mb-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="text-sm text-purple-300">Fantasies, foreplay, fanfic.</span>
+                <span className="text-orange-400 text-sm font-medium">Erotica</span>
+                <span className="text-sm">is live</span>
+                <span className="text-yellow-400">🔥</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Free Porn Videos Recommended Section - Mobile Only */}
+        {!searchQuery && (
+          <div className="block md:hidden mb-6 -mx-4">
+            <div className="bg-black">
+              <div className="px-4 py-3">
+                <h2 className="text-white text-sm font-bold uppercase tracking-wide">
+                  FREE PORN VIDEOS RECOMMENDED TO YOU
+                </h2>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Search Results Indicator */}
         {searchQuery && (
           <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
