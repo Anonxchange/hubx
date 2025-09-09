@@ -314,28 +314,30 @@ const MomentsPage = () => {
         style={{ scrollBehavior: 'smooth' }}
       >
         {videos.map((video, index) => (
-          <div key={video.id} className="relative w-full h-screen snap-start flex items-center justify-center">
-            {/* Video */}
-            <video
-              ref={el => (videoRefs.current[index] = el)}
-              className="absolute inset-0 w-full h-full object-cover"
-              src={video.video_url}
-              poster={video.thumbnail_url}
-              loop
-              muted={isMuted}
-              playsInline
-              onEnded={() => handleVideoEnd(index)}
-              onPlay={() => handleVideoPlay(video.id)}
-              onClick={togglePlayPause}
-              style={{ 
-                cursor: 'pointer',
-                objectFit: 'cover',
-                objectPosition: 'center'
-              }}
-            />
+          <div key={video.id} className="relative w-full h-screen snap-start flex items-center justify-center bg-black">
+            {/* Desktop: Centered mobile-like container, Mobile: Full screen */}
+            <div className="relative w-full h-full md:w-[400px] md:h-[calc(100vh-120px)] md:max-h-[710px] md:rounded-xl md:overflow-hidden flex items-center justify-center">
+              {/* Video */}
+              <video
+                ref={el => (videoRefs.current[index] = el)}
+                className="w-full h-full object-cover"
+                src={video.video_url}
+                poster={video.thumbnail_url}
+                loop
+                muted={isMuted}
+                playsInline
+                onEnded={() => handleVideoEnd(index)}
+                onPlay={() => handleVideoPlay(video.id)}
+                onClick={togglePlayPause}
+                style={{ 
+                  cursor: 'pointer',
+                  objectFit: 'cover',
+                  objectPosition: 'center'
+                }}
+              />
 
             {/* Overlay Content */}
-            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute inset-0 pointer-events-none">
               {/* Play/Pause overlay */}
               {!isPlaying && index === currentIndex && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
@@ -483,6 +485,7 @@ const MomentsPage = () => {
                   
                 </div>
               </div>
+            </div>
             </div>
           </div>
         ))}
