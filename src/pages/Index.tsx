@@ -95,7 +95,9 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-  
+      <main className="container mx-auto px-4 py-6 space-y-4">
+        {/* Hero Section */}
+    
 
         {/* Ad Code Below Hero Text */}
         <AdComponent zoneId="5660534" />
