@@ -142,6 +142,22 @@ const PremiumPage = () => {
             </div>
           </div>
 
+          {/* Desktop Search Bar - Centered in Header */}
+          <div className="hidden md:block flex-1 max-w-2xl mx-8">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search videos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-400 px-6 py-3 pr-12 rounded-full text-base focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 transition-colors"
+              />
+              <button className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-yellow-400 transition-colors">
+                <Search className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center space-x-4">
             {/* Mobile Search Button */}
             <button 
@@ -172,24 +188,6 @@ const PremiumPage = () => {
             >
               Join now
             </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Desktop Search Bar - Centered */}
-      <div className="hidden md:block bg-black px-4 py-6 border-b border-gray-800">
-        <div className="max-w-2xl mx-auto">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search videos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-400 px-6 py-4 pr-12 rounded-full text-lg focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 transition-colors"
-            />
-            <button className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-yellow-400 transition-colors">
-              <Search className="w-6 h-6" />
-            </button>
           </div>
         </div>
       </div>
