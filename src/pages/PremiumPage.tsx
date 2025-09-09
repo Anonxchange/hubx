@@ -330,69 +330,135 @@ const PremiumPage = () => {
               </div>
             ) : (
               <>
-                {/* Video Cards - Full Width No Container */}
-                <div className="space-y-0">
-                  {filteredVideos.map((video, index) => (
-                    <Link key={video.id} to={`/premium/video/${video.id}`} className="block">
-                      <div className="bg-black">
-                        {/* Video Thumbnail */}
-                        <div className="relative aspect-video">
-                          <img
-                            src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
-                            alt={video.title}
-                            className="w-full h-full object-cover"
-                          />
-
-                          {/* Duration */}
-                          <div className="absolute bottom-3 right-3">
-                            <span className="bg-black/80 text-white text-xs px-2 py-1 rounded">
+                {/* Desktop Grid Layout - Hidden on Mobile */}
+                <div className="hidden md:block">
+                  <div className="px-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
+                      {filteredVideos.map((video, index) => (
+                        <Link key={video.id} to={`/premium/video/${video.id}`} className="block w-full group hover:bg-muted/5 transition-all duration-200">
+                          <div
+                            className="relative bg-muted overflow-hidden rounded-xl w-full"
+                            style={{
+                              aspectRatio: '16/9',
+                              height: 'auto'
+                            }}
+                          >
+                            <img
+                              src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
+                              alt={video.title}
+                              className="w-full h-full object-cover transition-opacity duration-300"
+                              loading="lazy"
+                            />
+                            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
                               {video.duration || '15:30'}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Video Info Card */}
-                        <div className="p-4">
-                          <div className="flex items-start space-x-3">
-                            {/* Creator Avatar */}
-                            <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
-                              {(video.profiles?.avatar_url || video.uploader_avatar) ? (
-                                <img
-                                  src={video.profiles?.avatar_url || video.uploader_avatar}
-                                  alt={video.uploader_username || "Creator"}
-                                  className="w-full h-full object-cover"
-                                  onError={(e) => {
-                                    console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                    const parent = target.parentElement;
-                                    if (parent) {
-                                      const username = video.uploader_username || video.profiles?.username || video.uploader_name || "User";
-                                      parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">${username.charAt(0).toUpperCase()}</div>`;
-                                    }
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">
-                                  {(video.uploader_username || video.profiles?.username || video.uploader_name || "U").charAt(0).toUpperCase()}
-                                </div>
-                              )}
                             </div>
-
-                            {/* Video Details */}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
-                                {video.title}
-                              </h3>
-                              <p className="text-gray-300 text-xs">
-                                {video.uploader_username || video.uploader_name || "Premium Creator"}
-                              </p>
+                            {/* Premium Crown Badge */}
+                            <div className="absolute top-2 left-2 z-20">
+                              <Crown className="w-4 h-4 text-yellow-400" />
                             </div>
                           </div>
+                          <div className="pt-3 space-y-2">
+                            <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-white">{video.title}</h3>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                {(video.profiles?.avatar_url || video.uploader_avatar) ? (
+                                  <img
+                                    src={video.profiles?.avatar_url || video.uploader_avatar}
+                                    alt={video.uploader_username || "Creator"}
+                                    className="w-5 h-5 rounded-full object-cover"
+                                  />
+                                ) : (
+                                  <div className="w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs text-white font-bold">
+                                    {(video.uploader_username || video.profiles?.username || video.uploader_name || "U").charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                                <span className="text-xs text-gray-300">
+                                  {video.uploader_username || video.uploader_name || "Premium Creator"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-4 text-xs text-gray-400">
+                              <span className="flex items-center">
+                                <Eye className="w-3 h-3 mr-1" />
+                                {video.views || 0} views
+                              </span>
+                              <span className="flex items-center">
+                                <ThumbsUp className="w-3 h-3 mr-1" />
+                                {video.likes || 0}
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile Full-Width Layout - Visible on Mobile Only */}
+                <div className="block md:hidden">
+                  <div className="space-y-0">
+                    {filteredVideos.map((video, index) => (
+                      <Link key={video.id} to={`/premium/video/${video.id}`} className="block">
+                        <div className="bg-black">
+                          {/* Video Thumbnail */}
+                          <div className="relative aspect-video">
+                            <img
+                              src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=800&h=450&fit=crop'}
+                              alt={video.title}
+                              className="w-full h-full object-cover"
+                            />
+
+                            {/* Duration */}
+                            <div className="absolute bottom-3 right-3">
+                              <span className="bg-black/80 text-white text-xs px-2 py-1 rounded">
+                                {video.duration || '15:30'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Video Info Card */}
+                          <div className="p-4">
+                            <div className="flex items-start space-x-3">
+                              {/* Creator Avatar */}
+                              <div className="w-10 h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
+                                {(video.profiles?.avatar_url || video.uploader_avatar) ? (
+                                  <img
+                                    src={video.profiles?.avatar_url || video.uploader_avatar}
+                                    alt={video.uploader_username || "Creator"}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      console.log('Avatar failed to load:', video.profiles?.avatar_url || video.uploader_avatar);
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                      const parent = target.parentElement;
+                                      if (parent) {
+                                        const username = video.uploader_username || video.profiles?.username || video.uploader_name || "User";
+                                        parent.innerHTML = `<div class="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">${username.charAt(0).toUpperCase()}</div>`;
+                                      }
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-bold">
+                                    {(video.uploader_username || video.profiles?.username || video.uploader_name || "U").charAt(0).toUpperCase()}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Video Details */}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="text-white font-medium text-sm leading-tight mb-1 line-clamp-2">
+                                  {video.title}
+                                </h3>
+                                <p className="text-gray-300 text-xs">
+                                  {video.uploader_username || video.uploader_name || "Premium Creator"}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </Link>
-                  ))}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Pagination */}
