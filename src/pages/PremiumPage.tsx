@@ -60,18 +60,18 @@ const PremiumPage = () => {
       setFeedLoading(false);
       return;
     }
-    
+
     setFeedLoading(true);
     try {
       // Get only premium creator subscriptions for premium feed
       const posts = await getFeedPosts(30);
-      
+
       // Filter posts to only show those from premium creators
       const premiumPosts = posts.filter(post => 
         post.creator?.user_type === 'individual_creator' || 
         post.creator?.user_type === 'studio_creator'
       );
-      
+
       setFeedPosts(premiumPosts);
     } catch (error) {
       console.error('Error loading premium feed posts:', error);
@@ -83,7 +83,7 @@ const PremiumPage = () => {
 
   React.useEffect(() => {
     let mounted = true;
-    
+
     if (user && activeTab === 'community') {
       // Only load if we haven't loaded yet or user changed
       if (feedPosts.length === 0 && !feedLoading) {
@@ -96,7 +96,7 @@ const PremiumPage = () => {
       setFeedPosts([]);
       setFeedLoading(false);
     }
-    
+
     return () => {
       mounted = false;
     };
@@ -143,9 +143,10 @@ const PremiumPage = () => {
           </div>
 
           <div className="flex items-center space-x-4">
+            {/* Mobile Search Button */}
             <button 
               onClick={() => setIsSearchModalOpen(true)}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="md:hidden text-gray-400 hover:text-white transition-colors"
             >
               <Search className="w-5 h-5" />
             </button>
@@ -171,6 +172,24 @@ const PremiumPage = () => {
             >
               Join now
             </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Search Bar - Centered */}
+      <div className="hidden md:block bg-black px-4 py-6 border-b border-gray-800">
+        <div className="max-w-2xl mx-auto">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search videos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-gray-900 border border-gray-700 text-white placeholder-gray-400 px-6 py-4 pr-12 rounded-full text-lg focus:outline-none focus:border-yellow-400 focus:ring-1 focus:ring-yellow-400 transition-colors"
+            />
+            <button className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-yellow-400 transition-colors">
+              <Search className="w-6 h-6" />
+            </button>
           </div>
         </div>
       </div>
