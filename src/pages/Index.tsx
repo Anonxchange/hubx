@@ -176,7 +176,7 @@ const Index = () => {
           <div className="block md:hidden">
             <div className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 border border-purple-500/30 rounded-lg p-4 mb-4">
               <div className="flex items-center space-x-2 mb-2">
-                <span className="text-sm text-purple-300">Fantasies, foreplay, fanfic.</span>
+                <span className="text-sm text-purple-300">Desires,Drama,Delight.</span>
                 <span className="text-orange-400 text-sm font-medium">Erotica</span>
                 <span className="text-sm">is live</span>
                 <span className="text-yellow-400">🔥</span>
