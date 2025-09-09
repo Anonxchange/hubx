@@ -815,7 +815,7 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2 sm:gap-3 md:gap-4 lg:gap-5 xl:gap-6">
             {visibleVideos.map((video, index) => {
               const elements = [];
 
@@ -828,12 +828,6 @@ const OptimizedVideoGrid: React.FC<OptimizedVideoGridProps> = ({
                     showTags={showTags}
                     showDate={showDate}
                   />
-                  {/* Show MomentsCarousel between videos 23-24 (after index 23) */}
-                  {showMoments && index === 23 && (
-                    <div className="col-span-full my-6">
-                      <MomentsCarousel />
-                    </div>
-                  )}
                   {showAds && index > 0 && (index + 1) % 8 === 0 && (
                     <div className="mt-4">
                       <LazyAdComponent zoneId="5661270" />
