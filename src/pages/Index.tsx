@@ -95,16 +95,7 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto px-4 py-6 space-y-4">
-        {/* Hero Section */}
-        <div className="text-center space-y-3">
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
-            HubX Video Platform
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Discover amazing videos from creators around the world
-          </p>
-        </div>
+  
 
         {/* Ad Code Below Hero Text */}
         <AdComponent zoneId="5660534" />
