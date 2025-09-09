@@ -10,7 +10,7 @@ import MomentsCarousel from './MomentsCarousel';
 import { useBandwidthOptimization } from '@/hooks/useBandwidthOptimization';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Crown, ChevronRight } from 'lucide-lucide-react';
+import { Crown, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import VideoCard from '@/components/VideoCard';
 
