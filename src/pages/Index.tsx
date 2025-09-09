@@ -147,7 +147,7 @@ const Index = () => {
 
         {/* Desktop Categories Section */}
         <div className="hidden md:block mb-6">
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center space-x-3 overflow-x-auto scrollbar-hide pb-2">
             {[
               'Amateur', 'Big Tits', 'MILF', 'Teen', 'Anal', 'Lesbian',
               'Ebony', 'Blowjob', 'Hardcore', 'POV', 'Big Ass', 'Latina',
@@ -157,19 +157,20 @@ const Index = () => {
               <Link
                 key={category}
                 to={`/category/${category.toLowerCase().replace(/\s+/g, '-')}`}
+                className="flex-shrink-0"
               >
                 <Badge
                   variant="outline"
-                  className="px-4 py-2 text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer border-2"
+                  className="whitespace-nowrap px-4 py-2 text-sm font-medium hover:bg-primary hover:text-primary-foreground transition-colors cursor-pointer border-2"
                 >
                   {category}
                 </Badge>
               </Link>
             ))}
-            <Link to="/categories">
+            <Link to="/categories" className="flex-shrink-0">
               <Badge
                 variant="default"
-                className="px-4 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
+                className="whitespace-nowrap px-4 py-2 text-sm font-medium bg-orange-500 hover:bg-orange-600 text-white cursor-pointer"
               >
                 View All Categories
               </Badge>
