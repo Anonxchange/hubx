@@ -151,10 +151,10 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       {/* Horizontal Scroll Tabs */}
-      <div className="flex items-center justify-between">
-        <div className="flex overflow-x-auto scrollbar-hide">
+      <div className="flex items-center justify-between w-full">
+        <div className="flex overflow-x-auto scrollbar-hide w-full">
           <div className="flex space-x-1 min-w-max">
             {tabs.map(tab => (
               <Button
@@ -189,9 +189,11 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
             </h3>
           </div>
           {uploaderVideos.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
               {uploaderVideos.slice(0, visibleCount).map((video) => (
-                <OptimizedRelatedVideoCard key={video.id} video={video} viewMode="grid" />
+                <div className="w-full">
+                  <OptimizedRelatedVideoCard key={video.id} video={video} viewMode="grid" />
+                </div>
               ))}
             </div>
           ) : (
@@ -220,12 +222,12 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
             </h3>
           </div>
           {uploaderPlaylists.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
               {uploaderPlaylists.map((playlist) => (
                 <Link
                   key={playlist.id}
                   to={`/playlist/${playlist.id}`}
-                  className="block group"
+                  className="block group w-full"
                 >
                   <div className="relative aspect-video bg-gray-200 rounded-lg overflow-hidden">
                     <img
@@ -347,9 +349,9 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
               )}
 
               {/* Regular Videos Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
                 {displayedVideos.map((video, index) => (
-                  <div key={video.id}>
+                  <div key={video.id} className="w-full">
                     <OptimizedRelatedVideoCard video={video} viewMode="grid" />
                     {index === 5 && (
                       <div className="my-4 md:hidden">
