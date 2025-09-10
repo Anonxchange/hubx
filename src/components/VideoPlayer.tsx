@@ -168,121 +168,51 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
 
   return (
     <div className="w-full h-full">
-      {/* Desktop Enhanced Video Container */}
-      <div className="hidden lg:block">
-        <div
-          className="relative w-full bg-black group rounded-lg overflow-hidden shadow-2xl"
-          style={{ aspectRatio: "16/9", height: "100%", minHeight: "100%" }}
+      <div
+        className="relative w-full bg-black group"
+        style={{ aspectRatio: "16/9", height: "100%", minHeight: "100%" }}
+      >
+        <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-black/60 via-black/30 to-transparent z-10 pointer-events-none" />
+
+        <video
+          ref={videoRef}
+          className="w-full h-full"
+          poster={poster}
+          preload="none"
+          playsInline
+          webkit-playsinline="true"
+          crossOrigin="anonymous"
+          onPlay={handlePlay}
+          onError={(e) => {
+            console.error("Video playback error:", e.currentTarget.error);
+            if (videoRef.current) videoRef.current.controls = true;
+          }}
+          style={{
+            backgroundColor: "#000",
+            display: "block",
+            objectFit: "cover",
+            objectPosition: "center",
+            width: "100%",
+            height: "100%",
+            minHeight: "100%",
+          }}
         >
-          {/* Desktop gradient overlay */}
-          <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/80 via-black/40 to-transparent z-10 pointer-events-none" />
-          <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-10 pointer-events-none" />
-
-          <video
-            ref={videoRef}
-            className="w-full h-full rounded-lg"
-            poster={poster}
-            preload="none"
-            playsInline
-            webkit-playsinline="true"
-            crossOrigin="anonymous"
-            onPlay={handlePlay}
-            onError={(e) => {
-              console.error("Video playback error:", e.currentTarget.error);
-              if (videoRef.current) videoRef.current.controls = true;
-            }}
-            style={{
-              backgroundColor: "#000",
-              display: "block",
-              objectFit: "cover",
-              objectPosition: "center",
-              width: "100%",
-              height: "100%",
-              minHeight: "100%",
-            }}
-          >
-            {isHLS ? (
-              <source src={src} type="application/x-mpegURL" />
-            ) : (
-              <source src={src} type="video/mp4" />
-            )}
-          </video>
-
-          {/* Desktop Quality Badge */}
-          <div className="absolute top-4 right-4 z-20">
-            <div className="bg-black/80 text-white px-3 py-1 rounded-full text-sm font-medium backdrop-blur-sm">
-              HD
-            </div>
-          </div>
-
-          {/* Desktop Play Button Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-15 pointer-events-none">
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
-              <div className="w-0 h-0 border-l-8 border-r-0 border-t-6 border-b-6 border-l-white border-t-transparent border-b-transparent ml-1"></div>
-            </div>
-          </div>
-        </div>
-
-        {/* Desktop Video Title */}
-        {title && (
-          <div className="flex justify-between items-center mt-4 px-2">
-            <div className="flex items-center gap-3">
-              <VideoIcon className="w-6 h-6 text-red-500" />
-              <span className="font-semibold text-lg text-foreground">{title}</span>
-            </div>
-          </div>
-        )}
+          {isHLS ? (
+            <source src={src} type="application/x-mpegURL" />
+          ) : (
+            <source src={src} type="video/mp4" />
+          )}
+        </video>
       </div>
 
-      {/* Mobile/Tablet Video Container */}
-      <div className="block lg:hidden">
-        <div
-          className="relative w-full bg-black group"
-          style={{ aspectRatio: "16/9", height: "100%", minHeight: "100%" }}
-        >
-          <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-black/60 via-black/30 to-transparent z-10 pointer-events-none" />
-
-          <video
-            ref={videoRef}
-            className="w-full h-full"
-            poster={poster}
-            preload="none"
-            playsInline
-            webkit-playsinline="true"
-            crossOrigin="anonymous"
-            onPlay={handlePlay}
-            onError={(e) => {
-              console.error("Video playback error:", e.currentTarget.error);
-              if (videoRef.current) videoRef.current.controls = true;
-            }}
-            style={{
-              backgroundColor: "#000",
-              display: "block",
-              objectFit: "cover",
-              objectPosition: "center",
-              width: "100%",
-              height: "100%",
-              minHeight: "100%",
-            }}
-          >
-            {isHLS ? (
-              <source src={src} type="application/x-mpegURL" />
-            ) : (
-              <source src={src} type="video/mp4" />
-            )}
-          </video>
-        </div>
-
-        {/* Mobile Video Title */}
-        {title && (
-          <div className="flex justify-between items-center mt-3 px-2">
-            <div className="flex items-center gap-2">
-              <VideoIcon className="w-5 h-5 text-red-500" />
-              <span className="font-medium text-foreground">{title}</span>
-            </div>
+      {title && (
+        <div className="flex justify-between items-center mt-3 px-2">
+          <div className="flex items-center gap-2">
+            <VideoIcon className="w-5 h-5 text-red-500" />
+            <span className="font-medium text-foreground">{title}</span>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 };
