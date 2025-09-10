@@ -38,7 +38,7 @@ const VideoPage = () => {
     retry: false,
   });
 
-  // Redirect if video is premium
+  // Redirect to premium page if needed
   useEffect(() => {
     if (video && video.is_premium) {
       navigate(`/premium/video/${id}`, { replace: true });
@@ -67,25 +67,26 @@ const VideoPage = () => {
       incrementViews(video.id).catch(() => {});
       const isValidUUID =
         user?.id &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id);
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          user.id
+        );
       if (isValidUUID) {
-        trackVideoView(video.id, user.id).catch((err) => {
-          console.log('Video tracking error:', err);
-        });
+        trackVideoView(video.id, user.id).catch(err =>
+          console.log('Video tracking error:', err)
+        );
       }
     }
   }, [video?.id, user?.id]);
 
+  // Fetch subs
   useEffect(() => {
     const fetchSubscriberData = async () => {
       if (!video?.owner_id) return;
-
       try {
         const { count } = await supabase
           .from('subscriptions')
           .select('*', { count: 'exact', head: true })
           .eq('creator_id', video.owner_id);
-
         setSubscriberCount(count || 0);
 
         if (user?.id) {
@@ -95,14 +96,12 @@ const VideoPage = () => {
             .eq('subscriber_id', user.id)
             .eq('creator_id', video.owner_id)
             .single();
-
           setIsSubscribed(!!subscription);
         }
       } catch (error) {
         console.error('Error fetching subscriber data:', error);
       }
     };
-
     fetchSubscriberData();
   }, [video?.owner_id, user?.id]);
 
@@ -130,7 +129,8 @@ const VideoPage = () => {
           <div className="text-center py-8">
             <h1 className="text-2xl font-bold mb-2">Video Not Found</h1>
             <p className="text-muted-foreground mb-4">
-              {error?.message || "The video you're looking for doesn't exist or could not be loaded."}
+              {error?.message ||
+                "The video you're looking for doesn't exist or could not be loaded."}
             </p>
             <Link to="/" className="text-primary hover:underline">
               Go back to homepage
@@ -185,11 +185,9 @@ const VideoPage = () => {
       navigate('/auth');
       return;
     }
-
     if (!video?.owner_id) return;
 
     setIsSubscribing(true);
-
     try {
       if (isSubscribed) {
         const { error } = await supabase
@@ -197,30 +195,26 @@ const VideoPage = () => {
           .delete()
           .eq('subscriber_id', user.id)
           .eq('creator_id', video.owner_id);
-
         if (error) {
           console.error('Error unsubscribing:', error);
           alert('Failed to unsubscribe. Please try again.');
           return;
         }
-
         setIsSubscribed(false);
-        setSubscriberCount((prev) => prev - 1);
+        setSubscriberCount(prev => prev - 1);
       } else {
         const { error } = await supabase.from('subscriptions').insert({
           subscriber_id: user.id,
           creator_id: video.owner_id,
           created_at: new Date().toISOString(),
         });
-
         if (error) {
           console.error('Error subscribing:', error);
           alert('Failed to subscribe. Please try again.');
           return;
         }
-
         setIsSubscribed(true);
-        setSubscriberCount((prev) => prev + 1);
+        setSubscriberCount(prev => prev + 1);
       }
     } catch (error) {
       console.error('Error updating subscription:', error);
@@ -247,19 +241,39 @@ const VideoPage = () => {
         <AdComponent zoneId="5660534" />
       </div>
 
-      {/* Video Title */}
+      {/* Title + Categories */}
       <div className="px-4 pt-4 md:container md:mx-auto">
         <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight">
           {video.title || 'Untitled Video'}
         </h1>
+
+        {/* Related categories scrollable */}
+        {video?.tags && video.tags.length > 0 && (
+          <div className="mt-2">
+            <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-2">
+              {video.tags.map((tag: string, idx: number) => (
+                <Link
+                  key={idx}
+                  to={`/category/${encodeURIComponent(tag)}`}
+                  className="flex-shrink-0 px-3 py-1 bg-muted rounded-full text-sm text-foreground hover:bg-primary hover:text-white transition"
+                >
+                  {tag}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Video Player Section */}
+      {/* Player Section */}
       <div className="w-full">
         {/* Mobile */}
         <div className="block lg:hidden">
           <div className="relative w-full">
-            <div className="w-full bg-black overflow-hidden" style={{ aspectRatio: '16/9' }}>
+            <div
+              className="w-full bg-black overflow-hidden"
+              style={{ aspectRatio: '16/9' }}
+            >
               <VideoPlayer
                 key={video.id}
                 src={video.video_url}
@@ -278,10 +292,9 @@ const VideoPage = () => {
           </div>
         </div>
 
-        {/* Desktop */}
+        {/* Desktop two-column */}
         <div className="hidden lg:block container mx-auto px-4 pt-4">
           <div className="flex gap-4">
-            {/* Main Video */}
             <div className="w-2/3">
               <div className="relative w-full">
                 <div
@@ -306,7 +319,7 @@ const VideoPage = () => {
               </div>
             </div>
 
-            {/* Premium Sidebar */}
+            {/* Premium sidebar */}
             <div className="w-1/3">
               <div className="bg-gray-900/50 rounded-lg border border-gray-700/50 h-fit">
                 <div className="p-4">
@@ -323,7 +336,7 @@ const VideoPage = () => {
                     </h3>
                   </div>
                   <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-                    {relatedPremiumVideos.slice(0, 8).map((premiumVideo) => (
+                    {relatedPremiumVideos.slice(0, 8).map(premiumVideo => (
                       <Link
                         key={premiumVideo.id}
                         to={`/premium/video/${premiumVideo.id}`}
@@ -332,7 +345,9 @@ const VideoPage = () => {
                         <div className="space-y-2">
                           <div className="relative w-full aspect-video">
                             <img
-                              src={premiumVideo.thumbnail_url || '/placeholder.svg'}
+                              src={
+                                premiumVideo.thumbnail_url || '/placeholder.svg'
+                              }
                               alt={premiumVideo.title}
                               className="w-full h-full object-cover rounded"
                             />
@@ -370,7 +385,7 @@ const VideoPage = () => {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Below video */}
       <main className="container mx-auto px-4 pt-4 space-y-4">
         <VideoInfo
           title=""
@@ -394,7 +409,6 @@ const VideoPage = () => {
 
         <VideoDescription description={video.description} />
 
-        {/* Mid Content Ad */}
         <div className="my-3">
           <AdComponent zoneId="5660534" />
         </div>
