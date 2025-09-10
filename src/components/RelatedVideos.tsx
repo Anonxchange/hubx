@@ -347,7 +347,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
               )}
 
               {/* Regular Videos Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {displayedVideos.map((video, index) => (
                   <div key={video.id}>
                     <OptimizedRelatedVideoCard video={video} viewMode="grid" />
@@ -386,85 +386,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
               </div>
             </div>
 
-            {/* Desktop Layout with Sidebar and Grid */}
-            <div className="hidden lg:flex lg:space-x-8">
-              {/* Premium Videos Sidebar - Desktop Only */}
-              {activeTab === 'related' && premiumVideos.length > 0 && (
-                <div className="w-96 flex-shrink-0">
-                  <div className="space-y-4 bg-gradient-to-b from-gray-900/50 to-gray-800/30 rounded-xl p-6 border border-gray-700/50">
-                    <div className="flex items-center gap-2 mb-4">
-                      <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z"/>
-                      </svg>
-                      <h3 className="text-lg font-semibold text-foreground">
-                        Premium from {currentVideo?.profiles?.username || 'this creator'}
-                      </h3>
-                    </div>
-                    {premiumVideos.slice(0, 8).map((premiumVideo, index) => (
-                      <Link 
-                        key={`premium-sidebar-${premiumVideo.id}-${index}`} 
-                        to={`/premium/video/${premiumVideo.id}`} 
-                        className="block group hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-orange-500/10 transition-all duration-300 rounded-xl p-3 border border-transparent hover:border-yellow-400/30"
-                      >
-                        <div className="flex space-x-4">
-                          <div className="relative w-36 h-24 bg-muted rounded-lg overflow-hidden flex-shrink-0 shadow-lg">
-                            <img
-                              src={premiumVideo.thumbnail_url || '/placeholder-thumbnail.jpg'}
-                              alt={premiumVideo.title}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              loading="lazy"
-                            />
-                            <div className="absolute bottom-2 right-2 bg-black/90 text-white text-xs px-2 py-1 rounded-md font-medium">
-                              {premiumVideo.duration}
-                            </div>
-                            {/* Enhanced Crown icon overlay */}
-                            <div className="absolute top-2 left-2 z-20">
-                              <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full p-1">
-                                <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 24 24">
-                                  <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z"/>
-                                </svg>
-                              </div>
-                            </div>
-                            {/* HD/4K Badge */}
-                            <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-xs px-2 py-0.5 rounded font-bold">
-                              4K
-                            </div>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground mb-2 group-hover:text-yellow-400 transition-colors">
-                              {premiumVideo.title}
-                            </h4>
-                            <div className="flex flex-col space-y-2">
-                              <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-                                <span className="flex items-center bg-gray-800/50 px-2 py-1 rounded-full">
-                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
-                                  </svg>
-                                  {premiumVideo.views || 0}
-                                </span>
-                                <span className="flex items-center bg-gray-800/50 px-2 py-1 rounded-full">
-                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd"/>
-                                  </svg>
-                                  {premiumVideo.likes || 0}
-                                </span>
-                              </div>
-                              {/* Premium indicator */}
-                              <div className="flex items-center text-xs">
-                                <span className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-2 py-1 rounded-full font-bold">
-                                  PREMIUM
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            
           </div>
         </div>
       )}
