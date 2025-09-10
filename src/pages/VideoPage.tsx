@@ -322,15 +322,15 @@ const VideoPage = () => {
                       Premium from {video?.profiles?.username || 'this creator'}
                     </h3>
                   </div>
-                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
                     {relatedPremiumVideos.slice(0, 8).map((premiumVideo) => (
                       <Link
                         key={premiumVideo.id}
                         to={`/premium/video/${premiumVideo.id}`}
                         className="block group hover:bg-gray-800/50 transition-colors rounded-lg p-2"
                       >
-                        <div className="flex gap-3">
-                          <div className="relative w-24 h-16 flex-shrink-0">
+                        <div className="space-y-2">
+                          <div className="relative w-full aspect-video">
                             <img
                               src={premiumVideo.thumbnail_url || '/placeholder.svg'}
                               alt={premiumVideo.title}
@@ -348,8 +348,8 @@ const VideoPage = () => {
                               </svg>
                             </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-medium text-white line-clamp-2 group-hover:text-yellow-400 transition-colors">
+                          <div className="min-w-0">
+                            <h4 className="text-xs font-medium text-white line-clamp-2 group-hover:text-yellow-400 transition-colors">
                               {premiumVideo.title}
                             </h4>
                             <div className="flex items-center space-x-2 text-xs text-gray-400 mt-1">
