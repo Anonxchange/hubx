@@ -32,9 +32,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
 
           const hlsConfig = isHLS
             ? {
-                hls: {
-                  overrideNative: true,
-                },
+                hls: { overrideNative: true },
                 modules: {
                   configureHls: (options: any) => ({
                     ...options,
@@ -192,8 +190,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             display: "block",
             objectFit: "cover",
             objectPosition: "center",
-            width: "100%",
-            height: "100%",
+            width: "100%",   // ✅ keep only width
           }}
         >
           {isHLS ? (
