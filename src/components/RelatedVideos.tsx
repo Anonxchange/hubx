@@ -240,12 +240,22 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({
                     className="flex-shrink-0 w-48 relative rounded-lg overflow-hidden"
                   >
                     <Link to={`/premium/video/${premiumVideo.id}`} className="block">
-                      <div className="aspect-video bg-muted">
+                      <div className="relative aspect-video bg-muted">
                         <img
                           src={premiumVideo.thumbnail_url || '/placeholder-thumbnail.jpg'}
                           alt={premiumVideo.title}
                           className="w-full h-full object-cover"
                         />
+                        {/* Crown Icon Overlay */}
+                        <div className="absolute top-2 left-2 z-20">
+                          <svg
+                            className="w-5 h-5 text-yellow-400 drop-shadow-md"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z" />
+                          </svg>
+                        </div>
                       </div>
                       <h3 className="mt-2 text-sm font-semibold line-clamp-2">
                         {premiumVideo.title}
@@ -258,7 +268,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({
           )}
 
           {/* Related Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {displayedVideos.map(video => (
               <OptimizedRelatedVideoCard key={video.id} video={video} viewMode="grid" />
             ))}
