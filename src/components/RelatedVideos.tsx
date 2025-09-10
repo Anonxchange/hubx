@@ -266,11 +266,12 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
           )}
 
           {/* Related Videos Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
             {displayedVideos.map((video, index) => (
               <div key={video.id} className="w-full">
                 <OptimizedRelatedVideoCard video={video} viewMode="grid" />
-                {index === 5 && (
+                {/* Outstream Ad after 3rd video (mobile only) */}
+                {index === 2 && (
                   <div className="my-4 md:hidden">
                     <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
                   </div>
