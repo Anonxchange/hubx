@@ -38,7 +38,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
                 modules: {
                   configureHls: (options: any) => ({
                     ...options,
-                    startLevel: 0, // Start lowest quality
+                    startLevel: 0,
                     maxMaxBufferLength: 30,
                   }),
                   onAfterInitHls: (hls: any) => {
@@ -167,10 +167,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   const isHLS = src.includes(".m3u8");
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full">
       <div
         className="relative w-full bg-black group"
-        style={{ aspectRatio: "16/9", height: "100%", minHeight: "100%" }}
+        style={{ aspectRatio: "16/9" }}
       >
         <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-black/60 via-black/30 to-transparent z-10 pointer-events-none" />
 
@@ -194,7 +194,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
             objectPosition: "center",
             width: "100%",
             height: "100%",
-            minHeight: "100%",
           }}
         >
           {isHLS ? (
