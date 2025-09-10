@@ -261,25 +261,109 @@ const VideoPage = () => {
         </h1>
       </div>
 
-      {/* Video Player - Mobile: Full-width, Desktop: Contained */}
-      <div className="w-full md:container md:mx-auto md:px-4 md:pt-4">
-        <div className="relative w-full">
-          <div className="w-full bg-black md:rounded-lg overflow-hidden md:max-w-5xl md:mx-auto" style={{ aspectRatio: "16/9" }}>
-            <VideoPlayer
-              key={video.id}
-              src={video.video_url}
-              poster={video.thumbnail_url}
-              onError={handleVideoError}
-              onCanPlay={handleVideoCanPlay}
-              videoId={video.id}
-              videoTitle={video.title}
-            />
-          </div>
-          {videoError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg md:rounded-lg">
-              Failed to load video.
+      {/* Video Player - Mobile: Full-width, Desktop: Two-column layout */}
+      <div className="w-full">
+        {/* Mobile: Full-width video player */}
+        <div className="block lg:hidden">
+          <div className="relative w-full">
+            <div className="w-full bg-black overflow-hidden" style={{ aspectRatio: "16/9" }}>
+              <VideoPlayer
+                key={video.id}
+                src={video.video_url}
+                poster={video.thumbnail_url}
+                onError={handleVideoError}
+                onCanPlay={handleVideoCanPlay}
+                videoId={video.id}
+                videoTitle={video.title}
+              />
             </div>
-          )}
+            {videoError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg">
+                Failed to load video.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop: Two-column layout */}
+        <div className="hidden lg:block container mx-auto px-4 pt-4">
+          <div className="flex gap-4">
+            {/* Main Video Player - Left side */}
+            <div className="w-2/3">
+              <div className="relative w-full">
+                <div className="w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: "16/9" }}>
+                  <VideoPlayer
+                    key={video.id}
+                    src={video.video_url}
+                    poster={video.thumbnail_url}
+                    onError={handleVideoError}
+                    onCanPlay={handleVideoCanPlay}
+                    videoId={video.id}
+                    videoTitle={video.title}
+                  />
+                </div>
+                {videoError && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg rounded-lg">
+                    Failed to load video.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Premium Videos Sidebar - Right side */}
+            <div className="w-1/3">
+              <div className="bg-gray-900/50 rounded-lg border border-gray-700/50 h-fit">
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z"/>
+                    </svg>
+                    <h3 className="text-lg font-semibold text-white">
+                      Premium from {video?.profiles?.username || 'this creator'}
+                    </h3>
+                  </div>
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {relatedPremiumVideos.slice(0, 8).map((premiumVideo) => (
+                      <Link
+                        key={premiumVideo.id}
+                        to={`/premium/video/${premiumVideo.id}`}
+                        className="block group hover:bg-gray-800/50 transition-colors rounded-lg p-2"
+                      >
+                        <div className="flex gap-3">
+                          <div className="relative w-24 h-16 flex-shrink-0">
+                            <img
+                              src={premiumVideo.thumbnail_url || '/placeholder.svg'}
+                              alt={premiumVideo.title}
+                              className="w-full h-full object-cover rounded"
+                            />
+                            {premiumVideo.duration && (
+                              <div className="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 py-0.5 rounded">
+                                {premiumVideo.duration}
+                              </div>
+                            )}
+                            {/* Crown icon overlay */}
+                            <div className="absolute top-1 left-1">
+                              <svg className="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z"/>
+                              </svg>
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-medium text-white line-clamp-2 group-hover:text-yellow-400 transition-colors">
+                              {premiumVideo.title}
+                            </h4>
+                            <div className="flex items-center space-x-2 text-xs text-gray-400 mt-1">
+                              <span>{premiumVideo.views || 0} views</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
