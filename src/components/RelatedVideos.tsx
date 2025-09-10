@@ -178,10 +178,20 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
           {uploaderVideos.length > 0 ? (
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 w-full">
-                {uploaderVideos.slice(0, visibleCount).map(video => (
-                  <OptimizedRelatedVideoCard key={video.id} video={video} viewMode="grid" />
+                {uploaderVideos.slice(0, visibleCount).map((video, index) => (
+                  <div key={video.id} className="w-full">
+                    <OptimizedRelatedVideoCard video={video} viewMode="grid" />
+
+                    {/* Outstream Ad after 3rd video (mobile only) */}
+                    {index === 2 && (
+                      <div className="my-4 md:hidden">
+                        <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
+
               {visibleCount < uploaderVideos.length && (
                 <div className="flex justify-center">
                   <Button
@@ -191,6 +201,13 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
                   >
                     Show More
                   </Button>
+                </div>
+              )}
+
+              {/* Bottom Ad */}
+              {uploaderVideos.length > 0 && visibleCount >= uploaderVideos.length && (
+                <div className="my-4">
+                  <AdComponent zoneId="5661270" />
                 </div>
               )}
             </>
@@ -270,8 +287,9 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
             {displayedVideos.map((video, index) => (
               <div key={video.id} className="w-full">
                 <OptimizedRelatedVideoCard video={video} viewMode="grid" />
-                {/* Outstream Ad after 3rd video (mobile only) */}
-                {index === 2 && (
+
+                {/* Outstream Ad after 6th video (mobile only) */}
+                {index === 5 && (
                   <div className="my-4 md:hidden">
                     <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
                   </div>
