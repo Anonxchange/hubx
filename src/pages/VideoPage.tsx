@@ -254,17 +254,17 @@ const VideoPage = () => {
         <AdComponent zoneId="5660534" />
       </div>
 
-      {/* Video Title above player */}
-      <main className="container mx-auto px-4 pt-4">
-        <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight mb-4">
+      {/* Video Title above player - Mobile: Full width, Desktop: Container */}
+      <div className="px-4 pt-4 md:container md:mx-auto">
+        <h1 className="text-xl lg:text-2xl font-bold text-foreground leading-tight">
           {video.title || 'Untitled Video'}
         </h1>
-      </main>
+      </div>
 
-      {/* Full-width video player - YouTube size */}
-      <div className="w-screen relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw]">
+      {/* Video Player - Mobile: Full-width, Desktop: Contained */}
+      <div className="w-full md:container md:mx-auto md:px-4 md:pt-4">
         <div className="relative w-full">
-          <div className="w-full bg-black" style={{ aspectRatio: "16/9", maxHeight: "80vh" }}>
+          <div className="w-full bg-black md:rounded-lg overflow-hidden md:max-w-5xl md:mx-auto" style={{ aspectRatio: "16/9" }}>
             <VideoPlayer
               key={video.id}
               src={video.video_url}
@@ -276,15 +276,16 @@ const VideoPage = () => {
             />
           </div>
           {videoError && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg">
+            <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg md:rounded-lg">
               Failed to load video.
             </div>
           )}
         </div>
       </div>
 
-      {/* Video Info without title - super tight margin */}
-      <main className="container mx-auto px-4 py-2 space-y-4">
+      {/* Main content container for everything below video */}
+      <main className="container mx-auto px-4 pt-4 space-y-4">
+        {/* Video Info without title */}
         <VideoInfo
           title=""
           views={video.views}
