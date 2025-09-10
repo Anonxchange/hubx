@@ -240,7 +240,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-3">
                     <h4 className="font-semibold text-sm line-clamp-2 group-hover:text-orange-600 transition-colors">
                       {playlist.name}
@@ -267,118 +267,204 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
       ) : (
         /* Videos content */
         <div className="space-y-6">
-          {/* Horizontal Premium Videos Section - At the top */}
-          {activeTab === 'related' && premiumVideos.length > 0 && (
-            <div className="relative">
-              <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
-                {premiumVideos.slice(0, 6).map((premiumVideo, index) => (
-                  <div key={`premium-${premiumVideo.id}-${index}`} className="flex-shrink-0 w-64 relative">
-                    <Link to={`/premium/video/${premiumVideo.id}`} className="block w-full group hover:bg-muted/5 transition-all duration-200">
-                      <div
-                        className="relative bg-muted overflow-hidden rounded-xl w-full"
-                        style={{ 
-                          aspectRatio: '16/9', 
-                          height: 'auto'
-                        }}
-                      >
-                        <img
-                          src={premiumVideo.thumbnail_url || '/placeholder-thumbnail.jpg'}
-                          alt={premiumVideo.title}
-                          className="w-full h-full object-cover transition-opacity duration-300"
-                          loading="lazy"
-                        />
-                        <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-                          {premiumVideo.duration}
-                        </div>
-                        {/* Crown icon overlay */}
-                        <div className="absolute top-2 left-2 z-20">
-                          <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z"/>
-                          </svg>
-                        </div>
-                      </div>
-                      <div className="pt-3 space-y-2">
-                        <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">{premiumVideo.title}</h3>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <div className="w-5 h-5 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs text-white font-bold">
-                              {premiumVideo.profiles?.avatar_url || premiumVideo.uploader_avatar ? (
-                                <img
-                                  src={premiumVideo.profiles?.avatar_url || premiumVideo.uploader_avatar}
-                                  alt="Creator"
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                (premiumVideo.profiles?.username || premiumVideo.uploader_username || 'U')[0].toUpperCase()
-                              )}
+          {/* Desktop Layout with Sidebar for Premium Videos */}
+          <div className="flex gap-6">
+            {/* Main Content Area */}
+            <div className="flex-1">
+              {/* Mobile Premium Videos Section - Horizontal scroll */}
+              {activeTab === 'related' && premiumVideos.length > 0 && (
+                <div className="relative md:hidden mb-6">
+                  <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
+                    {premiumVideos.slice(0, 6).map((premiumVideo, index) => (
+                      <div key={`premium-${premiumVideo.id}-${index}`} className="flex-shrink-0 w-64 relative">
+                        <Link to={`/premium/video/${premiumVideo.id}`} className="block w-full group hover:bg-muted/5 transition-all duration-200">
+                          <div
+                            className="relative bg-muted overflow-hidden rounded-xl w-full"
+                            style={{ 
+                              aspectRatio: '16/9', 
+                              height: 'auto'
+                            }}
+                          >
+                            <img
+                              src={premiumVideo.thumbnail_url || '/placeholder-thumbnail.jpg'}
+                              alt={premiumVideo.title}
+                              className="w-full h-full object-cover transition-opacity duration-300"
+                              loading="lazy"
+                            />
+                            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+                              {premiumVideo.duration}
                             </div>
-                            <span className="text-xs text-muted-foreground">
-                              {premiumVideo.profiles?.username || premiumVideo.uploader_username || premiumVideo.uploader_name || 'Creator'}
-                            </span>
+                            {/* Crown icon overlay */}
+                            <div className="absolute top-2 left-2 z-20">
+                              <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z"/>
+                              </svg>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-                          <span className="flex items-center">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
-                              <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
-                            </svg>
-                            {premiumVideo.views || 0} views
-                          </span>
-                          <span className="flex items-center">
-                            <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd"/>
-                            </svg>
-                            {premiumVideo.likes || 0}
-                          </span>
-                        </div>
+                          <div className="pt-3 space-y-2">
+                            <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">{premiumVideo.title}</h3>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-5 h-5 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs text-white font-bold">
+                                  {premiumVideo.profiles?.avatar_url || premiumVideo.uploader_avatar ? (
+                                    <img
+                                      src={premiumVideo.profiles?.avatar_url || premiumVideo.uploader_avatar}
+                                      alt="Creator"
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    (premiumVideo.profiles?.username || premiumVideo.uploader_username || 'U')[0].toUpperCase()
+                                  )}
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {premiumVideo.profiles?.username || premiumVideo.uploader_username || premiumVideo.uploader_name || 'Creator'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                              <span className="flex items-center">
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                  <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
+                                </svg>
+                                {premiumVideo.views || 0} views
+                              </span>
+                              <span className="flex items-center">
+                                <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd"/>
+                                </svg>
+                                {premiumVideo.likes || 0}
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
                       </div>
-                    </Link>
+                    ))}
+                  </div>
+                  {/* Gradient fade on right edge */}
+                  <div className="absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
+                </div>
+              )}
+
+              {/* Regular Videos Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {displayedVideos.map((video, index) => (
+                  <div key={video.id}>
+                    <OptimizedRelatedVideoCard video={video} viewMode="grid" />
+                    {index === 5 && (
+                      <div className="my-4 md:hidden">
+                        {/* Ad placeholder, script loads via useEffect */}
+                        <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
+                      </div>
+                    )}
                   </div>
                 ))}
-              </div>
-              {/* Gradient fade on right edge */}
-              <div className="absolute top-0 right-0 h-full w-20 bg-gradient-to-l from-background to-transparent pointer-events-none"></div>
-            </div>
-          )}
 
-          {/* Regular Videos Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {displayedVideos.map((video, index) => (
-              <div key={video.id}>
-                <OptimizedRelatedVideoCard video={video} viewMode="grid" />
-                {index === 5 && (
-                  <div className="my-4 md:hidden">
-                    {/* Ad placeholder, script loads via useEffect */}
-                    <ins className="eas6a97888e37" data-zoneid="5686642"></ins>
+                {/* Show More Button */}
+                {canShowMore && (
+                  <div className="col-span-full flex justify-center my-6">
+                    <Button
+                      onClick={handleShowMore}
+                      variant="outline"
+                      className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:text-orange-500 transition-colors px-8 py-2 rounded-lg"
+                    >
+                      Show More ({Math.min(10, maxVisible - visibleCount)} more videos)
+                    </Button>
                   </div>
                 )}
-              </div>
-            ))}
 
-            {/* Show More Button */}
-            {canShowMore && (
-              <div className="col-span-full flex justify-center my-6">
-                <Button
-                  onClick={handleShowMore}
-                  variant="outline"
-                  className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:text-orange-500 transition-colors px-8 py-2 rounded-lg"
-                >
-                  Show More ({Math.min(10, maxVisible - visibleCount)} more videos)
-                </Button>
-              </div>
-            )}
+                {/* Last ad after all videos */}
+                {filteredVideos.length > 0 && visibleCount >= filteredVideos.length && (
+                  <div className="my-4">
+                    <AdComponent zoneId="5661270" />
+                  </div>
+                )}
 
-            {/* Last ad after all videos */}
-            {filteredVideos.length > 0 && visibleCount >= filteredVideos.length && (
-              <div className="my-4">
-                <AdComponent zoneId="5661270" />
+                {filteredVideos.length === 0 && (
+                  <p className="text-muted-foreground text-sm">No related videos found</p>
+                )}
               </div>
-            )}
+            </div>
 
-            {filteredVideos.length === 0 && (
-              <p className="text-muted-foreground text-sm">No related videos found</p>
-            )}
+            {/* Desktop Layout with Sidebar and Grid */}
+            <div className="hidden lg:flex lg:space-x-8">
+              {/* Premium Videos Sidebar - Desktop Only */}
+              {activeTab === 'related' && premiumVideos.length > 0 && (
+                <div className="w-96 flex-shrink-0">
+                  <div className="space-y-4 bg-gradient-to-b from-gray-900/50 to-gray-800/30 rounded-xl p-6 border border-gray-700/50">
+                    <div className="flex items-center gap-2 mb-4">
+                      <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z"/>
+                      </svg>
+                      <h3 className="text-lg font-semibold text-foreground">
+                        Premium from {currentVideo?.profiles?.username || 'this creator'}
+                      </h3>
+                    </div>
+                    {premiumVideos.slice(0, 8).map((premiumVideo, index) => (
+                      <Link 
+                        key={`premium-sidebar-${premiumVideo.id}-${index}`} 
+                        to={`/premium/video/${premiumVideo.id}`} 
+                        className="block group hover:bg-gradient-to-r hover:from-yellow-500/10 hover:to-orange-500/10 transition-all duration-300 rounded-xl p-3 border border-transparent hover:border-yellow-400/30"
+                      >
+                        <div className="flex space-x-4">
+                          <div className="relative w-36 h-24 bg-muted rounded-lg overflow-hidden flex-shrink-0 shadow-lg">
+                            <img
+                              src={premiumVideo.thumbnail_url || '/placeholder-thumbnail.jpg'}
+                              alt={premiumVideo.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                            />
+                            <div className="absolute bottom-2 right-2 bg-black/90 text-white text-xs px-2 py-1 rounded-md font-medium">
+                              {premiumVideo.duration}
+                            </div>
+                            {/* Enhanced Crown icon overlay */}
+                            <div className="absolute top-2 left-2 z-20">
+                              <div className="bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full p-1">
+                                <svg className="w-3 h-3 text-black" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z"/>
+                                </svg>
+                              </div>
+                            </div>
+                            {/* HD/4K Badge */}
+                            <div className="absolute top-2 right-2 bg-purple-600/90 text-white text-xs px-2 py-0.5 rounded font-bold">
+                              4K
+                            </div>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground mb-2 group-hover:text-yellow-400 transition-colors">
+                              {premiumVideo.title}
+                            </h4>
+                            <div className="flex flex-col space-y-2">
+                              <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+                                <span className="flex items-center bg-gray-800/50 px-2 py-1 rounded-full">
+                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10 12a2 2 0 100-4 2 2 0 000 4z"/>
+                                    <path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"/>
+                                  </svg>
+                                  {premiumVideo.views || 0}
+                                </span>
+                                <span className="flex items-center bg-gray-800/50 px-2 py-1 rounded-full">
+                                  <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M3.172 5.172a4 4 0 015.656 0L10 6.343l1.172-1.171a4 4 0 115.656 5.656L10 17.657l-6.828-6.829a4 4 0 010-5.656z" clipRule="evenodd"/>
+                                  </svg>
+                                  {premiumVideo.likes || 0}
+                                </span>
+                              </div>
+                              {/* Premium indicator */}
+                              <div className="flex items-center text-xs">
+                                <span className="bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-2 py-1 rounded-full font-bold">
+                                  PREMIUM
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
