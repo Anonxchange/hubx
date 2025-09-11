@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { uploadVideo } from '@/services/videosService';
+import { supabase } from '@/lib/supabaseClient'; // 👈 make sure you get supabase client
 
 const categories = [
   '18-25', '60FPS', 'Amateur', 'Anal', 'Arab', 'Asian', 'Babe', 'Babysitter (18+)', 
@@ -54,6 +55,10 @@ const UploadPage = () => {
   const [tagInput, setTagInput] = useState('');
   const [isPremium, setIsPremium] = useState(false);
   const [isMoment, setIsMoment] = useState(false);
+
+  // Tagged creators
+  const [taggedCreators, setTaggedCreators] = useState<string[]>([]);
+  const [creatorInput, setCreatorInput] = useState('');
 
   // User role check
   const isCreator = userType === 'individual_creator' || userType === 'studio_creator';
@@ -104,11 +109,10 @@ const UploadPage = () => {
       const secs = Math.floor(tempVideo.duration % 60);
       setDuration(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
       
-      // Check if video is too long for moments
       if (isMoment && tempVideo.duration > 120) {
         toast({ 
           title: "Video too long for moments", 
-          description: "Moments must be 2 minutes or less. Uncheck 'Upload as Moment' or choose a shorter video.", 
+          description: "Moments must be 2 minutes or less.", 
           variant: "destructive" 
         });
       }
@@ -147,19 +151,23 @@ const UploadPage = () => {
 
   const removeTag = (tag: string) => setCustomTags(customTags.filter(t => t !== tag));
 
+  const addTaggedCreator = () => {
+    const value = creatorInput.trim();
+    if (value && !taggedCreators.includes(value)) {
+      setTaggedCreators([...taggedCreators, value]);
+      setCreatorInput('');
+    }
+  };
+
+  const removeTaggedCreator = (id: string) =>
+    setTaggedCreators(taggedCreators.filter(c => c !== id));
+
   const uploadToBunnyStream = async (file: File) => {
-    // Hardcode the credentials since env variables aren't loading properly
     const BUNNY_STREAM_LIBRARY_ID = '476242';
     const BUNNY_STREAM_ACCESS_KEY = 'f6fc4579-a3e4-484d-8387361ef995-6653-4a7b';
-    
-    // Use your specific CDN URL
     const cdnUrl = 'https://vz-a3bd9097-45c.b-cdn.net';
 
-    console.log('Using Library ID:', BUNNY_STREAM_LIBRARY_ID);
-    console.log('Using Access Key:', BUNNY_STREAM_ACCESS_KEY ? 'Present' : 'Missing');
-
     try {
-      // Create video in Bunny Stream
       const createResp = await fetch(`https://video.bunnycdn.com/library/${BUNNY_STREAM_LIBRARY_ID}/videos`, {
         method: 'POST',
         headers: {
@@ -215,22 +223,6 @@ const UploadPage = () => {
       return;
     }
 
-    // Validate moment duration
-    if (isMoment) {
-      const tempVideo = document.createElement('video');
-      tempVideo.src = URL.createObjectURL(selectedFile);
-      tempVideo.onloadedmetadata = () => {
-        if (tempVideo.duration > 120) {
-          toast({ 
-            title: "Video too long for moments", 
-            description: "Moments must be 2 minutes or less.", 
-            variant: "destructive" 
-          });
-          return;
-        }
-      };
-    }
-
     setIsUploading(true);
     try {
       setUploadProgress(20);
@@ -244,8 +236,8 @@ const UploadPage = () => {
         description: description.trim() || undefined,
         video_url: streamData.hlsUrl,
         thumbnail_url: streamData.thumbnailUrl,
-        preview_url: streamData.previewUrl, // Bunny Stream's automatic preview
-        duration, // actual duration from file
+        preview_url: streamData.previewUrl,
+        duration,
         tags: allTags,
         is_premium: isPremium,
         is_moment: isMoment
@@ -253,6 +245,16 @@ const UploadPage = () => {
 
       const savedVideo = await uploadVideo(videoData);
       if (!savedVideo) throw new Error('Failed to save video metadata');
+
+      // 👇 Save tagged creators
+      if (taggedCreators.length > 0) {
+        const { error } = await supabase
+          .from('video_tagged_creators')
+          .insert(taggedCreators.map(c => ({ video_id: savedVideo.id, creator_id: c })));
+
+        if (error) console.error('Error tagging creators:', error);
+      }
+
       setUploadProgress(100);
       toast({ title: "Upload successful!", description: "Your video is now live on your dashboard." });
 
@@ -264,6 +266,8 @@ const UploadPage = () => {
       setSelectedCategory('');
       setCustomTags([]);
       setTagInput('');
+      setTaggedCreators([]);
+      setCreatorInput('');
       setIsPremium(false);
       setIsMoment(false);
       setUploadProgress(0);
@@ -439,6 +443,32 @@ const UploadPage = () => {
                     </div>
                   </div>
 
+                  {/* Tagged Creators */}
+                  <div>
+                    <Label>Tag Creators (Enter Creator ID)</Label>
+                    <div className="flex space-x-2">
+                      <Input
+                        value={creatorInput}
+                        onChange={(e) => setCreatorInput(e.target.value)}
+                        placeholder="Enter creator ID"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addTaggedCreator();
+                          }
+                        }}
+                      />
+                      <Button type="button" onClick={addTaggedCreator} size="sm">Add</Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {taggedCreators.map((id, i) => (
+                        <Badge key={i} variant="secondary" className="cursor-pointer" onClick={() => removeTaggedCreator(id)}>
+                          {id} <X className="w-3 h-3 ml-1" />
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="flex items-center space-x-2">
                     <Switch checked={isPremium} onCheckedChange={setIsPremium} />
                     <Label>Premium Content</Label>
@@ -448,7 +478,6 @@ const UploadPage = () => {
                     <Switch 
                       checked={isMoment} 
                       onCheckedChange={setIsMoment}
-                      disabled={selectedFile && duration !== '00:00' && duration.split(':')[0] !== '00' && (parseInt(duration.split(':')[0]) > 2 || (parseInt(duration.split(':')[0]) === 2 && parseInt(duration.split(':')[1]) > 0))}
                     />
                     <Label>Upload as Moment (Max 2 minutes)</Label>
                   </div>
