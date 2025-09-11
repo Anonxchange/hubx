@@ -66,6 +66,7 @@ import FeaturedVideosPage from './pages/FeaturedVideosPage';
 import PlaylistViewPage from '@/pages/PlaylistViewPage';
 import PornstarsPage from './pages/PornstarsPage';
 import GayPage from './pages/GayPage';
+import LikedVideosPage from '@/pages/LikedVideosPage';
 
 const queryClient = new QueryClient();
 
@@ -118,7 +119,8 @@ const App = () => {
                   <Route path="/playlists" element={<PlaylistsPage />} />
                   <Route path="/favorites" element={<FavoritesPage />} />
                   <Route path="/watch-later" element={<WatchLaterPage />} />
-                  <Route path="/earnings" element={<EarningsPage />} />
+                  <Route path="/liked" element={<LikedVideosPage />} />
+                  <Route path="/debug-auth" element={<DebugAuth />} />
                   <Route path="/core-settings" element={<CoreSettingsPage />} />
                   <Route path="/content-management" element={<ContentManagementPage />} />
                   <Route path="/contests" element={<ContestsPage />} />
@@ -157,7 +159,6 @@ const App = () => {
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/rta" element={<RTAPage />} />
                   <Route path="/admin-hubx-2024" element={<AdminPanel />} />
-                  <Route path="/debug-auth" element={<DebugAuth />} />
                   <Route path="/notifications" element={<NotificationsPage />} />
                   <Route path="/inbox" element={<InboxPage />} />
                   <Route path="*" element={<NotFound />} />
