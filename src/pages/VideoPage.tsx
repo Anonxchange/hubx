@@ -410,7 +410,7 @@ const VideoPage = () => {
         <VideoDescription description={video.description} />
 
         <div className="my-3">
-          <AdComponent zoneId="5721756" />
+          <AdComponent zoneId="5660534" />
         </div>
 
         <RelatedVideos
