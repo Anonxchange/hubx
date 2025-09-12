@@ -1,14 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Share2, Clock, Eye, Calendar, Check } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import VideoReactions from './VideoReactions';
-import VideoTags from './VideoTags';
 import VerificationBadge from './VerificationBadge';
 import { formatDistanceToNow } from 'date-fns';
-
 
 interface VideoInfoProps {
   title: string;
@@ -16,7 +14,7 @@ interface VideoInfoProps {
   duration?: string;
   createdAt: string;
   onShare: () => void;
-  video: { // Assuming video object contains uploader details
+  video: {
     id: string;
     owner_id: string;
     tags: string[];
@@ -30,7 +28,6 @@ interface VideoInfoProps {
       user_type: 'user' | 'studio_creator' | 'individual_creator';
       profile_picture_url?: string;
     };
-    // Computed fields for backward compatibility
     uploader_avatar?: string;
     uploader_username?: string;
     uploader_type?: 'user' | 'studio_creator' | 'individual_creator';
@@ -41,7 +38,6 @@ interface VideoInfoProps {
     video_count?: number;
     title?: string;
   };
-  // Reaction props
   reactionData?: { userReaction: 'like' | 'dislike' | null | undefined; likes: number; dislikes: number };
   onReaction: (reactionType: 'like' | 'dislike') => void;
   reactToVideo: ({ videoId, reactionType }: { videoId: string; reactionType: 'like' | 'dislike' }) => void;
@@ -75,6 +71,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
   isSubscribing = false,
 }) => {
   const navigate = useNavigate();
+  const [showAllTags, setShowAllTags] = useState(false);
 
   const handleProfileNavigation = () => {
     const uploaderUsername = video?.profiles?.username || video?.uploader_username;
@@ -101,7 +98,14 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
     }
   };
 
-  const creatorName = video?.profiles?.full_name || video?.profiles?.username || video?.uploader_name || video?.uploader_username || 'Unknown Creator';
+  const creatorName =
+    video?.profiles?.full_name ||
+    video?.profiles?.username ||
+    video?.uploader_name ||
+    video?.uploader_username ||
+    'Unknown Creator';
+
+  const visibleTags = showAllTags ? video?.tags || [] : (video?.tags || []).slice(0, 4);
 
   return (
     <div className="space-y-3">
@@ -111,7 +115,7 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
         </h1>
       )}
 
-      {/* Video Reactions - Like, Dislike, Share, etc. */}
+      {/* Video Reactions */}
       <VideoReactions
         videoId={video?.id || ''}
         videoTitle={title || video?.title || ''}
@@ -127,39 +131,46 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
 
       {showViewsAndDate && (
         <div className="flex items-center space-x-2 text-muted-foreground">
-          <span className="font-medium">
-            {formatViews(views || 0)} Views
-          </span>
+          <span className="font-medium">{formatViews(views || 0)} Views</span>
           <span>|</span>
-          <span>
-            {formatDate(createdAt)}
-          </span>
+          <span>{formatDate(createdAt)}</span>
         </div>
       )}
 
-      <VideoTags tags={video?.tags || []} />
+      {/* Video Tags with show more/less */}
+      <div className="flex flex-wrap gap-2">
+        {visibleTags.map((tag, index) => (
+          <Badge key={index} variant="secondary" className="text-sm">
+            {tag}
+          </Badge>
+        ))}
+        {video?.tags?.length > 4 && (
+          <button
+            onClick={() => setShowAllTags(!showAllTags)}
+            className="text-orange-500 text-sm font-medium hover:underline"
+          >
+            {showAllTags ? 'View Less' : 'View More'}
+          </button>
+        )}
+      </div>
 
-      {/* Creator Profile Section - Exact Pornhub Layout */}
-      {((video.profiles?.user_type === 'individual_creator' || video.profiles?.user_type === 'studio_creator') || 
-        (video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator')) && (
+      {/* Creator Profile Section */}
+      {((video.profiles?.user_type === 'individual_creator' ||
+        video.profiles?.user_type === 'studio_creator') ||
+        (video.uploader_type === 'individual_creator' ||
+          video.uploader_type === 'studio_creator')) && (
         <div className="bg-transparent mb-6">
-          {/* Creator Info */}
           <div className="flex items-center space-x-3 mb-4">
-            <Avatar 
-              className="w-10 h-10 cursor-pointer" 
-              onClick={handleProfileNavigation}
-            >
-              <AvatarImage 
-                src={video?.profiles?.avatar_url || video?.profiles?.profile_picture_url || '/placeholder.svg'} 
+            <Avatar className="w-10 h-10 cursor-pointer" onClick={handleProfileNavigation}>
+              <AvatarImage
+                src={video?.profiles?.avatar_url || video?.profiles?.profile_picture_url || '/placeholder.svg'}
                 alt={creatorName}
               />
-              <AvatarFallback>
-                {creatorName.charAt(0).toUpperCase()}
-              </AvatarFallback>
+              <AvatarFallback>{creatorName.charAt(0).toUpperCase()}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
               <div className="flex items-center space-x-2">
-                <h3 
+                <h3
                   className="font-semibold text-foreground cursor-pointer hover:text-orange-500 transition-colors"
                   onClick={handleProfileNavigation}
                 >
@@ -175,7 +186,8 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
                   ? `${(subscriberCount / 1000000).toFixed(1)}M`
                   : subscriberCount >= 1000
                   ? `${(subscriberCount / 1000).toFixed(1)}K`
-                  : subscriberCount} subscribers
+                  : subscriberCount}{' '}
+                subscribers
               </p>
             </div>
             <Button
@@ -204,8 +216,6 @@ const VideoInfo: React.FC<VideoInfoProps> = ({
               )}
             </Button>
           </div>
-
-          
         </div>
       )}
     </div>
