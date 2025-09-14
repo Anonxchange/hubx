@@ -1,9 +1,9 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { Message } from './messagingService';
 
-export interface Notification {
+// Rename to avoid clash with browser Notification
+export interface AppNotification {
   id: string;
   user_id: string;
   type: 'like' | 'comment' | 'follow' | 'upload' | 'view' | 'tip' | 'system' | 'message';
@@ -19,28 +19,36 @@ export interface NotificationHandler {
   onNewMessage?: (message: Message) => void;
   onMessageRead?: (messageId: string) => void;
   onConversationUpdate?: (conversationId: string) => void;
-  onNewNotification?: (notification: Notification) => void;
+  onNewNotification?: (notification: AppNotification) => void;
+  onNotificationUpdate?: (notification: AppNotification) => void;
+  onNotificationDelete?: (notificationId: string) => void;
 }
 
 class NotificationService {
   private handlers: NotificationHandler[] = [];
   private subscriptions: any[] = [];
+  private listening = false;
 
   subscribe(handler: NotificationHandler) {
-    this.handlers.push(handler);
+    if (!this.handlers.includes(handler)) {
+      this.handlers.push(handler);
+    }
     return () => {
       this.handlers = this.handlers.filter(h => h !== handler);
     };
   }
 
   async startListening() {
+    if (this.listening) return;
+    this.listening = true;
+
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Listen for new messages
+    // Messages INSERT
     const messageSubscription = supabase
       .channel('messages')
-      .on(
+      .on<Message>(
         'postgres_changes',
         {
           event: 'INSERT',
@@ -48,20 +56,16 @@ class NotificationService {
           table: 'messages',
           filter: `receiver_id=eq.${user.id}`
         },
-        (payload: RealtimePostgresChangesPayload<Message>) => {
-          this.handlers.forEach(handler => {
-            if (handler.onNewMessage && payload.new) {
-              handler.onNewMessage(payload.new as Message);
-            }
-          });
+        (payload) => {
+          this.handlers.forEach(h => h.onNewMessage?.(payload.new as Message));
         }
       )
       .subscribe();
 
-    // Listen for message read updates
+    // Messages UPDATE (read receipts)
     const messageUpdateSubscription = supabase
       .channel('message_updates')
-      .on(
+      .on<Message>(
         'postgres_changes',
         {
           event: 'UPDATE',
@@ -69,43 +73,47 @@ class NotificationService {
           table: 'messages',
           filter: `sender_id=eq.${user.id}`
         },
-        (payload: RealtimePostgresChangesPayload<Message>) => {
-          this.handlers.forEach(handler => {
-            if (handler.onMessageRead && payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
-              handler.onMessageRead(payload.new.id);
-            }
-          });
+        (payload) => {
+          if (payload.new && typeof payload.new === 'object' && 'id' in payload.new) {
+            this.handlers.forEach(h => h.onMessageRead?.((payload.new as Message).id));
+          }
         }
       )
       .subscribe();
 
-    // Listen for new notifications
+    // Notifications INSERT / UPDATE / DELETE
     const notificationSubscription = supabase
       .channel('notifications')
-      .on(
+      .on<AppNotification>(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         },
-        (payload: RealtimePostgresChangesPayload<Notification>) => {
-          this.handlers.forEach(handler => {
-            if (handler.onNewNotification && payload.new) {
-              const notification = payload.new as Notification;
-              handler.onNewNotification(notification);
-              
-              // Show browser notification if supported
-              if (typeof window !== 'undefined' && 'Notification' in window) {
-                this.showNotification(notification.title, {
-                  body: notification.message,
-                  icon: '/favicon.ico',
-                  tag: notification.id
-                });
-              }
+        (payload) => {
+          if (payload.eventType === 'INSERT' && payload.new) {
+            const notif = payload.new as AppNotification;
+            this.handlers.forEach(h => h.onNewNotification?.(notif));
+
+            // Browser popup
+            if (typeof window !== 'undefined' && 'Notification' in window) {
+              this.showNotification(notif.title, {
+                body: notif.message,
+                icon: '/favicon.ico',
+                tag: notif.id
+              });
             }
-          });
+          }
+
+          if (payload.eventType === 'UPDATE' && payload.new) {
+            this.handlers.forEach(h => h.onNotificationUpdate?.(payload.new as AppNotification));
+          }
+
+          if (payload.eventType === 'DELETE' && payload.old) {
+            this.handlers.forEach(h => h.onNotificationDelete?.((payload.old as AppNotification).id));
+          }
         }
       )
       .subscribe();
@@ -114,18 +122,20 @@ class NotificationService {
   }
 
   stopListening() {
-    this.subscriptions.forEach(subscription => {
-      supabase.removeChannel(subscription);
+    this.subscriptions.forEach(ch => {
+      try { ch.unsubscribe?.(); } catch { supabase.removeChannel(ch); }
     });
     this.subscriptions = [];
+    this.listening = false;
   }
 
   async requestNotificationPermission() {
-    if (typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'default') {
+    if (typeof window === 'undefined' || !('Notification' in window)) return false;
+    if (window.Notification.permission === 'default') {
       const permission = await window.Notification.requestPermission();
       return permission === 'granted';
     }
-    return typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission === 'granted';
+    return window.Notification.permission === 'granted';
   }
 
   showNotification(title: string, options?: NotificationOptions) {
@@ -134,7 +144,8 @@ class NotificationService {
     }
   }
 
-  // Get notifications for current user
+  // --- DB Queries ---
+
   async getNotifications() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
@@ -150,25 +161,27 @@ class NotificationService {
       return [];
     }
 
-    return data as Notification[];
+    return data as AppNotification[];
   }
 
-  // Mark notification as read
   async markAsRead(notificationId: string) {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('notifications')
       .update({ read: true })
-      .eq('id', notificationId);
+      .eq('id', notificationId)
+      .select()
+      .single();
 
     if (error) {
       console.error('Error marking notification as read:', error);
-      return false;
+      return null;
     }
 
-    return true;
+    const notif = data as AppNotification;
+    this.handlers.forEach(h => h.onNotificationUpdate?.(notif));
+    return notif;
   }
 
-  // Mark all notifications as read
   async markAllAsRead() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return false;
@@ -187,27 +200,28 @@ class NotificationService {
     return true;
   }
 
-  // Create a new notification
-  async createNotification(userId: string, type: string, title: string, message: string, data: any = {}) {
-    const { error } = await supabase
+  async createNotification(
+    userId: string,
+    type: AppNotification['type'],
+    title: string,
+    message: string,
+    data: any = {}
+  ) {
+    const { data: inserted, error } = await supabase
       .from('notifications')
-      .insert({
-        user_id: userId,
-        type,
-        title,
-        message,
-        data
-      });
+      .insert({ user_id: userId, type, title, message, data })
+      .select()
+      .single();
 
     if (error) {
       console.error('Error creating notification:', error);
-      return false;
+      return null;
     }
 
-    return true;
+    return inserted as AppNotification;
   }
 
-  // Helper methods for common notification types
+  // Helpers
   async notifyNewMessage(receiverId: string, senderName: string, messagePreview: string, conversationId: string) {
     return this.createNotification(
       receiverId,
@@ -248,14 +262,13 @@ class NotificationService {
     );
   }
 
-  // Get unread count
   async getUnreadCount() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return 0;
 
     const { count, error } = await supabase
       .from('notifications')
-      .select('*', { count: 'exact', head: true })
+      .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .eq('read', false);
 
