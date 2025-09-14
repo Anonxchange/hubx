@@ -21,7 +21,7 @@ const AllCategoriesPage = () => {
 
   // Sample categories data - you can replace this with actual API call
   const sampleCategories: CategoryData[] = [
-    { name: '18-25', count: 216799, slug: '18-25', thumbnail: '/18-25-thumbnail.jpeg' },
+    { name: '18-25', count: 216799, slug: '18-25', thumbnail: '/IMG_0089.jpeg' },
     { name: '60FPS', count: 126219, slug: '60fps' },
     { name: 'Amateur', count: 389865, slug: 'amateur' },
     { name: 'Anal', count: 110348, slug: 'anal' },
