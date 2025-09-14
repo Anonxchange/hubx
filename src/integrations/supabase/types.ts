@@ -415,6 +415,7 @@ export type Database = {
           views?: number | null
         }
         Relationships: []
+     }
     }
     Views: {
       [_ in never]: never
