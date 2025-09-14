@@ -77,7 +77,7 @@ const AllCategoriesPage = () => {
     { name: 'Massage', count: 35134, slug: 'massage' },
     { name: 'Masturbation', count: 151411, slug: 'masturbation' },
     { name: 'Mature', count: 33108, slug: 'mature' },
-    { name: 'MILF', count: 154267, slug: 'milf', thumbnail: '/milf-thumbnail.jpeg' },
+    { name: 'MILF', count: 154267, slug: 'milf', thumbnail: '/IMG_0092.jpeg' },
     { name: 'Music', count: 9123, slug: 'music' },
     { name: 'Muscular Men', count: 12818, slug: 'muscular-men' },
     { name: 'Old/Young (18+)', count: 35731, slug: 'old-young', thumbnail: '/old-young-thumbnail.jpeg' },
