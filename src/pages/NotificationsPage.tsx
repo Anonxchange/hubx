@@ -70,7 +70,7 @@ const NotificationsPage = () => {
         return <Heart className="w-5 h-5 text-red-500" />;
       case 'comment':
         return <MessageCircle className="w-5 h-5 text-blue-500" />;
-      case 'follow':
+      case 'subscribe':
         return <UserPlus className="w-5 h-5 text-green-500" />;
       case 'upload':
         return <Video className="w-5 h-5 text-purple-500" />;
@@ -114,7 +114,7 @@ const NotificationsPage = () => {
 
   const filteredNotifications = notifications.filter(notif => {
     if (activeTab === 'unread') return !notif.read;
-    if (activeTab === 'interactions') return ['like', 'comment', 'follow', 'message'].includes(notif.type);
+    if (activeTab === 'interactions') return ['like', 'comment', 'subscribe', 'message'].includes(notif.type);
     if (activeTab === 'earnings') return ['tip', 'system'].includes(notif.type);
     return true;
   });
