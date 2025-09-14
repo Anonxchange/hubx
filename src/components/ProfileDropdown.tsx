@@ -119,7 +119,7 @@ const ProfileDropdown = () => {
     switch (type) {
       case 'like': return <Heart className="w-4 h-4 text-red-400" />;
       case 'comment': return <MessageCircle className="w-4 h-4 text-blue-400" />;
-      case 'follow': return <User className="w-4 h-4 text-green-400" />;
+      case 'subscribe': return <User className="w-4 h-4 text-green-400" />;
       case 'message': return <MessageSquare className="w-4 h-4 text-purple-400" />;
       case 'upload': return <Upload className="w-4 h-4 text-orange-400" />;
       case 'tip': return <DollarSign className="w-4 h-4 text-yellow-400" />;
