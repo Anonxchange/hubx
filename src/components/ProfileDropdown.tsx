@@ -16,7 +16,6 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useToast } from '@/hooks/use-toast';
 import SettingsModal from '@/components/SettingsModal';
 import { notificationService, type Notification } from '@/services/notificationService';
-import { formatDistanceToNow } from 'date-fns';
 
 const ProfileDropdown = () => {
   const { user, userType, signOut, loading } = useAuth();
@@ -24,10 +23,8 @@ const ProfileDropdown = () => {
   const { toast } = useToast();
   const { language, setLanguage, t } = useLanguage();
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Show loading state instead of null to maintain layout
   if (loading) {
     return (
       <div className="flex items-center justify-center">
@@ -36,25 +33,15 @@ const ProfileDropdown = () => {
     );
   }
 
-  // Don't render if no user after loading is complete
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   const handleSignOut = async () => {
     try {
       await signOut();
-      toast({
-        title: "Signed out successfully",
-        description: "You have been logged out.",
-      });
+      toast({ title: "Signed out successfully", description: "You have been logged out." });
       navigate('/auth');
-    } catch (error) {
-      toast({
-        title: "Error signing out",
-        description: "Please try again.",
-        variant: "destructive",
-      });
+    } catch {
+      toast({ title: "Error signing out", description: "Please try again.", variant: "destructive" });
     }
   };
 
@@ -72,23 +59,17 @@ const ProfileDropdown = () => {
     return firstName && lastName ? `${firstName} ${lastName}` : user.email || 'User';
   };
 
-  // Load notifications
+  // Load unread notifications count
   useEffect(() => {
-    if (user) {
-      loadNotifications();
-      loadUnreadCount();
-    }
-  }, [user]);
+    const loadUnreadCount = async () => {
+      const count = await notificationService.getUnreadCount();
+      setUnreadCount(count);
+    };
 
-  // Real-time notification updates
-  useEffect(() => {
-    if (!user) return;
+    loadUnreadCount();
 
     const unsubscribe = notificationService.subscribe({
-      onNewNotification: (notification) => {
-        setNotifications(prev => [notification, ...prev]);
-        setUnreadCount(prev => prev + 1);
-      }
+      onNewNotification: () => setUnreadCount(prev => prev + 1)
     });
 
     notificationService.startListening();
@@ -99,37 +80,7 @@ const ProfileDropdown = () => {
     };
   }, [user]);
 
-  const loadNotifications = async () => {
-    const notifs = await notificationService.getNotifications();
-    setNotifications(notifs.slice(0, 5)); // Show only recent 5
-  };
-
-  const loadUnreadCount = async () => {
-    const count = await notificationService.getUnreadCount();
-    setUnreadCount(count);
-  };
-
-  const handleMarkAllRead = async () => {
-    await notificationService.markAllAsRead();
-    setUnreadCount(0);
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
-
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
-      case 'like': return <Heart className="w-4 h-4 text-red-400" />;
-      case 'comment': return <MessageCircle className="w-4 h-4 text-blue-400" />;
-      case 'subscribe': return <User className="w-4 h-4 text-green-400" />;
-      case 'message': return <MessageSquare className="w-4 h-4 text-purple-400" />;
-      case 'upload': return <Upload className="w-4 h-4 text-orange-400" />;
-      case 'tip': return <DollarSign className="w-4 h-4 text-yellow-400" />;
-      default: return <Bell className="w-4 h-4 text-gray-400" />;
-    }
-  };
-
-  // Check if the current user is a creator and get the specific type
   const isCreator = userType === 'individual_creator' || userType === 'studio_creator';
-  const isIndividualCreator = userType === 'individual_creator';
   const isStudioCreator = userType === 'studio_creator';
 
   return (
@@ -149,6 +100,7 @@ const ProfileDropdown = () => {
           )}
         </button>
       </DropdownMenuTrigger>
+
       <DropdownMenuContent className="w-80 bg-black/95 border-gray-800 text-white p-4 max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800" align="start" forceMount>
         {/* Profile Header */}
         <DropdownMenuLabel className="font-normal pb-4">
@@ -162,368 +114,127 @@ const ProfileDropdown = () => {
 
         <DropdownMenuSeparator className="bg-gray-700" />
 
-        {/* Notifications Section */}
-        {notifications.length > 0 && (
-          <>
-            <div className="py-2">
-              <div className="flex items-center justify-between px-2 mb-2">
-                <span className="text-sm font-medium text-white">Recent Notifications</span>
-                {unreadCount > 0 && (
-                  <button
-                    onClick={handleMarkAllRead}
-                    className="text-xs text-blue-400 hover:text-blue-300"
-                  >
-                    Mark all read
-                  </button>
-                )}
-              </div>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {notifications.map((notification) => (
-                  <div
-                    key={notification.id}
-                    className={`p-2 rounded-lg cursor-pointer transition-colors ${
-                      !notification.read 
-                        ? 'bg-blue-900/20 hover:bg-blue-900/30' 
-                        : 'hover:bg-gray-800'
-                    }`}
-                    onClick={() => {
-                      if (!notification.read) {
-                        notificationService.markAsRead(notification.id);
-                        setNotifications(prev => 
-                          prev.map(n => n.id === notification.id ? { ...n, read: true } : n)
-                        );
-                        setUnreadCount(prev => Math.max(0, prev - 1));
-                      }
-                      // Navigate based on notification type
-                      if (notification.type === 'message') {
-                        navigate('/inbox');
-                      } else {
-                        navigate('/notifications');
-                      }
-                    }}
-                  >
-                    <div className="flex items-start space-x-2">
-                      {getNotificationIcon(notification.type)}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-white truncate">
-                          {notification.title}
-                        </p>
-                        <p className="text-xs text-gray-400 truncate">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                        </p>
-                      </div>
-                      {!notification.read && (
-                        <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0 mt-1"></div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="pt-2">
-                <button
-                  onClick={() => navigate('/notifications')}
-                  className="w-full text-center text-xs text-blue-400 hover:text-blue-300 py-2"
-                >
-                  View all notifications
-                </button>
-              </div>
-            </div>
-            <DropdownMenuSeparator className="bg-gray-700" />
-          </>
-        )}
-
-        {/* Icon Grid Section */}
-        <div className="py-4">
-          <div className="grid grid-cols-3 gap-4">
-            {/* First Row */}
-            <div
-              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-              onClick={() => navigate('/notifications')}
-            >
-              <Bell className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">{t('notifications')}</span>
-            </div>
-
-            <div
-              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-              onClick={() => navigate('/inbox')}
-            >
-              <MessageCircle className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">{t('inbox')}</span>
-            </div>
-
-            <div
-              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-              onClick={() => navigate('/upload')}
-            >
-              <Upload className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">{t('upload')}</span>
-            </div>
-
-            {/* Second Row */}
-            <div
-              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-              onClick={() => navigate('/favorites')}
-            >
-              <Heart className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">{t('favorites')}</span>
-            </div>
-
-            <div
-              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-              onClick={() => navigate('/liked')}
-            >
-              <ThumbsUp className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">{t('liked_videos')}</span>
-            </div>
-
-            <div
-              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-              onClick={() => navigate('/watch-later')}
-            >
-              <Clock className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">Watch Later</span>
-            </div>
-
-            {/* Fourth Row */}
-            <div
-              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-              onClick={() => navigate('/playlists')}
-            >
-              <List className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">Playlists</span>
-            </div>
-
-            {/* Third Row */}
-            <div
-              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-              onClick={() => setIsSettingsOpen(true)}
-            >
-              <Settings className="h-6 w-6 text-gray-300" />
-              <span className="text-xs text-gray-300">{t('settings')}</span>
-            </div>
-
-            {isCreator && (
-              <div
-                className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors"
-                onClick={() => navigate(isStudioCreator ? '/studio-dashboard' : '/creator-dashboard')}
-              >
-                <Crown className="h-6 w-6 text-blue-400" />
-                <span className="text-xs text-blue-400">
-                  {isStudioCreator ? 'Studio Dashboard' : 'Creator Dashboard'}
-                </span>
-              </div>
-            )}
-
-            {!isCreator && (
-              <div className="flex flex-col items-center space-y-2 p-3 rounded-lg">
-                {/* Empty space for non-creators to maintain grid alignment */}
-              </div>
-            )}
-
-            <div
-              className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-red-900/30 cursor-pointer transition-colors border border-red-800/50"
-              onClick={handleSignOut}
-            >
-              <LogOut className="h-6 w-6 text-red-400" />
-              <span className="text-xs text-red-400">{t('logout')}</span>
-            </div>
+        {/* Icon Grid */}
+        <div className="py-4 grid grid-cols-3 gap-4">
+          <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" onClick={() => navigate('/notifications')}>
+            <Bell className="h-6 w-6 text-gray-300" />
+            <span className="text-xs text-gray-300">{t('notifications')}</span>
           </div>
-        </div>
 
-        <DropdownMenuSeparator className="bg-gray-700" />
-
-        {/* Creator-specific menu items */}
-        {isCreator && (
-          <div className="py-2">
-            <DropdownMenuItem
-              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-              onClick={() => navigate(isStudioCreator ? '/studio-dashboard' : '/creator-dashboard')}
-            >
-              <Crown className="mr-3 h-5 w-5 text-blue-400" />
-              <span>{isStudioCreator ? 'Studio Dashboard' : 'Creator Dashboard'}</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-              onClick={() => navigate('/earnings')}
-            >
-              <DollarSign className="mr-3 h-5 w-5 text-green-400" />
-              <span>Earnings</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-              onClick={() => navigate('/upload')}
-            >
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center">
-                  <Upload className="mr-3 h-5 w-5 text-orange-400" />
-                  <span>Upload to HubX</span>
-                </div>
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-              onClick={() => navigate('/content-management')}
-            >
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center">
-                  <Video className="mr-3 h-5 w-5 text-purple-400" />
-                  <span>HubX Content Management</span>
-                </div>
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              </div>
-            </DropdownMenuItem>
-
-            {isStudioCreator && (
-              <DropdownMenuItem
-                className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-                onClick={() => navigate('/performers')}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex items-center">
-                    <Users className="mr-3 h-5 w-5 text-pink-400" />
-                    <span>Performers</span>
-                  </div>
-                  <ChevronDown className="h-4 w-4 text-gray-400" />
-                </div>
-              </DropdownMenuItem>
-            )}
-
-            <DropdownMenuItem
-              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-              onClick={() => navigate('/core-settings')}
-            >
-              <div className="flex items-center justify-between w-full">
-                <div className="flex items-center">
-                  <Settings className="mr-3 h-5 w-5 text-gray-400" />
-                  <span>Core Settings</span>
-                </div>
-                <ChevronDown className="h-4 w-4 text-gray-400" />
-              </div>
-            </DropdownMenuItem>
-
-            <DropdownMenuItem
-              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-              onClick={() => navigate('/contests')}
-            >
-              <Crown className="mr-3 h-5 w-5 text-yellow-400" />
-              <span>HubX Contests</span>
-            </DropdownMenuItem>
-
-            <DropdownMenuSeparator className="bg-gray-700" />
+          <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" onClick={() => navigate('/inbox')}>
+            <MessageCircle className="h-6 w-6 text-gray-300" />
+            <span className="text-xs text-gray-300">{t('inbox')}</span>
           </div>
-        )}
 
-        {/* Regular Menu Items */}
-        <div className="py-2">
-          <DropdownMenuItem
-            className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-            onClick={() => navigate('/feed')}
-          >
-            <Rss className="mr-3 h-5 w-5 text-gray-300" />
-            <span>Feed</span>
-          </DropdownMenuItem>
+          <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" onClick={() => navigate('/upload')}>
+            <Upload className="h-6 w-6 text-gray-300" />
+            <span className="text-xs text-gray-300">{t('upload')}</span>
+          </div>
 
-          {!isCreator && (
-            <DropdownMenuItem
-              className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-              onClick={() => navigate('/become-model')}
-            >
-              <div className="flex items-center">
-                <Clock className="mr-3 h-5 w-5 text-blue-400 stroke-[3]" />
-                <span>Become a Creator</span>
-              </div>
-            </DropdownMenuItem>
+          <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" onClick={() => navigate('/favorites')}>
+            <Heart className="h-6 w-6 text-gray-300" />
+            <span className="text-xs text-gray-300">{t('favorites')}</span>
+          </div>
+
+          <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" onClick={() => navigate('/liked')}>
+            <ThumbsUp className="h-6 w-6 text-gray-300" />
+            <span className="text-xs text-gray-300">{t('liked_videos')}</span>
+          </div>
+
+          <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" onClick={() => navigate('/watch-later')}>
+            <Clock className="h-6 w-6 text-gray-300" />
+            <span className="text-xs text-gray-300">Watch Later</span>
+          </div>
+
+          <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" onClick={() => navigate('/playlists')}>
+            <List className="h-6 w-6 text-gray-300" />
+            <span className="text-xs text-gray-300">Playlists</span>
+          </div>
+
+          <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" onClick={() => setIsSettingsOpen(true)}>
+            <Settings className="h-6 w-6 text-gray-300" />
+            <span className="text-xs text-gray-300">{t('settings')}</span>
+          </div>
+
+          {isCreator && (
+            <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-gray-800 cursor-pointer transition-colors" onClick={() => navigate(isStudioCreator ? '/studio-dashboard' : '/creator-dashboard')}>
+              <Crown className="h-6 w-6 text-blue-400" />
+              <span className="text-xs text-blue-400">{isStudioCreator ? 'Studio Dashboard' : 'Creator Dashboard'}</span>
+            </div>
           )}
 
-          <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3">
-            <div className="flex items-center justify-between w-full">
-              <div className="flex items-center">
-                <Globe className="mr-3 h-5 w-5 text-gray-300" />
-                <span>{t('language')}</span>
-              </div>
-              <select
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as any)}
-                className="bg-gray-700 text-white text-sm rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
-                <option value="it">Italiano</option>
-                <option value="pt">Português</option>
-                <option value="ja">日本語</option>
-                <option value="ko">한국어</option>
-                <option value="zh">中文</option>
-                <option value="ar">العربية</option>
-                <option value="ru">Русский</option>
-                <option value="hi">हिन्दी</option>
-              </select>
-            </div>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem
-            className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-            onClick={() => navigate('/faq')}
-          >
-            <HelpCircle className="mr-3 h-5 w-5 text-gray-300" />
-            <span>FAQ</span>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem
-            className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-            onClick={() => navigate('/contact')}
-          >
-            <MessageSquare className="mr-3 h-5 w-5 text-gray-300" />
-            <span>Contact Support</span>
-          </DropdownMenuItem>
-
-          <DropdownMenuItem
-            className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-            onClick={() => navigate('/profile')}
-          >
-            <User className="mr-3 h-5 w-5 text-gray-300" />
-            <span>{t('profile')}</span>
-          </DropdownMenuItem>
-        </div>
-
-        {/* New section for Featured Videos */}
-        <DropdownMenuSeparator className="bg-gray-700" />
-        <div className="py-2">
-          <DropdownMenuItem
-            className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3"
-            onClick={() => navigate('/featured-videos')}
-          >
-            <Video className="mr-3 h-5 w-5 text-blue-400" />
-            <span>Featured Videos</span>
-          </DropdownMenuItem>
+          {!isCreator && <div className="flex flex-col items-center space-y-2 p-3 rounded-lg" />}
+          
+          <div className="flex flex-col items-center space-y-2 p-3 rounded-lg hover:bg-red-900/30 cursor-pointer transition-colors border border-red-800/50" onClick={handleSignOut}>
+            <LogOut className="h-6 w-6 text-red-400" />
+            <span className="text-xs text-red-400">{t('logout')}</span>
+          </div>
         </div>
 
         <DropdownMenuSeparator className="bg-gray-700" />
 
-        <DropdownMenuItem
-          className="cursor-pointer text-red-400 hover:bg-gray-800 focus:bg-gray-800 py-3"
-          onClick={handleSignOut}
-        >
+        {/* Regular Menu Items */}
+        <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3" onClick={() => navigate('/feed')}>
+          <Rss className="mr-3 h-5 w-5 text-gray-300" />
+          <span>Feed</span>
+        </DropdownMenuItem>
+
+        {!isCreator && (
+          <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3" onClick={() => navigate('/become-model')}>
+            <Clock className="mr-3 h-5 w-5 text-blue-400 stroke-[3]" />
+            <span>Become a Creator</span>
+          </DropdownMenuItem>
+        )}
+
+        <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3">
+          <Globe className="mr-3 h-5 w-5 text-gray-300" />
+          <select value={language} onChange={e => setLanguage(e.target.value as any)} className="bg-gray-700 text-white text-sm rounded px-2 py-1 border border-gray-600 focus:outline-none focus:border-blue-500" onClick={e => e.stopPropagation()}>
+            <option value="en">English</option>
+            <option value="es">Español</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="it">Italiano</option>
+            <option value="pt">Português</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="zh">中文</option>
+            <option value="ar">العربية</option>
+            <option value="ru">Русский</option>
+            <option value="hi">हिन्दी</option>
+          </select>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3" onClick={() => navigate('/faq')}>
+          <HelpCircle className="mr-3 h-5 w-5 text-gray-300" />
+          <span>FAQ</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3" onClick={() => navigate('/contact')}>
+          <MessageSquare className="mr-3 h-5 w-5 text-gray-300" />
+          <span>Contact Support</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3" onClick={() => navigate('/profile')}>
+          <User className="mr-3 h-5 w-5 text-gray-300" />
+          <span>{t('profile')}</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator className="bg-gray-700" />
+
+        <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3" onClick={() => navigate('/featured-videos')}>
+          <Video className="mr-3 h-5 w-5 text-blue-400" />
+          <span>Featured Videos</span>
+        </DropdownMenuItem>
+
+        <DropdownMenuSeparator className="bg-gray-700" />
+
+        <DropdownMenuItem className="cursor-pointer text-red-400 hover:bg-gray-800 focus:bg-gray-800 py-3" onClick={handleSignOut}>
           <LogOut className="mr-3 h-5 w-5 text-red-400" />
           <span>{t('logout')}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
 
-      {/* Settings Modal */}
-      <SettingsModal
-        open={isSettingsOpen}
-        onOpenChange={setIsSettingsOpen}
-      />
+      <SettingsModal open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </DropdownMenu>
   );
 };
