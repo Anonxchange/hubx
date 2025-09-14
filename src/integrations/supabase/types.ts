@@ -415,51 +415,6 @@ export type Database = {
           views?: number | null
         }
         Relationships: []
-      }
-      notifications: {
-        Row: {
-          id: string
-          user_id: string
-          type: 'like' | 'comment' | 'subscribe' | 'upload' | 'view' | 'tip' | 'system' | 'message'
-          title: string
-          message: string
-          read: boolean
-          data: Json
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          type: 'like' | 'comment' | 'subscribe' | 'upload' | 'view' | 'tip' | 'system' | 'message'
-          title: string
-          message: string
-          read?: boolean
-          data?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          type?: 'like' | 'comment' | 'subscribe' | 'upload' | 'view' | 'tip' | 'system' | 'message'
-          title?: string
-          message?: string
-          read?: boolean
-          data?: Json
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notifications_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
     }
     Views: {
       [_ in never]: never
