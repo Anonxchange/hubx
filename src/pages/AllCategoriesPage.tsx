@@ -51,7 +51,7 @@ const AllCategoriesPage = () => {
     { name: 'Double Penetration', count: 16068, slug: 'double-penetration', thumbnail: '/IMG_0135.jpeg' },
     { name: 'Ebony', count: 35386, slug: 'ebony', thumbnail: '/IMG_0098.jpeg' },
     { name: 'Euro', count: 3747, slug: 'euro', thumbnail: '/IMG_0136.jpeg' },
-    { name: 'Exclusive', count: 318551, slug: 'exclusive' },
+    { name: 'Exclusive', count: 318551, slug: 'exclusive', thumbnail: '/IMG_0138.jpeg' },
     { name: 'Feet', count: 28704, slug: 'feet', thumbnail: '/IMG_0137.jpeg' },
     { name: 'Female Orgasm', count: 135043, slug: 'female-orgasm', thumbnail: '/IMG_0103.jpeg' },
     { name: 'Fetish', count: 122539, slug: 'fetish', thumbnail: '/IMG_0139.jpeg' },
