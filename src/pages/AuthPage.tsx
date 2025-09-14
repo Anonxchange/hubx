@@ -179,7 +179,7 @@ const AuthPage = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: 'url(/auth-background.jpeg)',
+          backgroundImage: 'url(/IMG_0088.jpeg)',
           filter: 'brightness(0.3)'
         }}
       />
