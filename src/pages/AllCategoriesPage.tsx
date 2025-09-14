@@ -26,7 +26,7 @@ const AllCategoriesPage = () => {
     { name: 'Amateur', count: 389865, slug: 'amateur' },
     { name: 'Anal', count: 110348, slug: 'anal' },
     { name: 'Arab', count: 20917, slug: 'arab' },
-    { name: 'Asian', count: 54773, slug: 'asian', thumbnail: '/asian-thumbnail.jpeg' },
+    { name: 'Asian', count: 54773, slug: 'asian', thumbnail: '/IMG_0090.jpeg' },
     { name: 'Babe', count: 235985, slug: 'babe' },
     { name: 'Babysitter (18+)', count: 14559, slug: 'babysitter' },
     { name: 'BBW', count: 43799, slug: 'bbw' },
