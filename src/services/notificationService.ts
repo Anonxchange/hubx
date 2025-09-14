@@ -3,7 +3,7 @@ import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 import { Message } from './messagingService';
 
 // Rename to avoid clash with browser Notification
-export interface AppNotification {
+export interface Notification {
   id: string;
   user_id: string;
   type: 'like' | 'comment' | 'follow' | 'upload' | 'view' | 'tip' | 'system' | 'message';
