@@ -15,6 +15,9 @@ export interface Notification {
   updated_at: string;
 }
 
+// Alias for compatibility
+export type AppNotification = Notification;
+
 export interface NotificationHandler {
   onNewMessage?: (message: Message) => void;
   onMessageRead?: (messageId: string) => void;
