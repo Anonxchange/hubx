@@ -6,7 +6,7 @@ import { Message } from './messagingService';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'like' | 'comment' | 'follow' | 'upload' | 'view' | 'tip' | 'system' | 'message';
+  type: 'like' | 'comment' | 'subscribe' | 'upload' | 'view' | 'tip' | 'system' | 'message';
   title: string;
   message: string;
   read: boolean;
@@ -235,13 +235,13 @@ class NotificationService {
     );
   }
 
-  async notifyNewFollow(userId: string, followerName: string, followerId: string) {
+  async notifyNewSubscription(userId: string, subscriberName: string, subscriberId: string) {
     return this.createNotification(
       userId,
-      'follow',
-      `${followerName} started following you`,
-      `${followerName} is now following your content`,
-      { follower_id: followerId }
+      'subscribe',
+      `${subscriberName} subscribed to you`,
+      `${subscriberName} is now subscribed to your content`,
+      { subscriber_id: subscriberId }
     );
   }
 
