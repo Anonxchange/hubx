@@ -155,6 +155,16 @@ const App = () => {
                     }
                   />
 
+                  {/* Earnings route (protected) */}
+                  <Route
+                    path="/earnings"
+                    element={
+                      <ProtectedRoute allowedUserTypes={['individual_creator', 'studio_creator']}>
+                        <EarningsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+
                   <Route path="/terms" element={<TermsOfService />} />
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/rta" element={<RTAPage />} />
