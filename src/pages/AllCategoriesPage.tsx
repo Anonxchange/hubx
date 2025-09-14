@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Header from '@/components/Header';
@@ -22,19 +21,19 @@ const AllCategoriesPage = () => {
 
   // Sample categories data - you can replace this with actual API call
   const sampleCategories: CategoryData[] = [
-    { name: '18-25', count: 216799, slug: '18-25' },
+    { name: '18-25', count: 216799, slug: '18-25', thumbnail: '/18-25-thumbnail.jpeg' },
     { name: '60FPS', count: 126219, slug: '60fps' },
     { name: 'Amateur', count: 389865, slug: 'amateur' },
     { name: 'Anal', count: 110348, slug: 'anal' },
     { name: 'Arab', count: 20917, slug: 'arab' },
-    { name: 'Asian', count: 54773, slug: 'asian' },
+    { name: 'Asian', count: 54773, slug: 'asian', thumbnail: '/asian-thumbnail.jpeg' },
     { name: 'Babe', count: 235985, slug: 'babe' },
     { name: 'Babysitter (18+)', count: 14559, slug: 'babysitter' },
     { name: 'BBW', count: 43799, slug: 'bbw' },
     { name: 'Behind The Scenes', count: 6904, slug: 'behind-the-scenes' },
-    { name: 'Big Ass', count: 205560, slug: 'big-ass' },
+    { name: 'Big Ass', count: 205560, slug: 'big-ass', thumbnail: '/big-ass-thumbnail.jpeg' },
     { name: 'Big Dick', count: 138800, slug: 'big-dick' },
-    { name: 'Big Tits', count: 243680, slug: 'big-tits' },
+    { name: 'Big Tits', count: 243680, slug: 'big-tits', thumbnail: '/big-tits-thumbnail.jpeg' },
     { name: 'Blonde', count: 121631, slug: 'blonde' },
     { name: 'Blowjob', count: 182890, slug: 'blowjob' },
     { name: 'Bondage', count: 18942, slug: 'bondage' },
@@ -47,10 +46,10 @@ const AllCategoriesPage = () => {
     { name: 'Compilation', count: 22668, slug: 'compilation' },
     { name: 'Cosplay', count: 21260, slug: 'cosplay' },
     { name: 'Creampie', count: 92037, slug: 'creampie' },
-    { name: 'Cumshot', count: 138509, slug: 'cumshot' },
+    { name: 'Cumshot', count: 138509, slug: 'cumshot', thumbnail: '/cumshot-thumbnail.jpeg' },
     { name: 'Czech', count: 9626, slug: 'czech' },
     { name: 'Double Penetration', count: 16068, slug: 'double-penetration' },
-    { name: 'Ebony', count: 35386, slug: 'ebony' },
+    { name: 'Ebony', count: 35386, slug: 'ebony', thumbnail: '/ebony-thumbnail.jpeg' },
     { name: 'Euro', count: 3747, slug: 'euro' },
     { name: 'Exclusive', count: 318551, slug: 'exclusive' },
     { name: 'Feet', count: 28704, slug: 'feet' },
@@ -61,10 +60,10 @@ const AllCategoriesPage = () => {
     { name: 'French', count: 14398, slug: 'french' },
     { name: 'Funny', count: 769, slug: 'funny' },
     { name: 'Gaming', count: 5826, slug: 'gaming' },
-    { name: 'Gangbang', count: 8743, slug: 'gangbang' },
+    { name: 'Gangbang', count: 8743, slug: 'gangbang', thumbnail: '/gangbang-thumbnail.jpeg' },
     { name: 'German', count: 15338, slug: 'german' },
     { name: 'Handjob', count: 56927, slug: 'handjob' },
-    { name: 'Hardcore', count: 179073, slug: 'hardcore' },
+    { name: 'Hardcore', count: 179073, slug: 'hardcore', thumbnail: '/hardcore-thumbnail.jpeg' },
     { name: 'HD Porn', count: 826013, slug: 'hd' },
     { name: 'Hentai', count: 18659, slug: 'hentai' },
     { name: 'Indian', count: 13143, slug: 'indian' },
@@ -73,15 +72,15 @@ const AllCategoriesPage = () => {
     { name: 'Italian', count: 12990, slug: 'italian' },
     { name: 'Japanese', count: 30425, slug: 'japanese' },
     { name: 'Korean', count: 4156, slug: 'korean' },
-    { name: 'Latina', count: 91869, slug: 'latina' },
+    { name: 'Latina', count: 91869, slug: 'latina', thumbnail: '/latina-thumbnail.jpeg' },
     { name: 'Lesbian', count: 38408, slug: 'lesbian' },
     { name: 'Massage', count: 35134, slug: 'massage' },
     { name: 'Masturbation', count: 151411, slug: 'masturbation' },
     { name: 'Mature', count: 33108, slug: 'mature' },
-    { name: 'MILF', count: 154267, slug: 'milf' },
+    { name: 'MILF', count: 154267, slug: 'milf', thumbnail: '/milf-thumbnail.jpeg' },
     { name: 'Music', count: 9123, slug: 'music' },
     { name: 'Muscular Men', count: 12818, slug: 'muscular-men' },
-    { name: 'Old/Young (18+)', count: 35731, slug: 'old-young' },
+    { name: 'Old/Young (18+)', count: 35731, slug: 'old-young', thumbnail: '/old-young-thumbnail.jpeg' },
     { name: 'Orgy', count: 10076, slug: 'orgy' },
     { name: 'Parody', count: 10315, slug: 'parody' },
     { name: 'Party', count: 6516, slug: 'party' },
@@ -160,7 +159,7 @@ const AllCategoriesPage = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       <main className="container mx-auto px-4 py-6 space-y-8">
         {/* Ad Component */}
         <AdComponent zoneId="5660534" />
@@ -168,7 +167,7 @@ const AllCategoriesPage = () => {
         {/* Header and Search */}
         <div className="space-y-4">
           <h1 className="text-3xl lg:text-4xl font-bold">All Categories</h1>
-          
+
           {/* Search Bar */}
           <div className="relative max-w-md">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
@@ -180,7 +179,7 @@ const AllCategoriesPage = () => {
               className="pl-10 bg-card border-border"
             />
           </div>
-          
+
           <div className="flex gap-2 items-center">
             <button className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-bold">
               All
@@ -200,12 +199,20 @@ const AllCategoriesPage = () => {
               className="group"
             >
               <div className="relative aspect-[4/3] rounded-lg overflow-hidden bg-card border border-border hover:border-primary transition-all duration-300">
-                {/* Placeholder background - you can replace with actual thumbnails */}
-                <div className="absolute inset-0 bg-gradient-to-br from-muted/20 via-muted/40 to-muted/60" />
-                
+                {/* Category thumbnail or placeholder background */}
+                {category.thumbnail ? (
+                  <img
+                    src={category.thumbnail}
+                    alt={category.name}
+                    className="absolute inset-0 w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="absolute inset-0 bg-gradient-to-br from-muted/20 via-muted/40 to-muted/60" />
+                )}
+
                 {/* Category Info Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                
+
                 <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
                   <h3 className="font-semibold text-sm mb-1 line-clamp-2 group-hover:text-primary-foreground transition-colors">
                     {category.name}
@@ -214,7 +221,7 @@ const AllCategoriesPage = () => {
                     {formatCount(category.count)} Videos
                   </p>
                 </div>
-                
+
                 {/* Hover Effect */}
                 <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               </div>
