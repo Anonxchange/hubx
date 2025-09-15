@@ -120,10 +120,36 @@ export const useVideoReaction = (videoId: string) => {
         return reactionType;
       }
     },
-    onSuccess: () => {
-      // Invalidate queries to refetch data
-      queryClient.invalidateQueries({ queryKey: ['video-reaction', videoId] });
-      queryClient.invalidateQueries({ queryKey: ['video', videoId] });
+    onSuccess: (newReaction) => {
+      // Update the video reaction cache directly
+      queryClient.setQueryData(['video-reaction', videoId], newReaction);
+      
+      // Update the video cache to reflect new like/dislike counts without refetching
+      queryClient.setQueryData(['video', videoId], (prevVideo: any) => {
+        if (!prevVideo) return prevVideo;
+        
+        let likes = prevVideo.likes || 0;
+        let dislikes = prevVideo.dislikes || 0;
+        
+        // Adjust counts based on previous and new reaction
+        if (userReaction === 'like') {
+          likes = Math.max(0, likes - 1); // Remove previous like
+        } else if (userReaction === 'dislike') {
+          dislikes = Math.max(0, dislikes - 1); // Remove previous dislike
+        }
+        
+        if (newReaction === 'like') {
+          likes += 1; // Add new like
+        } else if (newReaction === 'dislike') {
+          dislikes += 1; // Add new dislike
+        }
+        
+        return {
+          ...prevVideo,
+          likes,
+          dislikes
+        };
+      });
     },
     onError: (error) => {
       console.error('Reaction mutation error:', error);
