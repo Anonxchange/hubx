@@ -85,9 +85,19 @@ export const getUserStats = async (userId: string): Promise<UserStats> => {
 // Track video view for statistics
 export const trackVideoView = async (videoId: string, userId?: string) => {
   try {
-    if (!userId) return; // Skip if user not logged in
+    // Generate session ID for anonymous users
+    const getSessionId = (): string => {
+      let sessionId = localStorage.getItem('user_session');
+      if (!sessionId) {
+        sessionId = crypto.randomUUID();
+        localStorage.setItem('user_session', sessionId);
+      }
+      return sessionId;
+    };
 
-    // For anonymous users, check by IP address to prevent spam
+    const sessionId = userId || getSessionId();
+
+    // Check if user/session already viewed this video
     let existingView = null;
     
     if (userId) {
@@ -99,6 +109,15 @@ export const trackVideoView = async (videoId: string, userId?: string) => {
         .eq('user_id', userId)
         .single();
       existingView = data;
+    } else {
+      // Check if session already viewed (for guests)
+      const { data } = await supabase
+        .from('video_views')
+        .select('id')
+        .eq('video_id', videoId)
+        .eq('user_id', sessionId)
+        .single();
+      existingView = data;
     }
 
     if (!existingView) {
@@ -107,7 +126,7 @@ export const trackVideoView = async (videoId: string, userId?: string) => {
         .from('video_views')
         .insert({
           video_id: videoId,
-          user_id: userId,
+          user_id: sessionId, // Use sessionId for both logged-in users and guests
           viewed_at: new Date().toISOString()
         })
         .select('id')
@@ -142,7 +161,8 @@ export const trackVideoView = async (videoId: string, userId?: string) => {
                          videoData.profiles?.user_type === 'studio_creator';
 
         // Only calculate earnings for creators (not regular users)
-        if (isCreator && creatorId && creatorId !== userId) {
+        // Don't give earnings if creator is viewing their own video
+        if (isCreator && creatorId && creatorId !== sessionId) {
           // Calculate and record view earnings for the creator
           await calculateViewEarnings(videoId, creatorId, newView.id, isPremium);
         }
