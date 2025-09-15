@@ -12,12 +12,12 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    // Check if user has already verified their age
+    // Check if user don already verify age
     const ageVerified = localStorage.getItem('ageVerified');
     if (ageVerified === 'true') {
       setIsVerified(true);
     } else {
-      // Small delay to show the modal after component mounts
+      // Small delay make modal no show instantly
       const timer = setTimeout(() => setShowModal(true), 100);
       return () => clearTimeout(timer);
     }
@@ -30,7 +30,7 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
   };
 
   const handleExit = () => {
-    // Redirect to a safe website
+    // Redirect go safe website
     window.location.href = 'https://www.google.com';
   };
 
@@ -47,18 +47,18 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-lg flex items-center justify-center p-4">
       <div className="w-full max-w-md mx-auto">
         {/* Language Selector */}
         <div className="mb-6 flex justify-start">
-          <div className="flex items-center space-x-2 bg-gray-800/50 rounded-md px-3 py-2 text-white">
-            <Globe className="w-4 h-4 text-gray-400" />
+          <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-md px-3 py-2 text-white">
+            <Globe className="w-4 h-4 text-gray-300" />
             <span className="text-sm">English</span>
-            <ChevronDown className="w-4 h-4 text-gray-400" />
+            <ChevronDown className="w-4 h-4 text-gray-300" />
           </div>
         </div>
 
-        <Card className="bg-black border-gray-700 shadow-2xl">
+        <Card className="bg-black/50 backdrop-blur-md border border-gray-600 shadow-2xl rounded-xl">
           <CardContent className="p-8 text-center space-y-6">
             {/* Logo */}
             <div className="flex items-center justify-center space-x-2 mb-6">
@@ -73,7 +73,7 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
             </h1>
 
             {/* Main Content */}
-            <div className="text-gray-300 text-sm leading-relaxed space-y-4">
+            <div className="text-gray-200 text-sm leading-relaxed space-y-4">
               <p>
                 This website contains age-restricted materials including nudity and explicit 
                 depictions of sexual activity. By entering, you affirm that you are at 
@@ -85,7 +85,7 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
                 Our Terms are changing. These changes will or have come into effect on{' '}
                 <span className="font-semibold text-white">30 June 2025</span>. To see the 
                 updated changes, please see our{' '}
-                <span className="text-orange-500 font-semibold">New Terms of Service</span>.
+                <span className="text-orange-400 font-semibold">New Terms of Service</span>.
               </p>
             </div>
 
@@ -101,7 +101,7 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
               <Button 
                 onClick={handleExit}
                 variant="secondary"
-                className="w-full bg-gray-700 hover:bg-gray-600 text-white font-semibold py-3 text-base rounded-md transition-colors"
+                className="w-full bg-gray-700/80 hover:bg-gray-600 text-white font-semibold py-3 text-base rounded-md transition-colors"
               >
                 I am under 18 - Exit
               </Button>
