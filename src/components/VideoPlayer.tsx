@@ -13,12 +13,14 @@ interface VideoPlayerProps {
   src: string;
   poster?: string;
   title?: string;
+  videoId?: string;
 }
 
-const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
+const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const { user } = useAuth();
   const [initialized, setInitialized] = useState(false);
+  const [hasTrackedView, setHasTrackedView] = useState(false);
 
   useEffect(() => {
     let retryCount = 0;
@@ -157,9 +159,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title }) => {
   }, [src, poster, initialized]);
 
   const handlePlay = async () => {
+    // Guard against duplicate view tracking
+    if (hasTrackedView || !videoId) return;
+    
+    // Check if we've already tracked this video in this session
+    const sessionKey = `video_tracked_${videoId}`;
+    if (sessionStorage.getItem(sessionKey)) return;
+    
+    // Track the view
     if (user) {
-      await trackVideoView(user.id, src);
+      await trackVideoView(videoId, user.id);
+    } else {
+      await trackVideoView(videoId);
     }
+    
+    // Mark as tracked
+    setHasTrackedView(true);
+    sessionStorage.setItem(sessionKey, 'true');
   };
 
   const isHLS = src.includes(".m3u8");
