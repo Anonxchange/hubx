@@ -111,12 +111,12 @@ const AllCategoriesPage = () => {
     { name: 'Threesome', count: 36443, slug: 'threesome', thumbnail: '/IMG_0184.jpeg'},
     { name: 'Toys', count: 100695, slug: 'toys', thumbnail: '/IMG_0185.jpeg'},
     { name: 'Transgender', count: 29405, slug: 'transgender', thumbnail: '/IMG_0186.jpeg'},
-    { name: 'Verified Amateurs', count: 545713, slug: 'verified-amateurs',thumbnail: '/IMG_0187.jpeg'},
-    { name: 'Verified Couples', count: 54026, slug: 'verified-couples' },
-    { name: 'Verified Models', count: 41110, slug: 'verified-models' },
-    { name: 'Vintage', count: 2698, slug: 'vintage' },
-    { name: 'Virtual Reality', count: 3939, slug: 'virtual-reality' },
-    { name: 'Webcam', count: 18664, slug: 'webcam' }
+    { name: 'Verified Amateurs', count: 545713, slug: 'verified-amateurs', thumbnail: '/IMG_0188.jpeg'},
+    { name: 'Verified Couples', count: 54026, slug: 'verified-couples', thumbnail: '/IMG_0187.jpeg'},
+    { name: 'Verified Models', count: 41110, slug: 'verified-models', thumbnail: '/IMG_0186.jpeg' },
+    { name: 'Vintage', count: 2698, slug: 'vintage', thumbnail: '/IMG_0190.jpeg'},
+    { name: 'Virtual Reality', count: 3939, slug: 'virtual-reality', thumbnail: '/IMG_0191.jpeg'},
+    { name: 'Webcam', count: 18664, slug: 'webcam', thumbnail: '/IMG_0192.jpeg'}
   ];
 
   useEffect(() => {
