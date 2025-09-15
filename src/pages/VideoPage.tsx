@@ -278,10 +278,8 @@ const VideoPage = () => {
                 key={video.id}
                 src={video.video_url}
                 poster={video.thumbnail_url}
-                onError={handleVideoError}
-                onCanPlay={handleVideoCanPlay}
                 videoId={video.id}
-                videoTitle={video.title}
+                title={video.title}
               />
             </div>
             {videoError && (
@@ -305,10 +303,8 @@ const VideoPage = () => {
                     key={video.id}
                     src={video.video_url}
                     poster={video.thumbnail_url}
-                    onError={handleVideoError}
-                    onCanPlay={handleVideoCanPlay}
                     videoId={video.id}
-                    videoTitle={video.title}
+                    title={video.title}
                   />
                 </div>
                 {videoError && (
