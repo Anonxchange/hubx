@@ -44,19 +44,20 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-lg flex items-center justify-center p-4">
+    {/* 🔥 Background fixed like Pornhub: no blur, just semi-transparent black */}
+    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
       <div className="w-full max-w-md mx-auto">
         {/* Language Selector */}
         <div className="mb-6 flex justify-start">
-          <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-md px-3 py-2 text-white">
+          <div className="flex items-center space-x-2 bg-white/10 rounded-md px-3 py-2 text-white">
             <Globe className="w-4 h-4 text-gray-300" />
             <span className="text-sm">English</span>
             <ChevronDown className="w-4 h-4 text-gray-300" />
           </div>
         </div>
 
-        {/* Glass effect card */}
-        <Card className="bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl rounded-xl">
+        {/* Solid black card */}
+        <Card className="bg-black border border-gray-700 shadow-2xl rounded-md">
           <CardContent className="p-8 text-center space-y-6">
             {/* Logo */}
             <div className="flex items-center justify-center space-x-2 mb-6">
