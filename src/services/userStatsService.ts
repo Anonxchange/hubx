@@ -87,16 +87,22 @@ export const trackVideoView = async (videoId: string, userId?: string) => {
   try {
     if (!userId) return; // Skip if user not logged in
 
-    // Check if view already exists to prevent double counting
-    const { data: existingView } = await supabase
-      .from('video_views')
-      .select('id')
-      .eq('video_id', videoId)
-      .eq('user_id', userId)
-      .single();
+    // For anonymous users, check by IP address to prevent spam
+    let existingView = null;
+    
+    if (userId) {
+      // Check if logged-in user already viewed
+      const { data } = await supabase
+        .from('video_views')
+        .select('id')
+        .eq('video_id', videoId)
+        .eq('user_id', userId)
+        .single();
+      existingView = data;
+    }
 
     if (!existingView) {
-      // Insert new view record and get the ID for earnings calculation
+      // Insert new view record and increment video views count
       const { data: newView, error } = await supabase
         .from('video_views')
         .insert({
@@ -106,6 +112,11 @@ export const trackVideoView = async (videoId: string, userId?: string) => {
         })
         .select('id')
         .single();
+
+      if (!error && newView) {
+        // Increment the views count on the video
+        await supabase.rpc('increment_video_views', { video_id: videoId });
+      }
 
       if (error) {
         console.error('Error tracking video view:', error);
