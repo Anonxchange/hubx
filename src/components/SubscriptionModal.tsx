@@ -853,7 +853,7 @@ const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose }
         <div
           className="relative h-48 bg-cover bg-center"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=800&h=400&fit=crop')`
+            backgroundImage: `url('https://raw.githubusercontent.com/Anonxchange/hubx/refs/heads/main/public/IMG_0197.jpeg?w=800&h=400&fit=crop')`
           }}
         >
           {/* Dark overlay */}
