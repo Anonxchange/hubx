@@ -22,7 +22,7 @@ const AllCategoriesPage = () => {
   // Sample categories data - you can replace this with actual API call
   const sampleCategories: CategoryData[] = [
     { name: '18-25', count: 216799, slug: '18-25', thumbnail: '/IMG_0089.jpeg' },
-    { name: '60FPS', count: 126219, slug: '60fps' },
+    { name: '60FPS', count: 126219, slug: '60fps', thumbnail: '/IMG_0196.jpeg' },
     { name: 'Amateur', count: 389865, slug: 'amateur', thumbnail: '/IMG_0112.jpeg' },
     { name: 'Anal', count: 110348, slug: 'anal', thumbnail: '/IMG_0111.jpeg' },
     { name: 'Arab', count: 20917, slug: 'arab', thumbnail: '/IMG_0113.jpeg' },
@@ -107,10 +107,10 @@ const AllCategoriesPage = () => {
     { name: 'Step Fantasy', count: 72348, slug: 'step-fantasy', thumbnail: '/IMG_0180.jpeg'},
     { name: 'Strap On', count: 4457, slug: 'strap-on', thumbnail: '/IMG_0181.jpeg'},
     { name: 'Striptease', count: 3568, slug: 'striptease', thumbnail: '/IMG_0182.jpeg'},
-    { name: 'Tattooed Women', count: 49445, slug: 'tattooed-women', thumbnail: '/IMG_0183.jpeg' },
-    { name: 'Threesome', count: 36443, slug: 'threesome', thumbnail: '/IMG_0184.jpeg'},
-    { name: 'Toys', count: 100695, slug: 'toys', thumbnail: '/IMG_0185.jpeg'},
-    { name: 'Transgender', count: 29405, slug: 'transgender', thumbnail: '/IMG_0186.jpeg'},
+    { name: 'Tattooed Women', count: 49445, slug: 'tattooed-women', thumbnail: '/IMG_0195.jpeg' },
+    { name: 'Threesome', count: 36443, slug: 'threesome', thumbnail: '/IMG_0183.jpeg'},
+    { name: 'Toys', count: 100695, slug: 'toys', thumbnail: '/IMG_0184.jpeg'},
+    { name: 'Transgender', count: 29405, slug: 'transgender', thumbnail: '/IMG_0185.jpeg'},
     { name: 'Verified Amateurs', count: 545713, slug: 'verified-amateurs', thumbnail: '/IMG_0188.jpeg'},
     { name: 'Verified Couples', count: 54026, slug: 'verified-couples', thumbnail: '/IMG_0187.jpeg'},
     { name: 'Verified Models', count: 41110, slug: 'verified-models', thumbnail: '/IMG_0186.jpeg' },
