@@ -109,7 +109,7 @@ const App = () => {
                   <Route path="/trending" element={<TrendingPage />} />
                   <Route path="/premium" element={<PremiumPage />} />
                   <Route path="/premium/video/:id" element={<PremiumVideoPage />} />
-                  <Route path="/premium/categories/:category" element={<PremiumCategoryPage />} />
+                  <Route path="/premium/category/:category" element={<PremiumCategoryPage />} />
                   <Route path="/premium/vr" element={<PremiumVRPage />} />
                   <Route path="/premium/creators/individual" element={<PremiumIndividualCreatorsPage />} />
                   <Route path="/premium/creators/studio" element={<PremiumStudioCreatorsPage />} />
