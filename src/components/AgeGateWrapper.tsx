@@ -10,20 +10,13 @@ interface AgeGateWrapperProps {
 const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
   const [isVerified, setIsVerified] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [animate, setAnimate] = useState(false);
 
   useEffect(() => {
-    // Check if user don already verify age
     const ageVerified = localStorage.getItem('ageVerified');
     if (ageVerified === 'true') {
       setIsVerified(true);
     } else {
-      // Small delay make modal no show instantly
-      const timer = setTimeout(() => {
-        setShowModal(true);
-        // Trigger animation after modal mounts
-        setTimeout(() => setAnimate(true), 50);
-      }, 100);
+      const timer = setTimeout(() => setShowModal(true), 100);
       return () => clearTimeout(timer);
     }
   }, []);
@@ -35,7 +28,6 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
   };
 
   const handleExit = () => {
-    // Redirect go safe website
     window.location.href = 'https://www.google.com';
   };
 
@@ -52,15 +44,8 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
   }
 
   return (
-    <div
-      className={`fixed inset-0 z-50 bg-black/40 backdrop-blur-lg flex items-center justify-center p-4 
-        transition-opacity duration-500 ease-out 
-        ${animate ? 'opacity-100' : 'opacity-0'}`}
-    >
-      <div
-        className={`w-full max-w-md mx-auto transform transition-all duration-500 ease-out 
-          ${animate ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
-      >
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-lg flex items-center justify-center p-4">
+      <div className="w-full max-w-md mx-auto">
         {/* Language Selector */}
         <div className="mb-6 flex justify-start">
           <div className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm rounded-md px-3 py-2 text-white">
@@ -70,7 +55,8 @@ const AgeGateWrapper: React.FC<AgeGateWrapperProps> = ({ children }) => {
           </div>
         </div>
 
-        <Card className="bg-black/50 backdrop-blur-md border border-gray-600 shadow-2xl rounded-xl">
+        {/* Glass effect card */}
+        <Card className="bg-white/10 backdrop-blur-md border border-white/20 shadow-2xl rounded-xl">
           <CardContent className="p-8 text-center space-y-6">
             {/* Logo */}
             <div className="flex items-center justify-center space-x-2 mb-6">
