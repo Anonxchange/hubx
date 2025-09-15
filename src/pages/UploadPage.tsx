@@ -49,7 +49,7 @@ const UploadPage = () => {
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [customTags, setCustomTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
   const [isPremium, setIsPremium] = useState(false);
@@ -105,10 +105,10 @@ const UploadPage = () => {
       setDuration(`${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`);
       
       // Check if video is too long for moments
-      if (isMoment && tempVideo.duration > 120) {
+      if (isMoment && tempVideo.duration > 900) {
         toast({ 
           title: "Video too long for moments", 
-          description: "Moments must be 2 minutes or less. Uncheck 'Upload as Moment' or choose a shorter video.", 
+          description: "Moments must be 15 minutes or less. Uncheck 'Upload as Moment' or choose a shorter video.", 
           variant: "destructive" 
         });
       }
@@ -146,6 +146,16 @@ const UploadPage = () => {
   };
 
   const removeTag = (tag: string) => setCustomTags(customTags.filter(t => t !== tag));
+
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(category)) {
+        return prev.filter(c => c !== category);
+      } else {
+        return [...prev, category];
+      }
+    });
+  };
 
   const uploadToBunnyStream = async (file: File) => {
     // Hardcode the credentials since env variables aren't loading properly
@@ -210,8 +220,8 @@ const UploadPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile || !title.trim() || !selectedCategory) {
-      toast({ title: "Missing required fields", description: "Fill all required fields.", variant: "destructive" });
+    if (!selectedFile || !title.trim() || selectedCategories.length === 0) {
+      toast({ title: "Missing required fields", description: "Fill all required fields including at least one category.", variant: "destructive" });
       return;
     }
 
@@ -220,10 +230,10 @@ const UploadPage = () => {
       const tempVideo = document.createElement('video');
       tempVideo.src = URL.createObjectURL(selectedFile);
       tempVideo.onloadedmetadata = () => {
-        if (tempVideo.duration > 120) {
+        if (tempVideo.duration > 900) {
           toast({ 
             title: "Video too long for moments", 
-            description: "Moments must be 2 minutes or less.", 
+            description: "Moments must be 15 minutes or less.", 
             variant: "destructive" 
           });
           return;
@@ -237,7 +247,7 @@ const UploadPage = () => {
       const streamData = await uploadToBunnyStream(selectedFile);
       setUploadProgress(80);
 
-      const allTags = [selectedCategory, ...customTags];
+      const allTags = [...selectedCategories, ...customTags];
       const videoData = {
         owner_id: user.id,
         title: title.trim(),
@@ -261,7 +271,7 @@ const UploadPage = () => {
       setPreviewUrl('');
       setTitle('');
       setDescription('');
-      setSelectedCategory('');
+      setSelectedCategories([]);
       setCustomTags([]);
       setTagInput('');
       setIsPremium(false);
@@ -394,13 +404,36 @@ const UploadPage = () => {
                   </div>
 
                   <div>
-                    <Label>Category *</Label>
-                    <Select value={selectedCategory} onValueChange={setSelectedCategory} required>
-                      <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                      <SelectContent>
-                        {categories.map((cat) => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Label>Categories * (Select at least one)</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 max-h-60 overflow-y-auto border rounded-lg p-3">
+                      {categories.map((category) => (
+                        <div
+                          key={category}
+                          onClick={() => toggleCategory(category)}
+                          className={`
+                            px-3 py-2 rounded-md text-sm cursor-pointer transition-colors
+                            ${selectedCategories.includes(category)
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-muted hover:bg-muted/80'
+                            }
+                          `}
+                        >
+                          {category}
+                        </div>
+                      ))}
+                    </div>
+                    {selectedCategories.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {selectedCategories.map((category) => (
+                          <Badge key={category} variant="secondary" className="cursor-pointer" onClick={() => toggleCategory(category)}>
+                            {category} <X className="w-3 h-3 ml-1" />
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selectedCategories.length} categories selected
+                    </p>
                   </div>
 
                   <div>
@@ -448,13 +481,13 @@ const UploadPage = () => {
                     <Switch 
                       checked={isMoment} 
                       onCheckedChange={setIsMoment}
-                      disabled={selectedFile && duration !== '00:00' && duration.split(':')[0] !== '00' && (parseInt(duration.split(':')[0]) > 2 || (parseInt(duration.split(':')[0]) === 2 && parseInt(duration.split(':')[1]) > 0))}
+                      disabled={selectedFile && duration !== '00:00' && duration.split(':')[0] !== '00' && (parseInt(duration.split(':')[0]) > 15 || (parseInt(duration.split(':')[0]) === 15 && parseInt(duration.split(':')[1]) > 0))}
                     />
-                    <Label>Upload as Moment (Max 2 minutes)</Label>
+                    <Label>Upload as Moment (Max 15 minutes)</Label>
                   </div>
                   {isMoment && (
                     <p className="text-xs text-muted-foreground">
-                      Moments are short-form videos that appear in the Moments feed. Maximum duration: 2 minutes.
+                      Moments are short-form videos that appear in the Moments feed. Maximum duration: 15 minutes.
                     </p>
                   )}
                 </CardContent>
@@ -464,7 +497,7 @@ const UploadPage = () => {
                 <Button type="button" variant="outline" onClick={() => navigate(-1)} className="flex-1">Cancel</Button>
                 <Button
                   type="submit"
-                  disabled={!selectedFile || !title.trim() || !selectedCategory || isUploading}
+                  disabled={!selectedFile || !title.trim() || selectedCategories.length === 0 || isUploading}
                   className="flex-1"
                 >
                   {isUploading ? 'Uploading...' : 'Upload Video'}
