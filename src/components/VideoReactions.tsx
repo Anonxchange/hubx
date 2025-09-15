@@ -31,9 +31,9 @@ const VideoReactions: React.FC<VideoReactionsProps> = ({
   // Use the video reaction hook
   const { userReaction, reactToVideo, isLoading } = useVideoReaction(videoId);
 
-  // Calculate actual counts based on user reaction
-  const actualLikes = userReaction === 'like' ? likes + 1 : likes;
-  const actualDislikes = userReaction === 'dislike' ? dislikes + 1 : dislikes;
+  // Use the likes/dislikes from props directly since they're updated in the database
+  const actualLikes = likes || 0;
+  const actualDislikes = dislikes || 0;
   
   // Use the video favorites hook
   const { isFavorited, toggleFavorite, isLoading: favoritesLoading } = useVideoFavorites(videoId);
