@@ -25,7 +25,7 @@ export const useVideosByCategory = (category: string, page = 1, limit = 60, sear
   });
 };
 
-export const useRelatedVideos = (videoId: string, tags: string[], limit = 15, isPremiumContext = false) => {
+export const useRelatedVideos = (videoId: string, tags: string[], limit = 35, isPremiumContext = false) => {
   return useQuery({
     queryKey: ['videos', 'related', videoId, tags, isPremiumContext],
     queryFn: () => getRelatedVideos(videoId, tags, limit, isPremiumContext),
