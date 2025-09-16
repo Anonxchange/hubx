@@ -56,7 +56,7 @@ const PlaylistsPage: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {playlists?.map((playlist) => (
-            <Card key={playlist.id} className="group hover:shadow-lg transition-shadow">
+            <Card key={playlist.id} className="group hover:shadow-lg transition-shadow rounded-none">
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
