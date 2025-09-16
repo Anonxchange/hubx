@@ -161,18 +161,18 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }
   const handlePlay = async () => {
     // Guard against duplicate view tracking
     if (hasTrackedView || !videoId) return;
-    
+
     // Check if we've already tracked this video in this session
     const sessionKey = `video_tracked_${videoId}`;
     if (sessionStorage.getItem(sessionKey)) return;
-    
+
     // Track the view
     if (user) {
       await trackVideoView(videoId, user.id);
     } else {
       await trackVideoView(videoId);
     }
-    
+
     // Mark as tracked
     setHasTrackedView(true);
     sessionStorage.setItem(sessionKey, 'true');
@@ -183,8 +183,16 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }
   return (
     <div className="w-full">
       <div
-        className="relative w-full bg-black group"
-        style={{ aspectRatio: "16/9" }}
+        className="relative w-full bg-black group lg:aspect-video"
+        style={{ minHeight: "300px" }}
+        ref={(el) => {
+          // Clear min-height after component mounts on mobile only
+          if (el && window.innerWidth < 1024) {
+            setTimeout(() => {
+              el.style.minHeight = '';
+            }, 100);
+          }
+        }}
       >
         <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-black/60 via-black/30 to-transparent z-10 pointer-events-none" />
 
@@ -206,7 +214,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }
             display: "block",
             objectFit: "cover",
             objectPosition: "center",
-            width: "100%",   // ✅ keep only width
+            maxWidth: "100%",
+            height: "auto",
           }}
         >
           {isHLS ? (
@@ -216,15 +225,6 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }
           )}
         </video>
       </div>
-
-      {title && (
-        <div className="flex justify-between items-center mt-3 px-2">
-          <div className="flex items-center gap-2">
-            <VideoIcon className="w-5 h-5 text-red-500" />
-            <span className="font-medium text-foreground">{title}</span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
