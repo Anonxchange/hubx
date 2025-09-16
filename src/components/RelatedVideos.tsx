@@ -34,7 +34,7 @@ interface RelatedVideosProps {
 }
 
 const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, videoId, premiumVideos = [] }) => {
-  const [visibleCount, setVisibleCount] = useState(10);
+  const [visibleCount, setVisibleCount] = useState(20);
   const [activeTab, setActiveTab] = useState('related');
   const [uploaderVideos, setUploaderVideos] = useState<Video[]>([]);
   const [uploaderPlaylists, setUploaderPlaylists] = useState<any[]>([]);
@@ -132,7 +132,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
         .filter(video => video.relatednessScore > 0)
     : videos;
 
-  const maxVisible = Math.min(30, filteredVideos.length);
+  const maxVisible = Math.min(35, filteredVideos.length);
   const canShowMore = visibleCount < maxVisible;
   const displayedVideos = filteredVideos.slice(0, visibleCount);
 
@@ -195,7 +195,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
               {visibleCount < uploaderVideos.length && (
                 <div className="flex justify-center">
                   <Button
-                    onClick={() => setVisibleCount(prev => Math.min(prev + 10, uploaderVideos.length))}
+                    onClick={() => setVisibleCount(prev => Math.min(prev + 15, uploaderVideos.length))}
                     variant="outline"
                     className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:text-orange-500"
                   >
@@ -300,7 +300,7 @@ const RelatedVideos: React.FC<RelatedVideosProps> = ({ videos, currentVideo, vid
             {canShowMore && (
               <div className="col-span-full flex justify-center my-6">
                 <Button
-                  onClick={() => setVisibleCount(prev => Math.min(prev + 10, maxVisible))}
+                  onClick={() => setVisibleCount(prev => Math.min(prev + 15, maxVisible))}
                   variant="outline"
                   className="bg-gray-800 border-gray-600 text-white hover:bg-gray-700 hover:text-orange-500"
                 >
