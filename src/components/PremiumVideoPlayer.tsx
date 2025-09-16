@@ -518,7 +518,23 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
       <video
         ref={videoRef}
         src={src}
-        className={`w-full aspect-video rounded-lg ${vrMode ? 'hidden' : 'block'}`}
+        className={`w-full rounded-lg ${vrMode ? 'hidden' : 'block'}`}
+        style={{
+          minHeight: "300px",
+          maxWidth: "100%",
+          height: "auto",
+        }}
+        ref={(el) => {
+          if (el && videoRef) {
+            (videoRef as any).current = el;
+            // Clear min-height after mount, similar to XNXX
+            setTimeout(() => {
+              if (el.style.minHeight) {
+                el.style.minHeight = '';
+              }
+            }, 100);
+          }
+        }}
         poster={poster}
         preload="metadata"
         playsInline
@@ -533,7 +549,7 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
           objectFit: "cover",
           backgroundColor: "#000",
           display: vrMode ? "none" : "block",
-          width: "100%",
+          maxWidth: "100%",
           height: "auto",
         }}
       >
