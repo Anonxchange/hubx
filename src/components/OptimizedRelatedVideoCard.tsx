@@ -40,9 +40,9 @@ interface OptimizedRelatedVideoCardProps {
 // Import the proper mobile hook
 import { useIsMobile } from '@/hooks/use-mobile';
 
-const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({ 
-  video, 
-  viewMode = 'grid' 
+const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
+  video,
+  viewMode = 'grid'
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -259,28 +259,79 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
     return videoUrl;
   };
 
-  // Check if we have a valid preview URL
-  const hasValidPreviewUrl = () => {
-    return video.preview_url && 
-           typeof video.preview_url === 'string' && 
-           video.preview_url.trim() !== '' &&
-           video.preview_url !== 'undefined' &&
-           video.preview_url !== 'null';
+  const isImagePreview = (url: string) => {
+    if (!url || url.trim() === '') {
+      console.log('DEBUG: Empty or null URL for image preview check');
+      return false;
+    }
+    const isImage = /\.(jpg|jpeg|png|webp|gif)(\?.*)?$/i.test(url);
+    console.log('DEBUG: isImagePreview check:', { url, isImage });
+    return isImage;
   };
 
-  // Check if the preview URL is an image/animation
-  const isImagePreview = () => {
-    return hasValidPreviewUrl() && /\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url!);
+  const isValidUrl = (url: string) => {
+    if (!url || url.trim() === '') {
+      console.log('DEBUG: URL is empty or null:', url);
+      return false;
+    }
+
+    // Handle relative URLs, data URLs, and blob URLs
+    if (url.startsWith('/') || url.startsWith('data:') || url.startsWith('blob:')) {
+      console.log('DEBUG: Valid relative/data/blob URL:', url);
+      return true;
+    }
+
+    // Handle HTTP/HTTPS URLs
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      try {
+        new URL(url);
+        console.log('DEBUG: Valid HTTP URL:', url);
+        return true;
+      } catch (e) {
+        console.log('DEBUG: Invalid HTTP URL:', url, e);
+        return false;
+      }
+    }
+
+    // Handle URLs without protocol (assume https)
+    if (url.includes('.') && !url.includes(' ')) {
+      try {
+        new URL('https://' + url);
+        console.log('DEBUG: Valid URL without protocol:', url);
+        return true;
+      } catch (e) {
+        console.log('DEBUG: Invalid URL even with https prefix:', url, e);
+        return false;
+      }
+    }
+
+    console.log('DEBUG: URL validation failed for:', url);
+    return false;
   };
 
-  // Check if the preview URL is a video
-  const isVideoPreview = () => {
-    return hasValidPreviewUrl() && !/\.(webp|gif|jpg|jpeg|png)$/i.test(video.preview_url!);
-  };
+  // Cache preview URL computation
+  const computedPreviewUrl = React.useMemo(() => {
+    if (video.preview_url && video.preview_url.trim() !== '') {
+      return video.preview_url;
+    }
+
+    // Try to generate preview URL from Bunny Stream video URL
+    if (video.video_url && video.video_url.includes('vz-a3bd9097-45c.b-cdn.net')) {
+      // Extract video ID from HLS URL like: https://vz-a3bd9097-45c.b-cdn.net/04c24b96-ad5f-4c61-ab1b-990f186dc4ce/playlist.m3u8
+      const match = video.video_url.match(/vz-a3bd9097-45c\.b-cdn\.net\/([a-f0-9\-]+)/i);
+      if (match && match[1]) {
+        const videoId = match[1];
+        return `https://vz-a3bd9097-45c.b-cdn.net/${videoId}/preview.webp`;
+      }
+    }
+
+    return null;
+  }, [video.preview_url, video.video_url]);
+
 
   const handleHoverStart = (event?: React.TouchEvent | React.MouseEvent) => {
     console.log('OptimizedRelatedVideoCard: Preview triggered for:', video.title);
-    console.log('Preview URL:', video.preview_url, 'Type:', typeof video.preview_url);
+    console.log('Original Preview URL:', video.preview_url, 'Computed Preview URL:', computedPreviewUrl);
     setIsHovered(true);
 
     // Only load previews if bandwidth allows it
@@ -289,38 +340,17 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
       return;
     }
 
-    // Only preload video if we have a valid preview URL
-    if (videoRef.current && isVideoPreview()) {
-      videoRef.current.src = video.preview_url!;
-      videoRef.current.load();
+    // ONLY show WebP/image previews - NO video previews
+    if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
+      console.log('DEBUG: Image preview - showing immediately');
+      setShowPreview(true);
+      setIsVideoReady(true);
+      return;
     }
 
-    // Show preview with appropriate delay
-    hoverTimeoutRef.current = setTimeout(() => {
-      if (isImagePreview()) {
-        // Image/animation preview - show immediately
-        console.log('Showing image preview for:', video.preview_url);
-        setShowPreview(true);
-        setIsVideoReady(true);
-      } else if (isVideoPreview()) {
-        // Video preview - start playing
-        console.log('Starting video preview for:', video.preview_url);
-        setShowPreview(true);
-        setIsVideoReady(false);
-        if (videoRef.current) {
-          videoRef.current.currentTime = 0;
-          videoRef.current.muted = true;
-          videoRef.current.play().catch((error) => {
-            console.error('Video preview play failed:', error);
-            setShowPreview(false);
-          });
-        }
-      } else {
-        // No preview URL available - don't play any video
-        console.log('No preview URL available for:', video.title, '- skipping video preview');
-        setShowPreview(false);
-      }
-    }, event?.type === 'touchstart' ? 50 : 200);
+    // No video previews allowed - skip if not an image
+    console.log('No preview options available for:', video.title);
+    return;
   };
 
   const handleMouseLeave = (event?: React.TouchEvent | React.MouseEvent) => {
@@ -344,14 +374,30 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
 
   const handleTouchStart = (e: React.TouchEvent) => {
     console.log('Touch start event triggered on mobile');
-    e.preventDefault();
-    handleHoverStart(e);
+    
+    // Check if this is a WebP/image preview - show immediately
+    if (computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl)) {
+      console.log('WebP preview detected on touch for:', video.title);
+      setIsHovered(true);
+      setShowPreview(true);
+      setIsVideoReady(true);
+
+      // Auto-hide after 8 seconds to allow clicking
+      setTimeout(() => {
+        handleMouseLeave();
+      }, 8000);
+    } else {
+      handleHoverStart(e);
+    }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     console.log('Touch end event triggered on mobile');
-    e.preventDefault();
-    setTimeout(() => handleMouseLeave(e), 3000);
+    // For WebP previews, don't auto-hide immediately on touch end
+    if (!(computedPreviewUrl && isImagePreview(computedPreviewUrl))) {
+      // For other content, shorter time
+      setTimeout(() => handleMouseLeave(e), 3000);
+    }
   };
 
   // Define the click handler for navigation
@@ -367,10 +413,10 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
   return (
     <div onClick={handleClick} className="block w-full cursor-pointer"> {/* Changed Link to div and added onClick handler */}
       <div className="group hover:bg-muted/5 transition-all duration-200 w-full">
-        <div 
-            className="relative bg-muted overflow-hidden rounded-xl w-full" 
-            style={{ 
-              aspectRatio: '16/9', 
+        <div
+            className="relative bg-muted overflow-hidden rounded-xl w-full"
+            style={{
+              aspectRatio: '16/9',
               height: 'auto',
               touchAction: 'manipulation',
               WebkitTouchCallout: 'none',
@@ -392,49 +438,20 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
             }`}
           />
 
-          {/* Animated preview (WebP/GIF) */}
-          {isImagePreview() && isHovered && (
+          {/* ONLY show WebP/image/gif previews - NO video previews */}
+          {(isHovered || showPreview) && computedPreviewUrl && isValidUrl(computedPreviewUrl) && isImagePreview(computedPreviewUrl) && (
             <img
-              src={video.preview_url!}
+              src={computedPreviewUrl}
               alt={`${video.title} preview`}
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300 opacity-100 z-10"
-              onLoad={() => console.log('Image preview loaded:', video.preview_url)}
-              onError={(e) => console.error('Image load error:', e, video.preview_url)}
-            />
-          )}
-
-          {/* Video preview */}
-          {showPreview && isVideoPreview() && (
-            <video
-              ref={videoRef}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ${
-                showPreview && isVideoReady ? 'opacity-100' : 'opacity-0'
-              }`}
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              controls={false}
-              disablePictureInPicture
-              autoPlay={false}
-              onLoadStart={() => setIsVideoLoading(true)}
-              onLoadedData={() => {
-                setIsVideoReady(true);
-                setIsVideoLoading(false);
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-200 z-10"
+              loading="lazy"
+              decoding="async"
+              style={{
+                imageRendering: 'auto',
+                opacity: 1
               }}
-              onCanPlay={() => {
-                setIsVideoReady(true);
-                setIsVideoLoading(false);
-                if (showPreview && videoRef.current) {
-                  videoRef.current.play().catch(console.error);
-                }
-              }}
-              onWaiting={() => setIsVideoLoading(true)}
-              onPlaying={() => setIsVideoLoading(false)}
-              onError={(e) => {
-                console.error('Video preview error:', e);
-                setIsVideoLoading(false);
-                setIsVideoReady(false);
+              onError={() => {
+                // Silently fail if preview doesn't exist
                 setShowPreview(false);
               }}
             />
