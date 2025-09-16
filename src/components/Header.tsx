@@ -241,7 +241,7 @@ const Header = () => {
                     <Menu className="h-5 w-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-80 bg-background border-l border-border p-0">
+                <SheetContent side="right" className="w-80 bg-background/70 backdrop-blur-md border-l border-border p-0">
                   <div className="flex flex-col h-full">
                     {/* Header */}
                     <div className="flex items-center justify-between p-6 border-b border-border">
