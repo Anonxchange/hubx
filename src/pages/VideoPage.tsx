@@ -13,7 +13,6 @@ import { useVideoReaction } from '@/hooks/useVideoReactions';
 import { toast } from 'sonner';
 import PlaylistModal from '@/components/PlaylistModal';
 import ShareModal from '@/components/ShareModal';
-import { useAddToPlaylist } from '@/hooks/usePlaylists';
 import { trackVideoView } from '@/services/userStatsService';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -58,8 +57,7 @@ const VideoPage = () => {
     true
   );
 
-  const { mutate: addVideoToPlaylist } = useAddToPlaylist();
-  const { data: reactionData, mutate: reactToVideo, isPending: reactionMutationPending } =
+  const { userReaction, reactToVideo, isLoading: reactionMutationPending } =
     useVideoReaction(video?.id || '');
 
   useEffect(() => {
@@ -81,12 +79,12 @@ const VideoPage = () => {
   // Fetch subs
   useEffect(() => {
     const fetchSubscriberData = async () => {
-      if (!video?.owner_id) return;
+      if (!video?.uploader_id) return;
       try {
         const { count } = await supabase
           .from('subscriptions')
           .select('*', { count: 'exact', head: true })
-          .eq('creator_id', video.owner_id);
+          .eq('creator_id', video.uploader_id);
         setSubscriberCount(count || 0);
 
         if (user?.id) {
@@ -94,7 +92,7 @@ const VideoPage = () => {
             .from('subscriptions')
             .select('id')
             .eq('subscriber_id', user.id)
-            .eq('creator_id', video.owner_id)
+            .eq('creator_id', video.uploader_id)
             .single();
           setIsSubscribed(!!subscription);
         }
@@ -103,7 +101,7 @@ const VideoPage = () => {
       }
     };
     fetchSubscriberData();
-  }, [video?.owner_id, user?.id]);
+  }, [video?.uploader_id, user?.id]);
 
   if (isLoading) {
     return (
@@ -141,28 +139,7 @@ const VideoPage = () => {
     );
   }
 
-  const handleAddToPlaylist = (playlistId: string) => {
-    if (video?.id) {
-      addVideoToPlaylist({ playlistId, videoId: video.id });
-      setIsPlaylistModalOpen(false);
-    }
-  };
 
-  const handleShareVideo = () => {
-    if (navigator.share) {
-      navigator
-        .share({
-          title: video?.title,
-          text: 'Check out this video on HubX',
-          url: window.location.href,
-        })
-        .catch(console.error);
-    } else {
-      navigator.clipboard.writeText(window.location.href);
-      toast.success('Link copied to clipboard!');
-    }
-    setIsShareModalOpen(false);
-  };
 
   const handleReaction = (reactionType: 'like' | 'dislike') => {
     if (video?.id) {
@@ -185,7 +162,7 @@ const VideoPage = () => {
       navigate('/auth');
       return;
     }
-    if (!video?.owner_id) return;
+    if (!video?.uploader_id) return;
 
     setIsSubscribing(true);
     try {
@@ -194,7 +171,7 @@ const VideoPage = () => {
           .from('subscriptions')
           .delete()
           .eq('subscriber_id', user.id)
-          .eq('creator_id', video.owner_id);
+          .eq('creator_id', video.uploader_id);
         if (error) {
           console.error('Error unsubscribing:', error);
           alert('Failed to unsubscribe. Please try again.');
@@ -205,7 +182,7 @@ const VideoPage = () => {
       } else {
         const { error } = await supabase.from('subscriptions').insert({
           subscriber_id: user.id,
-          creator_id: video.owner_id,
+          creator_id: video.uploader_id,
           created_at: new Date().toISOString(),
         });
         if (error) {
@@ -225,10 +202,10 @@ const VideoPage = () => {
   };
 
   const handleProfileClick = () => {
-    if (video?.profiles?.username) {
-      navigate(`/profile/${video.profiles.username}`);
-    } else if (video?.owner_id) {
-      navigate(`/profile/${video.owner_id}`);
+    if (video?.uploader_username) {
+      navigate(`/profile/${video.uploader_username}`);
+    } else if (video?.uploader_id) {
+      navigate(`/profile/${video.uploader_id}`);
     }
   };
 
@@ -302,15 +279,13 @@ const VideoPage = () => {
           <div className="flex gap-4">
             <div className="w-2/3">
               <div className="relative w-full">
-                <div className="w-full bg-black rounded-lg overflow-hidden aspect-video">
-                  <VideoPlayer
-                    key={video.id}
-                    src={video.video_url}
-                    poster={video.thumbnail_url}
-                    videoId={video.id}
-                    title={video.title}
-                  />
-                </div>
+                <VideoPlayer
+                  key={video.id}
+                  src={video.video_url}
+                  poster={video.thumbnail_url}
+                  videoId={video.id}
+                  title={video.title}
+                />
                 {videoError && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 text-white text-lg rounded-lg">
                     Failed to load video.
@@ -332,7 +307,7 @@ const VideoPage = () => {
                       <path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm2.7-2h8.6l.9-5.4-2.1 1.4L12 8l-3.1 2L6.8 8.6L7.7 14z" />
                     </svg>
                     <h3 className="text-lg font-semibold text-white">
-                      Premium from {video?.profiles?.username || 'this creator'}
+                      Premium from {video?.uploader_username || 'this creator'}
                     </h3>
                   </div>
                   <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
@@ -394,7 +369,7 @@ const VideoPage = () => {
           createdAt={video.created_at}
           onShare={() => setIsShareModalOpen(true)}
           video={video}
-          reactionData={reactionData}
+          reactionData={{ userReaction, likes: video.likes || 0, dislikes: video.dislikes || 0 }}
           onReaction={handleReaction}
           reactToVideo={reactToVideo}
           isReactionLoading={reactionMutationPending}
@@ -422,18 +397,21 @@ const VideoPage = () => {
       </main>
 
       <PlaylistModal
-        isOpen={isPlaylistModalOpen}
-        onClose={() => setIsPlaylistModalOpen(false)}
-        onAdd={handleAddToPlaylist}
-        video={video}
-      />
+        videoId={video?.id || ''}
+        open={isPlaylistModalOpen}
+        onOpenChange={setIsPlaylistModalOpen}
+      >
+        <div />
+      </PlaylistModal>
 
       <ShareModal
-        isOpen={isShareModalOpen}
-        onClose={() => setIsShareModalOpen(false)}
-        onShare={handleShareVideo}
-        video={video}
-      />
+        videoId={video?.id}
+        videoTitle={video?.title}
+        open={isShareModalOpen}
+        onOpenChange={setIsShareModalOpen}
+      >
+        <div />
+      </ShareModal>
     </div>
   );
 };
