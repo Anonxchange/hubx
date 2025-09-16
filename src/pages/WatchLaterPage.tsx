@@ -154,6 +154,11 @@ const WatchLaterPage: React.FC = () => {
       <Header />
 
       <main className="container mx-auto px-4 py-6 space-y-4">
+        {/* Ad Component */}
+        <div className="mb-8">
+          <AdComponent zoneId="5660534" className="w-full" />
+        </div>
+
         {/* Hero Section */}
         <div className="text-center space-y-3">
           <div className="flex items-center justify-center space-x-3 mb-4">
@@ -166,9 +171,6 @@ const WatchLaterPage: React.FC = () => {
             Your saved videos ({watchLaterVideos.length})
           </p>
         </div>
-
-        {/* Ad Code Below Hero Text */}
-        <AdComponent zoneId="5660534" />
 
         {/* Clear All Button */}
         {watchLaterVideos.length > 0 && (
