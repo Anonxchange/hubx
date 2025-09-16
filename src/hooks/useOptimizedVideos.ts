@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getOptimizedVideos } from '@/services/optimizedVideosService';
-import { getHomepageVideos } from '@/services/videosService';
+import { getHomepageVideos, searchVideos } from '@/services/videosService';
 import { cacheService } from '@/services/cacheService';
 
 export const useOptimizedVideos = (page = 1, limit = 20, category?: string, searchQuery?: string) => {
@@ -38,7 +38,27 @@ export const useOptimizedVideos = (page = 1, limit = 20, category?: string, sear
 
   return useQuery({
     queryKey: ['optimized-videos', page, limit, category, searchQuery, userId],
-    queryFn: () => {
+    queryFn: async () => {
+      if (searchQuery) {
+        // Use search service for search queries
+        const searchResults = await searchVideos(searchQuery);
+
+        // Ensure search results have the same structure as optimized videos
+        const processedResults = searchResults.map(video => ({
+          ...video,
+          tags: video.tags || [],
+          views: video.views || 0,
+          likes: video.likes || 0,
+          duration: video.duration || '0:00',
+        }));
+
+        return {
+          videos: processedResults,
+          totalPages: Math.ceil(processedResults.length / limit),
+          totalCount: processedResults.length,
+        };
+      }
+
       // Use homepage sectioning for default/all categories and no search
       if ((!category || category === 'all' || category === 'featured') && !searchQuery) {
         return getHomepageVideos(page, limit, userId);
