@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Play, Clock, Eye, Heart, Trash2 } from 'lucide-react';
@@ -31,6 +31,8 @@ const PlaylistViewPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isOwner, setIsOwner] = useState(false);
 
   const { data: playlistData, isLoading, error } = useQuery({
     queryKey: ['playlist-view', id],
@@ -72,6 +74,20 @@ const PlaylistViewPage: React.FC = () => {
     },
     enabled: !!id,
   });
+
+  // Check if current user is the playlist owner
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUser(user);
+      
+      if (user && playlistData?.playlist) {
+        setIsOwner(user.id === playlistData.playlist.user_id);
+      }
+    };
+    
+    checkAuth();
+  }, [playlistData?.playlist]);
 
   const handleVideoClick = (videoId: string) => {
     navigate(`/video/${videoId}`);
@@ -171,7 +187,7 @@ const PlaylistViewPage: React.FC = () => {
                   to={`/video/${item.videos.id}`}
                   className="block w-full group hover:bg-muted/5 transition-all duration-200"
                 >
-                  <div className="relative bg-muted rounded-lg overflow-hidden" style={{ aspectRatio: '16/9' }}>
+                  <div className="relative bg-muted overflow-hidden" style={{ aspectRatio: '16/9' }}>
                     <img
                       src={item.videos.thumbnail_url || "https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop"}
                       alt={item.videos.title}
@@ -198,30 +214,19 @@ const PlaylistViewPage: React.FC = () => {
                   </div>
 
                   <div className="pt-3 space-y-2">
-                    {/* Title */}
-                    <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">
-                      {item.videos.title}
-                    </h3>
-
-                    {/* Creator info */}
+                    {/* Creator info above title */}
                     {item.videos.profiles && (
                       <div className="flex items-center space-x-2">
-                        <div className="w-5 h-5 rounded-full overflow-hidden bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-xs text-white font-bold">
-                          {item.videos.profiles.avatar_url ? (
-                            <img
-                              src={item.videos.profiles.avatar_url}
-                              alt="Creator"
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            (item.videos.profiles.username || 'U')[0].toUpperCase()
-                          )}
-                        </div>
-                        <span className="text-xs text-muted-foreground">
+                        <span className="text-xs text-muted-foreground font-medium">
                           {item.videos.profiles.username}
                         </span>
                       </div>
                     )}
+
+                    {/* Title */}
+                    <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">
+                      {item.videos.title}
+                    </h3>
 
                     {/* Stats */}
                     <div className="flex items-center space-x-3 text-xs text-muted-foreground">
@@ -237,19 +242,21 @@ const PlaylistViewPage: React.FC = () => {
                   </div>
                 </Link>
 
-                {/* Remove button - appears on hover */}
-                <Button
-                  size="sm"
-                  variant="destructive"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleRemoveVideo(item.videos.id, item.videos.title);
-                  }}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+                {/* Remove button - only visible to playlist owner */}
+                {isOwner && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleRemoveVideo(item.videos.id, item.videos.title);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             ))}
           </div>
