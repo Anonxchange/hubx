@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { VideoIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 declare global {
   interface Window {
@@ -182,49 +183,40 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }
 
   return (
     <div className="w-full">
-      <div
-        className="relative w-full bg-black group lg:aspect-video"
-        style={{ minHeight: "300px" }}
-        ref={(el) => {
-          // Clear min-height after component mounts on mobile only
-          if (el && window.innerWidth < 1024) {
-            setTimeout(() => {
-              el.style.minHeight = '';
-            }, 100);
-          }
-        }}
-      >
-        <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-black/60 via-black/30 to-transparent z-10 pointer-events-none" />
+      <AspectRatio ratio={16 / 9}>
+        <div className="relative w-full h-full bg-black group">
+          <div className="absolute top-0 left-0 right-0 h-12 bg-gradient-to-b from-black/60 via-black/30 to-transparent z-10 pointer-events-none" />
 
-        <video
-          ref={videoRef}
-          className="w-full h-full"
-          poster={poster}
-          preload="none"
-          playsInline
-          webkit-playsinline="true"
-          crossOrigin="anonymous"
-          onPlay={handlePlay}
-          onError={(e) => {
-            console.error("Video playback error:", e.currentTarget.error);
-            if (videoRef.current) videoRef.current.controls = true;
-          }}
-          style={{
-            backgroundColor: "#000",
-            display: "block",
-            objectFit: "cover",
-            objectPosition: "center",
-            maxWidth: "100%",
-            height: "auto",
-          }}
-        >
-          {isHLS ? (
-            <source src={src} type="application/x-mpegURL" />
-          ) : (
-            <source src={src} type="video/mp4" />
-          )}
-        </video>
-      </div>
+          <video
+            ref={videoRef}
+            className="w-full h-full"
+            poster={poster}
+            preload="none"
+            playsInline
+            webkit-playsinline="true"
+            crossOrigin="anonymous"
+            onPlay={handlePlay}
+            onError={(e) => {
+              console.error("Video playback error:", e.currentTarget.error);
+              if (videoRef.current) videoRef.current.controls = true;
+            }}
+            style={{
+              backgroundColor: "#000",
+              display: "block",
+              objectFit: "contain",
+              objectPosition: "center",
+              maxWidth: "100%",
+              height: "100%",
+            }}
+          >
+            {isHLS ? (
+              <source src={src} type="application/x-mpegURL" />
+            ) : (
+              <source src={src} type="video/mp4" />
+            )}
+          </video>
+        </div>
+      </AspectRatio>
     </div>
   );
 };
