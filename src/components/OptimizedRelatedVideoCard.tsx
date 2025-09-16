@@ -414,7 +414,7 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
     <div onClick={handleClick} className="block w-full cursor-pointer"> {/* Changed Link to div and added onClick handler */}
       <div className="group hover:bg-muted/5 transition-all duration-200 w-full">
         <div
-            className="relative bg-muted overflow-hidden rounded-xl w-full"
+            className="relative bg-muted overflow-hidden w-full"
             style={{
               aspectRatio: '16/9',
               height: 'auto',
@@ -476,23 +476,9 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
         </div>
 
         <div className="pt-2 space-y-2">
-          {/* Title in separate area below thumbnail */}
-          <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">
-            {video.title}
-          </h3>
-
-          {/* Creator name with profile picture and verification badge */}
+          {/* Creator name and verification badge above title */}
           {!loading && creatorProfile && (
             <div className="flex items-center space-x-2">
-              <div className="w-5 h-5 rounded-full overflow-hidden bg-muted flex-shrink-0">
-                <LazyImage
-                  src={creatorProfile.avatar_url || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face'}
-                  alt={creatorProfile.full_name || creatorProfile.username}
-                  width={20}
-                  height={20}
-                  className="w-full h-full object-cover"
-                />
-              </div>
               <span className="text-xs text-muted-foreground font-medium truncate">
                 {creatorProfile.full_name || creatorProfile.username}
               </span>
@@ -507,20 +493,13 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
           )}
 
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3 text-xs text-muted-foreground">
-              <span className="flex items-center">
-                <Eye className="w-3 h-3 mr-1" />
-                {formatViews(video.views || 0)}
-              </span>
-              <span className="flex items-center">
-                <ThumbsUp className="w-3 h-3 mr-1" />
-                {video.likes || 0}
-              </span>
-            </div>
+            <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground flex-1 mr-2">
+              {video.title}
+            </h3>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="p-1 rounded-full hover:bg-muted transition-colors"
+                  className="p-1 rounded-full hover:bg-muted transition-colors flex-shrink-0"
                   onClick={handleActionClick}
                 >
                   <MoreVertical className="w-3 h-3 text-muted-foreground" />
@@ -547,6 +526,17 @@ const OptimizedRelatedVideoCard: React.FC<OptimizedRelatedVideoCardProps> = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+          </div>
+
+          <div className="flex items-center space-x-3 text-xs text-muted-foreground">
+            <span className="flex items-center">
+              <Eye className="w-3 h-3 mr-1" />
+              {formatViews(video.views || 0)}
+            </span>
+            <span className="flex items-center">
+              <ThumbsUp className="w-3 h-3 mr-1" />
+              {video.likes || 0}
+            </span>
           </div>
         </div>
       </div>
