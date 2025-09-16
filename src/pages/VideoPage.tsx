@@ -272,7 +272,14 @@ const VideoPage = () => {
           <div className="relative w-full">
             <div
               className="w-full bg-black overflow-hidden"
-              style={{ aspectRatio: '16/9' }}
+              style={{ minHeight: '300px' }}
+              ref={(el) => {
+                if (el && window.innerWidth < 1024) {
+                  setTimeout(() => {
+                    el.style.minHeight = '';
+                  }, 100);
+                }
+              }}
             >
               <VideoPlayer
                 key={video.id}
@@ -295,10 +302,7 @@ const VideoPage = () => {
           <div className="flex gap-4">
             <div className="w-2/3">
               <div className="relative w-full">
-                <div
-                  className="w-full bg-black rounded-lg overflow-hidden"
-                  style={{ aspectRatio: '16/9' }}
-                >
+                <div className="w-full bg-black rounded-lg overflow-hidden aspect-video">
                   <VideoPlayer
                     key={video.id}
                     src={video.video_url}
