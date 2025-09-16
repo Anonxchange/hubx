@@ -16,6 +16,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
 import { usePremiumSubscription } from "@/hooks/usePremiumSubscription";
 import SubscriptionModal from "@/components/SubscriptionModal";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 
 declare global {
   interface Window {
@@ -514,47 +515,38 @@ const PremiumVideoPlayer: React.FC<PremiumVideoPlayerProps> = ({
         </div>
       )}
 
-      {/* YouTube-Style Premium Video Player */}
-      <video
-        ref={videoRef}
-        src={src}
-        className={`w-full rounded-lg ${vrMode ? 'hidden' : 'block'}`}
-        style={{
-          minHeight: "300px",
-          maxWidth: "100%",
-          height: "auto",
-        }}
-        ref={(el) => {
-          if (el && videoRef) {
-            (videoRef as any).current = el;
-            // Clear min-height after mount, similar to XNXX
-            setTimeout(() => {
-              if (el.style.minHeight) {
-                el.style.minHeight = '';
+      {/* YouTube-Style Premium Video Player with 16:9 Aspect Ratio */}
+      <div className={vrMode ? 'hidden' : 'block'}>
+        <AspectRatio ratio={16 / 9}>
+          <video
+            ref={(el) => {
+              if (videoRef) {
+                (videoRef as any).current = el;
               }
-            }, 100);
-          }
-        }}
-        poster={poster}
-        preload="metadata"
-        playsInline
-        webkit-playsinline="true"
-        crossOrigin="anonymous"
-        onPlay={handlePlay}
-        onError={(e) => {
-          console.error("Premium video playback error:", e.currentTarget.error);
-          if (videoRef.current) videoRef.current.controls = true;
-        }}
-        style={{
-          objectFit: "cover",
-          backgroundColor: "#000",
-          display: vrMode ? "none" : "block",
-          maxWidth: "100%",
-          height: "auto",
-        }}
-      >
-        <source src={src} type="video/mp4" />
-      </video>
+            }}
+            src={src}
+            className="w-full h-full rounded-lg"
+            poster={poster}
+            preload="metadata"
+            playsInline
+            webkit-playsinline="true"
+            crossOrigin="anonymous"
+            onPlay={handlePlay}
+            onError={(e) => {
+              console.error("Premium video playback error:", e.currentTarget.error);
+              if (videoRef.current) videoRef.current.controls = true;
+            }}
+            style={{
+              objectFit: "contain",
+              backgroundColor: "#000",
+              width: "100%",
+              height: "100%",
+            }}
+          >
+            <source src={src} type="video/mp4" />
+          </video>
+        </AspectRatio>
+      </div>
 
       {/* Premium VR Scene Container */}
       {vrMode && (
