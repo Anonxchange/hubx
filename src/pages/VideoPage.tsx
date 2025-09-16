@@ -48,7 +48,7 @@ const VideoPage = () => {
   const { data: relatedVideos = [] } = useRelatedVideos(
     video?.id || '',
     video?.tags || [],
-    15
+    35
   );
 
   const { data: relatedPremiumVideos = [] } = useRelatedVideos(
