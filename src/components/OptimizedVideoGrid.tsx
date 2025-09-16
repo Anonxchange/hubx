@@ -445,7 +445,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           <CardContent className="p-3 flex space-x-3">
             {/* thumbnail + preview */}
             <div
-              className="relative bg-muted rounded-lg overflow-hidden flex-shrink-0"
+              className="relative bg-muted overflow-hidden flex-shrink-0"
               style={{
                 aspectRatio: '16/9',
                 touchAction: 'manipulation',
@@ -475,36 +475,24 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
             </div>
             {/* details */}
             <div className="flex-1 space-y-2">
-              <h3 className="font-semibold text-lg line-clamp-2 leading-tight">{video.title}</h3>
               {video.description && (
                 <p className="text-sm text-muted-foreground line-clamp-2">{video.description}</p>
               )}
+              {/* Creator info above title in list view */}
+              <div className="flex items-center space-x-1 mb-1">
+                <span className="text-sm text-muted-foreground font-medium">
+                  {video.uploader_name || video.uploader_username || 'Unknown User'}
+                </span>
+                {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+                  <VerificationBadge userType={video.uploader_type} showText={false} size="small" />
+                )}
+              </div>
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  {video.uploader_avatar ? (
-                    <LazyImage
-                      src={video.uploader_avatar}
-                      alt={video.uploader_name || video.uploader_username || 'Unknown User'}
-                      width={24}
-                      height={24}
-                      className="w-6 h-6 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-6 h-6 rounded-full bg-orange-500 flex items-center justify-center text-xs text-white font-bold">
-                      {(video.uploader_name || video.uploader_username || 'U')[0].toUpperCase()}
-                    </div>
-                  )}
-                  <span className="text-sm text-muted-foreground font-medium">
-                    {video.uploader_name || video.uploader_username || 'Unknown User'}
-                  </span>
-                  {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
-                    <VerificationBadge userType={video.uploader_type} showText={false} size="small" />
-                  )}
-                </div>
+                <h3 className="font-semibold text-lg line-clamp-2 leading-tight flex-1 mr-2">{video.title}</h3>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
-                      className="p-1 rounded-full hover:bg-muted transition-colors"
+                      className="p-1 rounded-full hover:bg-muted transition-colors flex-shrink-0"
                       onClick={handleActionClick}
                     >
                       <MoreVertical className="w-4 h-4 text-muted-foreground" />
@@ -556,7 +544,7 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
       className="block w-full group hover:bg-muted/5 transition-all duration-200"
     >
         <div
-          className="relative bg-muted overflow-hidden rounded-xl w-full"
+          className="relative bg-muted overflow-hidden w-full"
           style={{
             aspectRatio: '16/9',
             height: 'auto',
@@ -600,33 +588,21 @@ const OptimizedVideoCard: React.FC<{ video: LightVideo; viewMode?: 'grid' | 'lis
           </div>
         </div>
         <div className="pt-3 space-y-2">
-          <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground">{video.title}</h3>
+          {/* Creator info above title */}
+          <div className="flex items-center space-x-1 mb-1">
+            <span className="text-xs text-muted-foreground">
+              {video.uploader_name || video.uploader_username || 'Unknown User'}
+            </span>
+            {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
+              <VerificationBadge userType={video.uploader_type} showText={false} size="small" />
+            )}
+          </div>
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              {video.uploader_avatar ? (
-                <LazyImage
-                  src={video.uploader_avatar}
-                  alt={video.uploader_name || video.uploader_username || 'Unknown User'}
-                  width={20}
-                  height={20}
-                  className="w-5 h-5 rounded-full object-cover"
-                />
-              ) : (
-                <div className="w-5 h-5 rounded-full bg-orange-500 flex items-center justify-center text-xs text-white font-bold">
-                  {(video.uploader_name || video.uploader_username || 'U')[0].toUpperCase()}
-                </div>
-              )}
-              <span className="text-xs text-muted-foreground">
-                {video.uploader_name || video.uploader_username || 'Unknown User'}
-              </span>
-              {(video.uploader_type === 'individual_creator' || video.uploader_type === 'studio_creator') && (
-                <VerificationBadge userType={video.uploader_type} showText={false} size="small" />
-              )}
-            </div>
+            <h3 className="font-semibold text-sm line-clamp-2 leading-tight text-foreground flex-1 mr-2">{video.title}</h3>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="p-1 rounded-full hover:bg-muted transition-colors"
+                  className="p-1 rounded-full hover:bg-muted transition-colors flex-shrink-0"
                   onClick={handleActionClick}
                 >
                   <MoreVertical className="w-3 h-3 text-muted-foreground" />
