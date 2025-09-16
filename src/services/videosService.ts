@@ -815,7 +815,7 @@ export const getVideosByCategory = async (
 };
 
 // Get related videos based on tags excluding the current video
-export const getRelatedVideos = async (videoId: string, tags: string[], limit = 15, isPremiumContext = false) => {
+export const getRelatedVideos = async (videoId: string, tags: string[], limit = 35, isPremiumContext = false) => {
   if (!tags || tags.length === 0) {
     // If no tags provided, get random recent videos
     let fallbackQuery = supabase
