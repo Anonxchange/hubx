@@ -1220,17 +1220,30 @@ export const searchVideos = async (searchTerm: string) => {
     throw error;
   }
 
-  // Process videos to add computed uploader fields
-  const processedVideos = (data || []).map(video => ({
-    ...video,
-    uploader_id: video.profiles?.id || video.owner_id,
-    uploader_username: video.profiles?.username || `User_${video.owner_id?.slice(-8) || 'Unknown'}`,
-    uploader_name: video.profiles?.full_name || video.profiles?.username || `User_${video.owner_id?.slice(-8) || 'Unknown'}`,
-    uploader_avatar: video.profiles?.avatar_url,
-    uploader_type: video.profiles?.user_type || 'user',
-    uploader_subscribers: 0, // TODO: Calculate from subscriptions table
-    video_count: 0, // TODO: Calculate from videos count
-  }));
+  // Process videos to add computed uploader fields and generate preview URLs
+  const processedVideos = (data || []).map(video => {
+    // Generate preview URL from Bunny Stream video URL if not present
+    let computedPreviewUrl = video.preview_url;
+    if (!computedPreviewUrl && video.video_url && video.video_url.includes('vz-a3bd9097-45c.b-cdn.net')) {
+      const match = video.video_url.match(/vz-a3bd9097-45c\.b-cdn\.net\/([a-f0-9\-]+)/i);
+      if (match && match[1]) {
+        const videoId = match[1];
+        computedPreviewUrl = `https://vz-a3bd9097-45c.b-cdn.net/${videoId}/preview.webp`;
+      }
+    }
+
+    return {
+      ...video,
+      preview_url: computedPreviewUrl,
+      uploader_id: video.profiles?.id || video.owner_id,
+      uploader_username: video.profiles?.username || `User_${video.owner_id?.slice(-8) || 'Unknown'}`,
+      uploader_name: video.profiles?.full_name || video.profiles?.username || `User_${video.owner_id?.slice(-8) || 'Unknown'}`,
+      uploader_avatar: video.profiles?.avatar_url,
+      uploader_type: video.profiles?.user_type || 'user',
+      uploader_subscribers: 0, // TODO: Calculate from subscriptions table
+      video_count: 0, // TODO: Calculate from videos count
+    };
+  });
 
   return processedVideos;
 };
