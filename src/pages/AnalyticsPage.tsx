@@ -37,29 +37,29 @@ const AnalyticsPage = () => {
       // Get user stats
       const stats = await getUserStats(user.id);
       
-      // Get creator's videos with analytics
+      // Get all videos since videos table doesn't track creator
       const { data: videos, error: videosError } = await supabase
         .from('videos')
         .select('id, title, views, likes, created_at')
-        .eq('owner_id', user.id)
         .order('views', { ascending: false });
 
       if (videosError) {
         console.error('Error fetching videos:', videosError);
       }
 
-      // Get recent video views
+      // Get recent comments as a proxy for activity
       const { data: viewsData, error: viewsError } = await supabase
-        .from('video_views')
+        .from('comments')
         .select(`
-          viewed_at,
+          created_at,
+          video_id,
           videos (title, views, likes)
         `)
-        .order('viewed_at', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(10);
 
       if (viewsError && viewsError.code !== 'PGRST116') {
-        console.error('Error fetching video views:', viewsError);
+        console.error('Error fetching comments:', viewsError);
       }
 
       // Calculate engagement rate
@@ -259,11 +259,43 @@ const AnalyticsPage = () => {
                 <CardTitle>Video Performance</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <BarChart className="w-16 h-16 mx-auto mb-4 text-gray-600" />
-                  <h3 className="text-lg font-semibold mb-2">Video Analytics Coming Soon</h3>
-                  <p className="text-gray-400">Detailed video performance metrics will be displayed here</p>
-                </div>
+                {analytics.totalVideos > 0 ? (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-blue-400">{analytics.totalVideos}</p>
+                        <p className="text-gray-400 text-sm">Total Videos</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-green-400">{analytics.totalViews.toLocaleString()}</p>
+                        <p className="text-gray-400 text-sm">Total Views</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-2xl font-bold text-red-400">{analytics.totalLikes.toLocaleString()}</p>
+                        <p className="text-gray-400 text-sm">Total Likes</p>
+                      </div>
+                    </div>
+                    {analytics.topVideo && (
+                      <div className="border-t border-gray-700 pt-4">
+                        <h4 className="font-semibold mb-2">Top Performing Video</h4>
+                        <div className="bg-gray-800 p-4 rounded">
+                          <h5 className="font-medium text-white">{analytics.topVideo.title}</h5>
+                          <div className="flex items-center justify-between mt-2 text-sm">
+                            <span className="text-blue-400">{analytics.topVideo.views?.toLocaleString()} views</span>
+                            <span className="text-red-400">{analytics.topVideo.likes?.toLocaleString()} likes</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <BarChart className="w-16 h-16 mx-auto mb-4 text-gray-600" />
+                    <h3 className="text-lg font-semibold mb-2">No Videos Yet</h3>
+                    <p className="text-gray-400 mb-4">Upload your first video to see performance metrics</p>
+                    <Button onClick={() => navigate('/upload')}>Upload Video</Button>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -274,10 +306,53 @@ const AnalyticsPage = () => {
                 <CardTitle>Audience Insights</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12">
-                  <Users className="w-16 h-16 mx-auto mb-4 text-gray-600" />
-                  <h3 className="text-lg font-semibold mb-2">Audience Analytics Coming Soon</h3>
-                  <p className="text-gray-400">Demographics and audience behavior data will be shown here</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <div className="text-center p-4 bg-gray-800 rounded">
+                    <Users className="w-8 h-8 mx-auto mb-2 text-blue-400" />
+                    <p className="text-2xl font-bold text-blue-400">{analytics.subscribers.toLocaleString()}</p>
+                    <p className="text-gray-400 text-sm">Subscribers</p>
+                  </div>
+                  <div className="text-center p-4 bg-gray-800 rounded">
+                    <Eye className="w-8 h-8 mx-auto mb-2 text-green-400" />
+                    <p className="text-2xl font-bold text-green-400">{analytics.totalViews.toLocaleString()}</p>
+                    <p className="text-gray-400 text-sm">Total Views</p>
+                  </div>
+                  <div className="text-center p-4 bg-gray-800 rounded">
+                    <Clock className="w-8 h-8 mx-auto mb-2 text-purple-400" />
+                    <p className="text-2xl font-bold text-purple-400">{analytics.avgViewTime.toFixed(1)}m</p>
+                    <p className="text-gray-400 text-sm">Avg. Watch Time</p>
+                  </div>
+                  <div className="text-center p-4 bg-gray-800 rounded">
+                    <TrendingUp className="w-8 h-8 mx-auto mb-2 text-green-400" />
+                    <p className="text-2xl font-bold text-green-400">{analytics.engagement.toFixed(1)}%</p>
+                    <p className="text-gray-400 text-sm">Engagement Rate</p>
+                  </div>
+                </div>
+                <div className="mt-6">
+                  <h4 className="font-semibold mb-4">Recent Activity</h4>
+                  {recentViews.length > 0 ? (
+                    <div className="space-y-2">
+                      {recentViews.slice(0, 5).map((view: any, index) => (
+                        <div key={index} className="flex items-center justify-between p-3 bg-gray-800 rounded">
+                          <div>
+                            <p className="font-medium">{view.videos?.title || 'Unknown Video'}</p>
+                            <p className="text-sm text-gray-400">
+                              {new Date(view.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm text-blue-400">{view.videos?.views || 0} views</p>
+                            <p className="text-sm text-red-400">{view.videos?.likes || 0} likes</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Clock className="w-12 h-12 mx-auto mb-2 text-gray-600" />
+                      <p className="text-gray-400">No recent activity</p>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
