@@ -191,6 +191,12 @@ const ProfileDropdown = () => {
               <span>Earnings</span>
             </DropdownMenuItem>
 
+           <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3" onClick={() => navigate('/analytics')}>
+              <DollarSign className="mr-3 h-5 w-5 text-green-400" />
+              <span>Analytics</span>
+            </DropdownMenuItem>
+
+
             <DropdownMenuItem className="cursor-pointer text-white hover:bg-gray-800 focus:bg-gray-800 py-3" onClick={() => navigate('/content-management')}>
               <Video className="mr-3 h-5 w-5 text-purple-400" />
               <span>Content Management</span>
