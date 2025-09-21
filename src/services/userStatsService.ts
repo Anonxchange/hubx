@@ -14,6 +14,17 @@ export interface UserStats {
 // Get user statistics from the database
 export const getUserStats = async (userId: string): Promise<UserStats> => {
   try {
+    // Get creator earnings data which tracks actual views and earnings
+    const { data: creatorEarnings, error: earningsError } = await supabase
+      .from('creator_earnings')
+      .select('*')
+      .eq('creator_id', userId)
+      .single();
+
+    if (earningsError && earningsError.code !== 'PGRST116') {
+      console.error('Error fetching creator earnings:', earningsError);
+    }
+
     // Get subscriber count for this creator
     const { data: subscribers, error: subError } = await supabase
       .from('subscriptions')
@@ -24,32 +35,63 @@ export const getUserStats = async (userId: string): Promise<UserStats> => {
       console.error('Error fetching subscribers:', subError);
     }
 
-    // Get all videos (since videos table doesn't track creator)
-    const { data: allVideos, error: videosError } = await supabase
-      .from('videos')
-      .select('id, views, likes, created_at');
+    // Get view earnings records to count actual views
+    const { data: viewEarnings, error: viewError } = await supabase
+      .from('view_earnings')
+      .select('id, earnings_amount, is_premium')
+      .eq('creator_id', userId);
 
-    if (videosError) {
-      console.error('Error fetching videos:', videosError);
+    if (viewError && viewError.code !== 'PGRST116') {
+      console.error('Error fetching view earnings:', viewError);
     }
 
-    // Calculate some basic stats from available data
-    const totalViews = allVideos?.reduce((sum, video) => sum + (video.views || 0), 0) || 0;
-    const totalLikes = allVideos?.reduce((sum, video) => sum + (video.likes || 0), 0) || 0;
+    // Get user's favorite videos
+    const { data: favorites, error: favError } = await supabase
+      .from('video_favorites')
+      .select('id')
+      .eq('user_id', userId);
 
-    // Basic earnings calculation
-    const earnings = totalViews * 0.001;
+    if (favError && favError.code !== 'PGRST116') {
+      console.error('Error fetching favorites:', favError);
+    }
 
-    // Estimated watch time based on video count
-    const watchTimeMinutes = (allVideos?.length || 0) * 10;
+    // Get actual videos uploaded by this user using owner_id
+    const { data: userVideos, error: videosError } = await supabase
+      .from('videos')
+      .select('id, views')
+      .eq('owner_id', userId);
+
+    if (videosError && videosError.code !== 'PGRST116') {
+      console.error('Error fetching user videos:', videosError);
+    }
+
+    const uploadedVideos = userVideos?.length || 0;
+
+    // Use actual video views from user's videos
+    const actualViews = userVideos?.reduce((sum, video) => sum + (video.views || 0), 0) || 0;
+    const totalViews = Math.max(actualViews, creatorEarnings?.total_views || 0);
+    const totalEarnings = creatorEarnings?.total_earnings || 0;
+    
+    // Calculate estimated watch time based on actual view data
+    const avgViewDuration = 5; // Average 5 minutes per view
+    const watchTimeMinutes = Math.round((totalViews * avgViewDuration) / 60);
+
+    console.log('User stats calculation using actual data:', {
+      userId,
+      totalViews,
+      subscribers: subscribers?.length || 0,
+      totalEarnings,
+      uploadedVideos,
+      favoritesCount: favorites?.length || 0
+    });
 
     return {
-      videosWatched: 0, // Not tracking individual watch history
+      videosWatched: 0, // Individual watch history not implemented yet
       subscribers: subscribers?.length || 0,
       totalViews,
-      favoritesCount: 0, // Video favorites table not available in current schema
-      uploadedVideos: allVideos?.length || 0,
-      earnings: Math.round(earnings * 100) / 100,
+      favoritesCount: favorites?.length || 0,
+      uploadedVideos,
+      earnings: Math.round(totalEarnings * 100) / 100,
       watchTimeMinutes
     };
   } catch (error) {
