@@ -34,48 +34,78 @@ const AnalyticsPage = () => {
     try {
       setLoading(true);
       
-      // Get user stats
+      // Get creator-specific earnings and stats data
       const stats = await getUserStats(user.id);
       
-      // Get all videos since videos table doesn't track creator
-      const { data: videos, error: videosError } = await supabase
+      // Get creator earnings which contains actual view data
+      const { data: creatorEarnings, error: earningsError } = await supabase
+        .from('creator_earnings')
+        .select('*')
+        .eq('creator_id', user.id)
+        .single();
+
+      if (earningsError && earningsError.code !== 'PGRST116') {
+        console.error('Error fetching creator earnings:', earningsError);
+      }
+
+      // Get view earnings records for this creator
+      const { data: viewEarnings, error: viewError } = await supabase
+        .from('view_earnings')
+        .select('*')
+        .eq('creator_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (viewError && viewError.code !== 'PGRST116') {
+        console.error('Error fetching view earnings:', viewError);
+      }
+
+      // Get videos owned by this creator using owner_id
+      const { data: creatorVideos, error: videosError } = await supabase
         .from('videos')
         .select('id, title, views, likes, created_at')
+        .eq('owner_id', user.id)
         .order('views', { ascending: false });
 
-      if (videosError) {
-        console.error('Error fetching videos:', videosError);
+      if (videosError && videosError.code !== 'PGRST116') {
+        console.error('Error fetching creator videos:', videosError);
       }
 
-      // Get recent comments as a proxy for activity
-      const { data: viewsData, error: viewsError } = await supabase
-        .from('comments')
-        .select(`
-          created_at,
-          video_id,
-          videos (title, views, likes)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
+      // Get recent activity from view earnings
+      const recentActivity = viewEarnings?.slice(0, 10).map(ve => ({
+        created_at: ve.created_at,
+        video_id: ve.video_id,
+        earnings_amount: ve.earnings_amount,
+        is_premium: ve.is_premium
+      })) || [];
 
-      if (viewsError && viewsError.code !== 'PGRST116') {
-        console.error('Error fetching comments:', viewsError);
-      }
-
-      // Calculate engagement rate
-      const totalInteractions = stats.totalViews > 0 ? ((videos?.reduce((sum, v) => sum + (v.likes || 0), 0) || 0) / stats.totalViews * 100) : 0;
+      // Use actual creator video data
+      const totalViews = creatorVideos?.reduce((sum, v) => sum + (v.views || 0), 0) || 0;
+      const totalLikes = creatorVideos?.reduce((sum, v) => sum + (v.likes || 0), 0) || 0;
+      const totalVideos = creatorVideos?.length || 0;
+      const premiumViews = creatorEarnings?.total_premium_views || 0;
+      
+      // Calculate engagement rate based on actual data
+      const totalInteractions = totalViews > 0 ? (totalLikes / totalViews * 100) : 0;
 
       setAnalytics({
-        totalViews: stats.totalViews,
-        totalLikes: videos?.reduce((sum, v) => sum + (v.likes || 0), 0) || 0,
-        totalVideos: videos?.length || 0,
+        totalViews,
+        totalLikes,
+        totalVideos,
         subscribers: stats.subscribers,
-        avgViewTime: stats.watchTimeMinutes / (stats.videosWatched || 1),
+        avgViewTime: stats.watchTimeMinutes / Math.max(totalViews / 100, 1), // Estimate based on actual views
         engagement: totalInteractions,
-        topVideo: videos?.[0] || null
+        topVideo: creatorVideos?.[0] || null
       });
 
-      setRecentViews(viewsData || []);
+      setRecentViews(recentActivity);
+      
+      console.log('Analytics data loaded:', {
+        totalViews,
+        totalVideos,
+        totalLikes,
+        engagement: totalInteractions,
+        premiumViews
+      });
     } catch (error) {
       console.error('Error fetching analytics:', error);
     } finally {
