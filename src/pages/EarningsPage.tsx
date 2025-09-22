@@ -49,6 +49,7 @@ const EarningsPage = () => {
   const [payoutAmount, setPayoutAmount] = useState('');
   const [payoutMethod, setPayoutMethod] = useState<'paypal' | 'crypto' | 'bank_transfer'>('paypal');
   const [payoutDetails, setPayoutDetails] = useState('');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.id) {
@@ -61,6 +62,7 @@ const EarningsPage = () => {
 
     console.log('Fetching earnings data for user:', user.id);
     setLoading(true);
+    setConnectionError(null);
     try {
       // Fetch all earnings data
       const [earningsStats, transactionsData, payoutsData, viewEarningsData] = await Promise.all([
@@ -79,11 +81,14 @@ const EarningsPage = () => {
       setTransactions(transactionsData);
       setPayouts(payoutsData);
       setViewEarnings(viewEarningsData);
+      setConnectionError(null);
     } catch (error) {
       console.error('Error fetching earnings data:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setConnectionError(`Connection error: ${errorMessage}`);
       toast({
-        title: "Error",
-        description: "Failed to load earnings data. Please try again.",
+        title: "Connection Error",
+        description: "Failed to load earnings data. Please check your connection and try again.",
         variant: "destructive"
       });
     } finally {
@@ -178,7 +183,12 @@ const EarningsPage = () => {
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
-            <h1 className="text-3xl font-bold">Earnings</h1>
+            <div>
+              <h1 className="text-3xl font-bold">Earnings</h1>
+              {connectionError && (
+                <p className="text-red-400 text-sm mt-1">{connectionError}</p>
+              )}
+            </div>
           </div>
           <Button
             onClick={fetchEarningsData}
