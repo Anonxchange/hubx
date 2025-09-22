@@ -45,11 +45,11 @@ export const getUserStats = async (userId: string): Promise<UserStats> => {
       console.error('Error fetching view earnings:', viewError);
     }
 
-    // Get user's favorite videos
+    // Get user's favorite videos using user_session field
     const { data: favorites, error: favError } = await supabase
       .from('video_favorites')
       .select('id')
-      .eq('user_id', userId);
+      .eq('user_session', userId);
 
     if (favError && favError.code !== 'PGRST116') {
       console.error('Error fetching favorites:', favError);
@@ -85,8 +85,18 @@ export const getUserStats = async (userId: string): Promise<UserStats> => {
       favoritesCount: favorites?.length || 0
     });
 
+    // Get actual videos watched count from video_views table
+    const { data: watchedVideos, error: watchError } = await supabase
+      .from('video_views')
+      .select('id')
+      .eq('user_id', userId);
+
+    if (watchError && watchError.code !== 'PGRST116') {
+      console.error('Error fetching watched videos:', watchError);
+    }
+
     return {
-      videosWatched: 0, // Individual watch history not implemented yet
+      videosWatched: watchedVideos?.length || 0,
       subscribers: subscribers?.length || 0,
       totalViews,
       favoritesCount: favorites?.length || 0,
@@ -129,26 +139,127 @@ export const trackVideoView = async (videoId: string, userId?: string) => {
   }
 };
 
-// Get user's favorite videos - simplified for current schema
+// Get user's favorite videos using video_favorites table
 export const getUserFavorites = async (userId: string) => {
   try {
-    // Since video_favorites table doesn't exist in current schema,
-    // return empty array for now
     console.log('Getting favorites for user:', userId);
-    return [];
+    
+    // Use user_session field which stores user ID or session ID
+    const { data: favorites, error } = await supabase
+      .from('video_favorites')
+      .select(`
+        video_id,
+        created_at,
+        videos (
+          id,
+          title,
+          thumbnail_url,
+          preview_url,
+          video_url,
+          duration,
+          views,
+          likes,
+          description,
+          tags,
+          owner_id,
+          created_at,
+          is_premium,
+          is_moment,
+          profiles (
+            id,
+            username,
+            full_name,
+            avatar_url,
+            user_type
+          )
+        )
+      `)
+      .eq('user_session', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching favorites:', error);
+      return [];
+    }
+
+    // Transform data to match expected format
+    const favoriteVideos = favorites?.map(fav => ({
+      ...fav.videos,
+      favorited_at: fav.created_at,
+      uploader_username: fav.videos?.profiles?.username,
+      uploader_name: fav.videos?.profiles?.full_name,
+      uploader_avatar: fav.videos?.profiles?.avatar_url,
+      uploader_type: fav.videos?.profiles?.user_type,
+      uploader_id: fav.videos?.profiles?.id
+    })) || [];
+
+    console.log('Found favorites:', favoriteVideos.length);
+    return favoriteVideos;
   } catch (error) {
     console.error('Error fetching favorites:', error);
     return [];
   }
 };
 
-// Get user's watch history - simplified for current schema  
+// Get user's watch history using video_views table  
 export const getUserWatchHistory = async (userId: string) => {
   try {
-    // Since video_views table doesn't exist in current schema,
-    // return empty array for now
     console.log('Getting watch history for user:', userId);
-    return [];
+    
+    const { data: watchHistory, error } = await supabase
+      .from('video_views')
+      .select(`
+        id,
+        video_id,
+        viewed_at,
+        watch_duration,
+        videos (
+          id,
+          title,
+          thumbnail_url,
+          preview_url,
+          video_url,
+          duration,
+          views,
+          likes,
+          description,
+          tags,
+          owner_id,
+          created_at,
+          is_premium,
+          is_moment,
+          profiles (
+            id,
+            username,
+            full_name,
+            avatar_url,
+            user_type
+          )
+        )
+      `)
+      .eq('user_id', userId)
+      .order('viewed_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error fetching watch history:', error);
+      return [];
+    }
+
+    // Transform data to match expected format
+    const watchedVideos = watchHistory?.map(view => ({
+      ...view.videos,
+      watched_at: view.viewed_at,
+      watch_duration: view.watch_duration,
+      uploader_username: view.videos?.profiles?.username,
+      uploader_name: view.videos?.profiles?.full_name,
+      uploader_avatar: view.videos?.profiles?.avatar_url,
+      uploader_type: view.videos?.profiles?.user_type,
+      uploader_id: view.videos?.profiles?.id
+    })) || [];
+
+    console.log('Found watch history:', watchedVideos.length);
+    return watchedVideos;
   } catch (error) {
     console.error('Error fetching watch history:', error);
     return [];
