@@ -42,20 +42,19 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }
                   }),
                   onAfterInitHls: (hls: any) => {
                     hls.on(hls.Events.MANIFEST_PARSED, () => {
-                      // Force lowest quality
-                      hls.autoLevelEnabled = false;
-
+                      // Find lowest quality level
                       const lowestLevelIndex = hls.levels.reduce(
                         (lowestIdx, level, idx) =>
                           level.height < hls.levels[lowestIdx].height ? idx : lowestIdx,
                         0
                       );
 
+                      // Force starting at lowest, but keep auto enabled
                       hls.startLevel = lowestLevelIndex;
                       hls.currentLevel = lowestLevelIndex;
 
                       console.log(
-                        "HLS lowest quality forced:",
+                        "HLS starting quality (lowest):",
                         hls.levels[lowestLevelIndex].height
                       );
                     });
