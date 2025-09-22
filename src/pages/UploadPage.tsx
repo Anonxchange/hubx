@@ -39,12 +39,19 @@ const UploadPage = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [duration, setDuration] = useState('00:00');
+  const [isMultipleUpload, setIsMultipleUpload] = useState(false);
+  const [currentUploadIndex, setCurrentUploadIndex] = useState(0);
+  const [uploadedCount, setUploadedCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+
+  const isStudioUser = userType === 'studio_creator';
 
   // Form state
   const [title, setTitle] = useState('');
@@ -80,23 +87,44 @@ const UploadPage = () => {
   }
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
 
-    if (!file.type.startsWith('video/')) {
-      toast({ title: "Invalid file type", description: "Please select a video file.", variant: "destructive" });
+    // Filter for video files only
+    const videoFiles = files.filter(file => file.type.startsWith('video/'));
+    
+    if (videoFiles.length === 0) {
+      toast({ title: "Invalid file type", description: "Please select video files only.", variant: "destructive" });
       return;
     }
 
-    if (file.size > 500 * 1024 * 1024) {
-      toast({ title: "File too large", description: "Max 500MB allowed.", variant: "destructive" });
+    // Check file sizes
+    const oversizedFiles = videoFiles.filter(file => file.size > 500 * 1024 * 1024);
+    if (oversizedFiles.length > 0) {
+      toast({ 
+        title: "File too large", 
+        description: `${oversizedFiles.length} file(s) exceed the 500MB limit.`, 
+        variant: "destructive" 
+      });
       return;
     }
 
-    setSelectedFile(file);
-    setPreviewUrl(URL.createObjectURL(file));
+    if (isMultipleUpload) {
+      setSelectedFiles(videoFiles);
+      // Set preview to first file
+      if (videoFiles.length > 0) {
+        setPreviewUrl(URL.createObjectURL(videoFiles[0]));
+        extractDuration(videoFiles[0]);
+      }
+    } else {
+      const file = videoFiles[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      extractDuration(file);
+    }
+  };
 
-    // Extract duration
+  const extractDuration = (file: File) => {
     const tempVideo = document.createElement('video');
     tempVideo.src = URL.createObjectURL(file);
     tempVideo.onloadedmetadata = () => {
@@ -117,9 +145,35 @@ const UploadPage = () => {
 
   const handleDrop = (event: React.DragEvent) => {
     event.preventDefault();
-    const file = event.dataTransfer.files[0];
-    if (!file) return;
-    handleFileSelect({ target: { files: [file] } } as any);
+    const files = Array.from(event.dataTransfer.files);
+    if (files.length === 0) return;
+    
+    // Create a mock event for handleFileSelect
+    const mockEvent = {
+      target: { files: files }
+    } as React.ChangeEvent<HTMLInputElement>;
+    
+    handleFileSelect(mockEvent);
+  };
+
+  const removeFile = (index: number) => {
+    if (isMultipleUpload) {
+      const newFiles = selectedFiles.filter((_, i) => i !== index);
+      setSelectedFiles(newFiles);
+      
+      // Update preview if removing the first file
+      if (index === 0 && newFiles.length > 0) {
+        setPreviewUrl(URL.createObjectURL(newFiles[0]));
+        extractDuration(newFiles[0]);
+      } else if (newFiles.length === 0) {
+        setPreviewUrl('');
+        setDuration('00:00');
+      }
+    } else {
+      setSelectedFile(null);
+      setPreviewUrl('');
+      setDuration('00:00');
+    }
   };
 
   const togglePlay = () => {
@@ -218,56 +272,81 @@ const UploadPage = () => {
     }
   };
 
+  const uploadSingleVideo = async (file: File, videoTitle: string) => {
+    const streamData = await uploadToBunnyStream(file);
+    const allTags = [...selectedCategories, ...customTags];
+    
+    const videoData = {
+      owner_id: user.id,
+      title: videoTitle.trim(),
+      description: description.trim() || undefined,
+      video_url: streamData.hlsUrl,
+      thumbnail_url: streamData.thumbnailUrl,
+      preview_url: streamData.previewUrl,
+      duration: '00:00', // Would need to calculate from actual file
+      tags: allTags,
+      is_premium: isPremium,
+      is_moment: isMoment
+    };
+
+    return await uploadVideo(videoData);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFile || !title.trim() || selectedCategories.length === 0) {
-      toast({ title: "Missing required fields", description: "Fill all required fields including at least one category.", variant: "destructive" });
+    
+    const hasFiles = isMultipleUpload ? selectedFiles.length > 0 : selectedFile;
+    const filesToUpload = isMultipleUpload ? selectedFiles : (selectedFile ? [selectedFile] : []);
+    
+    if (!hasFiles || !title.trim() || selectedCategories.length === 0) {
+      toast({ 
+        title: "Missing required fields", 
+        description: "Fill all required fields including at least one category.", 
+        variant: "destructive" 
+      });
       return;
     }
 
-    // Validate moment duration
-    if (isMoment) {
-      const tempVideo = document.createElement('video');
-      tempVideo.src = URL.createObjectURL(selectedFile);
-      tempVideo.onloadedmetadata = () => {
-        if (tempVideo.duration > 900) {
-          toast({ 
-            title: "Video too long for moments", 
-            description: "Moments must be 15 minutes or less.", 
-            variant: "destructive" 
-          });
-          return;
-        }
-      };
-    }
-
     setIsUploading(true);
+    setUploadedCount(0);
+    setFailedCount(0);
+    
     try {
-      setUploadProgress(20);
-      const streamData = await uploadToBunnyStream(selectedFile);
-      setUploadProgress(80);
-
-      const allTags = [...selectedCategories, ...customTags];
-      const videoData = {
-        owner_id: user.id,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        video_url: streamData.hlsUrl,
-        thumbnail_url: streamData.thumbnailUrl,
-        preview_url: streamData.previewUrl, // Bunny Stream's automatic preview
-        duration, // actual duration from file
-        tags: allTags,
-        is_premium: isPremium,
-        is_moment: isMoment
-      };
-
-      const savedVideo = await uploadVideo(videoData);
-      if (!savedVideo) throw new Error('Failed to save video metadata');
+      const totalFiles = filesToUpload.length;
+      
+      for (let i = 0; i < filesToUpload.length; i++) {
+        const file = filesToUpload[i];
+        setCurrentUploadIndex(i);
+        
+        // For multiple files, append index to title
+        const videoTitle = totalFiles > 1 ? `${title} - Part ${i + 1}` : title;
+        
+        const progress = Math.round((i / totalFiles) * 80);
+        setUploadProgress(progress);
+        
+        try {
+          await uploadSingleVideo(file, videoTitle);
+          setUploadedCount(prev => prev + 1);
+        } catch (error) {
+          console.error(`Failed to upload file ${i + 1}:`, error);
+          setFailedCount(prev => prev + 1);
+        }
+      }
+      
       setUploadProgress(100);
-      toast({ title: "Upload successful!", description: "Your video is now live on your dashboard." });
+      
+      const successMessage = totalFiles > 1 
+        ? `${uploadedCount} of ${totalFiles} videos uploaded successfully!` 
+        : "Video uploaded successfully!";
+        
+      toast({ 
+        title: "Upload completed!", 
+        description: failedCount > 0 ? `${successMessage} ${failedCount} failed.` : successMessage 
+      });
 
       // Reset form
       setSelectedFile(null);
+      setSelectedFiles([]);
       setPreviewUrl('');
       setTitle('');
       setDescription('');
@@ -277,6 +356,9 @@ const UploadPage = () => {
       setIsPremium(false);
       setIsMoment(false);
       setUploadProgress(0);
+      setCurrentUploadIndex(0);
+      setUploadedCount(0);
+      setFailedCount(0);
       setDuration('00:00');
 
       setTimeout(() => {
@@ -285,7 +367,11 @@ const UploadPage = () => {
       }, 1500);
 
     } catch (err) {
-      toast({ title: "Upload failed", description: err instanceof Error ? err.message : "Error uploading video.", variant: "destructive" });
+      toast({ 
+        title: "Upload failed", 
+        description: err instanceof Error ? err.message : "Error uploading videos.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsUploading(false);
     }
@@ -312,9 +398,29 @@ const UploadPage = () => {
             {/* Left Column */}
             <div className="space-y-6">
               <Card>
-                <CardHeader><CardTitle>Video Upload</CardTitle></CardHeader>
+                <CardHeader>
+                  <CardTitle className="flex items-center justify-between">
+                    Video Upload
+                    {isStudioUser && (
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          checked={isMultipleUpload}
+                          onCheckedChange={(checked) => {
+                            setIsMultipleUpload(checked);
+                            // Reset files when switching modes
+                            setSelectedFile(null);
+                            setSelectedFiles([]);
+                            setPreviewUrl('');
+                            setDuration('00:00');
+                          }}
+                        />
+                        <Label className="text-sm">Multiple Upload</Label>
+                      </div>
+                    )}
+                  </CardTitle>
+                </CardHeader>
                 <CardContent>
-                  {!selectedFile ? (
+                  {(!selectedFile && selectedFiles.length === 0) ? (
                     <div
                       className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer hover:border-primary"
                       onClick={() => fileInputRef.current?.click()}
@@ -322,49 +428,91 @@ const UploadPage = () => {
                       onDrop={handleDrop}
                     >
                       <Upload className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                      <p className="text-lg font-medium mb-2">Upload your video</p>
+                      <p className="text-lg font-medium mb-2">
+                        Upload your video{isMultipleUpload ? 's' : ''}
+                      </p>
                       <p className="text-sm text-muted-foreground mb-4">Drag & drop or click to select</p>
-                      <p className="text-xs text-muted-foreground">Formats: MP4, AVI, MOV, WMV (Max 500MB)</p>
+                      <p className="text-xs text-muted-foreground">
+                        Formats: MP4, AVI, MOV, WMV (Max 500MB each)
+                        {isMultipleUpload && ' • Select multiple files'}
+                      </p>
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <div className="relative">
-                        <video
-                          ref={videoRef}
-                          src={previewUrl}
-                          className="w-full h-64 object-cover rounded-lg"
-                          onPlay={() => setIsPlaying(true)}
-                          onPause={() => setIsPlaying(false)}
-                          controls={false}
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center space-x-2">
-                          <Button type="button" onClick={togglePlay} size="sm" variant="secondary">
-                            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                          </Button>
-                          <Button type="button" onClick={toggleMute} size="sm" variant="secondary">
-                            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                      {previewUrl && (
+                        <div className="relative">
+                          <video
+                            ref={videoRef}
+                            src={previewUrl}
+                            className="w-full h-64 object-cover rounded-lg"
+                            onPlay={() => setIsPlaying(true)}
+                            onPause={() => setIsPlaying(false)}
+                            controls={false}
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center space-x-2">
+                            <Button type="button" onClick={togglePlay} size="sm" variant="secondary">
+                              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                            </Button>
+                            <Button type="button" onClick={toggleMute} size="sm" variant="secondary">
+                              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {isMultipleUpload ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{selectedFiles.length} files selected</span>
+                            <Button
+                              type="button"
+                              onClick={() => { setSelectedFiles([]); setPreviewUrl(''); setDuration('00:00'); }}
+                              size="sm"
+                              variant="outline"
+                            >
+                              Clear All
+                            </Button>
+                          </div>
+                          <div className="max-h-40 overflow-y-auto space-y-1">
+                            {selectedFiles.map((file, index) => (
+                              <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
+                                <span className="text-sm truncate">
+                                  {file.name} ({(file.size / 1024 / 1024).toFixed(2)} MB)
+                                </span>
+                                <Button
+                                  type="button"
+                                  onClick={() => removeFile(index)}
+                                  size="sm"
+                                  variant="ghost"
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : selectedFile && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">
+                            {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB) - {duration}
+                          </span>
+                          <Button
+                            type="button"
+                            onClick={() => removeFile(0)}
+                            size="sm"
+                            variant="outline"
+                          >
+                            <X className="w-4 h-4" />
                           </Button>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">
-                          {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB) - {duration}
-                        </span>
-                        <Button
-                          type="button"
-                          onClick={() => { setSelectedFile(null); setPreviewUrl(''); setDuration('00:00'); }}
-                          size="sm"
-                          variant="outline"
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      )}
                     </div>
                   )}
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="video/*"
+                    multiple={isMultipleUpload}
                     onChange={handleFileSelect}
                     className="hidden"
                   />
@@ -374,12 +522,25 @@ const UploadPage = () => {
               {isUploading && (
                 <Card>
                   <CardContent className="p-4">
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>Uploading...</span>
-                      <span>{uploadProgress}%</span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-2">
-                      <div className="bg-primary h-2 rounded-full" style={{ width: `${uploadProgress}%` }} />
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>
+                          {isMultipleUpload 
+                            ? `Uploading file ${currentUploadIndex + 1} of ${selectedFiles.length}...`
+                            : 'Uploading...'
+                          }
+                        </span>
+                        <span>{uploadProgress}%</span>
+                      </div>
+                      <div className="w-full bg-secondary rounded-full h-2">
+                        <div className="bg-primary h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                      </div>
+                      {isMultipleUpload && (
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Completed: {uploadedCount}</span>
+                          <span>Failed: {failedCount}</span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -497,10 +658,18 @@ const UploadPage = () => {
                 <Button type="button" variant="outline" onClick={() => navigate(-1)} className="flex-1">Cancel</Button>
                 <Button
                   type="submit"
-                  disabled={!selectedFile || !title.trim() || selectedCategories.length === 0 || isUploading}
+                  disabled={
+                    (isMultipleUpload ? selectedFiles.length === 0 : !selectedFile) || 
+                    !title.trim() || 
+                    selectedCategories.length === 0 || 
+                    isUploading
+                  }
                   className="flex-1"
                 >
-                  {isUploading ? 'Uploading...' : 'Upload Video'}
+                  {isUploading 
+                    ? (isMultipleUpload ? `Uploading ${currentUploadIndex + 1} of ${selectedFiles.length}...` : 'Uploading...') 
+                    : (isMultipleUpload ? `Upload ${selectedFiles.length} Videos` : 'Upload Video')
+                  }
                 </Button>
               </div>
             </div>
