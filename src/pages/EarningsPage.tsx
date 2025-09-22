@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, DollarSign, TrendingUp, Calendar, Download, CreditCard, Plus, Eye, Award } from 'lucide-react';
@@ -59,7 +58,8 @@ const EarningsPage = () => {
 
   const fetchEarningsData = async () => {
     if (!user?.id) return;
-    
+
+    console.log('Fetching earnings data for user:', user.id);
     setLoading(true);
     try {
       // Fetch all earnings data
@@ -70,6 +70,11 @@ const EarningsPage = () => {
         getViewEarnings(user.id, 50)
       ]);
 
+      console.log('Fetched earnings stats:', earningsStats);
+      console.log('Fetched transactions:', transactionsData);
+      console.log('Fetched payouts:', payoutsData);
+      console.log('Fetched view earnings:', viewEarningsData);
+
       setStats(earningsStats);
       setTransactions(transactionsData);
       setPayouts(payoutsData);
@@ -78,7 +83,7 @@ const EarningsPage = () => {
       console.error('Error fetching earnings data:', error);
       toast({
         title: "Error",
-        description: "Failed to load earnings data",
+        description: "Failed to load earnings data. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -161,18 +166,27 @@ const EarningsPage = () => {
   return (
     <div className="min-h-screen bg-black text-white">
       <Header />
-      
+
       <div className="container mx-auto px-4 py-8">
-        <div className="flex items-center mb-6">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center">
+            <Button
+              variant="ghost"
+              onClick={() => navigate(-1)}
+              className="mr-4 text-white hover:bg-gray-800"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            <h1 className="text-3xl font-bold">Earnings</h1>
+          </div>
           <Button
-            variant="ghost"
-            onClick={() => navigate(-1)}
-            className="mr-4 text-white hover:bg-gray-800"
+            onClick={fetchEarningsData}
+            className="bg-blue-600 hover:bg-blue-700"
+            disabled={loading}
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
+            {loading ? 'Refreshing...' : 'Refresh Data'}
           </Button>
-          <h1 className="text-3xl font-bold">Earnings</h1>
         </div>
 
         {/* Earnings Overview */}
