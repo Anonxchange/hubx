@@ -26,6 +26,8 @@ import {
   Key,
   Smartphone
 } from 'lucide-react';
+import { Secret, TOTP } from 'otpauth';
+import QRCode from 'qrcode';
 
 interface SettingsModalProps {
   open: boolean;
@@ -65,7 +67,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
     if (open && user?.id) {
       loadUserSettings();
     }
-  }, [open, user?.id]);
+    
+    // Clean up temp secret if modal is closed without completing 2FA setup
+    if (!open && showQrSetup) {
+      localStorage.removeItem('temp_2fa_secret');
+      setShowQrSetup(false);
+      setVerificationCode('');
+    }
+  }, [open, user?.id, showQrSetup]);
 
   const loadUserSettings = async () => {
     if (!user?.id) return;
@@ -261,10 +270,36 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
 
     try {
       if (enabled) {
-        // Enable 2FA - would typically generate QR code and secret
-        // For demo purposes, we'll simulate the setup process
+        // Generate a new TOTP secret
+        const secret = new Secret({
+          length: 20,
+        });
+        
+        // Create TOTP instance
+        const totp = new TOTP({
+          issuer: 'HubX Video Platform',
+          label: user.email || 'HubX User',
+          algorithm: 'SHA1',
+          digits: 6,
+          period: 30,
+          secret: secret,
+        });
+
+        // Generate QR code
+        const qrCodeUrl = await QRCode.toDataURL(totp.toString());
+        
+        // Store the secret temporarily (we'll save it to database after verification)
+        setQrCode(qrCodeUrl);
         setShowQrSetup(true);
-        setQrCode('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='); // Placeholder
+        
+        // Store the secret in component state for verification
+        const secretBase32 = secret.base32;
+        localStorage.setItem('temp_2fa_secret', secretBase32);
+        
+        toast({
+          title: "2FA Setup",
+          description: "Scan the QR code with your authenticator app and enter the verification code.",
+        });
       } else {
         // Disable 2FA
         const { error } = await supabase
@@ -324,13 +359,44 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
     setTwoFactorLoading(true);
 
     try {
-      // In a real implementation, you'd verify the TOTP code here
-      // For demo purposes, we'll accept any 6-digit code
+      // Get the temporary secret from localStorage
+      const tempSecret = localStorage.getItem('temp_2fa_secret');
+      if (!tempSecret) {
+        throw new Error('No temporary secret found. Please restart the 2FA setup process.');
+      }
+
+      // Create TOTP instance with the temporary secret for verification
+      const secret = Secret.fromBase32(tempSecret);
+      const totp = new TOTP({
+        issuer: 'HubX Video Platform',
+        label: user.email || 'HubX User',
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: secret,
+      });
+
+      // Verify the entered code
+      const delta = totp.validate({
+        token: verificationCode,
+        window: 1, // Allow 1 period before/after for clock drift
+      });
+
+      if (delta === null) {
+        toast({
+          title: "Invalid code",
+          description: "Invalid verification code. Please check your authenticator app and try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Code is valid, save the secret to the database
       const { error } = await supabase
         .from('profiles')
         .update({
           two_factor_enabled: true,
-          two_factor_secret: 'demo_secret_' + Date.now(), // In reality, store the TOTP secret
+          two_factor_secret: tempSecret,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
@@ -339,6 +405,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
         console.error('2FA enable error:', error);
         throw error;
       }
+
+      // Clean up temporary secret
+      localStorage.removeItem('temp_2fa_secret');
 
       setTwoFactorEnabled(true);
       setShowQrSetup(false);
@@ -587,9 +656,26 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
                     </ol>
                     
                     <div className="flex justify-center p-4 bg-white rounded-lg">
-                      <div className="w-32 h-32 bg-gray-200 flex items-center justify-center text-gray-600 text-xs">
-                        QR Code Placeholder<br />
-                        (Real implementation would show actual QR code)
+                      {qrCode ? (
+                        <img 
+                          src={qrCode} 
+                          alt="2FA QR Code" 
+                          className="w-48 h-48"
+                          data-testid="qr-code-2fa"
+                        />
+                      ) : (
+                        <div className="w-48 h-48 bg-gray-200 flex items-center justify-center text-gray-600 text-xs">
+                          Generating QR Code...
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="text-center space-y-2">
+                      <p className="text-xs text-gray-400">
+                        Can't scan the QR code? Enter this code manually:
+                      </p>
+                      <div className="bg-gray-600 p-2 rounded font-mono text-xs text-center break-all">
+                        {localStorage.getItem('temp_2fa_secret') || 'Loading...'}
                       </div>
                     </div>
 
@@ -617,11 +703,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ open, onOpenChange }) => 
                       </Button>
                       <Button
                         onClick={() => {
+                          // Clean up temporary secret and reset state
+                          localStorage.removeItem('temp_2fa_secret');
                           setShowQrSetup(false);
                           setVerificationCode('');
+                          setQrCode('');
+                          toast({
+                            title: "2FA Setup Cancelled",
+                            description: "Two-factor authentication setup has been cancelled.",
+                          });
                         }}
                         variant="outline"
                         className="border-gray-600 text-gray-300 hover:bg-gray-700"
+                        data-testid="button-cancel-2fa"
                       >
                         Cancel
                       </Button>
