@@ -233,7 +233,7 @@ export const getTrendingVideos = async (page = 1, limit = 10) => {
   };
 };
 
-// Function to search videos
+// Function to search videos with enhanced title prioritization
 export const searchVideos = async (searchTerm: string, page = 1, limit = 10) => {
   const offset = (page - 1) * limit;
 
@@ -258,19 +258,49 @@ export const searchVideos = async (searchTerm: string, page = 1, limit = 10) => 
         avatar_url
       )
     `)
-    
     .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`)
-    .order('views', { ascending: false })
-    .limit(limit)
-    .range(offset, offset + limit - 1);
+    .limit(limit * 3); // Get more results for better scoring
 
   if (error) {
     console.error(`Error searching videos for term "${searchTerm}":`, error);
     throw error;
   }
 
-  return {
-    videos: videos?.map(video => ({
+  // Process and score results for relevance
+  const processedVideos = videos?.map(video => {
+    let relevanceScore = 0;
+    const searchLower = searchTerm.toLowerCase();
+    const titleLower = (video.title || '').toLowerCase();
+    const descriptionLower = (video.description || '').toLowerCase();
+    const tagsLower = (video.tags || []).map((tag: string) => tag.toLowerCase());
+
+    // Title matching (highest priority)
+    if (titleLower.includes(searchLower)) {
+      if (titleLower === searchLower) {
+        relevanceScore += 1.0; // Exact match
+      } else if (titleLower.startsWith(searchLower)) {
+        relevanceScore += 0.8; // Starts with search term
+      } else {
+        relevanceScore += 0.6; // Contains search term
+      }
+    }
+
+    // Description matching
+    if (descriptionLower.includes(searchLower)) {
+      relevanceScore += 0.3;
+    }
+
+    // Tags matching
+    const tagMatches = tagsLower.filter(tag => tag.includes(searchLower)).length;
+    if (tagMatches > 0) {
+      relevanceScore += Math.min(tagMatches * 0.1, 0.2);
+    }
+
+    // Popularity factor
+    const popularityScore = Math.log(Math.max(video.views, 1) + 1) / 100;
+    relevanceScore += popularityScore;
+
+    return {
       ...video,
       tags: Array.isArray(video.tags) ? video.tags : [],
       uploader_username: video.profiles?.username || 'Unknown',
@@ -278,8 +308,18 @@ export const searchVideos = async (searchTerm: string, page = 1, limit = 10) => 
       uploader_id: video.profiles?.id,
       uploader_avatar: video.profiles?.avatar_url,
       uploader_subscribers: 0,
-      uploader_verified: false
-    })) || [],
-    totalCount: videos?.length || 0, // Placeholder
+      uploader_verified: false,
+      relevanceScore
+    };
+  }) || [];
+
+  // Sort by relevance score and apply pagination
+  const sortedVideos = processedVideos
+    .sort((a, b) => (b as any).relevanceScore - (a as any).relevanceScore)
+    .slice(offset, offset + limit);
+
+  return {
+    videos: sortedVideos,
+    totalCount: videos?.length || 0,
   };
 };
