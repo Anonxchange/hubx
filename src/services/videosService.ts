@@ -1201,7 +1201,7 @@ export const getUserReaction = async (videoId: string) => {
   };
 };
 
-// Search videos
+// Search videos with enhanced title prioritization and relevance scoring
 export const searchVideos = async (searchTerm: string) => {
   const { data, error } = await supabase
     .from('videos')
@@ -1212,15 +1212,14 @@ export const searchVideos = async (searchTerm: string) => {
     .eq('is_moment', false)
     .eq('is_premium', false)
     .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,tags.cs.{${searchTerm}}`)
-    .order('views', { ascending: false })
-    .limit(50);
+    .limit(100); // Increased limit for better scoring
 
   if (error) {
     console.error('Error searching videos:', error);
     throw error;
   }
 
-  // Process videos to add computed uploader fields and generate preview URLs
+  // Process videos and calculate relevance scores
   const processedVideos = (data || []).map(video => {
     // Generate preview URL from Bunny Stream video URL if not present
     let computedPreviewUrl = video.preview_url;
@@ -1232,6 +1231,48 @@ export const searchVideos = async (searchTerm: string) => {
       }
     }
 
+    // Calculate relevance score for search ranking
+    let relevanceScore = 0;
+    const searchLower = searchTerm.toLowerCase();
+    const titleLower = (video.title || '').toLowerCase();
+    const descriptionLower = (video.description || '').toLowerCase();
+    const tagsLower = (video.tags || []).map((tag: string) => tag.toLowerCase());
+
+    // Title matching (highest priority - 60% of score)
+    if (titleLower.includes(searchLower)) {
+      if (titleLower.startsWith(searchLower)) {
+        relevanceScore += 0.6; // Exact start match
+      } else if (titleLower === searchLower) {
+        relevanceScore += 0.8; // Exact title match
+      } else {
+        // Partial title match - higher score for closer to beginning
+        const titleWords = titleLower.split(' ');
+        const searchWords = searchLower.split(' ');
+        
+        // Check for exact word matches
+        const exactWordMatches = searchWords.filter(word => titleWords.includes(word)).length;
+        relevanceScore += (exactWordMatches / searchWords.length) * 0.5;
+        
+        // Bonus for containing the full search term
+        relevanceScore += 0.3;
+      }
+    }
+
+    // Description matching (medium priority - 20% of score)
+    if (descriptionLower.includes(searchLower)) {
+      relevanceScore += 0.2;
+    }
+
+    // Tags matching (medium priority - 15% of score)
+    const tagMatches = tagsLower.filter(tag => tag.includes(searchLower)).length;
+    if (tagMatches > 0) {
+      relevanceScore += Math.min(tagMatches * 0.05, 0.15);
+    }
+
+    // Popularity boost (5% of score) - helps with tie-breaking
+    const popularityScore = Math.log(Math.max(video.views, 1) + 1) / 20; // Normalized
+    relevanceScore += Math.min(popularityScore * 0.05, 0.05);
+
     return {
       ...video,
       preview_url: computedPreviewUrl,
@@ -1242,10 +1283,22 @@ export const searchVideos = async (searchTerm: string) => {
       uploader_type: video.profiles?.user_type || 'user',
       uploader_subscribers: 0, // TODO: Calculate from subscriptions table
       video_count: 0, // TODO: Calculate from videos count
+      relevanceScore, // Add relevance score for sorting
     };
   });
 
-  return processedVideos;
+  // Sort by relevance score (highest first), then by views as secondary sort
+  const sortedVideos = processedVideos
+    .sort((a, b) => {
+      if (Math.abs((a as any).relevanceScore - (b as any).relevanceScore) < 0.01) {
+        // If relevance scores are very close, sort by views
+        return (b.views || 0) - (a.views || 0);
+      }
+      return (b as any).relevanceScore - (a as any).relevanceScore;
+    })
+    .slice(0, 50); // Return top 50 most relevant results
+
+  return sortedVideos;
 };
 
 // Get user's country (used in Header)
