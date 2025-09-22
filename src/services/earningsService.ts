@@ -184,86 +184,141 @@ const updateCreatorEarnings = async (
   }
 };
 
+// Retry function for network requests
+const retryRequest = async <T>(
+  requestFn: () => Promise<{ data: T | null; error: any }>,
+  maxRetries: number = 3,
+  delay: number = 1000
+): Promise<{ data: T | null; error: any }> => {
+  let lastError;
+  
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const result = await requestFn();
+      if (!result.error || result.error.code === 'PGRST116') {
+        return result;
+      }
+      lastError = result.error;
+    } catch (error) {
+      lastError = error;
+    }
+    
+    if (i < maxRetries - 1) {
+      await new Promise(resolve => setTimeout(resolve, delay * (i + 1)));
+    }
+  }
+  
+  return { data: null, error: lastError };
+};
+
 // Calculate earnings from various sources including view-based earnings
 export const getCreatorEarnings = async (creatorId: string): Promise<EarningsStats> => {
   try {
     console.log('Fetching earnings for creator:', creatorId);
 
-    // Get actual view-based earnings from creator_earnings table
-    const { data: creatorEarningsData, error: creatorEarningsError } = await supabase
-      .from('creator_earnings')
-      .select('*')
-      .eq('creator_id', creatorId)
-      .single();
+    // Get actual view-based earnings from creator_earnings table with retry
+    const { data: creatorEarningsData, error: creatorEarningsError } = await retryRequest(() =>
+      supabase
+        .from('creator_earnings')
+        .select('*')
+        .eq('creator_id', creatorId)
+        .single()
+    );
 
     if (creatorEarningsError && creatorEarningsError.code !== 'PGRST116') {
       console.error('Error fetching creator earnings:', creatorEarningsError);
     }
 
-    // Get individual view earnings records
-    const { data: viewEarningsRecords, error: viewEarningsError } = await supabase
-      .from('view_earnings')
-      .select('earnings_amount, is_premium, created_at')
-      .eq('creator_id', creatorId);
+    // Get individual view earnings records with retry
+    const { data: viewEarningsRecords, error: viewEarningsError } = await retryRequest(() =>
+      supabase
+        .from('view_earnings')
+        .select('earnings_amount, is_premium, created_at')
+        .eq('creator_id', creatorId)
+    );
 
     if (viewEarningsError && viewEarningsError.code !== 'PGRST116') {
       console.error('Error fetching view earnings records:', viewEarningsError);
     }
 
-    // Get tips received
-    const { data: tips, error: tipsError } = await supabase
-      .from('tips')
-      .select('amount, created_at')
-      .eq('to_creator_id', creatorId)
-      .eq('status', 'completed');
+    // Get tips received (amount should be in dollars, not cents) with retry
+    const { data: tips, error: tipsError } = await retryRequest(() =>
+      supabase
+        .from('tips')
+        .select('amount, created_at, currency')
+        .eq('to_creator_id', creatorId)
+        .eq('status', 'completed')
+    );
 
     if (tipsError && tipsError.code !== 'PGRST116') {
       console.error('Error fetching tips:', tipsError);
     }
 
-    // Get active subscriptions for this creator
-    const { data: subscriptions, error: subscriberError } = await supabase
-      .from('subscriptions')
-      .select('id, created_at')
-      .eq('creator_id', creatorId)
-      .eq('status', 'active');
+    // Get subscription earnings for premium revenue with retry
+    const { data: subscriptionEarnings, error: subscriptionEarningsError } = await retryRequest(() =>
+      supabase
+        .from('subscription_earnings')
+        .select('earnings_amount, created_at')
+        .eq('creator_id', creatorId)
+        .eq('processed', true)
+    );
 
-    if (subscriberError && subscriberError.code !== 'PGRST116') {
-      console.error('Error fetching subscribers:', subscriberError);
+    if (subscriptionEarningsError && subscriptionEarningsError.code !== 'PGRST116') {
+      console.error('Error fetching subscription earnings:', subscriptionEarningsError);
     }
 
-    // Get pending payouts
-    const { data: pendingPayouts, error: payoutError } = await supabase
-      .from('payouts')
-      .select('amount')
-      .eq('creator_id', creatorId)
-      .in('status', ['pending', 'processing']);
+    // Get pending payouts with retry
+    const { data: pendingPayouts, error: payoutError } = await retryRequest(() =>
+      supabase
+        .from('payouts')
+        .select('amount')
+        .eq('creator_id', creatorId)
+        .in('status', ['pending', 'processing'])
+    );
 
     if (payoutError && payoutError.code !== 'PGRST116') {
       console.error('Error fetching pending payouts:', payoutError);
     }
 
+    // Get video views count for stats with retry
+    const { data: videoViews, error: videoViewsError } = await retryRequest(() =>
+      supabase
+        .from('video_views')
+        .select(`
+          id,
+          videos!inner(is_premium, owner_id)
+        `)
+        .eq('videos.owner_id', creatorId)
+    );
+
+    if (videoViewsError && videoViewsError.code !== 'PGRST116') {
+      console.error('Error fetching video views:', videoViewsError);
+    }
+
     // Calculate view earnings from actual records
-    const viewEarningsTotal = viewEarningsRecords?.reduce((sum, record) => sum + record.earnings_amount, 0) || 0;
-    const totalViews = creatorEarningsData?.total_views || viewEarningsRecords?.length || 0;
-    const premiumViews = creatorEarningsData?.total_premium_views || 
-      viewEarningsRecords?.filter(record => record.is_premium).length || 0;
+    const viewEarningsTotal = viewEarningsRecords?.reduce((sum, record) => sum + (record.earnings_amount || 0), 0) || 0;
+    
+    // Calculate view counts
+    const totalViews = videoViews?.length || 0;
+    const premiumViews = videoViews?.filter(view => view.videos?.is_premium).length || 0;
 
-    // Calculate tips total (convert from cents to dollars)
-    const totalTips = tips?.reduce((sum, tip) => sum + parseFloat(tip.amount), 0) || 0;
-    const totalTipsInDollars = totalTips / 100;
+    // Calculate tips total (assuming amount is already in dollars)
+    const totalTips = tips?.reduce((sum, tip) => {
+      const amount = parseFloat(tip.amount) || 0;
+      // If amount seems to be in cents (very large numbers), convert to dollars
+      return sum + (amount > 1000 ? amount / 100 : amount);
+    }, 0) || 0;
 
-    // Only count actual premium revenue from paid subscriptions, not estimated
-    // For now, premium revenue should come from actual payments, not subscriber count estimates
-    const premiumRevenue = 0; // Remove estimated revenue calculation
+    // Calculate premium revenue from subscription earnings
+    const premiumRevenue = subscriptionEarnings?.reduce((sum, earning) => sum + (earning.earnings_amount || 0), 0) || 0;
 
     // Calculate pending payouts
-    const pendingPayoutAmount = pendingPayouts?.reduce((sum, payout) => sum + parseFloat(payout.amount), 0) || 0;
+    const pendingPayoutAmount = pendingPayouts?.reduce((sum, payout) => sum + (payout.amount || 0), 0) || 0;
 
-    // Calculate totals using only actual earnings data
+    // Calculate totals using actual earnings data
     const actualCurrentBalance = creatorEarningsData?.current_balance || 0;
-    const totalEarnings = viewEarningsTotal + totalTipsInDollars; // Remove estimated premium revenue
-    const availableBalance = Math.max(0, actualCurrentBalance + totalTipsInDollars - pendingPayoutAmount);
+    const totalEarnings = viewEarningsTotal + totalTips + premiumRevenue;
+    const availableBalance = Math.max(0, totalEarnings - pendingPayoutAmount);
 
     // Calculate monthly earnings
     const now = new Date();
@@ -274,44 +329,61 @@ export const getCreatorEarnings = async (creatorId: string): Promise<EarningsSta
     // Calculate this month's earnings
     const thisMonthTips = tips?.filter(tip => 
       new Date(tip.created_at) >= thisMonthStart
-    ).reduce((sum, tip) => sum + parseFloat(tip.amount), 0) || 0;
+    ).reduce((sum, tip) => {
+      const amount = parseFloat(tip.amount) || 0;
+      return sum + (amount > 1000 ? amount / 100 : amount);
+    }, 0) || 0;
 
     const thisMonthViewEarnings = viewEarningsRecords?.filter(record =>
       new Date(record.created_at) >= thisMonthStart
-    ).reduce((sum, record) => sum + record.earnings_amount, 0) || 0;
+    ).reduce((sum, record) => sum + (record.earnings_amount || 0), 0) || 0;
+
+    const thisMonthPremiumRevenue = subscriptionEarnings?.filter(earning =>
+      new Date(earning.created_at) >= thisMonthStart
+    ).reduce((sum, earning) => sum + (earning.earnings_amount || 0), 0) || 0;
 
     // Calculate last month's earnings
     const lastMonthTips = tips?.filter(tip => {
       const tipDate = new Date(tip.created_at);
       return tipDate >= lastMonthStart && tipDate <= lastMonthEnd;
-    }).reduce((sum, tip) => sum + parseFloat(tip.amount), 0) || 0;
+    }).reduce((sum, tip) => {
+      const amount = parseFloat(tip.amount) || 0;
+      return sum + (amount > 1000 ? amount / 100 : amount);
+    }, 0) || 0;
 
     const lastMonthViewEarnings = viewEarningsRecords?.filter(record => {
       const recordDate = new Date(record.created_at);
       return recordDate >= lastMonthStart && recordDate <= lastMonthEnd;
-    }).reduce((sum, record) => sum + record.earnings_amount, 0) || 0;
+    }).reduce((sum, record) => sum + (record.earnings_amount || 0), 0) || 0;
+
+    const lastMonthPremiumRevenue = subscriptionEarnings?.filter(earning => {
+      const earningDate = new Date(earning.created_at);
+      return earningDate >= lastMonthStart && earningDate <= lastMonthEnd;
+    }).reduce((sum, earning) => sum + (earning.earnings_amount || 0), 0) || 0;
 
     const result = {
       totalEarnings,
-      thisMonth: (thisMonthTips / 100) + thisMonthViewEarnings,
-      lastMonth: (lastMonthTips / 100) + lastMonthViewEarnings,
+      thisMonth: thisMonthTips + thisMonthViewEarnings + thisMonthPremiumRevenue,
+      lastMonth: lastMonthTips + lastMonthViewEarnings + lastMonthPremiumRevenue,
       pendingPayouts: pendingPayoutAmount,
       availableBalance,
-      totalTips: totalTipsInDollars,
-      premiumRevenue: 0, // Only show actual premium revenue, not estimated
+      totalTips,
+      premiumRevenue,
       viewEarnings: viewEarningsTotal,
       totalViews,
       premiumViews
     };
 
-    console.log('Creator earnings calculation (actual data only):', {
+    console.log('Creator earnings calculation:', {
       creatorId,
       viewEarningsTotal,
       totalViews,
       premiumViews,
-      totalTipsInDollars,
+      totalTips,
+      premiumRevenue,
       actualTipsCount: tips?.length || 0,
       actualViewEarningsCount: viewEarningsRecords?.length || 0,
+      subscriptionEarningsCount: subscriptionEarnings?.length || 0,
       hasCreatorEarningsRecord: !!creatorEarningsData,
       result
     });
@@ -337,29 +409,59 @@ export const getCreatorEarnings = async (creatorId: string): Promise<EarningsSta
 // Get earning transactions history
 export const getEarningTransactions = async (creatorId: string): Promise<EarningTransaction[]> => {
   try {
-    // Get tips as transactions
-    const { data: tips, error: tipsError } = await supabase
-      .from('tips')
-      .select('*')
-      .eq('to_creator_id', creatorId)
-      .order('created_at', { ascending: false })
-      .limit(50);
+    const transactions: EarningTransaction[] = [];
+
+    // Get tips as transactions with retry
+    const { data: tips, error: tipsError } = await retryRequest(() =>
+      supabase
+        .from('tips')
+        .select('*')
+        .eq('to_creator_id', creatorId)
+        .order('created_at', { ascending: false })
+        .limit(25)
+    );
 
     if (tipsError && tipsError.code !== 'PGRST116') {
       console.error('Error fetching tip transactions:', tipsError);
-      return [];
     }
 
-    const transactions: EarningTransaction[] = [];
+    // Get view earnings as transactions with retry
+    const { data: viewEarnings, error: viewEarningsError } = await retryRequest(() =>
+      supabase
+        .from('view_earnings')
+        .select('*')
+        .eq('creator_id', creatorId)
+        .order('created_at', { ascending: false })
+        .limit(25)
+    );
+
+    if (viewEarningsError && viewEarningsError.code !== 'PGRST116') {
+      console.error('Error fetching view earnings transactions:', viewEarningsError);
+    }
+
+    // Get subscription earnings as transactions with retry
+    const { data: subscriptionEarnings, error: subscriptionEarningsError } = await retryRequest(() =>
+      supabase
+        .from('subscription_earnings')
+        .select('*')
+        .eq('creator_id', creatorId)
+        .order('created_at', { ascending: false })
+        .limit(25)
+    );
+
+    if (subscriptionEarningsError && subscriptionEarningsError.code !== 'PGRST116') {
+      console.error('Error fetching subscription earnings transactions:', subscriptionEarningsError);
+    }
 
     // Convert tips to transactions
     if (tips) {
       tips.forEach(tip => {
+        const amount = parseFloat(tip.amount) || 0;
         transactions.push({
-          id: tip.id,
-          amount: parseFloat(tip.amount) / 100,
+          id: `tip-${tip.id}`,
+          amount: amount > 1000 ? amount / 100 : amount, // Handle cents conversion
           currency: tip.currency || 'USD',
-          source: `Tip - ${tip.payment_method}`,
+          source: `Tip - ${tip.payment_method || 'Unknown'}`,
           status: tip.status as 'completed' | 'pending' | 'failed',
           date: tip.created_at,
           description: tip.message || 'User tip'
@@ -367,7 +469,39 @@ export const getEarningTransactions = async (creatorId: string): Promise<Earning
       });
     }
 
-    return transactions;
+    // Convert view earnings to transactions
+    if (viewEarnings) {
+      viewEarnings.forEach(earning => {
+        transactions.push({
+          id: `view-${earning.id}`,
+          amount: earning.earnings_amount || 0,
+          currency: 'USD',
+          source: earning.is_premium ? 'Premium Video View' : 'Video View',
+          status: 'completed',
+          date: earning.created_at,
+          description: `Earnings from video view`
+        });
+      });
+    }
+
+    // Convert subscription earnings to transactions
+    if (subscriptionEarnings) {
+      subscriptionEarnings.forEach(earning => {
+        transactions.push({
+          id: `subscription-${earning.id}`,
+          amount: earning.earnings_amount || 0,
+          currency: 'USD',
+          source: 'Premium Subscription',
+          status: 'completed',
+          date: earning.created_at,
+          description: `Earnings from premium subscription`
+        });
+      });
+    }
+
+    // Sort all transactions by date (newest first) and limit to 50
+    transactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return transactions.slice(0, 50);
   } catch (error) {
     console.error('Error fetching transactions:', error);
     return [];
@@ -630,11 +764,13 @@ const getCreatorEarningsData = async (creatorId: string): Promise<CreatorEarning
 // Get creator payouts
 export const getCreatorPayouts = async (creatorId: string): Promise<Payout[]> => {
   try {
-    const { data, error } = await supabase
-      .from('payouts')
-      .select('*')
-      .eq('creator_id', creatorId)
-      .order('requested_at', { ascending: false });
+    const { data, error } = await retryRequest(() =>
+      supabase
+        .from('payouts')
+        .select('*')
+        .eq('creator_id', creatorId)
+        .order('requested_at', { ascending: false })
+    );
 
     if (error) {
       console.error('Error fetching creator payouts:', error);
@@ -651,15 +787,17 @@ export const getCreatorPayouts = async (creatorId: string): Promise<Payout[]> =>
 // Get view earnings history
 export const getViewEarnings = async (creatorId: string, limit = 100): Promise<ViewEarning[]> => {
   try {
-    const { data, error } = await supabase
-      .from('view_earnings')
-      .select(`
-        *,
-        videos (title, is_premium)
-      `)
-      .eq('creator_id', creatorId)
-      .order('created_at', { ascending: false })
-      .limit(limit);
+    const { data, error } = await retryRequest(() =>
+      supabase
+        .from('view_earnings')
+        .select(`
+          *,
+          videos (title, is_premium)
+        `)
+        .eq('creator_id', creatorId)
+        .order('created_at', { ascending: false })
+        .limit(limit)
+    );
 
     if (error) {
       console.error('Error fetching view earnings:', error);
