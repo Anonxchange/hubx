@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { VideoIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { trackVideoView } from "@/services/userStatsService";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
@@ -38,26 +39,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }
                 modules: {
                   configureHls: (options: any) => ({
                     ...options,
+                    startLevel: 0,
                     maxMaxBufferLength: 30,
                   }),
                   onAfterInitHls: (hls: any) => {
-                    hls.on(hls.Events.MANIFEST_PARSED, () => {
-                      // Find lowest quality level
-                      const lowestLevelIndex = hls.levels.reduce(
-                        (lowestIdx, level, idx) =>
-                          level.height < hls.levels[lowestIdx].height ? idx : lowestIdx,
-                        0
-                      );
-
-                      // Force starting at lowest, but keep auto enabled
-                      hls.startLevel = lowestLevelIndex;
-                      hls.currentLevel = lowestLevelIndex;
-
-                      console.log(
-                        "HLS starting quality (lowest):",
-                        hls.levels[lowestLevelIndex].height
-                      );
-                    });
+                    hls.startLevel = 0;
                   },
                 },
               }
@@ -174,19 +160,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }
   }, [src, poster, initialized]);
 
   const handlePlay = async () => {
+    // Guard against duplicate view tracking
     if (hasTrackedView || !videoId) return;
 
+    // Check if we've already tracked this video in this session
     const sessionKey = `video_tracked_${videoId}`;
     if (sessionStorage.getItem(sessionKey)) return;
 
+    // Track the view
     if (user) {
       await trackVideoView(videoId, user.id);
     } else {
       await trackVideoView(videoId);
     }
 
+    // Mark as tracked
     setHasTrackedView(true);
-    sessionStorage.setItem(sessionKey, "true");
+    sessionStorage.setItem(sessionKey, 'true');
   };
 
   const isHLS = src.includes(".m3u8");
@@ -231,4 +221,4 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ src, poster, title, videoId }
   );
 };
 
-export default VideoPlayer;
+export default VideoPlayer; 
