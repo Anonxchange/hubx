@@ -78,11 +78,17 @@ export const calculateViewEarnings = async (
   isPremium: boolean = false
 ) => {
   try {
-    // Get current earnings rates
+    // Only calculate earnings for premium videos
+    if (!isPremium) {
+      console.log('Skipping earnings calculation for free video:', videoId);
+      return;
+    }
+
+    // Get current earnings rates for premium videos only
     const { data: ratesData, error: ratesError } = await supabase
       .from('earnings_rates')
       .select('*')
-      .eq('rate_type', isPremium ? 'premium_video' : 'free_video')
+      .eq('rate_type', 'premium_video')
       .eq('is_active', true)
       .order('effective_date', { ascending: false })
       .limit(1);
@@ -93,7 +99,7 @@ export const calculateViewEarnings = async (
     }
 
     if (!ratesData || ratesData.length === 0) {
-      console.error('No earnings rates found');
+      console.error('No premium earnings rates found');
       return;
     }
 
