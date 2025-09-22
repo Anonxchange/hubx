@@ -98,12 +98,12 @@ const UploadPage = () => {
       return;
     }
 
-    // Check file sizes
-    const oversizedFiles = videoFiles.filter(file => file.size > 500 * 1024 * 1024);
+    // Check file sizes (25GB limit)
+    const oversizedFiles = videoFiles.filter(file => file.size > 25 * 1024 * 1024 * 1024);
     if (oversizedFiles.length > 0) {
       toast({ 
         title: "File too large", 
-        description: `${oversizedFiles.length} file(s) exceed the 500MB limit.`, 
+        description: `${oversizedFiles.length} file(s) exceed the 25GB limit.`, 
         variant: "destructive" 
       });
       return;
@@ -433,7 +433,7 @@ const UploadPage = () => {
                       </p>
                       <p className="text-sm text-muted-foreground mb-4">Drag & drop or click to select</p>
                       <p className="text-xs text-muted-foreground">
-                        Formats: MP4, AVI, MOV, WMV (Max 500MB each)
+                        Formats: MP4, AVI, MOV, WMV (Max 25GB each)
                         {isMultipleUpload && ' • Select multiple files'}
                       </p>
                     </div>
