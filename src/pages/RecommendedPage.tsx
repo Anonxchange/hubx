@@ -108,7 +108,8 @@ const RecommendedPage = () => {
 
         {/* Videos Grid */}
         {videos.length > 0 ? (
-          <OptimizedVideoGrid videos={videos} />
+       
+            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} showMoments={false} showPremiumSection={false} />
         ) : (
           !isLoading && (
             <div className="text-center py-12">
