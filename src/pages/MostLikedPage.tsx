@@ -124,7 +124,8 @@ const MostLikedPage = () => {
               </div>
             </div>
             
-            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} />
+          
+            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} showMoments={false} showPremiumSection={false} />
             
             {/* Pagination */}
             {totalPages > 1 && (
