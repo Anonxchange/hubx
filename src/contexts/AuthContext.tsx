@@ -29,7 +29,7 @@ interface AuthContextType {
   userType: UserType | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, userType: UserType) => Promise<{ error: AuthError | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
+  signIn: (email: string, password: string, selectedUserType?: UserType, twoFactorCode?: string) => Promise<{ error: AuthError | null; requires2FA?: boolean }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
   refreshUserData: () => Promise<void>;
@@ -483,8 +483,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signIn = async (
     email: string,
     password: string,
-    selectedUserType?: UserType
-  ): Promise<{ error: AuthError | null }> => {
+    selectedUserType?: UserType,
+    twoFactorCode?: string
+  ): Promise<{ error: AuthError | null; requires2FA?: boolean }> => {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -508,7 +509,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('user_type')
+          .select('user_type, two_factor_enabled, two_factor_secret')
           .eq('id', data.user.id)
           .single();
 
@@ -520,6 +521,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return {
             error: { message: 'Could not verify user type. Please try again later.' },
           };
+        }
+
+        // Check if 2FA is enabled and verify code if provided
+        if (profile.two_factor_enabled && profile.two_factor_secret) {
+          if (!twoFactorCode) {
+            // Sign out the user and require 2FA
+            await supabase.auth.signOut();
+            return { error: null, requires2FA: true };
+          }
+
+          // Verify 2FA code
+          try {
+            const { Secret, TOTP } = await import('otpauth');
+            const secret = Secret.fromBase32(profile.two_factor_secret);
+            const totp = new TOTP({
+              issuer: 'HubX Video Platform',
+              label: data.user.email || 'HubX User',
+              algorithm: 'SHA1',
+              digits: 6,
+              period: 30,
+              secret: secret,
+            });
+
+            const delta = totp.validate({
+              token: twoFactorCode,
+              window: 1,
+            });
+
+            if (delta === null) {
+              await supabase.auth.signOut();
+              return {
+                error: {
+                  message: 'Invalid 2FA code. Please check your authenticator app and try again.',
+                },
+              };
+            }
+          } catch (twoFactorError) {
+            console.error('2FA verification error:', twoFactorError);
+            await supabase.auth.signOut();
+            return {
+              error: {
+                message: 'Failed to verify 2FA code. Please try again.',
+              },
+            };
+          }
         }
 
         console.log('Database user_type:', profile.user_type, 'Selected user_type:', selectedUserType);
