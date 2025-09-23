@@ -28,6 +28,8 @@ const AuthPage = () => {
   const [resetPasswordMode, setResetPasswordMode] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [requires2FA, setRequires2FA] = useState(false);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
 
   const { signIn, signUp, signOut, forgotPassword } = useAuth();
   const navigate = useNavigate();
@@ -135,16 +137,21 @@ const AuthPage = () => {
 
     try {
       if (isLogin) {
-        const { error } = await signIn(email, password, userType);
-        if (error) {
-          if (error.message.includes('Invalid login credentials')) {
+        const result = await signIn(email, password, userType, twoFactorCode);
+        if (result.requires2FA) {
+          setRequires2FA(true);
+          setError(null);
+        } else if (result.error) {
+          if (result.error.message.includes('Invalid login credentials')) {
             setError('Invalid email or password');
-          } else if (error.message.includes('Email not confirmed')) {
+          } else if (result.error.message.includes('Email not confirmed')) {
             setError('Please check your email and click the confirmation link');
-          } else if (error.message.includes('User type mismatch')) {
+          } else if (result.error.message.includes('User type mismatch')) {
             setError('You are registered as a different user type. Please select the correct user type.');
+          } else if (result.error.message.includes('Invalid 2FA code')) {
+            setError('Invalid 2FA code. Please check your authenticator app and try again.');
           } else {
-            setError(error.message);
+            setError(result.error.message);
           }
         } else {
           navigate('/');
@@ -452,25 +459,46 @@ const AuthPage = () => {
                     </div>
                   )}
 
+                  {isLogin && requires2FA && (
+                    <div className="space-y-2">
+                      <Label htmlFor="twoFactorCode" className="text-white">2FA Code</Label>
+                      <Input
+                        id="twoFactorCode"
+                        type="text"
+                        value={twoFactorCode}
+                        onChange={(e) => setTwoFactorCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        placeholder="Enter 6-digit code from your authenticator app"
+                        className="bg-gray-800/50 border-gray-600 text-white placeholder-gray-400 text-center text-lg tracking-widest"
+                        maxLength={6}
+                        required
+                      />
+                      <p className="text-xs text-gray-400">
+                        Enter the 6-digit code from your authenticator app
+                      </p>
+                    </div>
+                  )}
+
                   <Button 
                     type="submit" 
                     className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-3" 
-                    disabled={loading || (!isLogin && emailSent)}
+                    disabled={loading || (!isLogin && emailSent) || (requires2FA && twoFactorCode.length !== 6)}
                   >
                     {loading
                       ? 'Please wait...'
                       : isLogin 
-                        ? `Login as ${
-                            userType === 'individual_creator' ? 'Creator' :
-                            userType === 'studio_creator' ? 'Studio' : 'User'
-                          }`
+                        ? requires2FA
+                          ? 'Verify 2FA Code'
+                          : `Login as ${
+                              userType === 'individual_creator' ? 'Creator' :
+                              userType === 'studio_creator' ? 'Studio' : 'User'
+                            }`
                         : `Join as ${
                             userType === 'individual_creator' ? 'Creator' :
                             userType === 'studio_creator' ? 'Studio' : 'User'
                           }`}
                   </Button>
 
-                  {isLogin && (
+                  {isLogin && !requires2FA && (
                     <div className="text-center">
                       <Button
                         type="button"
@@ -483,6 +511,23 @@ const AuthPage = () => {
                         className="text-sm text-gray-400 hover:text-white"
                       >
                         Forgot your password?
+                      </Button>
+                    </div>
+                  )}
+
+                  {isLogin && requires2FA && (
+                    <div className="text-center">
+                      <Button
+                        type="button"
+                        variant="link"
+                        onClick={() => {
+                          setRequires2FA(false);
+                          setTwoFactorCode('');
+                          setError(null);
+                        }}
+                        className="text-sm text-gray-400 hover:text-white"
+                      >
+                        Back to login
                       </Button>
                     </div>
                   )}
