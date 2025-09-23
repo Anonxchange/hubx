@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { ThumbsUp, Heart, Award } from 'lucide-react';
+import { ThumbsUp } from 'lucide-react';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
 import AdComponent from '@/components/AdComponent';
 import ImageStylePagination from '@/components/ImageStylePagination';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { getOptimizedVideos } from '@/services/optimizedVideosService';
 import type { LightVideo } from '@/services/optimizedVideosService';
 
@@ -58,6 +57,14 @@ const MostLikedPage = () => {
           <div className="w-full max-w-4xl">
             <AdComponent zoneId="5660534" />
           </div>
+        </div>
+
+        {/* Section Title */}
+        <div className="text-center mt-8">
+          <h2 className="text-3xl font-bold flex items-center justify-center space-x-2">
+            <ThumbsUp className="h-6 w-6 text-green-500" />
+            <span>Most Liked Videos</span>
+          </h2>
         </div>
 
         {/* Videos Grid */}
