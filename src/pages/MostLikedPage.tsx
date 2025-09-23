@@ -51,38 +51,6 @@ const MostLikedPage = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Hero Section */}
-        <div className="text-center space-y-3">
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <Award className="h-8 w-8 text-blue-500" />
-            <ThumbsUp className="h-6 w-6 text-green-500" />
-            <Heart className="h-6 w-6 text-red-500" />
-          </div>
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-500 via-green-500 to-red-500 bg-clip-text text-transparent">
-            Most Liked
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            The highest-rated videos loved by our community - ranked by likes and ratings
-          </p>
-          
-          {/* Stats Badges */}
-          <div className="flex justify-center space-x-2 mt-4">
-            <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
-              <Award className="h-3 w-3 mr-1" />
-              Top Rated
-            </Badge>
-            <Badge variant="outline">
-              <ThumbsUp className="h-3 w-3 mr-1" />
-              {totalVideos.toLocaleString()} Videos
-            </Badge>
-            <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300">
-              <Heart className="h-3 w-3 mr-1" />
-              Community Favorites
-            </Badge>
-          </div>
-        </div>
-
         {/* Top Ad Banner */}
         <div className="w-full flex justify-center">
           <div className="w-full max-w-4xl">
