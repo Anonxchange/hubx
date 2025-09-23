@@ -102,9 +102,8 @@ const CategoryPage = () => {
 
         {/* Videos Grid */}
         {!isLoading && !error && (
-          <OptimizedVideoGrid 
-            videos={videos}
-          />
+        
+            <OptimizedVideoGrid videos={videos} viewMode="grid" showAds={true} showMoments={false} showPremiumSection={false} />
         )}
 
         {/* No Videos State */}
