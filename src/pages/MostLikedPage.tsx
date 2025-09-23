@@ -115,7 +115,7 @@ const MostLikedPage = () => {
             </p>
           </div>
         )}
-      </main>
+      </div>
 
       <Footer />
     </div>
