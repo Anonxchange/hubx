@@ -29,15 +29,45 @@ import {
   MoreHorizontal,
   Repeat2,
   Share,
-  Calendar,
-  Star
+  Home,
+  Search,
+  Music,
+  CreditCard,
+  Mail
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import VerificationBadge from '@/components/VerificationBadge';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format, isToday, isYesterday, isThisWeek, isThisYear } from 'date-fns';
 import { Link } from 'react-router-dom';
 import ShareModal from '@/components/ShareModal';
 import MessageButton from '@/components/MessageButton';
+
+
+// Helper function to format post time in a perfect way
+const formatPostTime = (dateString: string): string => {
+  const postDate = new Date(dateString);
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - postDate.getTime()) / (1000 * 60));
+  
+  if (diffInMinutes < 1) {
+    return 'now';
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes}m`;
+  } else if (diffInMinutes < 1440) { // Less than 24 hours
+    const hours = Math.floor(diffInMinutes / 60);
+    return `${hours}h`;
+  } else if (isToday(postDate)) {
+    return format(postDate, 'HH:mm');
+  } else if (isYesterday(postDate)) {
+    return 'Yesterday';
+  } else if (isThisWeek(postDate)) {
+    return format(postDate, 'EEE'); // Mon, Tue, etc.
+  } else if (isThisYear(postDate)) {
+    return format(postDate, 'MMM d'); // Jan 15
+  } else {
+    return format(postDate, 'MMM d, yyyy'); // Jan 15, 2023
+  }
+};
 
 const FeedPage: React.FC = () => {
   const { user, userProfile } = useAuth();
@@ -55,6 +85,7 @@ const FeedPage: React.FC = () => {
   const [postComments, setPostComments] = useState<{[key: string]: any[]}>({});
   const [hasScrolledToTarget, setHasScrolledToTarget] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
+  
 
   // Check if user can post (only creators)
   const canPost = userProfile?.user_type === 'individual_creator' || userProfile?.user_type === 'studio_creator';
@@ -268,17 +299,26 @@ const FeedPage: React.FC = () => {
             </Avatar>
           </Link>
 
-          {/* Center - Title */}
-          <h1 className="text-lg font-bold">Home</h1>
+          {/* Center - HubX Logo */}
+          <Link to="/" className="flex items-center space-x-2">
+            <div className="gradient-overlay rounded-lg p-2">
+              <span className="text-lg font-bold text-white">HubX</span>
+            </div>
+            <span className="text-sm text-gray-300 font-semibold">Community</span>
+          </Link>
 
-          {/* Right side - Icons */}
-          <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" className="text-white hover:bg-gray-800">
-              <Calendar className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" size="sm" className="text-white hover:bg-gray-800">
-              <Star className="h-5 w-5" />
-            </Button>
+          {/* Right side - Video Icon */}
+          <div className="flex items-center">
+            <Link to="/moments">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-white hover:bg-gray-800"
+                data-testid="moments-video-button"
+              >
+                <Video className="h-5 w-5" />
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -450,11 +490,11 @@ const FeedPage: React.FC = () => {
                   </Link>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <Link to={`/profile/${post.creator?.username}`}>
-                        <div className="flex items-center space-x-1 hover:underline">
-                          <span className="font-bold text-white">
-                            {post.creator?.full_name || post.creator?.username || 'Anonymous'}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center space-x-2 min-w-0 flex-1">
+                        <Link to={`/profile/${post.creator?.username}`} className="flex items-center space-x-2 hover:underline min-w-0">
+                          <span className="font-bold text-white text-[15px] truncate">
+                            @{post.creator?.username || 'anonymous'}
                           </span>
                           {(post.creator?.user_type === 'individual_creator' || post.creator?.user_type === 'studio_creator') && (
                             <VerificationBadge
@@ -462,18 +502,14 @@ const FeedPage: React.FC = () => {
                               showText={false}
                             />
                           )}
-                        </div>
-                      </Link>
-                      <span className="text-gray-500">@{post.creator?.username}</span>
-                      <span className="text-gray-500">·</span>
-                      <span className="text-gray-500 text-sm">
-                        {formatDistanceToNow(new Date(post.created_at), { addSuffix: false })}
-                      </span>
-                      <div className="ml-auto">
-                        <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-800 hover:text-white p-1">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
+                        </Link>
+                        <span className="text-gray-500 text-sm flex-shrink-0">
+                          · {formatPostTime(post.created_at)}
+                        </span>
                       </div>
+                      <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-800 hover:text-white p-1 flex-shrink-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
                     </div>
 
                     <div className="mb-3">
@@ -611,43 +647,90 @@ const FeedPage: React.FC = () => {
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-black border-t border-gray-800">
         <div className="flex items-center justify-around py-2 max-w-2xl mx-auto">
-          <Button variant="ghost" size="sm" className="flex-1 text-white hover:bg-gray-800 py-3">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex-1 text-white hover:bg-gray-800 py-3"
+            data-testid="nav-home"
+          >
             <div className="flex flex-col items-center space-y-1">
-              <div className="w-6 h-6 flex items-center justify-center">
-                🏠
-              </div>
+              <Home className="w-5 h-5" />
+              <span className="text-xs">Home</span>
             </div>
           </Button>
-          <Button variant="ghost" size="sm" className="flex-1 text-gray-500 hover:bg-gray-800 py-3">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex-1 text-gray-500 hover:bg-gray-800 hover:text-white py-3"
+            data-testid="nav-search"
+          >
             <div className="flex flex-col items-center space-y-1">
-              <div className="w-6 h-6 flex items-center justify-center">
-                🔍
-              </div>
+              <Search className="w-5 h-5" />
+              <span className="text-xs">Search</span>
             </div>
           </Button>
-          <Button variant="ghost" size="sm" className="flex-1 text-gray-500 hover:bg-gray-800 py-3">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex-1 text-gray-500 hover:bg-gray-800 hover:text-white py-3"
+            data-testid="nav-music"
+          >
             <div className="flex flex-col items-center space-y-1">
-              <div className="w-6 h-6 flex items-center justify-center">
-                🎵
-              </div>
+              <Music className="w-5 h-5" />
+              <span className="text-xs">Music</span>
             </div>
           </Button>
-          <Button variant="ghost" size="sm" className="flex-1 text-gray-500 hover:bg-gray-800 py-3">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex-1 text-gray-500 hover:bg-gray-800 hover:text-white py-3"
+            data-testid="nav-premium"
+          >
             <div className="flex flex-col items-center space-y-1">
-              <div className="w-6 h-6 flex items-center justify-center">
-                💳
-              </div>
+              <CreditCard className="w-5 h-5" />
+              <span className="text-xs">Premium</span>
             </div>
           </Button>
-          <Button variant="ghost" size="sm" className="flex-1 text-gray-500 hover:bg-gray-800 py-3">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="flex-1 text-gray-500 hover:bg-gray-800 hover:text-white py-3"
+            data-testid="nav-messages"
+          >
             <div className="flex flex-col items-center space-y-1">
-              <div className="w-6 h-6 flex items-center justify-center">
-                💬
-              </div>
+              <Mail className="w-5 h-5" />
+              <span className="text-xs">Messages</span>
             </div>
           </Button>
         </div>
       </div>
+
+      {/* Floating Post Button - Only for creators and only in home tab */}
+      {canPost && activeTab === 'home' && (
+        <div className="fixed bottom-20 right-4 z-50">
+          <Button
+            onClick={() => {
+              // Scroll to top where create post is (near HubX logo)
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+              // Focus on post textarea after scroll
+              setTimeout(() => {
+                const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
+                if (textarea) {
+                  textarea.focus();
+                }
+              }, 500);
+            }}
+            className="w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+            data-testid="floating-post-button"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </Button>
+        </div>
+      )}
+
+      
     </div>
   );
 };
