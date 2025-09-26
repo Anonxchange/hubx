@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Bell, DollarSign, MoreHorizontal, MessageCircle, UserPlus, CheckCircle, Camera, Play, List, Heart, Upload, Share } from 'lucide-react';
+import { ArrowLeft, Bell, DollarSign, MoreHorizontal, MessageCircle, UserPlus, CheckCircle, Camera, Play, List, Heart, Upload, Share, Star, Repeat2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   subscribeToCreator, 
@@ -273,37 +274,41 @@ const ProfilePage = () => {
         )}
 
         {/* Header overlay with back button and action icons */}
-        <div className="absolute top-0 left-0 right-0 z-10">
-          <div className="flex items-center justify-between p-3">
+        <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/60 via-black/30 to-transparent">
+          <div className="flex items-center justify-between p-4">
             <Button
               variant="ghost"
               size="icon"
-              className="text-white hover:bg-white/10 backdrop-blur-sm rounded-full w-10 h-10"
+              className="text-white hover:bg-white/20 backdrop-blur-md rounded-full w-11 h-11 shadow-lg"
               onClick={() => window.history.back()}
+              data-testid="button-back"
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="text-white hover:bg-white/10 backdrop-blur-sm rounded-full w-10 h-10"
+                className="text-white hover:bg-white/20 backdrop-blur-md rounded-full w-11 h-11 shadow-lg"
+                data-testid="button-notifications"
               >
                 <Bell className="w-5 h-5" />
               </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="text-white hover:bg-white/10 backdrop-blur-sm rounded-full w-10 h-10"
+                className="text-white hover:bg-yellow-500/20 backdrop-blur-md rounded-full w-11 h-11 shadow-lg border border-yellow-500/30"
                 onClick={() => setIsTipModalOpen(true)}
+                data-testid="button-tip"
               >
-                <DollarSign className="w-5 h-5" />
+                <DollarSign className="w-5 h-5 text-yellow-400" />
               </Button>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="text-white hover:bg-white/10 backdrop-blur-sm rounded-full w-10 h-10"
+                className="text-white hover:bg-white/20 backdrop-blur-md rounded-full w-11 h-11 shadow-lg"
+                data-testid="button-more"
               >
                 <MoreHorizontal className="w-5 h-5" />
               </Button>
@@ -311,9 +316,9 @@ const ProfilePage = () => {
           </div>
         </div>
 
-        {/* Cover photo upload button for own profile */}
+        {/* Cover photo upload button for own profile - moved to top area */}
         {isOwnProfile && (
-          <div className="absolute bottom-2 right-2">
+          <div className="absolute top-20 right-4 z-10">
             <input
               type="file"
               accept="image/*"
@@ -324,8 +329,9 @@ const ProfilePage = () => {
             <label htmlFor="cover-upload">
               <Button
                 size="sm"
-                className="bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm rounded-full w-8 h-8 p-0"
+                className="bg-black/60 hover:bg-black/80 text-white backdrop-blur-md rounded-full w-10 h-10 p-0 shadow-lg"
                 asChild
+                data-testid="button-cover-upload"
               >
                 <span className="cursor-pointer">
                   <Camera className="h-4 w-4" />
@@ -511,43 +517,199 @@ const ProfilePage = () => {
         <TabsContent value="videos" className="mt-0">
           <div className="p-4">
             {uploadedVideos.length > 0 ? (
-              <OptimizedVideoGrid 
-                videos={uploadedVideos.map(video => ({
-                  id: video.id,
-                  title: video.title,
-                  description: video.description,
-                  thumbnail_url: video.thumbnail_url,
-                  preview_url: video.preview_url,
-                  video_url: video.video_url,
-                  duration: video.duration || '0:00',
-                  views: video.views || 0,
-                  likes: video.likes || 0,
-                  tags: video.tags || [],
-                  created_at: video.created_at,
-                  is_premium: video.is_premium,
-                  uploader_username: profile.username,
-                  uploader_name: profile.full_name || profile.username,
-                  uploader_avatar: profile.avatar_url,
-                  uploader_type: profile.user_type as any,
-                  uploader_id: profile.id,
-                  owner_id: video.owner_id
-                }))}
-                viewMode="grid"
-                showAds={false}
-                showMoments={false}
-                showPremiumSection={false}
-                showTags={true}
-                showDate={false}
-              />
+              <div className="space-y-6">
+                {/* Premium Videos Section */}
+                {uploadedVideos.filter(video => video.is_premium).length > 0 && (
+                  <div>
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Star className="w-5 h-5 text-yellow-500" />
+                      <h3 className="text-lg font-semibold text-white">Premium Videos</h3>
+                      <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">Premium</Badge>
+                    </div>
+                    <OptimizedVideoGrid 
+                      videos={uploadedVideos.filter(video => video.is_premium).map(video => ({
+                        id: video.id,
+                        title: video.title,
+                        description: video.description,
+                        thumbnail_url: video.thumbnail_url,
+                        preview_url: video.preview_url,
+                        video_url: video.video_url,
+                        duration: video.duration || '0:00',
+                        views: video.views || 0,
+                        likes: video.likes || 0,
+                        tags: video.tags || [],
+                        created_at: video.created_at,
+                        is_premium: video.is_premium,
+                        uploader_username: profile.username,
+                        uploader_name: profile.full_name || profile.username,
+                        uploader_avatar: profile.avatar_url,
+                        uploader_type: profile.user_type as any,
+                        uploader_id: profile.id,
+                        owner_id: video.owner_id
+                      }))}
+                      viewMode="grid"
+                      showAds={false}
+                      showMoments={false}
+                      showPremiumSection={false}
+                      showTags={true}
+                      showDate={false}
+                    />
+                  </div>
+                )}
+                
+                {/* Regular Videos Section */}
+                {uploadedVideos.filter(video => !video.is_premium).length > 0 && (
+                  <div>
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Play className="w-5 h-5 text-blue-500" />
+                      <h3 className="text-lg font-semibold text-white">Regular Videos</h3>
+                      <Badge variant="secondary" className="bg-gray-700 text-white">Free</Badge>
+                    </div>
+                    <OptimizedVideoGrid 
+                      videos={uploadedVideos.filter(video => !video.is_premium).map(video => ({
+                        id: video.id,
+                        title: video.title,
+                        description: video.description,
+                        thumbnail_url: video.thumbnail_url,
+                        preview_url: video.preview_url,
+                        video_url: video.video_url,
+                        duration: video.duration || '0:00',
+                        views: video.views || 0,
+                        likes: video.likes || 0,
+                        tags: video.tags || [],
+                        created_at: video.created_at,
+                        is_premium: video.is_premium,
+                        uploader_username: profile.username,
+                        uploader_name: profile.full_name || profile.username,
+                        uploader_avatar: profile.avatar_url,
+                        uploader_type: profile.user_type as any,
+                        uploader_id: profile.id,
+                        owner_id: video.owner_id
+                      }))}
+                      viewMode="grid"
+                      showAds={false}
+                      showMoments={false}
+                      showPremiumSection={false}
+                      showTags={true}
+                      showDate={false}
+                    />
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="text-center py-8 text-gray-400">
-                No videos uploaded yet
+                <Play className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                <p>No videos uploaded yet</p>
               </div>
             )}
           </div>
         </TabsContent>
 
         <TabsContent value="collection" className="mt-0">
+          <div>
+            {posts.length > 0 ? (
+              <div>
+                {posts.map((post) => (
+                  <article key={post.id} className="border-b border-gray-800 p-4 hover:bg-gray-950/50 transition-colors">
+                    <div className="flex space-x-3">
+                      <Avatar className="h-12 w-12 hover:ring-2 hover:ring-blue-500 transition-all">
+                        <AvatarImage src={profile.avatar_url || ''} />
+                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                          {(profile.username || 'U')[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center space-x-2 min-w-0 flex-1">
+                            <div className="flex items-center space-x-2 hover:underline min-w-0">
+                              <span className="font-bold text-white text-[15px] truncate">
+                                @{profile.username}
+                              </span>
+                              {profile.verified && <CheckCircle className="h-4 w-4 text-blue-500" />}
+                            </div>
+                            <span className="text-gray-500 text-sm flex-shrink-0">
+                              · {formatDistanceToNow(new Date(post.created_at), { addSuffix: false })}
+                            </span>
+                          </div>
+                          <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-800 hover:text-white p-1 flex-shrink-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="mb-3">
+                          <p className="text-white text-[15px] leading-5">{post.content}</p>
+
+                          {post.media_url && (
+                            <div className="mt-3 rounded-2xl overflow-hidden border border-gray-800">
+                              {post.media_type?.startsWith('image') ? (
+                                <img 
+                                  src={post.media_url} 
+                                  alt="Post media"
+                                  className="w-full h-auto max-h-96 object-cover"
+                                />
+                              ) : post.media_type?.startsWith('video') ? (
+                                <video 
+                                  src={post.media_url}
+                                  controls
+                                  className="w-full h-auto max-h-96 object-cover"
+                                />
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex items-center justify-between max-w-md">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-500 hover:text-blue-500 hover:bg-blue-500/10 p-2 rounded-full group"
+                          >
+                            <MessageCircle className="h-[18px] w-[18px] mr-1" />
+                            <span className="text-sm">{post.comments_count || ''}</span>
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-500 hover:text-green-500 hover:bg-green-500/10 p-2 rounded-full group"
+                          >
+                            <Repeat2 className="h-[18px] w-[18px] mr-1" />
+                            <span className="text-sm">7</span>
+                          </Button>
+
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-gray-500 hover:text-red-500 hover:bg-red-500/10 p-2 rounded-full group"
+                          >
+                            <Heart className="h-[18px] w-[18px] mr-1" />
+                            <span className="text-sm">{post.likes_count || ''}</span>
+                          </Button>
+
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="text-gray-500 hover:text-blue-500 hover:bg-blue-500/10 p-2 rounded-full group"
+                          >
+                            <Share className="h-[18px] w-[18px]" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-400 p-4">
+                <MessageCircle className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                <p>No posts yet</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="likes" className="mt-0">
           <div className="p-4">
             {favorites.length > 0 ? (
               <OptimizedVideoGrid 
@@ -580,46 +742,8 @@ const ProfilePage = () => {
               />
             ) : (
               <div className="text-center py-8 text-gray-400">
-                No favorites yet
-              </div>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="likes" className="mt-0">
-          <div className="p-4">
-            {posts.length > 0 ? (
-              <OptimizedVideoGrid 
-                videos={posts.map(post => ({
-                  id: post.id,
-                  title: post.title,
-                  description: post.description,
-                  thumbnail_url: post.thumbnail_url,
-                  preview_url: post.preview_url,
-                  video_url: post.video_url,
-                  duration: post.duration || '0:00',
-                  views: post.views || 0,
-                  likes: post.likes || 0,
-                  tags: post.tags || [],
-                  created_at: post.created_at,
-                  is_premium: post.is_premium,
-                  uploader_username: post.uploader_username,
-                  uploader_name: post.uploader_name,
-                  uploader_avatar: post.uploader_avatar,
-                  uploader_type: post.uploader_type as any,
-                  uploader_id: post.uploader_id,
-                  owner_id: post.owner_id
-                }))}
-                viewMode="grid"
-                showAds={false}
-                showMoments={false}
-                showPremiumSection={false}
-                showTags={true}
-                showDate={false}
-              />
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                No posts yet
+                <Heart className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                <p>No favorite videos yet</p>
               </div>
             )}
           </div>
@@ -656,6 +780,42 @@ const ProfilePage = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Floating Post Button - Only for own profile */}
+      {isOwnProfile && (profile.user_type === 'individual_creator' || profile.user_type === 'studio_creator') && (
+        <div className="fixed bottom-20 right-4 z-50">
+          <Button
+            onClick={() => {
+              // Navigate to feed page where they can post
+              window.location.href = '/feed';
+            }}
+            className="w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+            data-testid="floating-post-button"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </Button>
+        </div>
+      )}
+
+      {/* Floating Post Button - Only for own profile and only on Feed tab */}
+      {isOwnProfile && (profile.user_type === 'individual_creator' || profile.user_type === 'studio_creator') && activeTab === 'collection' && (
+        <div className="fixed bottom-20 right-4 z-50">
+          <Button
+            onClick={() => {
+              // Navigate to feed page where they can post
+              window.location.href = '/feed';
+            }}
+            className="w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
+            data-testid="floating-post-button"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </Button>
+        </div>
+      )}
 
       {/* Tip Modal */}
       {isTipModalOpen && (
