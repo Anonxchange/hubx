@@ -99,53 +99,69 @@ export const getUserConversations = async (): Promise<Conversation[]> => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    // Get conversations where user is a participant
+    // Get conversations with participant profiles in a single query
     const { data: conversations, error } = await supabase
       .from('conversations')
-      .select('*')
+      .select(`
+        *,
+        participant_one:profiles!conversations_participant_one_id_fkey(id, username, full_name, profile_picture_url),
+        participant_two:profiles!conversations_participant_two_id_fkey(id, username, full_name, profile_picture_url)
+      `)
       .or(`participant_one_id.eq.${user.id},participant_two_id.eq.${user.id}`)
       .order('updated_at', { ascending: false });
 
     if (error) throw error;
 
-    // Process conversations to add participant info and last message
-    const processedConversations: Conversation[] = [];
+    // Get all conversation IDs for batch queries
+    const conversationIds = (conversations || []).map(c => c.id);
     
-    for (const conv of conversations || []) {
-      // Get the other participant's profile
-      const otherParticipantId = conv.participant_one_id === user.id 
-        ? conv.participant_two_id 
-        : conv.participant_one_id;
+    if (conversationIds.length === 0) return [];
 
-      const { data: participant } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, profile_picture_url')
-        .eq('id', otherParticipantId)
-        .single();
+    // Batch get last messages
+    const { data: lastMessages } = await supabase
+      .from('messages')
+      .select('*')
+      .in('conversation_id', conversationIds)
+      .order('created_at', { ascending: false });
 
-      // Get messages for this conversation
-      const { data: messages } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conv.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
+    // Batch get unread counts
+    const { data: unreadMessages } = await supabase
+      .from('messages')
+      .select('conversation_id')
+      .in('conversation_id', conversationIds)
+      .eq('receiver_id', user.id)
+      .eq('read', false);
 
-      // Count unread messages
-      const { count: unreadCount } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('conversation_id', conv.id)
-        .eq('receiver_id', user.id)
-        .eq('read', false);
+    // Create lookup maps
+    const lastMessageMap = new Map();
+    const unreadCountMap = new Map();
 
-      processedConversations.push({
+    // Process last messages
+    lastMessages?.forEach(msg => {
+      if (!lastMessageMap.has(msg.conversation_id)) {
+        lastMessageMap.set(msg.conversation_id, msg);
+      }
+    });
+
+    // Process unread counts
+    unreadMessages?.forEach(msg => {
+      const count = unreadCountMap.get(msg.conversation_id) || 0;
+      unreadCountMap.set(msg.conversation_id, count + 1);
+    });
+
+    // Process conversations
+    const processedConversations: Conversation[] = (conversations || []).map(conv => {
+      const participant = conv.participant_one_id === user.id 
+        ? conv.participant_two 
+        : conv.participant_one;
+
+      return {
         ...conv,
         participant: participant || undefined,
-        last_message: messages?.[0] || undefined,
-        unread_count: unreadCount || 0
-      });
-    }
+        last_message: lastMessageMap.get(conv.id) || undefined,
+        unread_count: unreadCountMap.get(conv.id) || 0
+      };
+    });
 
     return processedConversations;
   } catch (error) {
