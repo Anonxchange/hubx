@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageCircle, Send, Search, Edit, ArrowLeft, Info, Plus } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
+import Header from '@/components/Header';
 
 const InboxPage: React.FC = () => {
   const location = useLocation();
@@ -293,9 +294,11 @@ const InboxPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Header */}
-      <div className="flex items-center justify-between p-4">
+    <>
+      <Header />
+      <div className="min-h-screen bg-black text-white">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-4">
           <button className="text-white">
             <div className="flex flex-col gap-1">
@@ -455,6 +458,7 @@ const InboxPage: React.FC = () => {
         </Button>
       </div>
     </div>
+    </>
   );
 };
 
