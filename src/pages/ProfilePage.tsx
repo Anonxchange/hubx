@@ -24,11 +24,14 @@ import {
 } from '@/services/socialFeedService';
 import { getUserStats, UserStats } from '@/services/userStatsService';
 import { getUserFavorites, getUserWatchHistory } from '@/services/userStatsService';
+import { useNotifications } from '@/hooks/useNotifications';
 import { uploadCoverPhoto, uploadProfilePicture } from '@/services/bunnyStorageService';
 import MessageButton from '@/components/MessageButton';
 import AdComponent from '@/components/AdComponent';
 import VideoCard from '@/components/VideoCard';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
+import OptimizedRelatedVideoCard from '@/components/OptimizedRelatedVideoCard';
+import VerificationBadge from '@/components/VerificationBadge';
 import TipModal from '@/components/TipModal';
 import ShareModal from '@/components/ShareModal';
 import Header from '@/components/Header';
@@ -54,6 +57,7 @@ interface ProfileData {
 const ProfilePage = () => {
   const { user, userType, loading: authLoading } = useAuth();
   const { username } = useParams();
+  const { unreadCount } = useNotifications();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -282,8 +286,8 @@ const ProfilePage = () => {
             .from('videos')
             .select(`
               id, title, thumbnail_url, duration, views, likes, 
-              is_premium, is_moment,
-              profiles:owner_id (username, avatar_url, full_name)
+              is_premium, is_moment, owner_id,
+              profiles:owner_id (id, username, avatar_url, full_name, user_type)
             `)
             .eq('id', videoId)
             .single();
@@ -342,82 +346,30 @@ const ProfilePage = () => {
 
     return (
       <div className="my-3">
-        <div 
-          className="bg-gray-900 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-800 transition-colors border border-gray-700"
-          onClick={handleVideoClick}
-        >
-          {/* Video Thumbnail */}
-          <div className="relative aspect-video bg-gray-800">
-            <img
-              src={videoData.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
-              alt={videoData.title}
-              className="w-full h-full object-cover"
-            />
-            
-            {/* Play Button Overlay */}
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-              <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center">
-                <Play className="w-8 h-8 text-white ml-1" />
-              </div>
-            </div>
-            
-            {/* Duration */}
-            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
-              {videoData.duration || '0:00'}
-            </div>
-            
-            {/* Video Type Badges */}
-            {type === 'premium' && (
-              <div className="absolute top-2 left-2">
-                <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs font-bold">
-                  <Crown className="w-3 h-3 mr-1" />
-                  Premium
-                </Badge>
-              </div>
-            )}
-            
-            {type === 'moment' && (
-              <div className="absolute top-2 left-2">
-                <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold">
-                  Moment
-                </Badge>
-              </div>
-            )}
-          </div>
-          
-          {/* Video Info */}
-          <div className="p-3">
-            <h3 className="text-white font-medium line-clamp-2 mb-2">{videoData.title}</h3>
-            
-            <div className="flex items-center justify-between text-sm text-gray-400">
-              <div className="flex items-center space-x-1">
-                {videoData.profiles?.avatar_url && (
-                  <img 
-                    src={videoData.profiles.avatar_url} 
-                    alt={videoData.profiles.username}
-                    className="w-4 h-4 rounded-full"
-                  />
-                )}
-                <span>{videoData.profiles?.full_name || videoData.profiles?.username || 'Unknown'}</span>
-              </div>
-              
-              <div className="flex items-center space-x-4">
-                <span className="flex items-center">
-                  <Eye className="w-3 h-3 mr-1" />
-                  {(videoData.views || 0).toLocaleString()}
-                </span>
-                <span className="flex items-center">
-                  <ThumbsUp className="w-3 h-3 mr-1" />
-                  {videoData.likes || 0}
-                </span>
-              </div>
-            </div>
-            
-            <div className="mt-2 text-xs text-purple-400">
-              Click to watch • {type === 'premium' ? 'Premium Video' : type === 'moment' ? 'Moment' : 'Video'}
-            </div>
-          </div>
-        </div>
+        <OptimizedRelatedVideoCard 
+          video={{
+            id: videoData.id,
+            title: videoData.title,
+            thumbnail_url: videoData.thumbnail_url,
+            duration: videoData.duration,
+            views: videoData.views || 0,
+            likes: videoData.likes || 0,
+            owner_id: videoData.owner_id,
+            uploader_username: videoData.profiles?.username,
+            uploader_name: videoData.profiles?.full_name,
+            uploader_avatar: videoData.profiles?.avatar_url,
+            uploader_type: videoData.profiles?.user_type as any,
+            profiles: {
+              id: videoData.profiles?.id || videoData.owner_id,
+              username: videoData.profiles?.username || '',
+              full_name: videoData.profiles?.full_name || '',
+              avatar_url: videoData.profiles?.avatar_url || '',
+              user_type: videoData.profiles?.user_type || 'user'
+            },
+            is_premium: type === 'premium'
+          }}
+          viewMode="list"
+        />
       </div>
     );
   };
@@ -512,15 +464,20 @@ const ProfilePage = () => {
 
                 setUploadedVideos(videos || []);
 
-                // Fetch playlists
-                const { data: playlistsData } = await supabase
-                  .from('playlists')
-                  .select('*')
-                  .eq('creator_id', targetUserId)
-                  .order('created_at', { ascending: false })
-                  .limit(10); // Limit initial load
+                // Fetch playlists (handle gracefully if table doesn't exist)
+                try {
+                  const { data: playlistsData } = await supabase
+                    .from('playlists')
+                    .select('*')
+                    .eq('creator_id', targetUserId)
+                    .order('created_at', { ascending: false })
+                    .limit(10); // Limit initial load
 
-                setPlaylists(playlistsData || []);
+                  setPlaylists(playlistsData || []);
+                } catch (playlistError) {
+                  console.log('Playlists feature not available:', playlistError);
+                  setPlaylists([]);
+                }
               }
             } catch (fetchError) {
               console.error('Error fetching additional data:', fetchError);
@@ -799,10 +756,15 @@ const ProfilePage = () => {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="text-white hover:bg-white/20 backdrop-blur-md rounded-full w-11 h-11 shadow-lg"
+                className="text-white hover:bg-white/20 backdrop-blur-md rounded-full w-11 h-11 shadow-lg relative"
                 data-testid="button-notifications"
+                onClick={() => window.location.href = '/notifications'}
               >
                 <Bell className="w-5 h-5" />
+                {/* Notification indicator - only show if there are unread notifications */}
+                {unreadCount > 0 && (
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-950"></div>
+                )}
               </Button>
               <Button 
                 variant="ghost" 
@@ -901,26 +863,16 @@ const ProfilePage = () => {
               <h1 className="text-xl font-bold text-white">
                 {profile.full_name || profile.username}
               </h1>
-              {profile.verified && (
-                <CheckCircle className="h-5 w-5 text-blue-500" />
-              )}
+              <VerificationBadge 
+                userType={profile.user_type as any}
+                size="medium"
+                showText={false}
+              />
             </div>
 
-            {/* Username */}
-            <p className="text-gray-400">@{profile.username}</p>
-
-            {/* User type badges */}
-            <div className="flex items-center space-x-2 mt-1">
-              {profile.user_type === 'individual_creator' && (
-                <Badge variant="secondary" className="bg-purple-600 text-white text-xs">
-                  Creator
-                </Badge>
-              )}
-              {profile.user_type === 'studio_creator' && (
-                <Badge variant="secondary" className="bg-orange-600 text-white text-xs">
-                  Studio
-                </Badge>
-              )}
+            {/* Username without badges */}
+            <div className="flex items-center space-x-2">
+              <p className="text-gray-400">@{profile.username}</p>
             </div>
           </div>
         </div>
@@ -1354,42 +1306,92 @@ const ProfilePage = () => {
         </TabsContent>
 
         <TabsContent value="likes" className="mt-0">
-          <div className="p-4">
-            {favorites.length > 0 ? (
-              <OptimizedVideoGrid 
-                videos={favorites.map(video => ({
-                  id: video.id,
-                  title: video.title,
-                  description: video.description,
-                  thumbnail_url: video.thumbnail_url,
-                  preview_url: video.preview_url,
-                  video_url: video.video_url,
-                  duration: video.duration || '0:00',
-                  views: video.views || 0,
-                  likes: video.likes || 0,
-                  tags: video.tags || [],
-                  created_at: video.created_at,
-                  is_premium: video.is_premium,
-                  uploader_username: video.uploader_username,
-                  uploader_name: video.uploader_name,
-                  uploader_avatar: video.uploader_avatar,
-                  uploader_type: video.uploader_type as any,
-                  uploader_id: video.uploader_id,
-                  owner_id: video.owner_id
-                }))}
-                viewMode="grid"
-                showAds={false}
-                showMoments={false}
-                showPremiumSection={false}
-                showTags={true}
-                showDate={false}
-              />
-            ) : (
-              <div className="text-center py-8 text-gray-400">
-                <Heart className="w-12 h-12 mx-auto mb-4 text-gray-600" />
-                <p>No favorite videos yet</p>
+          <div className="p-4 space-y-6">
+            {/* Favorite Videos Section */}
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Heart className="w-5 h-5 text-red-500" />
+                <h3 className="text-lg font-semibold text-white">Favorite Videos</h3>
               </div>
-            )}
+              {favorites.length > 0 ? (
+                <OptimizedVideoGrid 
+                  videos={favorites.map(video => ({
+                    id: video.id,
+                    title: video.title,
+                    description: video.description,
+                    thumbnail_url: video.thumbnail_url,
+                    preview_url: video.preview_url,
+                    video_url: video.video_url,
+                    duration: video.duration || '0:00',
+                    views: video.views || 0,
+                    likes: video.likes || 0,
+                    tags: video.tags || [],
+                    created_at: video.created_at,
+                    is_premium: video.is_premium,
+                    uploader_username: video.uploader_username,
+                    uploader_name: video.uploader_name,
+                    uploader_avatar: video.uploader_avatar,
+                    uploader_type: video.uploader_type as any,
+                    uploader_id: video.uploader_id,
+                    owner_id: video.owner_id
+                  }))}
+                  viewMode="grid"
+                  showAds={false}
+                  showMoments={false}
+                  showPremiumSection={false}
+                  showTags={true}
+                  showDate={false}
+                />
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <Heart className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                  <p>No favorite videos yet</p>
+                </div>
+              )}
+            </div>
+
+            {/* Watch History Section */}
+            <div>
+              <div className="flex items-center space-x-2 mb-4">
+                <Eye className="w-5 h-5 text-blue-500" />
+                <h3 className="text-lg font-semibold text-white">Watch History</h3>
+              </div>
+              {watchHistory.length > 0 ? (
+                <OptimizedVideoGrid 
+                  videos={watchHistory.map(video => ({
+                    id: video.id,
+                    title: video.title,
+                    description: video.description,
+                    thumbnail_url: video.thumbnail_url,
+                    preview_url: video.preview_url,
+                    video_url: video.video_url,
+                    duration: video.duration || '0:00',
+                    views: video.views || 0,
+                    likes: video.likes || 0,
+                    tags: video.tags || [],
+                    created_at: video.created_at,
+                    is_premium: video.is_premium,
+                    uploader_username: video.uploader_username,
+                    uploader_name: video.uploader_name,
+                    uploader_avatar: video.uploader_avatar,
+                    uploader_type: video.uploader_type as any,
+                    uploader_id: video.uploader_id,
+                    owner_id: video.owner_id
+                  }))}
+                  viewMode="grid"
+                  showAds={false}
+                  showMoments={false}
+                  showPremiumSection={false}
+                  showTags={true}
+                  showDate={false}
+                />
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  <Eye className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+                  <p>No watched videos yet</p>
+                </div>
+              )}
+            </div>
           </div>
         </TabsContent>
 
