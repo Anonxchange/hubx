@@ -19,8 +19,13 @@ export const useMessaging = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
 
-  // Load conversations
-  const loadConversations = async () => {
+  // Load conversations with caching
+  const loadConversations = async (useCache = true) => {
+    // Check cache first if useCache is true
+    if (useCache && conversations.length > 0) {
+      return;
+    }
+    
     setIsLoading(true);
     try {
       const data = await getUserConversations();
@@ -33,16 +38,16 @@ export const useMessaging = () => {
     }
   };
 
-  // Load messages for a conversation
+  // Load messages for a conversation with limit
   const loadMessages = async (conversationId: string) => {
     setIsLoading(true);
     try {
       const messages = await getConversationMessages(conversationId);
-      setCurrentMessages(messages);
+      setCurrentMessages(messages.slice(-50)); // Load only last 50 messages initially
       setCurrentConversationId(conversationId);
       
-      // Mark messages as read
-      await markMessagesAsRead(conversationId);
+      // Mark messages as read (don't await to improve perceived performance)
+      markMessagesAsRead(conversationId).catch(console.error);
     } catch (error) {
       console.error('Error loading messages:', error);
       toast.error('Failed to load messages');
@@ -129,9 +134,13 @@ export const useMessaging = () => {
     };
   }, [currentConversationId]);
 
-  // Load conversations on mount
+  // Load conversations on mount with delay for better perceived performance
   useEffect(() => {
-    loadConversations();
+    const timer = setTimeout(() => {
+      loadConversations(false); // Force fresh load on mount
+    }, 50); // Reduced delay for faster loading
+    
+    return () => clearTimeout(timer);
   }, []);
 
   return {
