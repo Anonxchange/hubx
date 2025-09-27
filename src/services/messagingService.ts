@@ -93,59 +93,85 @@ export const sendMessage = async (messageData: CreateMessageData): Promise<Messa
   }
 };
 
-// Get user's conversations
+// Get user's conversations with limit
 export const getUserConversations = async (): Promise<Conversation[]> => {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    // Get conversations where user is a participant
+    // Get conversations where user is a participant (limit to recent 20 for faster loading)
     const { data: conversations, error } = await supabase
       .from('conversations')
       .select('*')
       .or(`participant_one_id.eq.${user.id},participant_two_id.eq.${user.id}`)
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false })
+      .limit(20);
 
     if (error) throw error;
+    if (!conversations || conversations.length === 0) return [];
 
-    // Process conversations to add participant info and last message
-    const processedConversations: Conversation[] = [];
-    
-    for (const conv of conversations || []) {
-      // Get the other participant's profile
+    // Get all participant IDs in one go
+    const participantIds = new Set<string>();
+    conversations.forEach(conv => {
+      const otherParticipantId = conv.participant_one_id === user.id 
+        ? conv.participant_two_id 
+        : conv.participant_one_id;
+      participantIds.add(otherParticipantId);
+    });
+
+    // Batch fetch all participants
+    const { data: participants } = await supabase
+      .from('profiles')
+      .select('id, username, full_name, profile_picture_url')
+      .in('id', Array.from(participantIds));
+
+    const participantsMap = new Map(
+      (participants || []).map(p => [p.id, p])
+    );
+
+    // Batch fetch last messages for all conversations
+    const conversationIds = conversations.map(c => c.id);
+    const { data: allMessages } = await supabase
+      .from('messages')
+      .select('conversation_id, content, created_at, sender_id')
+      .in('conversation_id', conversationIds)
+      .order('created_at', { ascending: false });
+
+    // Group messages by conversation and get the latest for each
+    const lastMessagesMap = new Map<string, any>();
+    (allMessages || []).forEach(message => {
+      if (!lastMessagesMap.has(message.conversation_id)) {
+        lastMessagesMap.set(message.conversation_id, message);
+      }
+    });
+
+    // Batch fetch unread counts
+    const { data: unreadCounts } = await supabase
+      .from('messages')
+      .select('conversation_id')
+      .in('conversation_id', conversationIds)
+      .eq('receiver_id', user.id)
+      .eq('read', false);
+
+    const unreadCountsMap = new Map<string, number>();
+    (unreadCounts || []).forEach(msg => {
+      const count = unreadCountsMap.get(msg.conversation_id) || 0;
+      unreadCountsMap.set(msg.conversation_id, count + 1);
+    });
+
+    // Process conversations with batched data
+    const processedConversations: Conversation[] = conversations.map(conv => {
       const otherParticipantId = conv.participant_one_id === user.id 
         ? conv.participant_two_id 
         : conv.participant_one_id;
 
-      const { data: participant } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, profile_picture_url')
-        .eq('id', otherParticipantId)
-        .single();
-
-      // Get messages for this conversation
-      const { data: messages } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', conv.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      // Count unread messages
-      const { count: unreadCount } = await supabase
-        .from('messages')
-        .select('*', { count: 'exact', head: true })
-        .eq('conversation_id', conv.id)
-        .eq('receiver_id', user.id)
-        .eq('read', false);
-
-      processedConversations.push({
+      return {
         ...conv,
-        participant: participant || undefined,
-        last_message: messages?.[0] || undefined,
-        unread_count: unreadCount || 0
-      });
-    }
+        participant: participantsMap.get(otherParticipantId) || undefined,
+        last_message: lastMessagesMap.get(conv.id) || undefined,
+        unread_count: unreadCountsMap.get(conv.id) || 0
+      };
+    });
 
     return processedConversations;
   } catch (error) {
@@ -154,17 +180,18 @@ export const getUserConversations = async (): Promise<Conversation[]> => {
   }
 };
 
-// Get messages for a conversation
+// Get messages for a conversation with limit
 export const getConversationMessages = async (conversationId: string): Promise<Message[]> => {
   try {
     const { data: messages, error } = await supabase
       .from('messages')
       .select('*')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: false })
+      .limit(100); // Limit to recent 100 messages
 
     if (error) throw error;
-    return messages || [];
+    return (messages || []).reverse(); // Reverse to maintain chronological order
   } catch (error) {
     console.error('Error getting conversation messages:', error);
     return [];
