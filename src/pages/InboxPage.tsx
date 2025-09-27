@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { MessageCircle, Send, Search, Edit, ArrowLeft, Info, Plus } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import Header from '@/components/Header';
+import VerificationBadge from '@/components/VerificationBadge';
 
 const InboxPage: React.FC = () => {
   const location = useLocation();
@@ -21,6 +22,9 @@ const InboxPage: React.FC = () => {
     sendMessage,
     startConversation
   } = useMessaging();
+
+  // Add local loading state for better UX
+  const [localLoading, setLocalLoading] = useState(false);
 
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [messageText, setMessageText] = useState('');
@@ -47,8 +51,13 @@ const InboxPage: React.FC = () => {
   };
 
   const handleConversationClick = async (conversationId: string) => {
+    setLocalLoading(true);
     setSelectedConversation(conversationId);
-    await loadMessages(conversationId);
+    try {
+      await loadMessages(conversationId);
+    } finally {
+      setLocalLoading(false);
+    }
   };
 
   const handleSendMessage = async () => {
@@ -127,7 +136,7 @@ const InboxPage: React.FC = () => {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
         <div className="text-center">
           <MessageCircle className="w-16 h-16 mx-auto text-gray-600 mb-4" />
           <h2 className="text-xl font-semibold mb-2">Sign in to access messages</h2>
@@ -142,7 +151,7 @@ const InboxPage: React.FC = () => {
     const participant = conversation?.participant;
 
     return (
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen bg-gray-950 text-white">
         {/* Conversation Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-800">
           <div className="flex items-center gap-3">
@@ -169,7 +178,7 @@ const InboxPage: React.FC = () => {
                 {participant?.full_name || participant?.username || 'Unknown User'}
               </h2>
               {participant?.username && participant?.username !== participant?.full_name && (
-                <span className="text-blue-400 text-sm">✓</span>
+                <VerificationBadge userType="individual_creator" size="small" />
               )}
             </div>
           </div>
@@ -211,13 +220,13 @@ const InboxPage: React.FC = () => {
                     <div key={message.id} className={`flex ${isFromUser ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
                         isFromUser 
-                          ? 'bg-blue-500 text-white' 
+                          ? 'bg-purple-500 text-white' 
                           : 'bg-gray-800 text-white'
                       }`}>
                         <p className="text-sm">{message.content}</p>
                         {showTime && (
                           <p className={`text-xs mt-1 ${
-                            isFromUser ? 'text-blue-100' : 'text-gray-400'
+                            isFromUser ? 'text-purple-100' : 'text-gray-400'
                           }`}>
                             {format(new Date(message.created_at), 'h:mm a')} ✓
                           </p>
@@ -253,7 +262,7 @@ const InboxPage: React.FC = () => {
                 <Button
                   onClick={handleSendMessage}
                   disabled={!messageText.trim() || isSending}
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-blue-500 hover:bg-blue-600 rounded-full w-8 h-8 p-0"
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-purple-500 hover:bg-purple-600 rounded-full w-8 h-8 p-0"
                   data-testid="button-send"
                 >
                   <Send className="w-4 h-4" />
@@ -296,7 +305,7 @@ const InboxPage: React.FC = () => {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-black text-white">
+      <div className="min-h-screen bg-gray-950 text-white">
         {/* Header */}
         <div className="flex items-center justify-between p-4">
         <div className="flex items-center gap-4">
@@ -396,7 +405,7 @@ const InboxPage: React.FC = () => {
                           {participant?.full_name || participant?.username || 'Unknown User'}
                         </h3>
                         {participant?.username && (
-                          <span className="text-blue-400 text-sm">✓</span>
+                          <VerificationBadge userType="individual_creator" size="small" />
                         )}
                       </div>
                       {lastMessage && (
@@ -416,7 +425,7 @@ const InboxPage: React.FC = () => {
                       )}
                       
                       {conversation.unread_count > 0 && (
-                        <div className="w-2 h-2 bg-blue-400 rounded-full ml-2 flex-shrink-0"></div>
+                        <div className="w-2 h-2 bg-purple-400 rounded-full ml-2 flex-shrink-0"></div>
                       )}
                     </div>
                   </div>
