@@ -297,12 +297,7 @@ const FeedPage: React.FC = () => {
                 {(userProfile?.username || 'U')[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            {/* Purple plus icon for subscription */}
-            <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-purple-600 rounded-full flex items-center justify-center">
-              <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
+            
           </Link>
 
           {/* Center - HubX Logo */}
@@ -493,12 +488,7 @@ const FeedPage: React.FC = () => {
                         {(post.creator?.username || 'A')[0].toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    {/* Purple plus icon for subscription */}
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-purple-600 rounded-full flex items-center justify-center">
-                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </div>
+                    
                   </Link>
 
                   <div className="flex-1 min-w-0">
