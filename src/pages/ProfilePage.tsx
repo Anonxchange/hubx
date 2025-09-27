@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Navigate } from 'react-router-dom';
+import { useParams, Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,7 +8,9 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ArrowLeft, Bell, DollarSign, MoreHorizontal, MessageCircle, UserPlus, CheckCircle, Camera, Play, List, Heart, Upload, Share, Star, Repeat2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Bell, DollarSign, MoreHorizontal, MessageCircle, UserPlus, CheckCircle, Camera, Play, List, Heart, Upload, Share, Star, Repeat2, Image as ImageIcon, Video, Globe, Lock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -17,6 +19,7 @@ import {
   isSubscribedToCreator, 
   getSubscriberCount,
   getCreatorPosts,
+  createPost,
   Post
 } from '@/services/socialFeedService';
 import { getUserStats, UserStats } from '@/services/userStatsService';
@@ -27,6 +30,7 @@ import AdComponent from '@/components/AdComponent';
 import VideoCard from '@/components/VideoCard';
 import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
 import TipModal from '@/components/TipModal';
+import ShareModal from '@/components/ShareModal';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 
@@ -39,6 +43,12 @@ interface ProfileData {
   cover_photo_url: string;
   user_type: string;
   verified?: boolean;
+  tip_paypal?: string;
+  tip_venmo?: string;
+  tip_cashapp?: string;
+  tip_bitcoin?: string;
+  tip_ethereum?: string;
+  tip_description?: string;
 }
 
 const ProfilePage = () => {
@@ -58,6 +68,27 @@ const ProfilePage = () => {
   const [playlists, setPlaylists] = useState<any[]>([]);
   const [isTipModalOpen, setIsTipModalOpen] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
+
+  // Post creation state
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [newPostContent, setNewPostContent] = useState('');
+  const [newPostMedia, setNewPostMedia] = useState<File | null>(null);
+  const [newPostPrivacy, setNewPostPrivacy] = useState('public');
+  const [isPostingLoading, setIsPostingLoading] = useState(false);
+
+  // Edit profile state
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editTipPaypal, setEditTipPaypal] = useState('');
+  const [editTipVenmo, setEditTipVenmo] = useState('');
+  const [editTipCashapp, setEditTipCashapp] = useState('');
+  const [editTipBitcoin, setEditTipBitcoin] = useState('');
+  const [editTipEthereum, setEditTipEthereum] = useState('');
+  const [editTipDescription, setEditTipDescription] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // Share profile state
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // Determine if viewing own profile
   const [currentUserUsername, setCurrentUserUsername] = useState<string | null>(null);
@@ -112,60 +143,64 @@ const ProfilePage = () => {
 
         if (profileData && targetUserId) {
           setProfile(profileData);
+          setLoading(false); // Set loading to false after profile is loaded
 
-          // Fetch additional data with proper typing
+          // Fetch critical data first (subscriber count and subscription status)
           try {
-            const [
-              subscriberCount,
-              isSubscribedResult,
-              posts,
-              stats,
-              favorites,
-              watchHistory
-            ] = await Promise.all([
+            const [subscriberCount, isSubscribedResult] = await Promise.all([
               getSubscriberCount(targetUserId),
               targetUserId !== user?.id && user?.id ? isSubscribedToCreator(targetUserId) : false,
-              getCreatorPosts(targetUserId),
-              getUserStats(targetUserId),
-              getUserFavorites(targetUserId),
-              getUserWatchHistory(targetUserId)
             ]);
 
             setSubscriberCount(subscriberCount);
             setIsSubscribed(isSubscribedResult);
-            setPosts(posts);
-            setStats(stats);
-            setFavorites(favorites);
-            setWatchHistory(watchHistory);
-
-            // Fetch videos if user is a creator
-            if (profileData.user_type === 'individual_creator' || profileData.user_type === 'studio_creator') {
-              const { data: videos } = await supabase
-                .from('videos')
-                .select('*')
-                .eq('owner_id', targetUserId)
-                .order('created_at', { ascending: false });
-
-              setUploadedVideos(videos || []);
-            }
-
-            // Fetch playlists if user is a creator
-            if (profileData.user_type === 'individual_creator' || profileData.user_type === 'studio_creator') {
-              const { data: playlistsData } = await supabase
-                .from('playlists')
-                .select('*')
-                .eq('creator_id', targetUserId)
-                .order('created_at', { ascending: false });
-              
-              setPlaylists(playlistsData || []);
-            }
-          } catch (fetchError) {
-            console.error('Error fetching additional data:', fetchError);
+          } catch (error) {
+            console.error('Error fetching critical data:', error);
           }
+
+          // Fetch non-critical data in background
+          setTimeout(async () => {
+            try {
+              const [posts, stats, favorites, watchHistory] = await Promise.all([
+                getCreatorPosts(targetUserId),
+                getUserStats(targetUserId),
+                getUserFavorites(targetUserId),
+                getUserWatchHistory(targetUserId)
+              ]);
+
+              setPosts(posts);
+              setStats(stats);
+              setFavorites(favorites);
+              setWatchHistory(watchHistory);
+
+              // Fetch videos if user is a creator
+              if (profileData.user_type === 'individual_creator' || profileData.user_type === 'studio_creator') {
+                const { data: videos } = await supabase
+                  .from('videos')
+                  .select('*')
+                  .eq('owner_id', targetUserId)
+                  .order('created_at', { ascending: false })
+                  .limit(20); // Limit initial load
+
+                setUploadedVideos(videos || []);
+
+                // Fetch playlists
+                const { data: playlistsData } = await supabase
+                  .from('playlists')
+                  .select('*')
+                  .eq('creator_id', targetUserId)
+                  .order('created_at', { ascending: false })
+                  .limit(10); // Limit initial load
+
+                setPlaylists(playlistsData || []);
+              }
+            } catch (fetchError) {
+              console.error('Error fetching additional data:', fetchError);
+            }
+          }, 100); // Small delay to let UI render first
         }
       } catch (error) {
         console.error('Error fetching profile:', error);
-      } finally {
         setLoading(false);
       }
     };
@@ -237,6 +272,89 @@ const ProfilePage = () => {
     }
   };
 
+  const handleCreatePost = async () => {
+    if (!newPostContent.trim() && !newPostMedia) return;
+
+    setIsPostingLoading(true);
+    try {
+      const post = await createPost({
+        content: newPostContent,
+        media_file: newPostMedia,
+        privacy: newPostPrivacy
+      });
+
+      if (post) {
+        // Update the posts in the feed tab
+        setPosts([post, ...posts]);
+        // Reset form
+        setNewPostContent('');
+        setNewPostMedia(null);
+        setNewPostPrivacy('public');
+        setIsPostModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Error creating post:', error);
+    } finally {
+      setIsPostingLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user?.id || !profile) return;
+
+    setIsSavingProfile(true);
+    try {
+      const updates = {
+        full_name: editDisplayName,
+        bio: editBio,
+        tip_paypal: editTipPaypal,
+        tip_venmo: editTipVenmo,
+        tip_cashapp: editTipCashapp,
+        tip_bitcoin: editTipBitcoin,
+        tip_ethereum: editTipEthereum,
+        tip_description: editTipDescription,
+      };
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
+
+      if (!error) {
+        setProfile(prev => prev ? { 
+          ...prev, 
+          full_name: editDisplayName, 
+          bio: editBio,
+          tip_paypal: editTipPaypal,
+          tip_venmo: editTipVenmo,
+          tip_cashapp: editTipCashapp,
+          tip_bitcoin: editTipBitcoin,
+          tip_ethereum: editTipEthereum,
+          tip_description: editTipDescription,
+        } : null);
+        setIsEditingProfile(false);
+      } else {
+        console.error('Error updating profile:', error);
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // Initialize edit form when opening
+  const handleEditProfile = () => {
+    setEditDisplayName(profile?.full_name || '');
+    setEditBio(profile?.bio || '');
+    setEditTipPaypal(profile.tip_paypal || '');
+    setEditTipVenmo(profile.tip_venmo || '');
+    setEditTipCashapp(profile.tip_cashapp || '');
+    setEditTipBitcoin(profile.tip_bitcoin || '');
+    setEditTipEthereum(profile.tip_ethereum || '');
+    setEditTipDescription(profile.tip_description || 'Support my content creation journey! 💖');
+    setIsEditingProfile(true);
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -260,7 +378,7 @@ const ProfilePage = () => {
   return (
     <div className="min-h-screen bg-gray-950 text-white">
       <Header />
-      
+
       {/* Cover Photo with overlaid action buttons */}
       <div className="relative h-32 bg-gradient-to-r from-purple-600 to-blue-600">
         {profile.cover_photo_url ? (
@@ -273,9 +391,9 @@ const ProfilePage = () => {
           <div className="w-full h-full bg-gradient-to-r from-purple-600/30 to-blue-600/30" />
         )}
 
-        {/* Header overlay with back button and action icons */}
+        {/* Header overlay with back button and action icons - moved up */}
         <div className="absolute top-0 left-0 right-0 z-10 bg-gradient-to-b from-black/60 via-black/30 to-transparent">
-          <div className="flex items-center justify-between p-4">
+          <div className="flex items-center justify-between p-2">
             <Button
               variant="ghost"
               size="icon"
@@ -316,9 +434,9 @@ const ProfilePage = () => {
           </div>
         </div>
 
-        {/* Cover photo upload button for own profile - moved to top area */}
+        {/* Cover photo upload button for own profile - moved down */}
         {isOwnProfile && (
-          <div className="absolute top-20 right-4 z-10">
+          <div className="absolute bottom-4 right-4 z-10">
             <input
               type="file"
               accept="image/*"
@@ -469,15 +587,18 @@ const ProfilePage = () => {
         ) : (
           <div className="flex space-x-3">
             <Button 
-              onClick={() => setIsEditingProfile(true)}
+              onClick={handleEditProfile}
               variant="outline"
               className="flex-1 rounded-full font-semibold border-gray-600 text-white hover:bg-gray-800"
+              data-testid="button-edit-profile"
             >
               Edit profile
             </Button>
             <Button 
+              onClick={() => setIsShareModalOpen(true)}
               variant="outline" 
               className="flex-1 rounded-full font-semibold border-gray-600 text-white hover:bg-gray-800"
+              data-testid="button-share-profile"
             >
               Share profile  
             </Button>
@@ -517,9 +638,80 @@ const ProfilePage = () => {
         <TabsContent value="videos" className="mt-0">
           <div className="p-4">
             {uploadedVideos.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-8">
+                {/* Moments Section - Horizontal Scrollable */}
+                {uploadedVideos.filter(video => video.is_moment).length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-2">
+                        <Play className="w-5 h-5 text-pink-500" />
+                        <h3 className="text-lg font-semibold text-white">Moments</h3>
+                        <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">Short Videos</Badge>
+                      </div>
+                      <Link to={`/profile/${profile.username}/moments`}>
+                        <Button variant="outline" size="sm" className="text-pink-400 border-pink-400 hover:bg-pink-400 hover:text-white">
+                          View All
+                        </Button>
+                      </Link>
+                    </div>
+                    
+                    {/* Horizontal scrollable moments */}
+                    <div className="relative">
+                      <div className="flex space-x-4 overflow-x-auto scrollbar-hide pb-4">
+                        {uploadedVideos.filter(video => video.is_moment).slice(0, 10).map((video) => (
+                          <Link
+                            key={`moment-${video.id}`}
+                            to={`/moments?start=${video.id}`}
+                            className="flex-shrink-0 w-32 group"
+                          >
+                            <div className="relative aspect-[9/16] overflow-hidden rounded-lg bg-gray-800">
+                              <img
+                                src={video.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=300&h=400&fit=crop'}
+                                alt={video.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                              
+                              {/* Play overlay */}
+                              <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                                  <Play className="w-4 h-4 text-white ml-0.5" fill="currentColor" />
+                                </div>
+                              </div>
+
+                              {/* Duration */}
+                              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-1.5 py-0.5 rounded">
+                                {video.duration || '0:15'}
+                              </div>
+
+                              {/* Moments badge */}
+                              <div className="absolute top-2 left-2">
+                                <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs">
+                                  Moment
+                                </Badge>
+                              </div>
+                            </div>
+                            
+                            <div className="mt-2">
+                              <h4 className="text-white text-xs font-medium line-clamp-2 leading-tight">
+                                {video.title}
+                              </h4>
+                              <div className="flex items-center justify-between text-xs text-gray-400 mt-1">
+                                <span>{video.views || 0} views</span>
+                                <span>{video.likes || 0} ♥</span>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                      
+                      {/* Gradient fade on right edge */}
+                      <div className="absolute top-0 right-0 h-full w-8 bg-gradient-to-l from-gray-950 to-transparent pointer-events-none"></div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Premium Videos Section */}
-                {uploadedVideos.filter(video => video.is_premium).length > 0 && (
+                {uploadedVideos.filter(video => video.is_premium && !video.is_moment).length > 0 && (
                   <div>
                     <div className="flex items-center space-x-2 mb-4">
                       <Star className="w-5 h-5 text-yellow-500" />
@@ -527,7 +719,7 @@ const ProfilePage = () => {
                       <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">Premium</Badge>
                     </div>
                     <OptimizedVideoGrid 
-                      videos={uploadedVideos.filter(video => video.is_premium).map(video => ({
+                      videos={uploadedVideos.filter(video => video.is_premium && !video.is_moment).map(video => ({
                         id: video.id,
                         title: video.title,
                         description: video.description,
@@ -556,9 +748,9 @@ const ProfilePage = () => {
                     />
                   </div>
                 )}
-                
+
                 {/* Regular Videos Section */}
-                {uploadedVideos.filter(video => !video.is_premium).length > 0 && (
+                {uploadedVideos.filter(video => !video.is_premium && !video.is_moment).length > 0 && (
                   <div>
                     <div className="flex items-center space-x-2 mb-4">
                       <Play className="w-5 h-5 text-blue-500" />
@@ -566,7 +758,7 @@ const ProfilePage = () => {
                       <Badge variant="secondary" className="bg-gray-700 text-white">Free</Badge>
                     </div>
                     <OptimizedVideoGrid 
-                      videos={uploadedVideos.filter(video => !video.is_premium).map(video => ({
+                      videos={uploadedVideos.filter(video => !video.is_premium && !video.is_moment).map(video => ({
                         id: video.id,
                         title: video.title,
                         description: video.description,
@@ -781,14 +973,12 @@ const ProfilePage = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Floating Post Button - Only for own profile */}
-      {isOwnProfile && (profile.user_type === 'individual_creator' || profile.user_type === 'studio_creator') && (
+
+      {/* Floating Post Button - Only for own profile and only on Feed tab */}
+      {isOwnProfile && (profile.user_type === 'individual_creator' || profile.user_type === 'studio_creator') && activeTab === 'collection' && (
         <div className="fixed bottom-20 right-4 z-50">
           <Button
-            onClick={() => {
-              // Navigate to feed page where they can post
-              window.location.href = '/feed';
-            }}
+            onClick={() => setIsPostModalOpen(true)}
             className="w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
             data-testid="floating-post-button"
           >
@@ -799,23 +989,247 @@ const ProfilePage = () => {
         </div>
       )}
 
-      {/* Floating Post Button - Only for own profile and only on Feed tab */}
-      {isOwnProfile && (profile.user_type === 'individual_creator' || profile.user_type === 'studio_creator') && activeTab === 'collection' && (
-        <div className="fixed bottom-20 right-4 z-50">
-          <Button
-            onClick={() => {
-              // Navigate to feed page where they can post
-              window.location.href = '/feed';
-            }}
-            className="w-14 h-14 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center"
-            data-testid="floating-post-button"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </Button>
-        </div>
-      )}
+      {/* Post Creation Modal */}
+      <Dialog open={isPostModalOpen} onOpenChange={setIsPostModalOpen}>
+        <DialogContent className="bg-gray-950 border-gray-800 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">Create Post</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex space-x-3">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={profile.avatar_url || ''} />
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                  {(profile.username || 'U')[0].toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-3">
+                <Textarea
+                  placeholder="What's happening?"
+                  value={newPostContent}
+                  onChange={(e) => setNewPostContent(e.target.value)}
+                  className="min-h-[120px] bg-transparent border-gray-700 resize-none text-base placeholder-gray-500 focus:ring-1 focus:ring-blue-500"
+                  data-testid="textarea-post-content"
+                />
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="file"
+                      accept="image/*,video/*"
+                      onChange={(e) => setNewPostMedia(e.target.files?.[0] || null)}
+                      className="hidden"
+                      id="post-media-upload"
+                    />
+                    <label htmlFor="post-media-upload">
+                      <Button variant="ghost" size="sm" className="text-blue-500 hover:bg-blue-500/10 p-2" asChild data-testid="button-upload-media">
+                        <span className="cursor-pointer">
+                          <ImageIcon className="h-5 w-5" />
+                        </span>
+                      </Button>
+                    </label>
+
+                    <Select value={newPostPrivacy} onValueChange={setNewPostPrivacy}>
+                      <SelectTrigger className="w-auto border-gray-700 bg-transparent text-blue-500">
+                        <Globe className="h-4 w-4 mr-1" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="public">
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-4 w-4" />
+                            Everyone can reply
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="private">
+                          <div className="flex items-center gap-2">
+                            <Lock className="h-4 w-4" />
+                            Private
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button 
+                    onClick={handleCreatePost}
+                    disabled={isPostingLoading || (!newPostContent.trim() && !newPostMedia)}
+                    className="bg-blue-500 hover:bg-blue-600 text-white font-bold px-6 py-1.5 rounded-full disabled:opacity-50"
+                    data-testid="button-create-post"
+                  >
+                    {isPostingLoading ? 'Posting...' : 'Post'}
+                  </Button>
+                </div>
+
+                {newPostMedia && (
+                  <div className="text-sm text-gray-400 bg-gray-900 rounded p-2">
+                    📎 {newPostMedia.name}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Profile Modal */}
+      <Dialog open={isEditingProfile} onOpenChange={setIsEditingProfile}>
+        <DialogContent className="bg-black/70 backdrop-blur-xl border border-gray-700/30 text-white max-w-md shadow-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader className="pb-4 border-b border-gray-700/30 flex-shrink-0">
+            <DialogTitle className="text-white text-xl font-semibold bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">
+              Edit Profile
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto pr-2 space-y-6 pt-4">
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-200 tracking-wide">
+                Display Name
+              </label>
+              <Input
+                value={editDisplayName}
+                onChange={(e) => setEditDisplayName(e.target.value)}
+                placeholder="Enter display name"
+                className="bg-gray-800/50 backdrop-blur-sm border-gray-600/50 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 transition-all duration-200 rounded-lg h-12"
+                data-testid="input-display-name"
+              />
+            </div>
+
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-200 tracking-wide">
+                Bio
+              </label>
+              <Textarea
+                value={editBio}
+                onChange={(e) => setEditBio(e.target.value)}
+                placeholder="Tell people about yourself..."
+                className="bg-gray-800/50 backdrop-blur-sm border-gray-600/50 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 transition-all duration-200 rounded-lg min-h-[100px] resize-none"
+                data-testid="textarea-bio"
+              />
+            </div>
+
+            {/* Tip Settings Section */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">Tip Settings</h3>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-200 tracking-wide">
+                  PayPal
+                </label>
+                <Input
+                  value={editTipPaypal}
+                  onChange={(e) => setEditTipPaypal(e.target.value)}
+                  placeholder="Your PayPal email or link"
+                  className="bg-gray-800/50 backdrop-blur-sm border-gray-600/50 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 transition-all duration-200 rounded-lg h-11"
+                  data-testid="input-tip-paypal"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-200 tracking-wide">
+                  Venmo
+                </label>
+                <Input
+                  value={editTipVenmo}
+                  onChange={(e) => setEditTipVenmo(e.target.value)}
+                  placeholder="Your Venmo username or link"
+                  className="bg-gray-800/50 backdrop-blur-sm border-gray-600/50 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 transition-all duration-200 rounded-lg h-11"
+                  data-testid="input-tip-venmo"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-200 tracking-wide">
+                  Cash App
+                </label>
+                <Input
+                  value={editTipCashapp}
+                  onChange={(e) => setEditTipCashapp(e.target.value)}
+                  placeholder="Your Cash App username or link"
+                  className="bg-gray-800/50 backdrop-blur-sm border-gray-600/50 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 transition-all duration-200 rounded-lg h-11"
+                  data-testid="input-tip-cashapp"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-200 tracking-wide">
+                  Bitcoin
+                </label>
+                <Input
+                  value={editTipBitcoin}
+                  onChange={(e) => setEditTipBitcoin(e.target.value)}
+                  placeholder="Your Bitcoin address"
+                  className="bg-gray-800/50 backdrop-blur-sm border-gray-600/50 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 transition-all duration-200 rounded-lg h-11"
+                  data-testid="input-tip-bitcoin"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-200 tracking-wide">
+                  Ethereum
+                </label>
+                <Input
+                  value={editTipEthereum}
+                  onChange={(e) => setEditTipEthereum(e.target.value)}
+                  placeholder="Your Ethereum address"
+                  className="bg-gray-800/50 backdrop-blur-sm border-gray-600/50 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 transition-all duration-200 rounded-lg h-11"
+                  data-testid="input-tip-ethereum"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-200 tracking-wide">
+                  Tip Message
+                </label>
+                <Textarea
+                  value={editTipDescription}
+                  onChange={(e) => setEditTipDescription(e.target.value)}
+                  placeholder="Support my content creation journey! 💖"
+                  className="bg-gray-800/50 backdrop-blur-sm border-gray-600/50 text-white placeholder-gray-400 focus:border-purple-500/50 focus:ring-purple-500/20 transition-all duration-200 rounded-lg min-h-[70px] resize-none"
+                  data-testid="textarea-tip-description"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex space-x-4 pt-6 border-t border-gray-700/30 flex-shrink-0">
+            <Button
+              onClick={() => setIsEditingProfile(false)}
+              variant="outline"
+              className="flex-1 border-gray-600/50 text-gray-300 hover:bg-gray-700/50 hover:border-gray-500/50 backdrop-blur-sm transition-all duration-200 rounded-lg h-12 font-medium"
+              data-testid="button-cancel-edit"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveProfile}
+              disabled={isSavingProfile}
+              className="flex-1 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white shadow-lg hover:shadow-purple-500/25 transition-all duration-200 rounded-lg h-12 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              data-testid="button-save-profile"
+            >
+              {isSavingProfile ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Saving...</span>
+                </div>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Share Profile Modal */}
+      <ShareModal
+        open={isShareModalOpen}
+        onOpenChange={setIsShareModalOpen}
+        videoTitle={`${profile.full_name || profile.username}'s Profile`}
+        videoId=""
+      >
+        <div />
+      </ShareModal>
 
       {/* Tip Modal */}
       {isTipModalOpen && (
