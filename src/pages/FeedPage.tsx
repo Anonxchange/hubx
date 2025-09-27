@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { 
   getFeedPosts, 
   createPost, 
@@ -41,6 +41,7 @@ import { formatDistanceToNow, format, isToday, isYesterday, isThisWeek, isThisYe
 import { Link } from 'react-router-dom';
 import ShareModal from '@/components/ShareModal';
 import MessageButton from '@/components/MessageButton';
+import OptimizedVideoGrid from '@/components/OptimizedVideoGrid';
 
 
 // Helper function to format post time in a perfect way
@@ -48,7 +49,7 @@ const formatPostTime = (dateString: string): string => {
   const postDate = new Date(dateString);
   const now = new Date();
   const diffInMinutes = Math.floor((now.getTime() - postDate.getTime()) / (1000 * 60));
-  
+
   if (diffInMinutes < 1) {
     return 'now';
   } else if (diffInMinutes < 60) {
@@ -69,6 +70,274 @@ const formatPostTime = (dateString: string): string => {
   }
 };
 
+// Function to detect and embed video links in post content
+const renderPostContent = (content: string) => {
+  // Enhanced regex patterns for different video URLs including internal video links
+  const videoPatterns = [
+    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+    /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/,
+    /https?:\/\/[^\s]+\.(mp4|webm|ogg)(\?[^\s]*)?/i,
+    // Internal video links - matches /video/{id} or site.com/video/{id}
+    /(?:https?:\/\/[^\/\s]+)?\/video\/([a-f0-9\-]{36})/i,
+    // Premium video links
+    /(?:https?:\/\/[^\/\s]+)?\/premium\/video\/([a-f0-9\-]{36})/i,
+    // Moments links
+    /(?:https?:\/\/[^\/\s]+)?\/moments\?start=([a-f0-9\-]{36})/i
+  ];
+
+  const lines = content.split('\n');
+  const processedContent = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    let hasVideo = false;
+
+    // Check each video pattern
+    for (const pattern of videoPatterns) {
+      const match = line.match(pattern);
+      if (match) {
+        hasVideo = true;
+        const originalUrl = match[0];
+
+        // Get text before and after the URL
+        const textBefore = line.substring(0, match.index);
+        const textAfter = line.substring((match.index || 0) + match[0].length);
+
+        // Add text before URL first
+        if (textBefore.trim()) {
+          processedContent.push(
+            <p key={`text-before-${i}`} className="text-white text-[15px] leading-5">
+              {textBefore.trim()}
+            </p>
+          );
+        }
+
+        // Then add the video embed based on type
+        // Internal video links (regular videos)
+        if (originalUrl.includes('/video/') && !originalUrl.includes('/premium/')) {
+          const videoId = match[1];
+          processedContent.push(
+            <InternalVideoEmbed 
+              key={`internal-video-${i}`} 
+              videoId={videoId} 
+              originalUrl={originalUrl}
+              type="video"
+            />
+          );
+        }
+        // Internal premium video links
+        else if (originalUrl.includes('/premium/video/')) {
+          const videoId = match[1];
+          processedContent.push(
+            <InternalVideoEmbed 
+              key={`premium-video-${i}`} 
+              videoId={videoId} 
+              originalUrl={originalUrl}
+              type="premium"
+            />
+          );
+        }
+        // Internal moments links
+        else if (originalUrl.includes('/moments?start=')) {
+          const videoId = match[1];
+          processedContent.push(
+            <InternalVideoEmbed 
+              key={`moment-video-${i}`} 
+              videoId={videoId} 
+              originalUrl={originalUrl}
+              type="moment"
+            />
+          );
+        }
+        // YouTube embedding
+        else if (match[0].includes('youtube.com') || match[0].includes('youtu.be')) {
+          const videoId = match[1];
+          processedContent.push(
+            <div key={`video-${i}`} className="my-3">
+              <div className="aspect-video rounded-lg overflow-hidden bg-gray-800">
+                <iframe
+                  src={`https://www.youtube.com/embed/${videoId}`}
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title="YouTube video"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          );
+        }
+        // Vimeo embedding  
+        else if (match[0].includes('vimeo.com')) {
+          const videoId = match[1];
+          processedContent.push(
+            <div key={`video-${i}`} className="my-3">
+              <div className="aspect-video rounded-lg overflow-hidden bg-gray-800">
+                <iframe
+                  src={`https://player.vimeo.com/video/${videoId}`}
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="autoplay; fullscreen; picture-in-picture"
+                  allowFullScreen
+                  title="Vimeo video"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+          );
+        }
+        // Direct video file URLs
+        else {
+          processedContent.push(
+            <div key={`video-${i}`} className="my-3">
+              <div className="rounded-lg overflow-hidden bg-gray-800">
+                <video
+                  src={originalUrl}
+                  controls
+                  className="w-full h-auto max-h-96 object-cover"
+                  preload="metadata"
+                />
+              </div>
+            </div>
+          );
+        }
+
+        // Finally add text after URL
+        if (textAfter.trim()) {
+          processedContent.push(
+            <p key={`text-after-${i}`} className="text-white text-[15px] leading-5">
+              {textAfter.trim()}
+            </p>
+          );
+        }
+        break;
+      }
+    }
+
+    // If no video found, render as regular text
+    if (!hasVideo && line.trim()) {
+      processedContent.push(
+        <p key={`text-${i}`} className="text-white text-[15px] leading-5">
+          {line}
+        </p>
+      );
+    }
+  }
+
+  return processedContent.length > 0 ? processedContent : (
+    <p className="text-white text-[15px] leading-5">{content}</p>
+  );
+};
+
+// Component for internal video embeds using OptimizedVideoGrid
+const InternalVideoEmbed: React.FC<{ 
+  videoId: string; 
+  originalUrl: string; 
+  type: 'video' | 'premium' | 'moment' 
+}> = ({ videoId, originalUrl, type }) => {
+  const [videoData, setVideoData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  React.useEffect(() => {
+    const fetchVideoData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('videos')
+          .select(`
+            id, title, thumbnail_url, preview_url, video_url, duration, views, likes, tags,
+            created_at, is_premium, is_moment, description,
+            profiles:owner_id (id, username, avatar_url, full_name, user_type)
+          `)
+          .eq('id', videoId)
+          .single();
+
+        if (!error && data) {
+          // Transform data to match LightVideo interface expected by OptimizedVideoGrid
+          const transformedVideo = {
+            id: data.id,
+            title: data.title,
+            description: data.description,
+            thumbnail_url: data.thumbnail_url,
+            preview_url: data.preview_url,
+            video_url: data.video_url || '',
+            duration: data.duration || '0:00',
+            views: data.views || 0,
+            likes: data.likes || 0,
+            tags: data.tags || [],
+            created_at: data.created_at,
+            is_premium: data.is_premium,
+            is_moment: data.is_moment,
+            uploader_id: data.profiles?.id,
+            uploader_username: data.profiles?.username,
+            uploader_name: data.profiles?.full_name || data.profiles?.username,
+            uploader_avatar: data.profiles?.avatar_url,
+            uploader_type: data.profiles?.user_type || 'user',
+            owner_id: data.profiles?.id
+          };
+          setVideoData(transformedVideo);
+        }
+      } catch (error) {
+        console.error('Error fetching video data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVideoData();
+  }, [videoId]);
+
+  if (loading) {
+    return (
+      <div className="my-3">
+        <div className="bg-gray-800 rounded-lg p-4 animate-pulse">
+          <div className="aspect-video bg-gray-700 rounded mb-3"></div>
+          <div className="h-4 bg-gray-700 rounded mb-2"></div>
+          <div className="h-3 bg-gray-700 rounded w-2/3"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!videoData) {
+    return (
+      <div className="my-3">
+        <div className="bg-gray-800 rounded-lg p-4">
+          <a 
+            href={originalUrl} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-purple-400 hover:text-purple-300 break-all"
+          >
+            {originalUrl}
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="my-3 max-w-sm">
+      <div className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+        <OptimizedVideoGrid 
+          videos={[videoData]} 
+          viewMode="grid"
+          showAds={false}
+          showMoments={false}
+          showPremiumSection={false}
+          showTags={false}
+          showDate={false}
+        />
+        <div className="px-3 pb-2">
+          <div className="text-xs text-purple-400">
+            Click to watch • {type === 'premium' ? 'Premium Video' : type === 'moment' ? 'Moment' : 'Video'}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const FeedPage: React.FC = () => {
   const { user, userProfile } = useAuth();
   const [searchParams] = useSearchParams();
@@ -85,7 +354,7 @@ const FeedPage: React.FC = () => {
   const [postComments, setPostComments] = useState<{[key: string]: any[]}>({});
   const [hasScrolledToTarget, setHasScrolledToTarget] = useState(false);
   const [activeTab, setActiveTab] = useState('home');
-  
+  const navigate = useNavigate(); // Import useNavigate
 
   // Check if user can post (only creators)
   const canPost = userProfile?.user_type === 'individual_creator' || userProfile?.user_type === 'studio_creator';
@@ -207,11 +476,22 @@ const FeedPage: React.FC = () => {
         mediaType = newPostMedia.type.startsWith('video/') ? 'video' : 'image';
       }
 
+      // Basic URL detection for video embeds
+      let embeddedVideoUrl = '';
+      const urlRegex = /(https?:\/\/[^\s]+)/;
+      const match = newPostContent.match(urlRegex);
+      if (match && (match[0].includes('youtube.com') || match[0].includes('vimeo.com'))) {
+          embeddedVideoUrl = match[0];
+          // Optionally remove the URL from the content if you want to display it as an embed
+          // setNewPostContent(newPostContent.replace(embeddedVideoUrl, '').trim());
+      }
+
       const post = await createPost({
         content: newPostContent,
         media_url: mediaUrl,
         media_type: mediaType,
-        privacy: newPostPrivacy
+        privacy: newPostPrivacy,
+        embedded_video_url: embeddedVideoUrl || undefined // Add embedded video URL if found
       });
 
       if (post) {
@@ -297,7 +577,7 @@ const FeedPage: React.FC = () => {
                 {(userProfile?.username || 'U')[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            
+
           </Link>
 
           {/* Center - HubX Logo */}
@@ -367,7 +647,7 @@ const FeedPage: React.FC = () => {
               </Avatar>
               <div className="flex-1 space-y-3">
                 <Textarea
-                  placeholder="What's happening?"
+                  placeholder="What's happening? You can paste a video link here too."
                   value={newPostContent}
                   onChange={(e) => setNewPostContent(e.target.value)}
                   className="min-h-[60px] bg-transparent border-none resize-none text-xl placeholder-gray-500 focus:ring-0"
@@ -488,7 +768,7 @@ const FeedPage: React.FC = () => {
                         {(post.creator?.username || 'A')[0].toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    
+
                   </Link>
 
                   <div className="flex-1 min-w-0">
@@ -515,7 +795,8 @@ const FeedPage: React.FC = () => {
                     </div>
 
                     <div className="mb-3">
-                      <p className="text-white text-[15px] leading-5">{post.content}</p>
+                      {/* Use renderPostContent here */}
+                      {renderPostContent(post.content)}
 
                       {post.media_url && (
                         <div className="mt-3 rounded-2xl overflow-hidden border border-gray-800">
@@ -654,6 +935,7 @@ const FeedPage: React.FC = () => {
             size="sm" 
             className="flex-1 text-white hover:bg-gray-800 py-3"
             data-testid="nav-home"
+            onClick={() => navigate('/')}
           >
             <div className="flex flex-col items-center space-y-1">
               <Home className="w-5 h-5" />
@@ -665,6 +947,7 @@ const FeedPage: React.FC = () => {
             size="sm" 
             className="flex-1 text-gray-500 hover:bg-gray-800 hover:text-white py-3"
             data-testid="nav-search"
+            onClick={() => navigate('/search')}
           >
             <div className="flex flex-col items-center space-y-1">
               <Search className="w-5 h-5" />
@@ -676,6 +959,7 @@ const FeedPage: React.FC = () => {
             size="sm" 
             className="flex-1 text-gray-500 hover:bg-gray-800 hover:text-white py-3"
             data-testid="nav-music"
+            onClick={() => navigate('/notifications')}
           >
             <div className="flex flex-col items-center space-y-1">
               <Bell className="w-5 h-5" />
@@ -687,6 +971,7 @@ const FeedPage: React.FC = () => {
             size="sm" 
             className="flex-1 text-gray-500 hover:bg-gray-800 hover:text-white py-3"
             data-testid="nav-premium"
+            onClick={() => navigate('/premium')}
           >
             <div className="flex flex-col items-center space-y-1">
               <CreditCard className="w-5 h-5" />
@@ -698,6 +983,7 @@ const FeedPage: React.FC = () => {
             size="sm" 
             className="flex-1 text-gray-500 hover:bg-gray-800 hover:text-white py-3"
             data-testid="nav-messages"
+            onClick={() => navigate('/messages')}
           >
             <div className="flex flex-col items-center space-y-1">
               <Mail className="w-5 h-5" />
@@ -716,7 +1002,7 @@ const FeedPage: React.FC = () => {
               window.scrollTo({ top: 0, behavior: 'smooth' });
               // Focus on post textarea after scroll
               setTimeout(() => {
-                const textarea = document.querySelector('textarea[placeholder="What\'s happening?"]') as HTMLTextAreaElement;
+                const textarea = document.querySelector('textarea[placeholder="What\'s happening? You can paste a video link here too."]') as HTMLTextAreaElement;
                 if (textarea) {
                   textarea.focus();
                 }
@@ -732,7 +1018,7 @@ const FeedPage: React.FC = () => {
         </div>
       )}
 
-      
+
     </div>
   );
 };
