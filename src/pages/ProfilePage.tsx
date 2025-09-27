@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Navigate, Link } from 'react-router-dom';
+import { useParams, Navigate, Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Bell, DollarSign, MoreHorizontal, MessageCircle, UserPlus, CheckCircle, Camera, Play, List, Heart, Upload, Share, Star, Repeat2, Image as ImageIcon, Video, Globe, Lock } from 'lucide-react';
+import { ArrowLeft, Bell, DollarSign, MoreHorizontal, MessageCircle, UserPlus, CheckCircle, Camera, Play, List, Heart, Upload, Share, Star, Repeat2, Image as ImageIcon, Video, Globe, Lock, Eye, ThumbsUp, Crown } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -76,6 +76,13 @@ const ProfilePage = () => {
   const [newPostPrivacy, setNewPostPrivacy] = useState('public');
   const [isPostingLoading, setIsPostingLoading] = useState(false);
 
+  // Post editing state
+  const [editingPost, setEditingPost] = useState<Post | null>(null);
+  const [isEditPostModalOpen, setIsEditPostModalOpen] = useState(false);
+  const [editPostContent, setEditPostContent] = useState('');
+  const [editPostPrivacy, setEditPostPrivacy] = useState('public');
+  const [isEditingLoading, setIsEditingLoading] = useState(false);
+
   // Edit profile state
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editBio, setEditBio] = useState('');
@@ -90,9 +97,330 @@ const ProfilePage = () => {
   // Share profile state
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
+  // Video pagination state
+  const [showMoreVideos, setShowMoreVideos] = useState(false);
+  const [showMorePremiumVideos, setShowMorePremiumVideos] = useState(false);
+
   // Determine if viewing own profile
   const [currentUserUsername, setCurrentUserUsername] = useState<string | null>(null);
   const isOwnProfile = !username || (currentUserUsername && username === currentUserUsername);
+
+  // Function to detect and embed video links in post content
+  const renderPostContent = (content: string) => {
+    // Enhanced regex patterns for different video URLs including internal video links
+    const videoPatterns = [
+      /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+      /(?:https?:\/\/)?(?:www\.)?vimeo\.com\/(\d+)/,
+      /https?:\/\/[^\s]+\.(mp4|webm|ogg)(\?[^\s]*)?/i,
+      // Internal video links - matches /video/{id} or site.com/video/{id}
+      /(?:https?:\/\/[^\/\s]+)?\/video\/([a-f0-9\-]{36})/i,
+      // Premium video links
+      /(?:https?:\/\/[^\/\s]+)?\/premium\/video\/([a-f0-9\-]{36})/i,
+      // Moments links
+      /(?:https?:\/\/[^\/\s]+)?\/moments\?start=([a-f0-9\-]{36})/i
+    ];
+
+    const lines = content.split('\n');
+    const processedContent = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      let hasVideo = false;
+      
+      // Check each video pattern
+      for (const pattern of videoPatterns) {
+        const match = line.match(pattern);
+        if (match) {
+          hasVideo = true;
+          const originalUrl = match[0];
+          
+          // Get text before and after the URL
+          const textBefore = line.substring(0, match.index);
+          const textAfter = line.substring((match.index || 0) + match[0].length);
+          
+          // Add text before URL first
+          if (textBefore.trim()) {
+            processedContent.push(
+              <p key={`text-before-${i}`} className="text-white text-[15px] leading-5">
+                {textBefore.trim()}
+              </p>
+            );
+          }
+          
+          // Then add the video embed based on type
+          // Internal video links (regular videos)
+          if (originalUrl.includes('/video/') && !originalUrl.includes('/premium/')) {
+            const videoId = match[1];
+            processedContent.push(
+              <InternalVideoEmbed 
+                key={`internal-video-${i}`} 
+                videoId={videoId} 
+                originalUrl={originalUrl}
+                type="video"
+              />
+            );
+          }
+          // Internal premium video links
+          else if (originalUrl.includes('/premium/video/')) {
+            const videoId = match[1];
+            processedContent.push(
+              <InternalVideoEmbed 
+                key={`premium-video-${i}`} 
+                videoId={videoId} 
+                originalUrl={originalUrl}
+                type="premium"
+              />
+            );
+          }
+          // Internal moments links
+          else if (originalUrl.includes('/moments?start=')) {
+            const videoId = match[1];
+            processedContent.push(
+              <InternalVideoEmbed 
+                key={`moment-video-${i}`} 
+                videoId={videoId} 
+                originalUrl={originalUrl}
+                type="moment"
+              />
+            );
+          }
+          // YouTube embedding
+          else if (match[0].includes('youtube.com') || match[0].includes('youtu.be')) {
+            const videoId = match[1];
+            processedContent.push(
+              <div key={`video-${i}`} className="my-3">
+                <div className="aspect-video rounded-lg overflow-hidden bg-gray-800">
+                  <iframe
+                    src={`https://www.youtube.com/embed/${videoId}`}
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                    title="YouTube video"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            );
+          }
+          // Vimeo embedding  
+          else if (match[0].includes('vimeo.com')) {
+            const videoId = match[1];
+            processedContent.push(
+              <div key={`video-${i}`} className="my-3">
+                <div className="aspect-video rounded-lg overflow-hidden bg-gray-800">
+                  <iframe
+                    src={`https://player.vimeo.com/video/${videoId}`}
+                    className="w-full h-full"
+                    frameBorder="0"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowFullScreen
+                    title="Vimeo video"
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            );
+          }
+          // Direct video file URLs
+          else {
+            processedContent.push(
+              <div key={`video-${i}`} className="my-3">
+                <div className="rounded-lg overflow-hidden bg-gray-800">
+                  <video
+                    src={originalUrl}
+                    controls
+                    className="w-full h-auto max-h-96 object-cover"
+                    preload="metadata"
+                  />
+                </div>
+              </div>
+            );
+          }
+          
+          // Finally add text after URL
+          if (textAfter.trim()) {
+            processedContent.push(
+              <p key={`text-after-${i}`} className="text-white text-[15px] leading-5">
+                {textAfter.trim()}
+              </p>
+            );
+          }
+          break;
+        }
+      }
+      
+      // If no video found, render as regular text
+      if (!hasVideo && line.trim()) {
+        processedContent.push(
+          <p key={`text-${i}`} className="text-white text-[15px] leading-5">
+            {line}
+          </p>
+        );
+      }
+    }
+
+    return processedContent.length > 0 ? processedContent : (
+      <p className="text-white text-[15px] leading-5">{content}</p>
+    );
+  };
+
+  // Component for internal video embeds with thumbnail and navigation
+  const InternalVideoEmbed: React.FC<{ 
+    videoId: string; 
+    originalUrl: string; 
+    type: 'video' | 'premium' | 'moment' 
+  }> = ({ videoId, originalUrl, type }) => {
+    const [videoData, setVideoData] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+      const fetchVideoData = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('videos')
+            .select(`
+              id, title, thumbnail_url, duration, views, likes, 
+              is_premium, is_moment,
+              profiles:owner_id (username, avatar_url, full_name)
+            `)
+            .eq('id', videoId)
+            .single();
+
+          if (!error && data) {
+            setVideoData(data);
+          }
+        } catch (error) {
+          console.error('Error fetching video data:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      fetchVideoData();
+    }, [videoId]);
+
+    const handleVideoClick = () => {
+      if (type === 'premium') {
+        navigate(`/premium/video/${videoId}`);
+      } else if (type === 'moment') {
+        navigate(`/moments?start=${videoId}`);
+      } else {
+        navigate(`/video/${videoId}`);
+      }
+    };
+
+    if (loading) {
+      return (
+        <div className="my-3">
+          <div className="bg-gray-800 rounded-lg p-4 animate-pulse">
+            <div className="aspect-video bg-gray-700 rounded mb-3"></div>
+            <div className="h-4 bg-gray-700 rounded mb-2"></div>
+            <div className="h-3 bg-gray-700 rounded w-2/3"></div>
+          </div>
+        </div>
+      );
+    }
+
+    if (!videoData) {
+      return (
+        <div className="my-3">
+          <div className="bg-gray-800 rounded-lg p-4">
+            <a 
+              href={originalUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-purple-400 hover:text-purple-300 break-all"
+            >
+              {originalUrl}
+            </a>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="my-3">
+        <div 
+          className="bg-gray-900 rounded-lg overflow-hidden cursor-pointer hover:bg-gray-800 transition-colors border border-gray-700"
+          onClick={handleVideoClick}
+        >
+          {/* Video Thumbnail */}
+          <div className="relative aspect-video bg-gray-800">
+            <img
+              src={videoData.thumbnail_url || 'https://images.unsplash.com/photo-1649972904349-6e44c42644a7?w=400&h=300&fit=crop'}
+              alt={videoData.title}
+              className="w-full h-full object-cover"
+            />
+            
+            {/* Play Button Overlay */}
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+              <div className="w-16 h-16 bg-purple-600 rounded-full flex items-center justify-center">
+                <Play className="w-8 h-8 text-white ml-1" />
+              </div>
+            </div>
+            
+            {/* Duration */}
+            <div className="absolute bottom-2 right-2 bg-black/80 text-white text-xs px-2 py-1 rounded">
+              {videoData.duration || '0:00'}
+            </div>
+            
+            {/* Video Type Badges */}
+            {type === 'premium' && (
+              <div className="absolute top-2 left-2">
+                <Badge className="bg-gradient-to-r from-yellow-500 to-orange-500 text-black text-xs font-bold">
+                  <Crown className="w-3 h-3 mr-1" />
+                  Premium
+                </Badge>
+              </div>
+            )}
+            
+            {type === 'moment' && (
+              <div className="absolute top-2 left-2">
+                <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white text-xs font-bold">
+                  Moment
+                </Badge>
+              </div>
+            )}
+          </div>
+          
+          {/* Video Info */}
+          <div className="p-3">
+            <h3 className="text-white font-medium line-clamp-2 mb-2">{videoData.title}</h3>
+            
+            <div className="flex items-center justify-between text-sm text-gray-400">
+              <div className="flex items-center space-x-1">
+                {videoData.profiles?.avatar_url && (
+                  <img 
+                    src={videoData.profiles.avatar_url} 
+                    alt={videoData.profiles.username}
+                    className="w-4 h-4 rounded-full"
+                  />
+                )}
+                <span>{videoData.profiles?.full_name || videoData.profiles?.username || 'Unknown'}</span>
+              </div>
+              
+              <div className="flex items-center space-x-4">
+                <span className="flex items-center">
+                  <Eye className="w-3 h-3 mr-1" />
+                  {(videoData.views || 0).toLocaleString()}
+                </span>
+                <span className="flex items-center">
+                  <ThumbsUp className="w-3 h-3 mr-1" />
+                  {videoData.likes || 0}
+                </span>
+              </div>
+            </div>
+            
+            <div className="mt-2 text-xs text-purple-400">
+              Click to watch • {type === 'premium' ? 'Premium Video' : type === 'moment' ? 'Moment' : 'Video'}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     const fetchCurrentUserUsername = async () => {
@@ -180,7 +508,7 @@ const ProfilePage = () => {
                   .select('*')
                   .eq('owner_id', targetUserId)
                   .order('created_at', { ascending: false })
-                  .limit(20); // Limit initial load
+                  .limit(50); // Load more videos for pagination
 
                 setUploadedVideos(videos || []);
 
@@ -296,6 +624,69 @@ const ProfilePage = () => {
       console.error('Error creating post:', error);
     } finally {
       setIsPostingLoading(false);
+    }
+  };
+
+  const handleEditPost = (post: Post) => {
+    setEditingPost(post);
+    setEditPostContent(post.content || '');
+    setEditPostPrivacy(post.privacy || 'public');
+    setIsEditPostModalOpen(true);
+  };
+
+  const handleUpdatePost = async () => {
+    if (!editingPost || !editPostContent.trim()) return;
+
+    setIsEditingLoading(true);
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({
+          content: editPostContent,
+          privacy: editPostPrivacy,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', editingPost.id);
+
+      if (!error) {
+        // Update the posts list
+        setPosts(posts.map(post => 
+          post.id === editingPost.id 
+            ? { ...post, content: editPostContent, privacy: editPostPrivacy }
+            : post
+        ));
+        // Reset form
+        setEditingPost(null);
+        setEditPostContent('');
+        setEditPostPrivacy('public');
+        setIsEditPostModalOpen(false);
+      } else {
+        console.error('Error updating post:', error);
+      }
+    } catch (error) {
+      console.error('Error updating post:', error);
+    } finally {
+      setIsEditingLoading(false);
+    }
+  };
+
+  const handleDeletePost = async (postId: string) => {
+    if (!confirm('Are you sure you want to delete this post?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', postId);
+
+      if (!error) {
+        // Remove the post from the list
+        setPosts(posts.filter(post => post.id !== postId));
+      } else {
+        console.error('Error deleting post:', error);
+      }
+    } catch (error) {
+      console.error('Error deleting post:', error);
     }
   };
 
@@ -648,7 +1039,7 @@ const ProfilePage = () => {
                         <h3 className="text-lg font-semibold text-white">Moments</h3>
                         <Badge className="bg-gradient-to-r from-pink-500 to-purple-600 text-white">Short Videos</Badge>
                       </div>
-                      <Link to={`/profile/${profile.username}/moments`}>
+                      <Link to={`/moments/${profile.username}`}>
                         <Button variant="outline" size="sm" className="text-pink-400 border-pink-400 hover:bg-pink-400 hover:text-white">
                           View All
                         </Button>
@@ -719,26 +1110,29 @@ const ProfilePage = () => {
                       <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">Premium</Badge>
                     </div>
                     <OptimizedVideoGrid 
-                      videos={uploadedVideos.filter(video => video.is_premium && !video.is_moment).map(video => ({
-                        id: video.id,
-                        title: video.title,
-                        description: video.description,
-                        thumbnail_url: video.thumbnail_url,
-                        preview_url: video.preview_url,
-                        video_url: video.video_url,
-                        duration: video.duration || '0:00',
-                        views: video.views || 0,
-                        likes: video.likes || 0,
-                        tags: video.tags || [],
-                        created_at: video.created_at,
-                        is_premium: video.is_premium,
-                        uploader_username: profile.username,
-                        uploader_name: profile.full_name || profile.username,
-                        uploader_avatar: profile.avatar_url,
-                        uploader_type: profile.user_type as any,
-                        uploader_id: profile.id,
-                        owner_id: video.owner_id
-                      }))}
+                      videos={uploadedVideos
+                        .filter(video => video.is_premium && !video.is_moment)
+                        .slice(0, showMorePremiumVideos ? 40 : 20)
+                        .map(video => ({
+                          id: video.id,
+                          title: video.title,
+                          description: video.description,
+                          thumbnail_url: video.thumbnail_url,
+                          preview_url: video.preview_url,
+                          video_url: video.video_url,
+                          duration: video.duration || '0:00',
+                          views: video.views || 0,
+                          likes: video.likes || 0,
+                          tags: video.tags || [],
+                          created_at: video.created_at,
+                          is_premium: video.is_premium,
+                          uploader_username: profile.username,
+                          uploader_name: profile.full_name || profile.username,
+                          uploader_avatar: profile.avatar_url,
+                          uploader_type: profile.user_type as any,
+                          uploader_id: profile.id,
+                          owner_id: video.owner_id
+                        }))}
                       viewMode="grid"
                       showAds={false}
                       showMoments={false}
@@ -746,6 +1140,19 @@ const ProfilePage = () => {
                       showTags={true}
                       showDate={false}
                     />
+                    {uploadedVideos.filter(video => video.is_premium && !video.is_moment).length > 20 && (
+                      <div className="flex justify-center mt-6">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-purple-500 border-purple-500 hover:bg-purple-500 hover:text-white"
+                          onClick={() => setShowMorePremiumVideos(!showMorePremiumVideos)}
+                          data-testid="button-toggle-premium-videos"
+                        >
+                          {showMorePremiumVideos ? 'Show Less' : 'Show More'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -758,26 +1165,29 @@ const ProfilePage = () => {
                       <Badge variant="secondary" className="bg-gray-700 text-white">Free</Badge>
                     </div>
                     <OptimizedVideoGrid 
-                      videos={uploadedVideos.filter(video => !video.is_premium && !video.is_moment).map(video => ({
-                        id: video.id,
-                        title: video.title,
-                        description: video.description,
-                        thumbnail_url: video.thumbnail_url,
-                        preview_url: video.preview_url,
-                        video_url: video.video_url,
-                        duration: video.duration || '0:00',
-                        views: video.views || 0,
-                        likes: video.likes || 0,
-                        tags: video.tags || [],
-                        created_at: video.created_at,
-                        is_premium: video.is_premium,
-                        uploader_username: profile.username,
-                        uploader_name: profile.full_name || profile.username,
-                        uploader_avatar: profile.avatar_url,
-                        uploader_type: profile.user_type as any,
-                        uploader_id: profile.id,
-                        owner_id: video.owner_id
-                      }))}
+                      videos={uploadedVideos
+                        .filter(video => !video.is_premium && !video.is_moment)
+                        .slice(0, showMoreVideos ? 40 : 20)
+                        .map(video => ({
+                          id: video.id,
+                          title: video.title,
+                          description: video.description,
+                          thumbnail_url: video.thumbnail_url,
+                          preview_url: video.preview_url,
+                          video_url: video.video_url,
+                          duration: video.duration || '0:00',
+                          views: video.views || 0,
+                          likes: video.likes || 0,
+                          tags: video.tags || [],
+                          created_at: video.created_at,
+                          is_premium: video.is_premium,
+                          uploader_username: profile.username,
+                          uploader_name: profile.full_name || profile.username,
+                          uploader_avatar: profile.avatar_url,
+                          uploader_type: profile.user_type as any,
+                          uploader_id: profile.id,
+                          owner_id: video.owner_id
+                        }))}
                       viewMode="grid"
                       showAds={false}
                       showMoments={false}
@@ -785,6 +1195,19 @@ const ProfilePage = () => {
                       showTags={true}
                       showDate={false}
                     />
+                    {uploadedVideos.filter(video => !video.is_premium && !video.is_moment).length > 20 && (
+                      <div className="flex justify-center mt-6">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="text-purple-500 border-purple-500 hover:bg-purple-500 hover:text-white"
+                          onClick={() => setShowMoreVideos(!showMoreVideos)}
+                          data-testid="button-toggle-regular-videos"
+                        >
+                          {showMoreVideos ? 'Show Less' : 'Show More'}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -824,13 +1247,42 @@ const ProfilePage = () => {
                               · {formatDistanceToNow(new Date(post.created_at), { addSuffix: false })}
                             </span>
                           </div>
-                          <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-800 hover:text-white p-1 flex-shrink-0">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
+                          {isOwnProfile && (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-gray-500 hover:bg-gray-800 hover:text-white p-1 flex-shrink-0" data-testid="button-post-menu">
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="bg-gray-950 border-gray-800 text-white max-w-sm">
+                                <DialogHeader>
+                                  <DialogTitle className="text-white">Post Options</DialogTitle>
+                                </DialogHeader>
+                                <div className="space-y-2">
+                                  <Button 
+                                    variant="ghost" 
+                                    className="w-full justify-start text-white hover:bg-gray-800" 
+                                    onClick={() => handleEditPost(post)}
+                                    data-testid={`button-edit-post-${post.id}`}
+                                  >
+                                    Edit Post
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    className="w-full justify-start text-red-400 hover:bg-gray-800" 
+                                    onClick={() => handleDeletePost(post.id)}
+                                    data-testid={`button-delete-post-${post.id}`}
+                                  >
+                                    Delete Post
+                                  </Button>
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          )}
                         </div>
 
                         <div className="mb-3">
-                          <p className="text-white text-[15px] leading-5">{post.content}</p>
+                          <div className="text-white text-[15px] leading-5" data-testid={`post-content-${post.id}`}>{renderPostContent(post.content)}</div>
 
                           {post.media_url && (
                             <div className="mt-3 rounded-2xl overflow-hidden border border-gray-800">
@@ -1067,6 +1519,79 @@ const ProfilePage = () => {
                     📎 {newPostMedia.name}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Post Modal */}
+      <Dialog open={isEditPostModalOpen} onOpenChange={setIsEditPostModalOpen}>
+        <DialogContent className="bg-gray-950 border-gray-800 text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white">Edit Post</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex space-x-3">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={profile.avatar_url || ''} />
+                <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                  {(profile.username || 'U')[0].toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 space-y-3">
+                <Textarea
+                  placeholder="What's happening?"
+                  value={editPostContent}
+                  onChange={(e) => setEditPostContent(e.target.value)}
+                  className="min-h-[120px] bg-transparent border-gray-700 resize-none text-base placeholder-gray-500 focus:ring-1 focus:ring-purple-500"
+                  data-testid="textarea-edit-post-content"
+                />
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <Select value={editPostPrivacy} onValueChange={setEditPostPrivacy}>
+                      <SelectTrigger className="w-auto border-gray-700 bg-transparent text-purple-500">
+                        <Globe className="h-4 w-4 mr-1" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="public">
+                          <div className="flex items-center gap-2">
+                            <Globe className="h-4 w-4" />
+                            Everyone can reply
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="private">
+                          <div className="flex items-center gap-2">
+                            <Lock className="h-4 w-4" />
+                            Private
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex space-x-2">
+                    <Button 
+                      onClick={() => setIsEditPostModalOpen(false)}
+                      variant="ghost"
+                      className="text-gray-400 hover:text-white"
+                      data-testid="button-cancel-edit-post"
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleUpdatePost}
+                      disabled={isEditingLoading || !editPostContent.trim()}
+                      className="bg-purple-500 hover:bg-purple-600 text-white font-bold px-6 py-1.5 rounded-full disabled:opacity-50"
+                      data-testid="button-update-post"
+                    >
+                      {isEditingLoading ? 'Updating...' : 'Update'}
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
