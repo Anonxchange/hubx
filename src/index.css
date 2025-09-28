@@ -116,6 +116,108 @@
   scroll-snap-align: start;
 }
 
+/* Enhanced responsive utilities */
+.container-fluid {
+  @apply w-full px-2 sm:px-4 md:px-6 lg:px-8 xl:px-12;
+}
+
+.text-responsive-xs {
+  @apply text-xs sm:text-sm md:text-base;
+}
+
+.text-responsive-sm {
+  @apply text-sm sm:text-base md:text-lg;
+}
+
+.text-responsive-base {
+  @apply text-base sm:text-lg md:text-xl;
+}
+
+.text-responsive-lg {
+  @apply text-lg sm:text-xl md:text-2xl lg:text-3xl;
+}
+
+.text-responsive-xl {
+  @apply text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl;
+}
+
+.spacing-responsive {
+  @apply space-y-2 sm:space-y-3 md:space-y-4 lg:space-y-6;
+}
+
+.padding-responsive {
+  @apply p-2 sm:p-3 md:p-4 lg:p-6 xl:p-8;
+}
+
+.margin-responsive {
+  @apply m-2 sm:m-3 md:m-4 lg:m-6 xl:m-8;
+}
+
+.grid-responsive-auto {
+  @apply grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6;
+}
+
+.gap-responsive {
+  @apply gap-2 sm:gap-3 md:gap-4 lg:gap-6;
+}
+
+/* Button responsive sizes */
+.btn-responsive-sm {
+  @apply h-8 px-2 text-xs sm:h-9 sm:px-3 sm:text-sm md:h-10 md:px-4 md:text-base;
+}
+
+.btn-responsive {
+  @apply h-9 px-3 text-sm sm:h-10 sm:px-4 sm:text-base md:h-11 md:px-6 md:text-lg;
+}
+
+/* Avatar responsive sizes */
+.avatar-responsive-sm {
+  @apply h-6 w-6 sm:h-8 sm:w-8 md:h-10 md:w-10;
+}
+
+.avatar-responsive {
+  @apply h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 lg:h-14 lg:w-14;
+}
+
+.avatar-responsive-lg {
+  @apply h-12 w-12 sm:h-16 sm:w-16 md:h-20 md:w-20 lg:h-24 lg:w-24;
+}
+
+/* Mobile-first navigation */
+.nav-responsive {
+  @apply flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4;
+}
+
+/* Card responsive */
+.card-responsive {
+  @apply w-full rounded-lg p-3 sm:p-4 md:p-6;
+}
+
+/* Video grid responsive */
+.video-grid-responsive {
+  @apply grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-2 sm:gap-3 md:gap-4 lg:gap-6;
+}
+
+/* Feed layout responsive */
+.feed-responsive {
+  @apply max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl xl:max-w-5xl mx-auto px-2 sm:px-4;
+}
+
+/* Header responsive */
+.header-responsive {
+  @apply px-2 sm:px-4 md:px-6 py-2 sm:py-3 md:py-4;
+}
+
+/* Modal responsive */
+.modal-responsive {
+  @apply w-[95vw] max-w-[95vw] sm:w-[90vw] sm:max-w-md md:max-w-lg lg:max-w-xl xl:max-w-2xl;
+}
+
+/* Input responsive */
+.input-responsive {
+  @apply h-9 text-sm sm:h-10 sm:text-base md:h-11 md:text-lg px-2 sm:px-3 md:px-4;
+}
+
   .gradient-overlay {
     background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 100%);
   }
