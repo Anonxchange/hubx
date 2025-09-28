@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
-import { profileService } from '@/services/profileService';
+import { profileService, ProfileData } from '@/services/profileService';
 
 export type UserType = 'user' | 'individual_creator' | 'studio_creator';
 
@@ -27,6 +27,7 @@ interface AuthError {
 interface AuthContextType {
   user: UserProfileData | null;
   userType: UserType | null;
+  userProfile: ProfileData | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, userType: UserType) => Promise<{ error: AuthError | null }>;
   signIn: (email: string, password: string, selectedUserType?: UserType, twoFactorCode?: string) => Promise<{ error: AuthError | null; requires2FA?: boolean }>;
@@ -84,6 +85,7 @@ const clearCachedUser = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<UserProfileData | null>(null);
   const [userType, setUserType] = useState<UserType | null>(null);
+  const [userProfile, setUserProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const userRef = useRef<UserProfileData | null>(null);
 
@@ -93,10 +95,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   // Helper to update user state and cache in localStorage
-  const setUserAndCache = useCallback((userData: UserProfileData | null, userType: UserType | null) => {
+  const setUserAndCache = useCallback(async (userData: UserProfileData | null, userType: UserType | null) => {
     setUser(userData);
     setUserType(userType);
     setCachedUser(userData, userType);
+
+    // Fetch and set user profile
+    if (userData?.id) {
+      try {
+        const profile = await profileService.getProfile(userData.id);
+        setUserProfile(profile);
+      } catch (error) {
+        console.error('Error fetching user profile:', error);
+        setUserProfile(null);
+      }
+    } else {
+      setUserProfile(null);
+    }
 
     // Update session cache immediately
     sessionCache = {
@@ -261,6 +276,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (cachedData?.user && cachedData?.userType) {
           setUser(cachedData.user);
           setUserType(cachedData.userType);
+          // Try to fetch profile for cached user
+          if (cachedData.user?.id) {
+            profileService.getProfile(cachedData.user.id).then(profile => {
+              setUserProfile(profile);
+            }).catch(error => {
+              console.error('Error fetching cached user profile:', error);
+              setUserProfile(null);
+            });
+          }
           setLoading(false);
           initialized = true;
           
@@ -378,6 +402,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setUserType(null);
+        setUserProfile(null);
         clearCachedUser();
         sessionCache = null;
         setLoading(false);
@@ -609,6 +634,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await supabase.auth.signOut();
       setUser(null);
       setUserType(null);
+      setUserProfile(null);
       clearCachedUser();
       sessionCache = null; // Clear session cache on sign out
     } catch (error) {
@@ -640,6 +666,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <AuthContext.Provider value={{
       user,
       userType,
+      userProfile,
       loading,
       signUp,
       signIn,
